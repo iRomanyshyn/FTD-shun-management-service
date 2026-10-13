@@ -1,0 +1,15 @@
+# Deployment-specific configuration may contain secrets. Commit only .env.example.
+.env
+.env.*
+!.env.example
+
+# Deployment-only identity files contain password hashes and must not be committed.
+deploy/authelia/users.yml
+deploy/devices.json
+
+# Local Python tooling artifacts.
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+*.egg-info/

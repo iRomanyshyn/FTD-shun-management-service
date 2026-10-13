@@ -1,17 +1,49 @@
 # FTD Shun Management Service
 
-Security-focused internal service for monitoring and managing Cisco Secure Firewall Threat Defense (FTD) `shun` entries.
+Security-focused internal service for monitoring and managing Cisco Secure Firewall Threat Defense (FTD) `shun` entries across multiple devices.
 
-This repository is currently in the design phase. The governing specification is the [Architecture and Security Design](docs/architecture-and-security-design.md).
+The governing specification is the [Architecture and Security Design](docs/architecture-and-security-design.md). The repository now contains the first Web/BFF and internal-state API increment, together with deployment assets and operational manuals.
 
 ## Design goals
 
 - Monitor, reconcile, and retain the history of active FTD shuns.
 - Allow operators to remove a specific shun through a secured web interface.
+- Support device-scoped removal and explicitly confirmed bulk removal across matched devices.
 - Prevent arbitrary Cisco CLI execution at every trust boundary.
 - Isolate the privileged SSH capability and Cisco credential material.
 - Use default-deny network segmentation and hardened containers.
+- Delegate user authentication to Authelia through Caddy ForwardAuth; start with local users and migrate to LDAP(S) when needed.
 
-## Status
+## Current implementation status
 
-No application code has been added yet. The next implementation work should follow the acceptance criteria and the preferred technology stack defined in the design document.
+- Web/BFF with Caddy/Authelia ForwardAuth trust boundary and CSRF protection.
+- Internal Unix-socket API backed by SQLite WAL state and append-only audit events.
+- Strict fixed binary protocol encoder/decoder for the future FTD agent boundary.
+- Device-scoped and explicitly confirmed bulk removal UI workflows.
+- Container deployment assets that publish only Caddy TCP/443.
+
+The privileged FTD SSH agent is not implemented in this increment. Production writes therefore fail closed until a verified agent is connected through its dedicated Unix socket.
+
+The detailed current state and planned sequence are maintained in the [Project Status](docs/project-status.md). Material engineering work is recorded chronologically in the [Development Log](docs/development-log.md).
+
+## Manuals
+
+- [Development](docs/manual/development.md)
+- [Deployment](docs/manual/deployment.md)
+- [Operations](docs/manual/operations.md)
+- [Project Status](docs/project-status.md)
+- [Development Log](docs/development-log.md)
+
+## Contributor record-keeping
+
+Follow the repository [working agreement](AGENTS.md). Every material change must update the current status, append a development-log entry, and update the applicable manual or architecture document.
+
+## Quick start for contributors
+
+```bash
+python3 -m venv .venv
+.venv/bin/pip install -e '.[dev]'
+.venv/bin/pytest
+```
+
+See the [Development Manual](docs/manual/development.md) for the controlled mock-agent workflow. Never use mock mode in a deployed environment.

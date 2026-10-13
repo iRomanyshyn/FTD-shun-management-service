@@ -1,0 +1,1 @@
+"""FTD shun management service."""

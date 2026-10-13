@@ -1,0 +1,7 @@
+users:
+  operator:
+    displayname: Example Operator
+    password: '$argon2id$v=19$m=65536,t=3,p=4$replace-with-a-generated-hash$replace-with-a-generated-hash'
+    email: operator@example.invalid
+    groups:
+      - ftd-shun-operators

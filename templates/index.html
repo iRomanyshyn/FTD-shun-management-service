@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Active shuns</h1>
+{% if shuns %}
+<table><thead><tr><th>IP address</th><th>Device hostname</th><th>Interface</th><th>First seen</th><th>Last seen</th><th>Action</th></tr></thead>
+<tbody>{% for shun in shuns %}<tr>
+<td><a href="/shuns/{{ shun.ip }}">{{ shun.ip }}</a></td><td>{{ shun.device_hostname }}</td><td>{{ shun.interface }}</td><td>{{ shun.first_seen_at }}</td><td>{{ shun.last_seen_at }}</td>
+<td>{% if 'Operator' in identity.roles or 'Administrator' in identity.roles %}<form method="post" action="/devices/{{ shun.device_id }}/shuns/{{ shun.ip }}/remove"><input type="hidden" name="csrf" value="{{ csrf_token }}"><button>Remove from this device</button></form>{% else %}Read-only{% endif %}</td>
+</tr>{% endfor %}</tbody></table>
+{% else %}<p>No active shuns are currently recorded.</p>{% endif %}
+{% endblock %}

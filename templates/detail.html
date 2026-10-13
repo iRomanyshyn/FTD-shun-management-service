@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Shun: {{ ip }}</h1>
+<p>The device-specific operation removes all verified matching interfaces on that device.</p>
+<ul>{% for shun in shuns %}<li>{{ shun.device_hostname }} — {{ shun.interface }} — seen {{ shun.first_seen_at }}{% if 'Operator' in identity.roles or 'Administrator' in identity.roles %}<form method="post" action="/devices/{{ shun.device_id }}/shuns/{{ ip }}/remove"><input type="hidden" name="csrf" value="{{ csrf_token }}"><button>Remove from this device</button></form>{% endif %}</li>{% endfor %}</ul>
+{% if shuns and ('Operator' in identity.roles or 'Administrator' in identity.roles) %}
+<h2>Remove from all listed devices</h2><form method="post" action="/shuns/{{ ip }}/remove-all"><input type="hidden" name="csrf" value="{{ csrf_token }}"><label>Type {{ ip }} to confirm <input name="confirm_ip" required></label><button>Remove from all devices</button></form>
+{% endif %}
+<h2>History</h2><ul>{% for event in events %}<li>{{ event.timestamp }} — {{ event.event_type }}{% if event.device_hostname %} — {{ event.device_hostname }}{% endif %}{% if event.actor_display_name %} — {{ event.actor_display_name }}{% endif %}</li>{% else %}<li>No recorded events.</li>{% endfor %}</ul>
+{% endblock %}

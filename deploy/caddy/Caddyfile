@@ -1,0 +1,19 @@
+{
+  auto_https disable_redirects
+}
+
+https://{$AUTH_HOST} {
+  reverse_proxy authelia:9091
+}
+
+https://{$FTD_SHUN_HOST} {
+  request_header -Remote-User
+  request_header -Remote-Groups
+  request_header -Remote-Email
+  request_header -Remote-Name
+  forward_auth authelia:9091 {
+    uri /api/authz/forward-auth?authelia_url=https://{$AUTH_HOST}/
+    copy_headers Remote-User Remote-Groups Remote-Email Remote-Name
+  }
+  reverse_proxy unix//run/ftd-shun-manager/web.sock
+}

@@ -1,0 +1,104 @@
+services:
+  socket-init:
+    image: alpine:3.21
+    command: ["/bin/sh", "-ec", "mkdir -p /web /api /agent && chown -R 10001:10001 /web /api /agent"]
+    volumes:
+      - web-run:/web
+      - api-run:/api
+      - agent-run:/agent
+    network_mode: none
+    read_only: true
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    cap_add: [CHOWN]
+    tmpfs: ["/tmp:rw,noexec,nosuid,nodev"]
+
+  caddy:
+    image: caddy:2.10.2-alpine
+    restart: unless-stopped
+    env_file: ../.env
+    ports:
+      - "${PUBLISH_ADDRESS}:443:443"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+      - web-run:/run/ftd-shun-manager:ro
+    networks: [edge]
+    read_only: true
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    tmpfs: ["/tmp:rw,noexec,nosuid,nodev"]
+
+  authelia:
+    image: authelia/authelia:4.39.15
+    restart: unless-stopped
+    env_file: ../.env
+    volumes:
+      - ./authelia/configuration.yml:/config/configuration.yml:ro
+      - ./authelia/users.yml:/config/users.yml:ro
+      - authelia-data:/var/lib/authelia
+    networks: [edge]
+    read_only: true
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    tmpfs: ["/tmp:rw,noexec,nosuid,nodev"]
+
+  web:
+    build: ..
+    restart: unless-stopped
+    env_file: ../.env
+    command: ["ftd-shun-web"]
+    environment:
+      FTD_SHUN_WEB_SOCKET: /run/ftd-shun-manager/web.sock
+      FTD_SHUN_API_SOCKET: /run/ftd-shun-manager-api/api.sock
+      FTD_SHUN_DEVELOPMENT_AUTH: "false"
+    volumes:
+      - web-run:/run/ftd-shun-manager
+      - api-run:/run/ftd-shun-manager-api:ro
+    depends_on:
+      socket-init:
+        condition: service_completed_successfully
+    network_mode: none
+    read_only: true
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    tmpfs: ["/tmp:rw,noexec,nosuid,nodev"]
+
+  api:
+    build: ..
+    restart: unless-stopped
+    env_file: ../.env
+    command: ["ftd-shun-api"]
+    environment:
+      FTD_SHUN_DATABASE: /var/lib/ftd-shun-manager/state.db
+      FTD_SHUN_DEVICE_INVENTORY: /etc/ftd-shun-manager/devices.json
+      FTD_SHUN_API_SOCKET: /run/ftd-shun-manager-api/api.sock
+      FTD_SHUN_AGENT_SOCKET: /run/ftd-shun-manager-agent/agent.sock
+      FTD_SHUN_AGENT_MODE: socket
+    volumes:
+      - api-run:/run/ftd-shun-manager-api
+      - agent-run:/run/ftd-shun-manager-agent
+      - state:/var/lib/ftd-shun-manager
+      - ./devices.json:/etc/ftd-shun-manager/devices.json:ro
+    depends_on:
+      socket-init:
+        condition: service_completed_successfully
+    network_mode: none
+    read_only: true
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    tmpfs: ["/tmp:rw,noexec,nosuid,nodev"]
+
+networks:
+  edge: {}
+
+volumes:
+  api-run: {}
+  web-run: {}
+  agent-run: {}
+  state: {}
+  caddy-data: {}
+  caddy-config: {}
+  authelia-data: {}

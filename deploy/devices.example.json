@@ -1,0 +1,9 @@
+[
+  {
+    "id": 1,
+    "hostname": "ftd-branch-01",
+    "management_ip": "10.50.1.10",
+    "ssh_host_key": "ssh-ed25519 REPLACE_WITH_PINNED_FTD_HOST_KEY",
+    "enabled": true
+  }
+]

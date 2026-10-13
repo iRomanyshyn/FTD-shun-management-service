@@ -2,7 +2,7 @@
 
 ## 1. Purpose
 
-Develop a small, security-focused internal service for monitoring and managing Cisco Secure Firewall Threat Defense (FTD) `shun` entries.
+Develop a small, security-focused internal service for monitoring and managing Cisco Secure Firewall Threat Defense (FTD) `shun` entries across multiple similar devices.
 
 The primary use case is Remote Access VPN Threat Detection, where legitimate or misbehaving users may cause their public IPv4 address to be automatically shunned by FTD.
 
@@ -18,6 +18,8 @@ The system must provide:
 - forwarding of logs to external log collectors;
 - a hardened low-level SSH interface to FTD;
 - strict prevention of arbitrary Cisco CLI execution through any exposed interface.
+
+Each configured device has an immutable internal ID, display hostname, and management IP address. The initial deployment may use one dedicated Cisco service account and SSH identity for every configured FTD, while host-key verification remains specific to each device.
 
 This is not intended to be a generic FTD management system, SSH proxy, terminal server, configuration management system, or command execution API.
 
@@ -149,6 +151,8 @@ Recommended architecture:
                             Cisco FTD
 ```
 
+During interactive sign-in, Caddy delegates authentication to Authelia using ForwardAuth. Authelia is outside the FTD trust path: it has no socket, credential, or network route to the REST API, FTD agent, or FTD management network.
+
 Only Caddy may publish a host TCP port.
 
 No other container may publish any host port.
@@ -157,7 +161,7 @@ No other container may publish any host port.
 
 # 5. Container Layout
 
-The deployment should consist of at least the following containers:
+The FTD service deployment should consist of at least the following containers:
 
 ```text
 caddy
@@ -165,6 +169,8 @@ web
 api
 ftd-agent
 ```
+
+Authentication is delegated to Authelia. It is an identity-system dependency, not a component trusted with FTD access: it must not receive an FTD credential, an agent socket, or network access to FTD management interfaces. The initial deployment uses Authelia's local file backend and SQLite; it may later switch to LDAPS without changing the FTD service authorization model.
 
 An optional credential/bootstrap helper may be implemented as an additional isolated component.
 
@@ -242,6 +248,8 @@ The web component must:
 - expose browser-facing UI functionality;
 - communicate with the REST API through a Unix Domain Socket or isolated internal channel.
 
+The Web/BFF has no network interface in the recommended deployment. It receives identity headers only from Caddy over its Unix Domain Socket and must not have a route to the Cisco management network.
+
 It should preferably act as a Backend-for-Frontend.
 
 The browser should not directly communicate with the low-level REST API.
@@ -287,6 +295,8 @@ It must not require:
 - arbitrary outbound connections.
 
 FTD management targets should therefore be configured by IP address.
+
+The agent maintains independent, pinned-host-key SSH session state for every configured FTD. A failure, parser error, or circuit-breaker state for one device must not prevent monitoring of the remaining devices.
 
 ---
 
@@ -336,7 +346,7 @@ The deployment documentation must clearly warn that changing the Cisco SSH acces
 
 # 8. Cisco SSH Identity
 
-A dedicated local Cisco FTD account must be created solely for this application.
+A dedicated local Cisco FTD account must be created solely for this application. For the initial multi-device deployment, the same account name and dedicated SSH keypair may be provisioned on every managed FTD to keep operations simple.
 
 Example logical identity:
 
@@ -358,6 +368,8 @@ SSH public-key authentication should be used.
 Password-based automation authentication should not be used.
 
 A dedicated SSH keypair must be generated exclusively for this service.
+
+This shared fleet identity is an intentional operational trade-off: compromise of its key would affect every FTD that accepts it. Cisco-side SSH source ACLs, strict per-device host-key pinning, and isolation of the agent are therefore mandatory on every managed device. A future deployment may split identities by device or device group without changing the Web/API authorization model.
 
 ---
 
@@ -540,24 +552,25 @@ Operations should use fixed binary messages.
 Example:
 
 ```text
-0x01                     LIST_SHUNS
-0x02 + 4-byte IPv4       GET_SHUN
-0x03 + 4-byte IPv4       REMOVE_SHUN
-0x04                     GET_RA_AUTH_STATUS
-0x05                     GET_RA_INIT_STATUS
-0x06                     HEALTH
+0x01 + 2-byte device ID                 LIST_SHUNS
+0x02 + 2-byte device ID + 4-byte IPv4   GET_SHUN
+0x03 + 2-byte device ID + 4-byte IPv4   REMOVE_SHUN
+0x04 + 2-byte device ID                 GET_RA_AUTH_STATUS
+0x05 + 2-byte device ID                 GET_RA_INIT_STATUS
+0x06 + 2-byte device ID                 HEALTH
 ```
 
 For example:
 
 ```text
-03 CB 00 71 11
+03 00 07 CB 00 71 11
 ```
 
 means:
 
 ```text
 operation = REMOVE_SHUN
+device ID = 7
 IPv4      = 203.0.113.17
 ```
 
@@ -570,7 +583,7 @@ Invalid packet lengths must cause rejection.
 For the example above:
 
 ```text
-expected packet length = 5 bytes
+expected packet length = 7 bytes
 ```
 
 Any other length must be rejected.
@@ -651,6 +664,8 @@ A single IP address must not be assumed to have only one shun entry.
 
 Cisco supports an IP being shunned on more than one interface.
 
+`device_id` must map to a configured device record containing its display hostname and management IP. The hostname is shown in every UI list and event view; the management IP is an implementation detail and must not be used as an authorization decision or display identity.
+
 Current-state fields should include:
 
 ```text
@@ -673,6 +688,20 @@ ACTIVE
 The current in-memory state is optimized for UI/API access.
 
 UI reads must not normally result in Cisco CLI calls.
+
+## 17.1 Device Inventory
+
+The managed device list is static configuration, not discovered from the network. Each record includes:
+
+```text
+device_id          stable numeric internal identifier
+hostname           operator-facing device name
+management_ip      IPv4 address used by the SSH agent
+ssh_host_key       pinned expected SSH host key or fingerprint
+enabled            whether the device is monitored
+```
+
+The device inventory is mounted read-only or otherwise managed as protected deployment configuration. It must be validated at startup: duplicate IDs, duplicate hostnames, malformed IP addresses, or a missing pinned host key prevent that device from entering READY state. One shared SSH service identity may be used for all records in this initial deployment, but the agent still maintains a separate authenticated session and health state per device.
 
 ---
 
@@ -858,11 +887,11 @@ Possible causes may include:
 
 # 25. Manual Removal Workflow
 
-When a user presses Remove in the UI:
+When a user requests removal from one device in the UI:
 
 ```text
 1. Authenticate and authorize user.
-2. Validate IPv4.
+2. Validate the configured device ID and IPv4.
 3. Create SHUN_REMOVE_REQUESTED event.
 4. Send fixed REMOVE_SHUN operation to agent.
 5. Agent executes fixed Cisco operation.
@@ -881,8 +910,11 @@ Fields include:
 
 ```text
 actor
+actor_subject
+actor_identity_provider
 source_address
 target_device
+target_device_hostname
 target_ip
 interface
 request_id
@@ -918,13 +950,23 @@ Cisco can maintain a shun for the same IP on more than one interface.
 
 The application must model this correctly.
 
-If the user requests:
+The normal UI operation is device-scoped. For example:
+
+```text
+Remove 203.0.113.17 from ftd-branch-01
+```
+
+It must be clear in the UI that this affects every positively identified matching interface on that one device when Cisco exposes only the interface-independent `no shun <IPv4>` operation. The UI must display the affected interface count and names before confirmation. A per-interface removal must not be offered unless a documented and safely implemented Cisco operation exists for it.
+
+The UI may also offer a separate bulk operation:
 
 ```text
 Remove all shuns for 203.0.113.17
 ```
 
-the agent must remove only entries that were positively identified.
+This means removal from all currently matched configured devices, not an unconstrained Cisco operation. Before dispatching writes, the Web/BFF must show the exact hostname and interface summary for each affected device and require an explicit confirmation of the IP address. The API creates one device-scoped removal request and audit result per target device, all tied to one parent request ID.
+
+In every removal flow, the agent must remove only entries that were positively identified.
 
 Interface strings obtained from Cisco output must never be blindly concatenated into a CLI command.
 
@@ -949,7 +991,8 @@ Suggested resources:
 GET    /api/v1/status
 GET    /api/v1/shuns
 GET    /api/v1/shuns/{ip}
-DELETE /api/v1/shuns/{ip}
+DELETE /api/v1/devices/{device_id}/shuns/{ip}
+POST   /api/v1/shuns/{ip}/remove-all
 
 GET    /api/v1/history
 GET    /api/v1/history/{ip}
@@ -959,6 +1002,8 @@ GET    /api/v1/threat-detection/client-initiations
 ```
 
 The API must never expose Cisco credentials or raw SSH functionality.
+
+`remove-all` is a semantic operation, not a command endpoint. Its request contains no Cisco CLI text and operates only on the matching configured device records returned by the current state snapshot.
 
 ---
 
@@ -995,18 +1040,11 @@ API-key support must not require exposing the REST API to the Internet.
 
 # 30. Web Authentication
 
-The web interface must require authentication before permitting write operations.
+The web interface must require Authelia authentication through Caddy ForwardAuth. The FTD service must not implement password authentication, LDAP bind authentication, or user-directory synchronization itself.
 
-The initial implementation may use a simple internal authentication mechanism.
+Authelia initially authenticates against its protected local user file. It may later authenticate against LDAP(S), Active Directory, or another directory supported by Authelia. Caddy must remove client-supplied `Remote-User`, `Remote-Groups`, `Remote-Email`, and `Remote-Name` headers before forwarding a request, then set them only from a successful Authelia ForwardAuth response.
 
-The architecture should allow future integration with:
-
-```text
-OIDC
-SAML
-LDAP
-reverse-proxy authentication
-```
+The Web/BFF accepts these headers only over its Caddy-owned Unix Domain Socket. It makes authorization decisions from the authenticated user and explicitly mapped groups or roles, never from a browser-supplied header or display name.
 
 Write permission should be separate from read-only permission.
 
@@ -1019,6 +1057,28 @@ Administrator
 ```
 
 Only Operator and Administrator may remove shuns.
+
+Suggested Authelia group mappings:
+
+```text
+ftd-shun-viewers       -> Viewer
+ftd-shun-operators     -> Operator
+ftd-shun-administrators -> Administrator
+```
+
+The immutable Authelia username, login/display name, and mapped role set must be retained with each write audit event.
+
+## Sensitive-Operation Reauthentication
+
+Removal of a shun requires a session no older than the configured maximum age. Authelia enforces this through its session expiration; when expired, Caddy redirects the user to log in again.
+
+The limit is deliberately operationally configurable rather than hard-coded:
+
+```text
+AUTH_SENSITIVE_ACTION_MAX_AGE=24h
+```
+
+One hour (`1h`) and one day (`24h`) are both supported practical policies. The default should be `24h`; a deployment that needs stronger assurance may set `1h`. This setting must be read from a protected, non-versioned `.env` file or equivalent secret/configuration mechanism and recorded in startup diagnostics without exposing other secrets.
 
 ---
 
@@ -1044,6 +1104,7 @@ Suggested columns:
 ```text
 IP Address
 Interface
+Device hostname
 First Seen
 Last Seen
 Age
@@ -1063,6 +1124,8 @@ reappeared
 
 Historical entries must remain searchable after removal.
 
+For every row, the primary action is **Remove from this device**. It opens a confirmation dialog showing the device hostname, IP, and affected interfaces. A separate **Remove from all devices** action is shown only on the IP detail page and uses the bulk confirmation workflow defined above.
+
 ---
 
 # 33. IP Detail View
@@ -1073,6 +1136,9 @@ Example:
 
 ```text
 203.0.113.17
+
+Affected device:
+ftd-branch-01
 
 Current state:
 ACTIVE
@@ -1415,9 +1481,12 @@ Example:
   "service": "ftd-shun-api",
   "event": "SHUN_REMOVED_BY_UI",
   "device": "ftd-main",
+  "device_hostname": "ftd-main.example.internal",
   "ip": "203.0.113.17",
   "interface": "outside",
-  "actor": "user@example",
+  "actor_subject": "oidc-subject-id",
+  "actor_display_name": "user@example",
+  "actor_roles": ["Operator"],
   "request_id": "..."
 }
 ```
@@ -1499,6 +1568,8 @@ Failure of the external log collector must not block normal shun monitoring.
 
 However, failed log delivery should itself generate a local operational event.
 
+SQLite is the local source of truth for the web UI, history, and audit trail. Structured JSON emitted to stdout is intentionally suitable for collection by the host/container runtime and forwarding to the organization's log-collection system. Optional direct RFC 5424 forwarding remains available where required.
+
 ---
 
 # 49. Request Correlation
@@ -1550,6 +1621,7 @@ Fields:
 
 ```text
 device_id
+device_hostname
 ip_binary
 interface
 active
@@ -1575,6 +1647,9 @@ ip_binary
 interface
 event_type
 actor
+actor_subject
+actor_identity_provider
+actor_roles_json
 source
 request_id
 details_json
@@ -1971,6 +2046,8 @@ The first production-ready release is accepted when all of the following are tru
 
 1. The Web UI displays the complete active `show shun` state from FTD.
 
+   The UI displays the configured device hostname for every active shun.
+
 2. UI page refreshes do not generate Cisco CLI queries.
 
 3. Newly observed entries receive a durable `first_seen_at`.
@@ -2019,6 +2096,12 @@ The first production-ready release is accepted when all of the following are tru
 
 25. No component exposes a generic shell, command or SSH execution interface.
 
+26. The service supports device-scoped removal and an explicitly confirmed bulk removal across matched configured devices, with one auditable result per device.
+
+27. Web authentication uses Authelia ForwardAuth; the application has no LDAP password-handling code.
+
+28. Removal requires a recent authentication within the configured `AUTH_SENSITIVE_ACTION_MAX_AGE` interval.
+
 ---
 
 # 72. Preferred Initial Technology Stack
@@ -2039,6 +2122,11 @@ Caddy
 
 Web/BFF:
 small server-side web application
+
+Authentication gateway:
+Authelia + Caddy ForwardAuth
+local file backend initially; LDAPS migration path
+SQLite storage and optional MFA configured in Authelia
 
 REST API:
 Python/FastAPI or Go
