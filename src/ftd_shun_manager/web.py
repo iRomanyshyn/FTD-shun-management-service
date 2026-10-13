@@ -75,7 +75,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             request, name, {**context, "csrf_token": token}, status_code=status_code
         )
         if set_cookie:
-            response.set_cookie("ftd_shun_csrf", token, secure=True, httponly=False, samesite="strict")
+            response.set_cookie("ftd_shun_csrf", token, secure=True, httponly=True, samesite="strict")
         return response
 
     @app.get("/healthz")

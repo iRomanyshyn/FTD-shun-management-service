@@ -397,11 +397,13 @@ The private key must not be:
 
 ---
 
-# 10. One-Time Key Bootstrap
+# 10. Current v1 Credential Model and Deferred One-Time Bootstrap
 
-The preferred design is that the running SSH agent does not have permanent filesystem access to the private key.
+The initial deployment intentionally uses one dedicated FTD account and one SSH key for the managed fleet. The key is delivered only to the non-root agent as a read-only runtime secret. It is not present in the image, environment, command line, API, database, logs, Web/BFF, or REST API.
 
-A bootstrap sequence should be implemented.
+This is the chosen v1 operational trade-off. It avoids additional credential-loader processes and separate reader/writer identities while preserving the important isolation boundaries: only the agent has the key and a route to FTD; FTD-side source-address restrictions and host egress policy remain mandatory.
+
+One-time bootstrap is a future hardening option, not a v1 release prerequisite. If adopted, the running SSH agent should not have permanent filesystem access to the private key.
 
 Example:
 
@@ -443,9 +445,9 @@ PR_SET_DUMPABLE=0
 RLIMIT_CORE=0
 ```
 
-Private-key buffers must support explicit zeroization.
+Private-key buffers must support explicit zeroization where the selected SSH library permits it. The v1 agent zeroizes the encoded secret buffer after key decoding and drops its parsed key object after the short-lived SSH operation completes.
 
-After successful SSH authentication:
+For a future one-time bootstrap implementation, after successful SSH authentication:
 
 ```text
 zeroize(private_key_buffer)
@@ -464,29 +466,15 @@ Rust is the preferred implementation language for the privileged agent.
 
 # 12. SSH Session Lifecycle
 
-Once the private key has been destroyed, the agent continues to use the already authenticated SSH transport.
+The v1 removal agent establishes a new SSH session for each semantic write and closes it after post-write verification. It does not retain an authenticated write session between user requests. This keeps the state model simple and lets each operation re-check the pinned host key.
 
-If that SSH connection is lost, the agent must not silently obtain the key again.
-
-Preferred behaviour:
-
-```text
-SSH connection lost
-        ↓
-agent enters FAILED state
-        ↓
-agent closes operational socket
-        ↓
-agent exits
-        ↓
-supervisor performs clean bootstrap/restart
-```
-
-This deliberately limits the lifetime of an exploited authenticated session.
+The future polling reader may use a persistent connection only after lab measurement demonstrates that reconnecting at the configured polling interval is unsuitable. A persistent reader must reconnect safely after loss and must never cause browser/API reads to trigger Cisco operations.
 
 ---
 
 # 13. Optional Reader/Writer Separation
+
+Reader/writer separation is not part of v1. The same isolated agent and fleet identity execute the small typed read/write operation set. This is an intentional simplicity decision, not an authorization boundary: FTD-side SSH source restrictions, host egress rules, pinned host keys, and the agent's fixed operations are mandatory.
 
 A stronger implementation may use two agents.
 
@@ -779,23 +767,28 @@ A future optional integration with Cisco syslog message `733201` may provide a m
 
 # 21. Polling and Reconciliation
 
-The FTD agent must periodically execute the fixed `show shun` operation.
+The FTD agent must periodically execute the fixed `show shun` operation through the background synchronizer.
 
-Recommended default:
-
-```text
-poll interval = 10 seconds
-```
-
-Configurable reasonable range:
+The v1 polling policy is configurable. Its default is:
 
 ```text
-5–300 seconds
+baseline poll interval = 5 minutes
 ```
 
-UI/API requests must not trigger new polling.
+The future implementation configuration names are:
 
-Polling is performed by the background synchronizer.
+```text
+FTD_SHUN_POLL_INTERVAL=5m
+FTD_SHUN_INTERACTIVE_REFRESH_MIN_INTERVAL=60s
+```
+
+The baseline interval must accept a practical range of `60s` to `24h`. The interactive minimum interval must not be lower than `60s`.
+
+An authenticated state-viewing Web/BFF request (list, detail, history, or future search) may notify the synchronizer that an interactive refresh is useful. This notification is a local scheduling hint, not a Cisco operation. It must never synchronously open SSH or delay the HTTP response for FTD output.
+
+At most one interactive refresh sweep may be queued globally within the configured interactive minimum interval. The synchronizer applies the same minimum interval to each individual enabled device. Repeated page loads, searches, multiple users, browser refreshes, and API flooding therefore cannot create a proportional number of FTD sessions.
+
+An interactive hint is considered only while there is active authenticated Web/BFF use. If there is no such activity, the service performs only the baseline polling schedule.
 
 Each successful poll produces a complete current snapshot.
 
@@ -1126,6 +1119,16 @@ reappeared
 ```
 
 Historical entries must remain searchable after removal.
+
+The page must display data freshness rather than imply that every page render is a live Cisco query. At minimum it shows:
+
+```text
+last successful refresh
+next baseline refresh countdown
+interactive refresh state: idle, queued, or rate-limited
+```
+
+The countdown may update in the browser, but its displayed state must originate from synchronizer metadata. If a device or snapshot is stale, unavailable, or has a parser error, the UI must make that condition visible.
 
 For every row, the primary action is **Remove from this device**. It opens a confirmation dialog showing the device hostname, IP, and affected interfaces. A separate **Remove from all devices** action is shown only on the IP detail page and uses the bulk confirmation workflow defined above.
 

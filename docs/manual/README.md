@@ -7,6 +7,7 @@ These manuals describe the first implementation increment. The service is safe t
 | [Development](development.md) | Local setup, test commands, and mock agent boundaries. |
 | [Deployment](deployment.md) | Caddy, Authelia, Unix sockets, secrets, and container layout. |
 | [Operations](operations.md) | Roles, removal workflow, logs, backup, health, and incident response. |
+| [FTD Laboratory Validation](ftd-lab-validation.md) | Controlled agent validation and parser-fixture collection before read polling. |
 | [Project Status](../project-status.md) | Implemented scope, explicit limitations, and next work. |
 | [Development Log](../development-log.md) | Chronological record of material engineering changes. |
 

@@ -4,7 +4,7 @@ Last updated: 2026-10-13
 
 ## Current increment
 
-**Foundation / agent-enabled lab implementation.** The repository provides the secured management-plane skeleton, local state, UI workflows, deployment layout, manuals, and an isolated privileged agent for verified device-scoped removal. It remains unsuitable for production until it completes FTD lab validation and gains polling/reconciliation.
+**Foundation / agent-enabled lab implementation.** The repository provides the secured management-plane skeleton, local state, UI workflows, deployment layout, manuals, and an isolated privileged agent for verified device-scoped removal. V1 deliberately uses one shared FTD service identity inside that isolated agent; reader/writer separation and one-time key bootstrap are deferred hardening options. The service remains unsuitable for production until it completes FTD lab validation and gains polling/reconciliation.
 
 ## Delivered
 
@@ -24,6 +24,7 @@ Last updated: 2026-10-13
 
 - Scheduled polling, FTD command parsing, reconciliation, and real shun collection are not implemented.
 - The supplied agent has not been exercised against a live FTD lab; production writes are not approved.
+- Egress restriction to configured FTD TCP/22 targets and the matching FTD SSH source ACL are mandatory deployment controls, but are environment-specific host/network configuration rather than Compose-enforced policy.
 - Agent RPC read operations and threat-detection counters are intentionally rejected until their typed result formats are designed and tested.
 - External JSON log shipping, Syslog forwarding, metrics, alerting, and production backup automation are not implemented.
 - The stack has not yet been exercised against a live FTD lab or production LDAP(S).
@@ -43,8 +44,8 @@ The foundation increment was checked with:
 
 ## Next work, in order
 
-1. Run the removal agent against a controlled FTD lab, recording sanitized command fixtures and all expected failure modes.
-2. Add typed list/read agent responses, polling, strict FTD output parsing, and reconciliation.
+1. Complete the [FTD laboratory validation](manual/ftd-lab-validation.md), recording sanitized command fixtures and all expected failure modes.
+2. Add typed list/read agent responses, strict FTD output parsing, and reconciliation; implement the configurable five-minute baseline poll plus activity-gated interactive refresh with a 60-second global/per-device minimum.
 3. Add agent/API failure-path integration tests, including host-key mismatch and private-socket peer checks.
 4. Add structured external logging, metrics, backups, retention procedures, and operator alerts.
 5. Test the full deployment with Caddy TLS, Authelia local users, LDAP(S), and a non-production FTD environment.

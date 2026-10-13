@@ -175,6 +175,11 @@ struct SshSession {
     handle: client::Handle<HostKeyVerifier>,
 }
 
+enum CiscoOperation {
+    ShowShun(Ipv4Addr),
+    RemoveShun { target: Ipv4Addr, interface: String },
+}
+
 impl SshSession {
     async fn connect(device: &Device, username: &str, private_key: russh::keys::PrivateKey) -> Result<Self> {
         let configuration = client::Config {
@@ -206,7 +211,7 @@ impl SshSession {
     }
 
     async fn show_shun(&mut self, target: Ipv4Addr) -> Result<String> {
-        self.execute(&format!("{SHOW_SHUN_PREFIX}{target}")).await
+        self.run(CiscoOperation::ShowShun(target)).await
     }
 
     async fn remove_shun(&mut self, target: Ipv4Addr, interface: &str) -> Result<()> {
@@ -214,7 +219,10 @@ impl SshSession {
             bail!("attempted to use an unsafe interface name");
         }
         let output = self
-            .execute(&format!("{REMOVE_SHUN_PREFIX}{target} interface {interface}"))
+            .run(CiscoOperation::RemoveShun {
+                target,
+                interface: interface.to_owned(),
+            })
             .await?;
         if output.len() > MAX_CISCO_OUTPUT_BYTES {
             bail!("FTD removal response exceeded the maximum size");
@@ -222,7 +230,13 @@ impl SshSession {
         Ok(())
     }
 
-    async fn execute(&mut self, command: &str) -> Result<String> {
+    async fn run(&mut self, operation: CiscoOperation) -> Result<String> {
+        let command = match operation {
+            CiscoOperation::ShowShun(target) => format!("{SHOW_SHUN_PREFIX}{target}"),
+            CiscoOperation::RemoveShun { target, interface } => {
+                format!("{REMOVE_SHUN_PREFIX}{target} interface {interface}")
+            }
+        };
         let mut channel = self.handle.channel_open_session().await?;
         channel.exec(true, command).await?;
         let mut output = Vec::new();
