@@ -77,21 +77,21 @@ Arbitrary Cisco CLI text must never cross a trust boundary.
 
 # 3. Security Limitation of Cisco FTD
 
-Cisco FTD does not currently provide sufficiently granular CLI authorization for this use case.
+Cisco FTD does not provide an application-specific per-command CLI authorization model for this use case; it provides broad `Basic` and `Config` roles.
 
-A writable FTD CLI account effectively has broader Config-level privileges than required by the application.
+The required FTD commands must be tested with `Basic` before a device is admitted. On the recorded non-production Firepower 1010 / FTD 7.6.6 fixture, a `Basic` user successfully executed both `show shun` and `no shun <IPv4> interface management`. Therefore, `Basic` is the required service-account role for this product profile. `Config` must not be used unless a documented exception is approved for a specific FTD version or deployment.
 
-Therefore, the application itself must enforce privilege separation.
+The application must still enforce its own operation-level separation, because `Basic` is broader than this application's two fixed Cisco operations and FTD has no way to authorize just those operations.
 
 The security model must explicitly acknowledge:
 
-> A complete arbitrary-code execution compromise of the privileged SSH executor while it owns an authenticated Config-level FTD session may allow an attacker to abuse that session beyond the intended application functionality.
+> A complete arbitrary-code execution compromise of the privileged SSH executor while it owns an authenticated FTD session may allow an attacker to use operations available to that FTD role beyond the intended application functionality. A `Config`-role exception substantially increases this risk.
 
 The architecture must make such a compromise difficult, short-lived, and isolated.
 
 Compromise of any externally reachable component must not directly provide:
 
-- the FTD private key;
+- the FTD SSH password;
 - an authenticated FTD SSH connection;
 - network access to the FTD management interface;
 - arbitrary command execution on FTD.
@@ -338,7 +338,7 @@ where:
 
 The SSH ACL is a Cisco-side protection independent from application security.
 
-Consequently, theft of the automation private key alone must not be sufficient to authenticate from an arbitrary source network.
+Consequently, theft of the automation credential alone must not be sufficient to authenticate from an arbitrary source network.
 
 The deployment documentation must clearly warn that changing the Cisco SSH access list replaces the configured list and therefore all required management sources must be included.
 
@@ -346,7 +346,7 @@ The deployment documentation must clearly warn that changing the Cisco SSH acces
 
 # 8. Cisco SSH Identity
 
-A dedicated local Cisco FTD account must be created solely for this application. For the initial multi-device deployment, the same account name and dedicated SSH keypair may be provisioned on every managed FTD to keep operations simple.
+A dedicated local Cisco FTD account must be created solely for this application. For the initial multi-device deployment, the same account name and independently generated high-entropy password may be provisioned on every managed FTD to keep operations simple.
 
 Example logical identity:
 
@@ -363,19 +363,19 @@ The identity must not be reused for:
 - configuration backups;
 - other automation.
 
-SSH public-key authentication should be used.
+The supported FPR1010 / FTD 7.6.6 profile uses SSH password authentication. The `Basic` account required for least privilege cannot run `configure ssh pubkeys add` to associate a public key with itself; the command is restricted to a more privileged user. Promoting the service account to `Config` solely to use a public key is prohibited by the normal deployment profile.
 
-Password-based automation authentication should not be used.
+The password must be a unique, high-entropy secret supplied only to the isolated agent as a read-only runtime secret. It must never be reused for administration, interactive operations, or a second system.
 
-A dedicated SSH keypair must be generated exclusively for this service.
+Password authentication is an explicit FTD compatibility trade-off, compensated by the `Basic` role, fixed agent operations, strict server host-key pinning, source-address restrictions on FTD, host egress restrictions, a short-lived SSH session per operation, and isolated secret delivery.
 
-This shared fleet identity is an intentional operational trade-off: compromise of its key would affect every FTD that accepts it. Cisco-side SSH source ACLs, strict per-device host-key pinning, and isolation of the agent are therefore mandatory on every managed device. A future deployment may split identities by device or device group without changing the Web/API authorization model.
+This shared fleet identity is an intentional operational trade-off: compromise of its password would affect every FTD that accepts it. Cisco-side SSH source ACLs, strict per-device host-key pinning, and isolation of the agent are therefore mandatory on every managed device. A future deployment may split identities by device or device group without changing the Web/API authorization model.
 
 ---
 
-# 9. Private Key Handling
+# 9. SSH Password Handling
 
-The FTD private key must never be available to:
+The FTD SSH password must never be available to:
 
 ```text
 Caddy
@@ -386,7 +386,7 @@ logs
 browser
 ```
 
-The private key must not be:
+The password must not be:
 
 - stored in the container image;
 - stored in Git;
@@ -399,34 +399,33 @@ The private key must not be:
 
 # 10. Current v1 Credential Model and Deferred One-Time Bootstrap
 
-The initial deployment intentionally uses one dedicated FTD account and one SSH key for the managed fleet. The key is delivered only to the non-root agent as a read-only runtime secret. It is not present in the image, environment, command line, API, database, logs, Web/BFF, or REST API.
+The initial deployment intentionally uses one dedicated FTD `Basic` account and one high-entropy SSH password for the managed fleet. The password is delivered only to the non-root agent as a read-only runtime secret. It is not present in the image, environment, command line, API, database, logs, Web/BFF, or REST API.
 
-This is the chosen v1 operational trade-off. It avoids additional credential-loader processes and separate reader/writer identities while preserving the important isolation boundaries: only the agent has the key and a route to FTD; FTD-side source-address restrictions and host egress policy remain mandatory.
+This is the chosen v1 FTD-compatibility trade-off. It preserves the important isolation boundaries: only the agent has the password and a route to FTD; FTD-side source-address restrictions and host egress policy remain mandatory.
 
-One-time bootstrap is a future hardening option, not a v1 release prerequisite. If adopted, the running SSH agent should not have permanent filesystem access to the private key.
+One-time bootstrap is a future hardening option, not a v1 release prerequisite. If adopted, the running SSH agent should not have permanent filesystem access to the password.
 
 Example:
 
 ```text
 1. FTD agent starts.
 2. Agent is not yet operational.
-3. Credential loader reads the private key from protected storage.
-4. Credential loader passes the key to the agent through a local-only IPC mechanism.
-5. Agent parses the key.
-6. Agent establishes and authenticates the SSH session.
-7. Agent destroys all private-key material in its address space.
-8. Credential loader exits or closes the bootstrap channel.
-9. Bootstrap socket becomes unavailable.
-10. Agent enters READY state.
+3. Credential loader reads the password from protected storage.
+4. Credential loader passes the password to the agent through a local-only IPC mechanism.
+5. Agent establishes and authenticates the SSH session.
+6. Agent destroys password material in its address space.
+7. Credential loader exits or closes the bootstrap channel.
+8. Bootstrap socket becomes unavailable.
+9. Agent enters READY state.
 ```
 
-The agent container itself should not have the private-key file mounted.
+In a future one-time-bootstrap implementation, the agent container itself should not have the password file mounted. V1 is an explicit exception: it mounts a read-only Docker runtime secret only in the isolated non-root agent container.
 
 ---
 
 # 11. Secret Memory Handling
 
-Sensitive private-key memory should use best-effort hardened handling.
+Sensitive password memory should use best-effort hardened handling.
 
 Where supported, consider:
 
@@ -445,18 +444,17 @@ PR_SET_DUMPABLE=0
 RLIMIT_CORE=0
 ```
 
-Private-key buffers must support explicit zeroization where the selected SSH library permits it. The v1 agent zeroizes the encoded secret buffer after key decoding and drops its parsed key object after the short-lived SSH operation completes.
+Password buffers must support explicit zeroization where the selected SSH library permits it. The v1 agent reads the password into a zeroizing buffer, authenticates a short-lived SSH operation, then drops and zeroizes the source buffer before it runs Cisco commands. The SSH library's internal authentication-message copy is outside the agent's direct zeroization control.
 
 For a future one-time bootstrap implementation, after successful SSH authentication:
 
 ```text
-zeroize(private_key_buffer)
-drop(private_key_object)
+zeroize(password_buffer)
 close(bootstrap_fd)
 unmap(secret_memory)
 ```
 
-The design must avoid immutable language strings for private-key material wherever possible.
+The design must avoid immutable language strings for password material wherever possible.
 
 A memory-safe language with explicit secret zeroization support is strongly preferred for the SSH agent.
 
@@ -467,6 +465,16 @@ Rust is the preferred implementation language for the privileged agent.
 # 12. SSH Session Lifecycle
 
 The v1 removal agent establishes a new SSH session for each semantic write and closes it after post-write verification. It does not retain an authenticated write session between user requests. This keeps the state model simple and lets each operation re-check the pinned host key.
+
+The supported FPR1010 / FTD 7.6.6 profile requires an interactive SSH PTY and shell; SSH `exec` requests are not a supported command path. The agent must therefore:
+
+1. authenticate and request an `xterm` PTY plus an interactive shell;
+2. wait for the exact FTD user prompt `>` within the configured operation timeout;
+3. send one source-defined typed command followed by newline;
+4. read until the next exact prompt; and
+5. remove only the known command echo and prompt envelope before passing the response to the strict command parser.
+
+It must never use a fixed sleep to wait for the login banner. An EOF, unexpected prompt, invalid UTF-8, oversized output, unexpected removal output, or timeout is a fail-closed operation failure. The agent still sends no arbitrary text across a trust boundary.
 
 The future polling reader may use a persistent connection only after lab measurement demonstrates that reconnecting at the configured polling interval is unsuitable. A persistent reader must reconnect safely after loss and must never cause browser/API reads to trigger Cisco operations.
 
@@ -1414,7 +1422,7 @@ Raw output must:
 - remove unsafe control characters;
 - normalize line endings;
 - be JSON escaped when exported;
-- never include private-key material;
+- never include SSH-password material;
 - never include API authorization headers.
 
 ---
@@ -1575,6 +1583,8 @@ Failure of the external log collector must not block normal shun monitoring.
 However, failed log delivery should itself generate a local operational event.
 
 SQLite is the local source of truth for the web UI, history, and audit trail. Structured JSON emitted to stdout is intentionally suitable for collection by the host/container runtime and forwarding to the organization's log-collection system. Optional direct RFC 5424 forwarding remains available where required.
+
+The privileged agent must emit a sanitized structured local failure event for every rejected semantic operation. The Docker runtime retains this event in its bounded service log and makes it available to the host collector. The agent's socket response remains a generic rejection; detailed diagnostics must never cross into the Web/API trust zone. Failure events may contain the device ID, target IP, and a classified reason, but never the SSH password or raw Cisco command output.
 
 ---
 
@@ -1844,7 +1854,7 @@ The SSH agent should have:
 no persistent writable volume
 ```
 
-The Cisco private key must not be stored in the agent's persistent filesystem.
+The Cisco SSH password must not be stored in the agent's persistent filesystem.
 
 ---
 
@@ -1854,7 +1864,7 @@ The SQLite event database should be included in normal server backup.
 
 It contains operational history but no Cisco credentials.
 
-Backup restoration must not automatically restore or recreate an FTD private key.
+Backup restoration must not automatically restore or recreate an FTD SSH password.
 
 Credentials are managed separately.
 
@@ -2074,9 +2084,9 @@ The first production-ready release is accepted when all of the following are tru
 
 11. Cisco SSH access is restricted to approved source IP addresses.
 
-12. The FTD agent does not have the private-key file permanently mounted.
+12. The FTD SSH password is available only to the isolated non-root agent, through a read-only runtime secret; a future one-time bootstrap may remove that mount.
 
-13. Private-key memory is explicitly destroyed after SSH authentication.
+13. SSH-password source-buffer memory is explicitly destroyed after SSH authentication.
 
 14. Strict SSH host-key checking is enforced.
 
@@ -2098,7 +2108,7 @@ The first production-ready release is accepted when all of the following are tru
 
 23. Application restart correctly reconciles durable state with the current Cisco state.
 
-24. A stolen Cisco private key cannot authenticate from arbitrary source IP addresses because of Cisco-side SSH management ACL restrictions.
+24. A stolen Cisco SSH password cannot authenticate from arbitrary source IP addresses because of Cisco-side SSH management ACL restrictions.
 
 25. No component exposes a generic shell, command or SSH execution interface.
 

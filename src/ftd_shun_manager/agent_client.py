@@ -21,13 +21,14 @@ class DisabledAgentClient(AgentClient):
 
 
 class UnixAgentClient(AgentClient):
-    def __init__(self, socket_path: str) -> None:
+    def __init__(self, socket_path: str, timeout_seconds: int = 125) -> None:
         self.socket_path = socket_path
+        self.timeout_seconds = timeout_seconds
 
     def remove_shun(self, device_id: int, ip: IPv4Address) -> None:
         request = encode_request(Operation.REMOVE_SHUN, device_id, ip)
         with socket(AF_UNIX, SOCK_SEQPACKET) as connection:
-            connection.settimeout(10)
+            connection.settimeout(self.timeout_seconds)
             connection.connect(self.socket_path)
             connection.sendall(request)
             response = connection.recv(16)

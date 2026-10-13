@@ -41,7 +41,9 @@ def _agent(settings: Settings) -> AgentClient:
     if settings.agent_mode == "mock":
         return MockAgentClient()
     if settings.agent_mode == "socket":
-        return UnixAgentClient(settings.agent_socket)
+        # Leave a small local-IPC margin after the agent's configured end-to-end
+        # operation timeout. The API must never abandon a still-running removal first.
+        return UnixAgentClient(settings.agent_socket, settings.agent_timeout_seconds + 5)
     return DisabledAgentClient()
 
 

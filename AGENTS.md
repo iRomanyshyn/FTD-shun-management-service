@@ -26,7 +26,7 @@ Do not rewrite historical log entries except to correct an objective error; add 
 ## Security invariants
 
 - The product exposes semantic operations only. Never add arbitrary Cisco CLI, command strings, free-form device routes, or unvalidated protocol fields.
-- Keep the future FTD SSH key and FTD credentials exclusively in the privileged agent. The web and API services must never receive them.
+- Keep FTD SSH credentials exclusively in the privileged agent. The web and API services must never receive them.
 - Preserve the fixed binary Unix-socket protocol and its exact length/range validation. A successful state change requires a verified agent success response; otherwise fail closed.
 - Caddy must remove client-supplied `Remote-*` headers and set trusted identity headers only after successful Authelia ForwardAuth. The Web/BFF may trust these headers only on its private Caddy Unix socket.
 - Do not publish Web, API, database, Authelia, or agent ports. Caddy is the sole external listener.

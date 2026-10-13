@@ -15,14 +15,14 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::{Context, Result, bail};
+use nix::sys::socket::sockopt::PeerCredentials;
 use nix::sys::socket::{
     AddressFamily, Backlog, MsgFlags, SockFlag, SockType, UnixAddr, accept4, bind, getsockopt,
     listen, recv, send, socket,
 };
-use nix::sys::socket::sockopt::PeerCredentials;
 use russh::client;
-use russh::keys::{PrivateKeyWithHashAlg, PublicKey, PublicKeyOrCertificate, decode_secret_key};
-use russh::{ChannelMsg, Disconnect};
+use russh::keys::{PublicKey, PublicKeyOrCertificate};
+use russh::{Channel, ChannelMsg, Disconnect};
 use serde::Deserialize;
 use tokio::runtime::Handle;
 use tokio::time::timeout;
@@ -32,14 +32,16 @@ const RESPONSE_OK: [u8; 1] = [0x00];
 const RESPONSE_REJECTED: [u8; 1] = [0x01];
 const MAX_REQUEST_BYTES: usize = 8;
 const MAX_CISCO_OUTPUT_BYTES: usize = 64 * 1024;
+const FTD_INTERACTION_TIMEOUT: Duration = Duration::from_secs(15);
 const SHOW_SHUN_PREFIX: &str = "show shun ";
 const REMOVE_SHUN_PREFIX: &str = "no shun ";
+const FTD_PROMPT: &[u8] = b"> ";
 
 #[derive(Clone)]
 struct Agent {
     devices: BTreeMap<u16, Device>,
     username: String,
-    private_key_file: PathBuf,
+    password_file: PathBuf,
     operation_timeout: Duration,
 }
 
@@ -72,8 +74,8 @@ impl Agent {
         let inventory_file = required_env_path("FTD_SHUN_DEVICE_INVENTORY")?;
         let raw_inventory = fs::read_to_string(&inventory_file)
             .with_context(|| format!("could not read inventory {}", inventory_file.display()))?;
-        let inventory: Vec<InventoryDevice> = serde_json::from_str(&raw_inventory)
-            .context("device inventory is not valid JSON")?;
+        let inventory: Vec<InventoryDevice> =
+            serde_json::from_str(&raw_inventory).context("device inventory is not valid JSON")?;
         if inventory.is_empty() {
             bail!("device inventory cannot be empty");
         }
@@ -83,10 +85,15 @@ impl Agent {
             if entry.hostname.trim().is_empty() || entry.hostname.len() > 255 {
                 bail!("inventory has an invalid hostname for device {}", entry.id);
             }
-            let host_key = PublicKey::from_openssh(entry.ssh_host_key.trim())
-                .with_context(|| format!("inventory host key is invalid for device {}", entry.id))?;
+            let host_key =
+                PublicKey::from_openssh(entry.ssh_host_key.trim()).with_context(|| {
+                    format!("inventory host key is invalid for device {}", entry.id)
+                })?;
             if entry.allowed_interfaces.is_empty() {
-                bail!("device {} must declare at least one allowed interface", entry.id);
+                bail!(
+                    "device {} must declare at least one allowed interface",
+                    entry.id
+                );
             }
             let mut allowed_interfaces = BTreeSet::new();
             for interface in entry.allowed_interfaces {
@@ -113,7 +120,10 @@ impl Agent {
             }
         }
 
-        let socket_file = env_path("FTD_SHUN_AGENT_SOCKET", "/run/ftd-shun-manager-agent/agent.sock");
+        let socket_file = env_path(
+            "FTD_SHUN_AGENT_SOCKET",
+            "/run/ftd-shun-manager-agent/agent.sock",
+        );
         let peer_uid = env_u32("FTD_SHUN_AGENT_PEER_UID", 10001)?;
         let operation_timeout = Duration::from_secs(env_u64("FTD_SHUN_AGENT_TIMEOUT_SECONDS", 45)?);
         if !(5..=120).contains(&operation_timeout.as_secs()) {
@@ -124,7 +134,7 @@ impl Agent {
             Self {
                 devices,
                 username: required_env("FTD_SHUN_SSH_USERNAME")?,
-                private_key_file: required_env_path("FTD_SHUN_SSH_PRIVATE_KEY_FILE")?,
+                password_file: required_env_path("FTD_SHUN_SSH_PASSWORD_FILE")?,
                 operation_timeout,
             },
             socket_file,
@@ -138,8 +148,10 @@ impl Agent {
             .get(&device_id)
             .filter(|device| device.enabled)
             .context("unknown or disabled device")?;
-        let private_key = load_private_key(&self.private_key_file)?;
-        let mut session = SshSession::connect(device, &self.username, private_key).await?;
+        let mut session = {
+            let password = load_ssh_password(&self.password_file)?;
+            SshSession::connect(device, &self.username, password.as_str()).await?
+        };
 
         let before = session.show_shun(target).await?;
         let interfaces = parse_show_shun(&before, target, &device.allowed_interfaces)?;
@@ -173,6 +185,7 @@ impl client::Handler for HostKeyVerifier {
 
 struct SshSession {
     handle: client::Handle<HostKeyVerifier>,
+    channel: Channel<client::Msg>,
 }
 
 enum CiscoOperation {
@@ -181,33 +194,56 @@ enum CiscoOperation {
 }
 
 impl SshSession {
-    async fn connect(device: &Device, username: &str, private_key: russh::keys::PrivateKey) -> Result<Self> {
+    async fn connect(device: &Device, username: &str, password: &str) -> Result<Self> {
         let configuration = client::Config {
             inactivity_timeout: Some(Duration::from_secs(15)),
             ..Default::default()
         };
-        let mut handle = client::connect(
-            Arc::new(configuration),
-            (device.management_ip.to_string(), 22),
-            HostKeyVerifier {
-                pinned: device.pinned_host_key.clone(),
-            },
+        let mut handle = timeout(
+            FTD_INTERACTION_TIMEOUT,
+            client::connect(
+                Arc::new(configuration),
+                (device.management_ip.to_string(), 22),
+                HostKeyVerifier {
+                    pinned: device.pinned_host_key.clone(),
+                },
+            ),
         )
         .await
+        .context("SSH connection or host-key verification timed out")?
         .context("SSH connection or host-key verification failed")?;
 
-        let key = PrivateKeyWithHashAlg::new(
-            Arc::new(private_key),
-            handle.best_supported_rsa_hash().await?.flatten(),
-        );
-        let authenticated = handle
-            .authenticate_publickey(username, key)
-            .await
-            .context("SSH public-key authentication failed")?;
+        let authenticated = timeout(
+            FTD_INTERACTION_TIMEOUT,
+            handle.authenticate_password(username, password),
+        )
+        .await
+        .context("SSH password authentication timed out")?
+        .context("SSH password authentication failed")?;
         if !authenticated.success() {
-            bail!("SSH public-key authentication was rejected");
+            bail!("SSH password authentication was rejected");
         }
-        Ok(Self { handle })
+
+        let mut channel = handle
+            .channel_open_session()
+            .await
+            .context("could not open FTD SSH session channel")?;
+        timeout(
+            FTD_INTERACTION_TIMEOUT,
+            channel.request_pty(true, "xterm", 80, 24, 0, 0, &[]),
+        )
+        .await
+        .context("FTD pseudo-terminal request timed out")?
+        .context("FTD rejected the SSH pseudo-terminal request")?;
+        timeout(FTD_INTERACTION_TIMEOUT, channel.request_shell(true))
+            .await
+            .context("FTD interactive SSH shell request timed out")?
+            .context("FTD rejected the interactive SSH shell request")?;
+        timeout(FTD_INTERACTION_TIMEOUT, read_until_ftd_prompt(&mut channel))
+            .await
+            .context("FTD initial shell prompt timed out")??;
+
+        Ok(Self { handle, channel })
     }
 
     async fn show_shun(&mut self, target: Ipv4Addr) -> Result<String> {
@@ -224,8 +260,8 @@ impl SshSession {
                 interface: interface.to_owned(),
             })
             .await?;
-        if output.len() > MAX_CISCO_OUTPUT_BYTES {
-            bail!("FTD removal response exceeded the maximum size");
+        if !output.trim().is_empty() {
+            bail!("FTD removal returned unexpected output");
         }
         Ok(())
     }
@@ -237,29 +273,21 @@ impl SshSession {
                 format!("{REMOVE_SHUN_PREFIX}{target} interface {interface}")
             }
         };
-        let mut channel = self.handle.channel_open_session().await?;
-        channel.exec(true, command).await?;
-        let mut output = Vec::new();
-        let mut exit_status = None;
-        while let Some(message) = channel.wait().await {
-            match message {
-                ChannelMsg::Data { data } => {
-                    if output.len().saturating_add(data.len()) > MAX_CISCO_OUTPUT_BYTES {
-                        bail!("FTD command response exceeded the maximum size");
-                    }
-                    output.extend_from_slice(&data);
-                }
-                ChannelMsg::ExitStatus { exit_status: status } => exit_status = Some(status),
-                _ => {}
-            }
-        }
-        if exit_status != Some(0) {
-            bail!("FTD command returned a non-zero status");
-        }
-        String::from_utf8(output).context("FTD command output was not UTF-8")
+        self.channel
+            .data_bytes(format!("{command}\n"))
+            .await
+            .context("could not send fixed Cisco command to FTD shell")?;
+        let output = timeout(
+            FTD_INTERACTION_TIMEOUT,
+            read_until_ftd_prompt(&mut self.channel),
+        )
+        .await
+        .context("FTD command prompt timed out")??;
+        parse_shell_command_output(&output, &command)
     }
 
     async fn close(self) {
+        let _ = self.channel.data_bytes(b"exit\n".as_slice()).await;
         let _ = self
             .handle
             .disconnect(Disconnect::ByApplication, "", "en")
@@ -267,12 +295,62 @@ impl SshSession {
     }
 }
 
-fn load_private_key(path: &Path) -> Result<russh::keys::PrivateKey> {
-    let encoded = Zeroizing::new(
+async fn read_until_ftd_prompt(channel: &mut Channel<client::Msg>) -> Result<Vec<u8>> {
+    let mut output = Vec::new();
+    while let Some(message) = channel.wait().await {
+        match message {
+            ChannelMsg::Data { data } => {
+                if output.len().saturating_add(data.len()) > MAX_CISCO_OUTPUT_BYTES {
+                    bail!("FTD shell response exceeded the maximum size");
+                }
+                output.extend_from_slice(&data);
+                if output.ends_with(FTD_PROMPT) || output.ends_with(b">") {
+                    return Ok(output);
+                }
+            }
+            ChannelMsg::ExitStatus { .. } | ChannelMsg::Eof | ChannelMsg::Close => {
+                bail!("FTD shell closed before returning its prompt")
+            }
+            _ => {}
+        }
+    }
+    bail!("FTD shell closed before returning its prompt")
+}
+
+fn parse_shell_command_output(raw: &[u8], command: &str) -> Result<String> {
+    let normalized = String::from_utf8(raw.to_vec())
+        .context("FTD shell output was not UTF-8")?
+        .replace("\r\n", "\n")
+        .replace('\r', "\n");
+    let mut lines: Vec<&str> = normalized.lines().collect();
+
+    while lines.first().is_some_and(|line| line.trim().is_empty()) {
+        lines.remove(0);
+    }
+    if lines.first().is_some_and(|line| line.trim() == command) {
+        lines.remove(0);
+    }
+    while lines.last().is_some_and(|line| line.trim().is_empty()) {
+        lines.pop();
+    }
+    let prompt = lines
+        .pop()
+        .context("FTD shell response omitted its prompt")?;
+    if prompt.trim() != ">" {
+        bail!("FTD shell returned an unexpected prompt");
+    }
+    Ok(lines.join("\n"))
+}
+
+fn load_ssh_password(path: &Path) -> Result<Zeroizing<String>> {
+    let password = Zeroizing::new(
         fs::read_to_string(path)
-            .with_context(|| format!("could not read private-key secret {}", path.display()))?,
+            .with_context(|| format!("could not read SSH password secret {}", path.display()))?,
     );
-    decode_secret_key(&encoded, None).context("could not decode the SSH private key")
+    if password.is_empty() {
+        bail!("SSH password secret must not be empty");
+    }
+    Ok(password)
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -397,26 +475,57 @@ fn handle_connection(agent: &Agent, connection: std::os::fd::RawFd, runtime: &Ha
         Err(_) => return RESPONSE_REJECTED,
     };
     match operation {
-        Operation::Health if agent.devices.get(&device_id).is_some_and(|device| device.enabled) => {
+        Operation::Health
+            if agent
+                .devices
+                .get(&device_id)
+                .is_some_and(|device| device.enabled) =>
+        {
             RESPONSE_OK
         }
         Operation::RemoveShun => {
             let Some(ip) = ip else {
                 return RESPONSE_REJECTED;
             };
-            match runtime.block_on(timeout(agent.operation_timeout, agent.remove_shun(device_id, ip))) {
+            match runtime.block_on(timeout(
+                agent.operation_timeout,
+                agent.remove_shun(device_id, ip),
+            )) {
                 Ok(Ok(())) => RESPONSE_OK,
-                Ok(Err(_)) | Err(_) => RESPONSE_REJECTED,
+                Ok(Err(error)) => {
+                    log_remove_failure(device_id, ip, error.to_string());
+                    RESPONSE_REJECTED
+                }
+                Err(_) => {
+                    log_remove_failure(
+                        device_id,
+                        ip,
+                        "operation timed out before verified completion".to_owned(),
+                    );
+                    RESPONSE_REJECTED
+                }
             }
         }
         Operation::Health
         | Operation::ListShuns
         | Operation::GetShun
         | Operation::GetRaAuthStatus
-        | Operation::GetRaInitStatus => {
-            RESPONSE_REJECTED
-        }
+        | Operation::GetRaInitStatus => RESPONSE_REJECTED,
     }
+}
+
+fn log_remove_failure(device_id: u16, target: Ipv4Addr, reason: String) {
+    // The fixed socket protocol deliberately returns only success or rejection. Keep
+    // diagnostics local, structured, and free of credentials or raw Cisco output.
+    eprintln!(
+        "{}",
+        serde_json::json!({
+            "event": "agent.remove_shun.failed",
+            "device_id": device_id,
+            "target_ip": target.to_string(),
+            "reason": reason,
+        })
+    );
 }
 
 fn remove_existing_socket(path: &Path) -> Result<()> {
@@ -425,7 +534,9 @@ fn remove_existing_socket(path: &Path) -> Result<()> {
             .with_context(|| format!("could not remove stale socket {}", path.display())),
         Ok(_) => bail!("refusing to replace non-socket path {}", path.display()),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
-        Err(error) => Err(error).with_context(|| format!("could not inspect socket {}", path.display())),
+        Err(error) => {
+            Err(error).with_context(|| format!("could not inspect socket {}", path.display()))
+        }
     }
 }
 
@@ -447,7 +558,9 @@ fn env_path(name: &str, default: &str) -> PathBuf {
 
 fn env_u32(name: &str, default: u32) -> Result<u32> {
     match env::var(name) {
-        Ok(value) => value.parse().with_context(|| format!("{name} must be an integer")),
+        Ok(value) => value
+            .parse()
+            .with_context(|| format!("{name} must be an integer")),
         Err(env::VarError::NotPresent) => Ok(default),
         Err(error) => Err(error).with_context(|| format!("could not read {name}")),
     }
@@ -455,7 +568,9 @@ fn env_u32(name: &str, default: u32) -> Result<u32> {
 
 fn env_u64(name: &str, default: u64) -> Result<u64> {
     match env::var(name) {
-        Ok(value) => value.parse().with_context(|| format!("{name} must be an integer")),
+        Ok(value) => value
+            .parse()
+            .with_context(|| format!("{name} must be an integer")),
         Err(env::VarError::NotPresent) => Ok(default),
         Err(error) => Err(error).with_context(|| format!("could not read {name}")),
     }
@@ -486,13 +601,22 @@ mod tests {
     fn fixed_binary_remove_request_is_decoded() {
         assert_eq!(
             decode_request(&[0x03, 0x00, 0x07, 203, 0, 113, 17]).unwrap(),
-            (Operation::RemoveShun, 7, Some(Ipv4Addr::new(203, 0, 113, 17)))
+            (
+                Operation::RemoveShun,
+                7,
+                Some(Ipv4Addr::new(203, 0, 113, 17))
+            )
         );
     }
 
     #[test]
     fn malformed_requests_are_rejected() {
-        for packet in [vec![], vec![3, 0, 7], vec![3, 0, 0, 203, 0, 113, 17], vec![255, 0, 1]] {
+        for packet in [
+            vec![],
+            vec![3, 0, 7],
+            vec![3, 0, 0, 203, 0, 113, 17],
+            vec![255, 0, 1],
+        ] {
             assert!(decode_request(&packet).is_err());
         }
     }
@@ -507,9 +631,54 @@ mod tests {
     }
 
     #[test]
+    fn parser_accepts_recorded_fpr1010_766_management_output() {
+        let output = "shun (management) 198.51.100.250 0.0.0.0 0 0 0\n";
+        let allowed_interfaces = BTreeSet::from(["management".to_owned()]);
+
+        assert_eq!(
+            parse_show_shun(
+                output,
+                Ipv4Addr::new(198, 51, 100, 250),
+                &allowed_interfaces,
+            )
+            .unwrap(),
+            allowed_interfaces
+        );
+    }
+
+    #[test]
     fn parser_fails_closed_on_unknown_interface_or_unexpected_text() {
         let target = Ipv4Addr::new(203, 0, 113, 17);
         assert!(parse_show_shun("shun (dmz) 203.0.113.17\n", target, &interfaces()).is_err());
         assert!(parse_show_shun("ERROR: invalid input\n", target, &interfaces()).is_err());
+    }
+
+    #[test]
+    fn shell_output_strips_command_echo_and_prompt() {
+        let command = "show shun 198.51.100.250";
+        let raw =
+            b"show shun 198.51.100.250\r\nshun (management) 198.51.100.250 0.0.0.0 0 0 0\r\n> ";
+
+        assert_eq!(
+            parse_shell_command_output(raw, command).unwrap(),
+            "shun (management) 198.51.100.250 0.0.0.0 0 0 0"
+        );
+    }
+
+    #[test]
+    fn shell_output_accepts_an_empty_successful_command_response() {
+        assert_eq!(
+            parse_shell_command_output(
+                b"no shun 198.51.100.250 interface management\r\n\r\n> ",
+                "no shun 198.51.100.250 interface management",
+            )
+            .unwrap(),
+            ""
+        );
+    }
+
+    #[test]
+    fn shell_output_rejects_an_unexpected_prompt() {
+        assert!(parse_shell_command_output(b"show shun\r\n# ", "show shun").is_err());
     }
 }

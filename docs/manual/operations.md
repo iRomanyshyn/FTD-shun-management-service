@@ -21,13 +21,21 @@
 
 ## Logs and audit
 
-The SQLite database is the UI and local audit source of truth. Application events are designed for JSON stdout collection by the container runtime or host collector. Forward audit events to the organization log system and alert on collector failure without blocking monitoring.
+The SQLite database is the UI and local audit source of truth. Application events are emitted as JSON to stdout for collection by the container runtime or host collector. The agent uses Docker's bounded `local` log driver (five 10 MiB files) so its operational and failure events survive container restarts and are available through Docker. This is a required local operational channel, not optional debugging output.
+
+Retrieve recent agent events with timestamps:
+
+```bash
+docker compose --env-file .env -f deploy/compose.yml logs --timestamps --tail=200 agent
+```
+
+Forward those Docker logs through the host's approved container-log collector to the organization log platform. Alert on agent events named `agent.remove_shun.failed`; their `reason` is sanitized and intentionally excludes credentials and raw Cisco output. Collector failure must generate a host/platform alert, but must not make the agent claim a successful removal.
 
 Useful event types include `SHUN_DETECTED`, `SHUN_DISAPPEARED`, `SHUN_REMOVE_REQUESTED`, `SHUN_REMOVED_BY_UI`, and `SHUN_REMOVE_NOOP`.
 
 ## Backup and recovery
 
-Back up the `state` volume consistently while the service is stopped or using a SQLite-safe backup method. Back up Authelia's `authelia-data` volume separately. Neither backup contains the FTD private key; that credential is provisioned through the agent bootstrap process only.
+Back up the `state` volume consistently while the service is stopped or using a SQLite-safe backup method. Back up Authelia's `authelia-data` volume separately. Neither backup contains the FTD SSH password; that credential is provisioned through the agent secret only.
 
 After restoring state, the future FTD synchronizer must reconcile a fresh `show shun` snapshot before exposing the service as READY.
 
@@ -38,4 +46,4 @@ After restoring state, the future FTD synchronizer must reconcile a fresh `show 
 - **API or agent unavailable:** display stale/failed state; never claim that a removal succeeded.
 - **Host-key mismatch or unexpected FTD output:** keep the device out of write service, investigate through the approved out-of-band channel, and update the pinned inventory only after verification.
 - **Suspected Caddy compromise:** revoke Authelia sessions, inspect forwarded-header configuration, and treat identity headers as untrusted until revalidated.
-- **Suspected FTD key compromise:** remove the source IP from every FTD SSH ACL, revoke the key/account, and redeploy a new bootstrap identity.
+- **Suspected FTD credential compromise:** remove the source IP from every FTD SSH ACL, rotate the dedicated password, and redeploy the protected agent secret.

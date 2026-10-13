@@ -1,11 +1,12 @@
 services:
   socket-init:
     image: alpine:3.21
-    command: ["/bin/sh", "-ec", "mkdir -p /web /api /agent && chown -R 10001:10001 /web /api && chown 10002:10001 /agent && chmod 0770 /agent"]
+    command: ["/bin/sh", "-ec", "mkdir -p /web /api /agent /state && chown -R 10001:10001 /web /api /state && chown 0:0 /agent && chmod 0770 /agent && chown 10002:10001 /agent"]
     volumes:
       - web-run:/web
       - api-run:/api
       - agent-run:/agent
+      - state:/state
     network_mode: none
     read_only: true
     security_opt: [no-new-privileges:true]
@@ -96,17 +97,22 @@ services:
       context: ..
       dockerfile: agent/Dockerfile
     restart: unless-stopped
+    logging:
+      driver: local
+      options:
+        max-size: "10m"
+        max-file: "5"
     env_file: ../.env
     environment:
       FTD_SHUN_DEVICE_INVENTORY: /etc/ftd-shun-manager/devices.json
       FTD_SHUN_AGENT_SOCKET: /run/ftd-shun-manager-agent/agent.sock
-      FTD_SHUN_SSH_PRIVATE_KEY_FILE: /run/secrets/ftd_ssh_private_key
+      FTD_SHUN_SSH_PASSWORD_FILE: /run/secrets/ftd_ssh_password
       FTD_SHUN_AGENT_PEER_UID: "10001"
     volumes:
       - agent-run:/run/ftd-shun-manager-agent
       - ./devices.json:/etc/ftd-shun-manager/devices.json:ro
     secrets:
-      - ftd_ssh_private_key
+      - ftd_ssh_password
     depends_on:
       socket-init:
         condition: service_completed_successfully
@@ -131,5 +137,5 @@ volumes:
   authelia-data: {}
 
 secrets:
-  ftd_ssh_private_key:
-    file: ./secrets/ftd_ssh_private_key
+  ftd_ssh_password:
+    file: ./secrets/ftd_ssh_password

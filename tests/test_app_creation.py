@@ -11,6 +11,7 @@ def test_apps_create_with_safe_defaults(tmp_path) -> None:
         web_socket=str(tmp_path / "web.sock"),
         api_socket=str(tmp_path / "api.sock"),
         agent_mode="disabled",
+        agent_timeout_seconds=45,
         sensitive_action_max_age_seconds=86400,
         development_auth=False,
     )

@@ -26,6 +26,7 @@ class Settings:
     web_socket: str
     api_socket: str
     agent_mode: str
+    agent_timeout_seconds: int
     sensitive_action_max_age_seconds: int
     development_auth: bool
 
@@ -34,6 +35,9 @@ class Settings:
         agent_mode = environ.get("FTD_SHUN_AGENT_MODE", "disabled")
         if agent_mode not in {"disabled", "mock", "socket"}:
             raise ValueError("FTD_SHUN_AGENT_MODE must be disabled, mock, or socket")
+        agent_timeout_seconds = int(environ.get("FTD_SHUN_AGENT_TIMEOUT_SECONDS", "45"))
+        if not 5 <= agent_timeout_seconds <= 120:
+            raise ValueError("FTD_SHUN_AGENT_TIMEOUT_SECONDS must be between 5 and 120")
         return cls(
             database_path=Path(environ.get("FTD_SHUN_DATABASE", "/var/lib/ftd-shun-manager/state.db")),
             device_inventory_path=(
@@ -45,6 +49,7 @@ class Settings:
             web_socket=environ.get("FTD_SHUN_WEB_SOCKET", "/run/ftd-shun-manager/web.sock"),
             api_socket=environ.get("FTD_SHUN_API_SOCKET", "/run/ftd-shun-manager/api.sock"),
             agent_mode=agent_mode,
+            agent_timeout_seconds=agent_timeout_seconds,
             sensitive_action_max_age_seconds=_duration(
                 environ.get("AUTH_SENSITIVE_ACTION_MAX_AGE", "24h")
             ),
