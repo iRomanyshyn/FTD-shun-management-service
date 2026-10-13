@@ -699,9 +699,12 @@ hostname           operator-facing device name
 management_ip      IPv4 address used by the SSH agent
 ssh_host_key       pinned expected SSH host key or fingerprint
 enabled            whether the device is monitored
+allowed_interfaces explicit interface allowlist for write operations
 ```
 
 The device inventory is mounted read-only or otherwise managed as protected deployment configuration. It must be validated at startup: duplicate IDs, duplicate hostnames, malformed IP addresses, or a missing pinned host key prevent that device from entering READY state. One shared SSH service identity may be used for all records in this initial deployment, but the agent still maintains a separate authenticated session and health state per device.
+
+`allowed_interfaces` is required before writes are enabled. The agent may remove a shun only from an interface both returned by its strict `show shun <IPv4>` parser and listed for that device. This protects the fixed `no shun <IPv4> interface <name>` command form from unexpected device output; an unlisted or malformed interface causes the operation to fail closed.
 
 ---
 

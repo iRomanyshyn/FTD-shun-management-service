@@ -1,7 +1,7 @@
 services:
   socket-init:
     image: alpine:3.21
-    command: ["/bin/sh", "-ec", "mkdir -p /web /api /agent && chown -R 10001:10001 /web /api /agent"]
+    command: ["/bin/sh", "-ec", "mkdir -p /web /api /agent && chown -R 10001:10001 /web /api && chown 10002:10001 /agent && chmod 0770 /agent"]
     volumes:
       - web-run:/web
       - api-run:/api
@@ -91,8 +91,35 @@ services:
     cap_drop: [ALL]
     tmpfs: ["/tmp:rw,noexec,nosuid,nodev"]
 
+  agent:
+    build:
+      context: ..
+      dockerfile: agent/Dockerfile
+    restart: unless-stopped
+    env_file: ../.env
+    environment:
+      FTD_SHUN_DEVICE_INVENTORY: /etc/ftd-shun-manager/devices.json
+      FTD_SHUN_AGENT_SOCKET: /run/ftd-shun-manager-agent/agent.sock
+      FTD_SHUN_SSH_PRIVATE_KEY_FILE: /run/secrets/ftd_ssh_private_key
+      FTD_SHUN_AGENT_PEER_UID: "10001"
+    volumes:
+      - agent-run:/run/ftd-shun-manager-agent
+      - ./devices.json:/etc/ftd-shun-manager/devices.json:ro
+    secrets:
+      - ftd_ssh_private_key
+    depends_on:
+      socket-init:
+        condition: service_completed_successfully
+    networks: [ftd-management]
+    read_only: true
+    user: "10002:10001"
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    tmpfs: ["/tmp:rw,noexec,nosuid,nodev"]
+
 networks:
   edge: {}
+  ftd-management: {}
 
 volumes:
   api-run: {}
@@ -102,3 +129,7 @@ volumes:
   caddy-data: {}
   caddy-config: {}
   authelia-data: {}
+
+secrets:
+  ftd_ssh_private_key:
+    file: ./secrets/ftd_ssh_private_key

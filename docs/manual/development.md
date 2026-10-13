@@ -3,6 +3,7 @@
 ## Prerequisites
 
 - Python 3.12+
+- Rust 1.89+ for the privileged agent
 - A virtual environment
 - Docker Compose or Podman Compose only for container-level validation
 
@@ -43,4 +44,10 @@ For local browser work, proxy the Web/BFF Unix socket with Caddy or use a test c
 docker compose -f deploy/compose.yml config
 ```
 
-Do not use `mock` to validate Cisco behavior. Parser fixtures and the eventual privileged agent require recorded, sanitized device output.
+## Agent checks
+
+```bash
+cargo test --manifest-path agent/Cargo.toml
+```
+
+The agent test suite covers strict binary request decoding and fail-closed parsing of `show shun <IPv4>` output. Do not use `mock` to validate Cisco behavior. The actual agent requires recorded, sanitized device output and a non-production FTD lab.

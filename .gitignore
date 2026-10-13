@@ -6,6 +6,7 @@
 # Deployment-only identity files contain password hashes and must not be committed.
 deploy/authelia/users.yml
 deploy/devices.json
+deploy/secrets/
 
 # Local Python tooling artifacts.
 __pycache__/
@@ -13,3 +14,6 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 *.egg-info/
+
+# Rust build output for the isolated FTD agent.
+agent/target/

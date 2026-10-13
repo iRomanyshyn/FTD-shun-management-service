@@ -2,16 +2,16 @@
 
 ## Scope and current boundary
 
-The Compose stack deploys Caddy, Authelia, Web/BFF, and the internal API. It does **not** deploy a production FTD SSH agent yet. With `FTD_SHUN_AGENT_MODE=socket`, every write fails closed until the agent Unix socket is supplied. This is intentional.
+The Compose stack deploys Caddy, Authelia, Web/BFF, the internal API, and the isolated Rust FTD SSH agent. The agent currently implements only device-scoped removal with immediate post-write verification; polling and reconciliation remain unavailable. Keep the deployment in a non-production FTD lab until the validation checklist below is complete.
 
 ## Network and socket layout
 
 ```text
 host TCP/443 -> Caddy -> Authelia (ForwardAuth)
-                      -> Web/BFF UDS -> API UDS -> agent UDS
+                      -> Web/BFF UDS -> API UDS -> agent UDS -> FTD TCP/22
 ```
 
-Only Caddy publishes a host port. Web and API use `network_mode: none`; the API has no Cisco network route. The `socket-init` one-shot container owns only creation and permission setup of the three named socket volumes.
+Only Caddy publishes a host port. Web and API use `network_mode: none`; the API has no Cisco network route. The agent is the sole service on the `ftd-management` network and must be restricted by host/network firewall policy to configured FTD management addresses on TCP/22. The `socket-init` one-shot container creates the three named socket volumes; the agent socket is writable only by the agent and its API group.
 
 ## Prepare protected configuration
 
@@ -19,6 +19,9 @@ Only Caddy publishes a host port. Web and API use `network_mode: none`; the API 
 cp .env.example .env
 cp deploy/authelia/users.example.yml deploy/authelia/users.yml
 cp deploy/devices.example.json deploy/devices.json
+install -d -m 700 deploy/secrets
+# Supply the approved service-account private key through the protected secret file.
+install -m 600 /approved/key/path deploy/secrets/ftd_ssh_private_key
 chmod 600 .env deploy/authelia/users.yml deploy/devices.json
 ```
 
@@ -32,7 +35,9 @@ Set the following values in `.env` before deployment:
 
 Generate Authelia password hashes with the official Authelia tooling and replace the example hash. Never put a clear-text password in `users.yml`.
 
-Replace the device example's hostname, management IPv4 address, and SSH host key with the pinned key collected through an approved out-of-band process. The API rejects duplicate IDs/hostnames, invalid IPv4 addresses, and a missing host key at startup.
+Replace the device example's hostname, management IPv4 address, SSH host key, and `allowed_interfaces` with values collected through an approved out-of-band process. `allowed_interfaces` must list every interface that the agent may remove from; the agent rejects an FTD-reported interface outside this list. The API rejects duplicate IDs/hostnames, invalid IPv4 addresses, a missing host key, and malformed interface names at startup.
+
+Set `FTD_SHUN_SSH_USERNAME` in `.env` to the dedicated FTD service account. Configure that account and each FTD management ACL with the minimum permitted commands and this host's approved source address. The agent reads the private key from the Compose secret at operation time, zeroizes the encoded source buffer after decoding, and keeps no persistent writable volume. Never commit or back up `deploy/secrets/`.
 
 ## TLS and Caddy
 
@@ -54,7 +59,9 @@ Expected results:
 - Authelia prompts unauthenticated users;
 - a member of `ftd-shun-viewers` has read-only access;
 - `ftd-shun-operators` and `ftd-shun-administrators` can see removal actions;
-- removal returns an unavailable error until the FTD SSH agent is added.
+- the agent process is healthy and its socket is owned by UID `10002`, group `10001`, mode `0660`;
+- removal succeeds only for a lab shun on an allowlisted interface, then a direct FTD `show shun <IPv4>` confirms it is absent;
+- a changed host key, unknown interface, malformed response, agent timeout, or unavailable agent causes a failed write and never an audit success.
 
 ## LDAP(S) migration
 

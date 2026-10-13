@@ -1,6 +1,6 @@
 # Product Manuals
 
-These manuals describe the first implementation increment. The service is safe to run for development and UI work today; a production Cisco write is deliberately unavailable until the separate FTD SSH agent returns a verified result over its Unix socket.
+These manuals describe the first implementation increment. The service is safe to run for development and UI work today. Its separate FTD SSH agent implements verified removal for laboratory validation only; production Cisco writes remain unavailable until the documented FTD validation is complete.
 
 | Manual | Purpose |
 | --- | --- |

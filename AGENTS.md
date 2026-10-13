@@ -47,6 +47,13 @@ Do not rewrite historical log entries except to correct an objective error; add 
   git diff --check
   ```
 
+- For agent changes, also run:
+
+  ```bash
+  cargo build --release --locked --manifest-path agent/Cargo.toml
+  cargo test --locked --manifest-path agent/Cargo.toml
+  ```
+
 - Validate Compose changes with `docker compose --env-file .env -f deploy/compose.yml config` using temporary, non-secret local configuration. Do not commit that configuration.
-- The production FTD SSH agent has not been implemented. Do not present the current mock or socket placeholder as production-ready write capability.
+- The FTD SSH agent currently supports only lab-validated, device-scoped removal. Do not present it, mock mode, or the socket transport as production-ready write capability until live FTD validation is documented.
 
