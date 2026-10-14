@@ -1,5 +1,8 @@
 server:
   address: tcp://:9091
+  # The image stores healthcheck metadata below /app. This stack keeps /app on
+  # the read-only root filesystem, so disable that optional metadata writer.
+  disable_healthcheck: true
   endpoints:
     authz:
       forward-auth:
@@ -9,6 +12,12 @@ log:
   level: info
 
 authentication_backend:
+  # The file provider is an intentionally read-only local-lab bootstrap. Do
+  # not offer flows that would need to modify users.yml.
+  password_reset:
+    disable: true
+  password_change:
+    disable: true
   file:
     path: /config/users.yml
 
@@ -19,7 +28,6 @@ access_control:
       policy: one_factor
 
 session:
-  secret: '{{ env "AUTHELIA_SESSION_SECRET" }}'
   cookies:
     - domain: '{{ env "AUTH_COOKIE_DOMAIN" }}'
       authelia_url: 'https://{{ env "AUTH_HOST" }}'
@@ -29,7 +37,6 @@ session:
       same_site: strict
 
 storage:
-  encryption_key: '{{ env "AUTHELIA_STORAGE_ENCRYPTION_KEY" }}'
   local:
     path: /var/lib/authelia/db.sqlite3
 

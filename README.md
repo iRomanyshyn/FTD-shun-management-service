@@ -18,11 +18,11 @@ The governing specification is the [Architecture and Security Design](docs/archi
 
 - Web/BFF with Caddy/Authelia ForwardAuth trust boundary and CSRF protection.
 - Internal Unix-socket API backed by SQLite WAL state and append-only audit events.
-- Strict fixed binary protocol encoder/decoder and an isolated Rust FTD SSH removal agent.
+- Strict fixed binary protocol encoder/decoder and an isolated Rust FTD SSH agent.
 - Device-scoped and explicitly confirmed bulk removal UI workflows.
 - Container deployment assets that publish only Caddy TCP/443.
 
-The agent implements only verified, device-scoped `REMOVE_SHUN` today. It pins each device host key, requires an explicit per-device interface allowlist, and re-reads `show shun <IPv4>` after removal. Polling and state reconciliation are still pending; do not treat the current write path as production-ready until it has passed the lab validation in the deployment manual.
+The agent implements typed `LIST_SHUNS` and verified, device-scoped `REMOVE_SHUN`. It pins each device host key, requires an explicit per-device interface allowlist, and re-reads `show shun <IPv4>` after removal. The API reconciles complete snapshots on a configurable five-minute baseline, provides freshness metadata and local IP search to the UI, and can optionally apply an exact-IPv4 trusted-IP automatic-removal policy. That policy is disabled by default and requires laboratory validation. Do not treat the service as production-ready until it has passed the laboratory validation in the deployment manual.
 
 The detailed current state and planned sequence are maintained in the [Project Status](docs/project-status.md). Material engineering work is recorded chronologically in the [Development Log](docs/development-log.md).
 

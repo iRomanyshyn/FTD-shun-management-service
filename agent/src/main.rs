@@ -31,6 +31,7 @@ use zeroize::Zeroizing;
 const RESPONSE_OK: [u8; 1] = [0x00];
 const RESPONSE_REJECTED: [u8; 1] = [0x01];
 const MAX_REQUEST_BYTES: usize = 8;
+const MAX_AGENT_RESPONSE_BYTES: usize = 64 * 1024;
 const MAX_CISCO_OUTPUT_BYTES: usize = 64 * 1024;
 const FTD_INTERACTION_TIMEOUT: Duration = Duration::from_secs(15);
 const SHOW_SHUN_PREFIX: &str = "show shun ";
@@ -51,6 +52,12 @@ struct Device {
     pinned_host_key: PublicKey,
     allowed_interfaces: BTreeSet<String>,
     enabled: bool,
+}
+
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+struct ObservedShun {
+    target: Ipv4Addr,
+    interface: String,
 }
 
 #[derive(Deserialize)]
@@ -166,6 +173,21 @@ impl Agent {
         session.close().await;
         Ok(())
     }
+
+    async fn list_shuns(&self, device_id: u16) -> Result<BTreeSet<ObservedShun>> {
+        let device = self
+            .devices
+            .get(&device_id)
+            .filter(|device| device.enabled)
+            .context("unknown or disabled device")?;
+        let mut session = {
+            let password = load_ssh_password(&self.password_file)?;
+            SshSession::connect(device, &self.username, password.as_str()).await?
+        };
+        let entries = session.list_shuns(&device.allowed_interfaces).await?;
+        session.close().await;
+        Ok(entries)
+    }
 }
 
 struct HostKeyVerifier {
@@ -189,6 +211,7 @@ struct SshSession {
 }
 
 enum CiscoOperation {
+    ListShuns,
     ShowShun(Ipv4Addr),
     RemoveShun { target: Ipv4Addr, interface: String },
 }
@@ -250,6 +273,14 @@ impl SshSession {
         self.run(CiscoOperation::ShowShun(target)).await
     }
 
+    async fn list_shuns(
+        &mut self,
+        allowed_interfaces: &BTreeSet<String>,
+    ) -> Result<BTreeSet<ObservedShun>> {
+        let output = self.run(CiscoOperation::ListShuns).await?;
+        parse_show_shun_entries(&output, allowed_interfaces)
+    }
+
     async fn remove_shun(&mut self, target: Ipv4Addr, interface: &str) -> Result<()> {
         if !is_safe_interface(interface) {
             bail!("attempted to use an unsafe interface name");
@@ -268,6 +299,7 @@ impl SshSession {
 
     async fn run(&mut self, operation: CiscoOperation) -> Result<String> {
         let command = match operation {
+            CiscoOperation::ListShuns => "show shun".to_owned(),
             CiscoOperation::ShowShun(target) => format!("{SHOW_SHUN_PREFIX}{target}"),
             CiscoOperation::RemoveShun { target, interface } => {
                 format!("{REMOVE_SHUN_PREFIX}{target} interface {interface}")
@@ -393,7 +425,22 @@ fn parse_show_shun(
     target: Ipv4Addr,
     allowed_interfaces: &BTreeSet<String>,
 ) -> Result<BTreeSet<String>> {
+    let entries = parse_show_shun_entries(output, allowed_interfaces)?;
     let mut interfaces = BTreeSet::new();
+    for entry in entries {
+        if entry.target != target {
+            bail!("FTD show shun returned an unexpected target address");
+        }
+        interfaces.insert(entry.interface);
+    }
+    Ok(interfaces)
+}
+
+fn parse_show_shun_entries(
+    output: &str,
+    allowed_interfaces: &BTreeSet<String>,
+) -> Result<BTreeSet<ObservedShun>> {
+    let mut entries = BTreeSet::new();
     for line in output.lines() {
         let line = line.trim();
         if line.is_empty() {
@@ -408,18 +455,29 @@ fn parse_show_shun(
         if !is_safe_interface(interface) || !allowed_interfaces.contains(interface) {
             bail!("FTD reported an interface outside the configured allowlist");
         }
-        let reported_ip = fields
-            .split_ascii_whitespace()
-            .next()
-            .context("FTD shun entry omitted an IPv4 address")?
+        let fields: Vec<&str> = fields.split_ascii_whitespace().collect();
+        if fields.len() != 5 {
+            bail!("FTD shun entry did not match the validated field layout");
+        }
+        let target = fields[0]
             .parse::<Ipv4Addr>()
             .context("FTD shun entry contained an invalid IPv4 address")?;
-        if reported_ip != target {
-            bail!("FTD show shun returned an unexpected target address");
+        fields[1]
+            .parse::<Ipv4Addr>()
+            .context("FTD shun entry contained an invalid IPv4 mask")?;
+        for field in &fields[2..] {
+            field
+                .parse::<u16>()
+                .context("FTD shun entry contained an invalid numeric field")?;
         }
-        interfaces.insert(interface.to_owned());
+        if !entries.insert(ObservedShun {
+            target,
+            interface: interface.to_owned(),
+        }) {
+            bail!("FTD show shun output contained a duplicate entry");
+        }
     }
-    Ok(interfaces)
+    Ok(entries)
 }
 
 fn is_safe_interface(interface: &str) -> bool {
@@ -450,8 +508,8 @@ fn serve(agent: Agent, socket_file: PathBuf, peer_uid: u32, runtime: Handle) -> 
             Ok(credentials) if credentials.uid() == peer_uid => {
                 handle_connection(&agent, connection.as_raw_fd(), &runtime)
             }
-            Ok(_) => RESPONSE_REJECTED,
-            Err(_) => RESPONSE_REJECTED,
+            Ok(_) => RESPONSE_REJECTED.to_vec(),
+            Err(_) => RESPONSE_REJECTED.to_vec(),
         };
         let _ = send(connection.as_raw_fd(), &response, MsgFlags::empty());
     }
@@ -464,15 +522,15 @@ fn accept_connection(listener: std::os::fd::RawFd) -> Result<OwnedFd> {
     Ok(unsafe { OwnedFd::from_raw_fd(raw_fd) })
 }
 
-fn handle_connection(agent: &Agent, connection: std::os::fd::RawFd, runtime: &Handle) -> [u8; 1] {
+fn handle_connection(agent: &Agent, connection: std::os::fd::RawFd, runtime: &Handle) -> Vec<u8> {
     let mut packet = [0u8; MAX_REQUEST_BYTES];
     let received = match recv(connection, &mut packet, MsgFlags::empty()) {
         Ok(received) => received,
-        Err(_) => return RESPONSE_REJECTED,
+        Err(_) => return RESPONSE_REJECTED.to_vec(),
     };
     let (operation, device_id, ip) = match decode_request(&packet[..received]) {
         Ok(request) => request,
-        Err(_) => return RESPONSE_REJECTED,
+        Err(_) => return RESPONSE_REJECTED.to_vec(),
     };
     match operation {
         Operation::Health
@@ -481,20 +539,43 @@ fn handle_connection(agent: &Agent, connection: std::os::fd::RawFd, runtime: &Ha
                 .get(&device_id)
                 .is_some_and(|device| device.enabled) =>
         {
-            RESPONSE_OK
+            RESPONSE_OK.to_vec()
         }
+        Operation::ListShuns => match runtime.block_on(timeout(
+            agent.operation_timeout,
+            agent.list_shuns(device_id),
+        )) {
+            Ok(Ok(entries)) => match encode_list_shuns_response(entries) {
+                Ok(response) => response,
+                Err(error) => {
+                    log_list_failure(device_id, error.to_string());
+                    RESPONSE_REJECTED.to_vec()
+                }
+            },
+            Ok(Err(error)) => {
+                log_list_failure(device_id, error.to_string());
+                RESPONSE_REJECTED.to_vec()
+            }
+            Err(_) => {
+                log_list_failure(
+                    device_id,
+                    "operation timed out before a complete snapshot was available".to_owned(),
+                );
+                RESPONSE_REJECTED.to_vec()
+            }
+        },
         Operation::RemoveShun => {
             let Some(ip) = ip else {
-                return RESPONSE_REJECTED;
+                return RESPONSE_REJECTED.to_vec();
             };
             match runtime.block_on(timeout(
                 agent.operation_timeout,
                 agent.remove_shun(device_id, ip),
             )) {
-                Ok(Ok(())) => RESPONSE_OK,
+                Ok(Ok(())) => RESPONSE_OK.to_vec(),
                 Ok(Err(error)) => {
                     log_remove_failure(device_id, ip, error.to_string());
-                    RESPONSE_REJECTED
+                    RESPONSE_REJECTED.to_vec()
                 }
                 Err(_) => {
                     log_remove_failure(
@@ -502,15 +583,14 @@ fn handle_connection(agent: &Agent, connection: std::os::fd::RawFd, runtime: &Ha
                         ip,
                         "operation timed out before verified completion".to_owned(),
                     );
-                    RESPONSE_REJECTED
+                    RESPONSE_REJECTED.to_vec()
                 }
             }
         }
         Operation::Health
-        | Operation::ListShuns
         | Operation::GetShun
         | Operation::GetRaAuthStatus
-        | Operation::GetRaInitStatus => RESPONSE_REJECTED,
+        | Operation::GetRaInitStatus => RESPONSE_REJECTED.to_vec(),
     }
 }
 
@@ -526,6 +606,36 @@ fn log_remove_failure(device_id: u16, target: Ipv4Addr, reason: String) {
             "reason": reason,
         })
     );
+}
+
+fn log_list_failure(device_id: u16, reason: String) {
+    eprintln!(
+        "{}",
+        serde_json::json!({
+            "event": "agent.list_shuns.failed",
+            "device_id": device_id,
+            "reason": reason,
+        })
+    );
+}
+
+fn encode_list_shuns_response(entries: BTreeSet<ObservedShun>) -> Result<Vec<u8>> {
+    let count = u16::try_from(entries.len()).context("FTD shun snapshot has too many entries")?;
+    let mut response = Vec::with_capacity(3 + entries.len() * 16);
+    response.push(RESPONSE_OK[0]);
+    response.extend_from_slice(&count.to_be_bytes());
+    for entry in entries {
+        let interface = entry.interface.as_bytes();
+        let interface_length =
+            u8::try_from(interface.len()).context("FTD interface name is too long")?;
+        if response.len().saturating_add(5 + interface.len()) > MAX_AGENT_RESPONSE_BYTES {
+            bail!("FTD shun snapshot exceeds the maximum response size");
+        }
+        response.extend_from_slice(&entry.target.octets());
+        response.push(interface_length);
+        response.extend_from_slice(interface);
+    }
+    Ok(response)
 }
 
 fn remove_existing_socket(path: &Path) -> Result<()> {
@@ -647,10 +757,51 @@ mod tests {
     }
 
     #[test]
+    fn list_parser_accepts_a_complete_multi_entry_snapshot() {
+        let output = concat!(
+            "shun (outside) 203.0.113.17 0.0.0.0 0 0 0\n",
+            "shun (inside) 198.51.100.250 0.0.0.0 0 0 0\n"
+        );
+        assert_eq!(
+            parse_show_shun_entries(output, &interfaces()).unwrap(),
+            BTreeSet::from([
+                ObservedShun {
+                    target: Ipv4Addr::new(198, 51, 100, 250),
+                    interface: "inside".to_owned(),
+                },
+                ObservedShun {
+                    target: Ipv4Addr::new(203, 0, 113, 17),
+                    interface: "outside".to_owned(),
+                },
+            ])
+        );
+    }
+
+    #[test]
     fn parser_fails_closed_on_unknown_interface_or_unexpected_text() {
         let target = Ipv4Addr::new(203, 0, 113, 17);
         assert!(parse_show_shun("shun (dmz) 203.0.113.17\n", target, &interfaces()).is_err());
         assert!(parse_show_shun("ERROR: invalid input\n", target, &interfaces()).is_err());
+        assert!(
+            parse_show_shun(
+                "shun (outside) 203.0.113.17 0.0.0.0 0 0 0 unexpected\n",
+                target,
+                &interfaces(),
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn list_response_has_only_typed_snapshot_fields() {
+        let entries = BTreeSet::from([ObservedShun {
+            target: Ipv4Addr::new(198, 51, 100, 250),
+            interface: "management".to_owned(),
+        }]);
+        assert_eq!(
+            encode_list_shuns_response(entries).unwrap(),
+            b"\x00\x00\x01\xc6\x33\x64\xfa\x0a\x6d\x61\x6e\x61\x67\x65\x6d\x65\x6e\x74"
+        );
     }
 
     #[test]

@@ -2,7 +2,7 @@
 
 ## Scope and current boundary
 
-The Compose stack deploys Caddy, Authelia, Web/BFF, the internal API, and the isolated Rust FTD SSH agent. The agent currently implements only device-scoped removal with immediate post-write verification; polling and reconciliation remain unavailable. Keep the deployment in a non-production FTD lab until the validation checklist below is complete.
+The Compose stack deploys Caddy, Authelia, Web/BFF, the internal API, and the isolated Rust FTD SSH agent. The agent implements typed complete `show shun` snapshots, five-minute polling by default, SQLite reconciliation, and device-scoped removal with immediate post-write verification. Keep the deployment in a non-production FTD lab until the validation checklist below is complete.
 
 ## Network and socket layout
 
@@ -36,6 +36,8 @@ Set the following values in `.env` before deployment:
 - `FTD_SHUN_HOST` and `AUTH_HOST`: distinct internal DNS names.
 - `AUTH_COOKIE_DOMAIN`: common parent domain, for example `internal.example`.
 - `AUTHELIA_SESSION_SECRET` and `AUTHELIA_STORAGE_ENCRYPTION_KEY`: independently generated high-entropy values.
+- `FTD_SHUN_AUTHELIA_UID` and `FTD_SHUN_AUTHELIA_GID`: the numeric owner of
+  `deploy/authelia/users.yml` (obtain them with `id -u` and `id -g`).
 - `AUTH_SENSITIVE_ACTION_MAX_AGE`: normally `24h`; set `1h` for tighter operator sessions.
 
 Generate Authelia password hashes with the official Authelia tooling and replace the example hash. Never put a clear-text password in `users.yml`.
@@ -47,6 +49,22 @@ Set `FTD_SHUN_SSH_USERNAME` in `.env` to the dedicated FTD service account. FTD 
 The agent reads the SSH password from the Compose secret at operation time, zeroizes its source buffer after authentication, and keeps no persistent writable volume. Never commit or back up `deploy/secrets/`.
 
 `FTD_SHUN_AGENT_TIMEOUT_SECONDS` is the agent's end-to-end timeout and must be between 5 and 120 seconds. The API waits for that value plus five seconds of local Unix-socket margin, so it cannot abandon a still-running agent operation first. The direct Python client uses a safe 125-second default for controlled laboratory checks.
+
+The Web/BFF waits for the configured agent timeout plus ten seconds when it
+submits a removal to the internal API. This exceeds the API margin, so the UI
+does not report an error first while a bounded removal is still awaiting its
+verified agent result. If the internal API is unavailable, the BFF returns a
+controlled `503` and never claims removal success.
+
+`FTD_SHUN_POLL_INTERVAL` controls complete snapshot collection and defaults to `5m`; valid values range from `60s` through `24h`. `FTD_SHUN_INTERACTIVE_REFRESH_MIN_INTERVAL` defaults to `60s` and cannot be lower. An authenticated state page can only queue a non-blocking, globally rate-limited refresh hint; it never directly waits for FTD SSH output.
+
+`FTD_SHUN_TRUSTED_AUTO_REMOVE_IPS` is optional and empty by default. It accepts
+only a comma-separated list of exact IPv4 addresses, for example
+`198.51.100.10,203.0.113.11`. CIDRs, hostnames, ranges, and IPv6 make API
+startup fail rather than widen the policy. This policy automatically requests
+verified removal of a matching observed shun on every enabled device after a
+successful complete snapshot. Enable it only after a lab validation with a
+non-production address; changing it requires recreating the API service.
 
 ### Provision the FTD service-account password
 
@@ -87,6 +105,46 @@ Do not use `ssh-keyscan` as proof of server identity. It can collect a public ke
 The supplied Caddyfile assumes organization-controlled TLS is available for both hostnames. Before deployment, configure the certificate source appropriate for the organization and test the configuration. Do not expose either host to the public Internet.
 
 Caddy must preserve the supplied `forward_auth` route and must not pass client-provided `Remote-*` identity headers to Web/BFF. Review this on every Caddy change.
+The request-header removal, ForwardAuth subrequest, and Web/BFF proxy must be
+inside a Caddy `route` block in that exact order. Caddy normally reorders
+directives; without `route`, it can remove the authenticated headers after
+ForwardAuth has copied them.
+
+Authelia's official image normally runs an entrypoint which recursively changes
+ownership of `/config`. This stack bypasses that entrypoint and starts the
+Authelia binary directly because its configuration and user database are
+intentionally read-only mounts. The Authelia process runs as the configured
+unprivileged `FTD_SHUN_AUTHELIA_UID:FTD_SHUN_AUTHELIA_GID`, so it can read its owner-only
+`users.yml`. A separate networkless one-shot initializer, with only `CHOWN`,
+prepares ownership of the Authelia SQLite volume. The main container retains
+`read_only: true` and `cap_drop: [ALL]`; do not restore the image entrypoint,
+make the user database world-readable, or grant capabilities to the main
+Authelia process merely to make it start.
+
+Authelia's optional in-image healthcheck metadata writer is disabled because it
+writes below `/app`, which is part of the read-only root filesystem. This does
+not alter Caddy ForwardAuth behavior; monitor the Authelia container's process
+state and authenticated browser flow until an external health check is added.
+
+The application image keeps its server-rendered templates and static files in
+`/app`; its image-only `FTD_SHUN_ASSET_ROOT=/app` setting makes the installed
+Web/BFF package locate those resources. Do not set this variable for a
+source-tree development run, where the built-in source-tree path is used.
+
+The stack also explicitly enables Authelia's configuration template filter for
+the non-secret public names in `configuration.yml`. Its session and storage
+secrets are not templates: `AUTHELIA_SESSION_SECRET` and
+`AUTHELIA_STORAGE_ENCRYPTION_KEY` are read directly from the ignored
+environment file. The local file authentication provider is read-only, so
+self-service password reset and password change are disabled. When moving to
+LDAP(S), review those identity-management flows and their required secrets
+before enabling either feature.
+
+For a workstation-only browser test without internal DNS or organization TLS,
+use the separate [Local Browser Laboratory](local-lab-web.md) overlay. It uses
+Caddy's private CA and Authelia's local file backend without weakening the
+normal Caddy/ForwardAuth trust boundary. Never use that overlay for shared or
+production deployment.
 
 ## Start and validate
 
@@ -103,6 +161,8 @@ Expected results:
 - a member of `ftd-shun-viewers` has read-only access;
 - `ftd-shun-operators` and `ftd-shun-administrators` can see removal actions;
 - the agent process is healthy and its socket is owned by UID `10002`, group `10001`, mode `0660`;
+- the API reports a successful initial snapshot and the UI shows its last-confirmed refresh, next baseline countdown, and a plain-language background-refresh status;
+- if configured, the UI reports the number of exact addresses covered by the trusted-IP automatic-removal policy; the policy's audit events are visible in history;
 - removal succeeds only for a lab shun on an allowlisted interface, then a direct FTD `show shun <IPv4>` confirms it is absent;
 - a changed host key, unknown interface, malformed response, agent timeout, or unavailable agent causes a failed write and never an audit success.
 

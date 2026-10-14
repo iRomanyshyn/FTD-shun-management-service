@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from collections.abc import Iterable
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -207,6 +208,74 @@ class Store:
             if event:
                 self._insert_event(db, event, device_id, ip, interface, None, None, (), None, {})
 
+    def reconcile_snapshot(
+        self, device_id: int, snapshot: Iterable[tuple[IPv4Address, str]]
+    ) -> None:
+        """Atomically reconcile one complete, successfully parsed device snapshot."""
+        snapshot_entries = [(ip.packed, interface) for ip, interface in snapshot]
+        observed = set(snapshot_entries)
+        if len(observed) != len(snapshot_entries):
+            raise ValueError("snapshot contains duplicate entries")
+        if any(not _safe_interface(interface) for _, interface in observed):
+            raise ValueError("snapshot contains an invalid interface")
+        timestamp = now()
+        with self._connection() as db:
+            existing_rows = db.execute(
+                "SELECT ip, interface, active FROM shun_state WHERE device_id = ?",
+                (device_id,),
+            ).fetchall()
+            existing = {(row["ip"], row["interface"]): bool(row["active"]) for row in existing_rows}
+
+            for packed_ip, interface in observed:
+                ip = IPv4Address(packed_ip)
+                active = existing.get((packed_ip, interface))
+                if active is None:
+                    db.execute(
+                        """INSERT INTO shun_state
+                           (device_id, ip, interface, active, first_seen_at, last_seen_at, last_changed_at)
+                           VALUES (?, ?, ?, 1, ?, ?, ?)""",
+                        (device_id, packed_ip, interface, timestamp, timestamp, timestamp),
+                    )
+                    self._insert_event(
+                        db, "SHUN_DETECTED", device_id, ip, interface, None, None, (), None, {}, timestamp
+                    )
+                elif not active:
+                    db.execute(
+                        """UPDATE shun_state SET active = 1, last_seen_at = ?, last_changed_at = ?
+                           WHERE device_id = ? AND ip = ? AND interface = ?""",
+                        (timestamp, timestamp, device_id, packed_ip, interface),
+                    )
+                    self._insert_event(
+                        db, "SHUN_REAPPEARED", device_id, ip, interface, None, None, (), None, {}, timestamp
+                    )
+                else:
+                    db.execute(
+                        """UPDATE shun_state SET last_seen_at = ?
+                           WHERE device_id = ? AND ip = ? AND interface = ?""",
+                        (timestamp, device_id, packed_ip, interface),
+                    )
+
+            for (packed_ip, interface), active in existing.items():
+                if active and (packed_ip, interface) not in observed:
+                    db.execute(
+                        """UPDATE shun_state SET active = 0, last_changed_at = ?
+                           WHERE device_id = ? AND ip = ? AND interface = ?""",
+                        (timestamp, device_id, packed_ip, interface),
+                    )
+                    self._insert_event(
+                        db,
+                        "SHUN_DISAPPEARED",
+                        device_id,
+                        IPv4Address(packed_ip),
+                        interface,
+                        None,
+                        None,
+                        (),
+                        None,
+                        {"observed_during_reconciliation": True},
+                        timestamp,
+                    )
+
     def complete_removal(
         self, device_id: int, ip: IPv4Address, actor_subject: str, actor_display_name: str,
         actor_roles: tuple[str, ...], request_id: str,
@@ -236,6 +305,88 @@ class Store:
                 )
             return True
 
+    def create_trusted_auto_removal_requested(
+        self, device_id: int, ip: IPv4Address, request_id: str
+    ) -> None:
+        with self._connection() as db:
+            self._insert_event(
+                db,
+                "SHUN_TRUSTED_AUTO_REMOVE_REQUESTED",
+                device_id,
+                ip,
+                None,
+                "system:trusted-ip-policy",
+                "Trusted IP policy",
+                (),
+                request_id,
+                {"policy": "exact_ipv4_allowlist"},
+                now(),
+            )
+
+    def complete_trusted_auto_removal(
+        self, device_id: int, ip: IPv4Address, request_id: str
+    ) -> bool:
+        """Persist a verified policy-driven removal without attributing it to a user."""
+        timestamp = now()
+        with self._connection() as db:
+            rows = db.execute(
+                "SELECT interface FROM shun_state WHERE device_id = ? AND ip = ? AND active = 1",
+                (device_id, ip.packed),
+            ).fetchall()
+            if not rows:
+                self._insert_event(
+                    db,
+                    "SHUN_TRUSTED_AUTO_REMOVE_NOOP",
+                    device_id,
+                    ip,
+                    None,
+                    "system:trusted-ip-policy",
+                    "Trusted IP policy",
+                    (),
+                    request_id,
+                    {"policy": "exact_ipv4_allowlist"},
+                    timestamp,
+                )
+                return False
+            db.execute(
+                """UPDATE shun_state SET active = 0, last_changed_at = ?
+                   WHERE device_id = ? AND ip = ? AND active = 1""",
+                (timestamp, device_id, ip.packed),
+            )
+            for row in rows:
+                self._insert_event(
+                    db,
+                    "SHUN_TRUSTED_AUTO_REMOVED",
+                    device_id,
+                    ip,
+                    row["interface"],
+                    "system:trusted-ip-policy",
+                    "Trusted IP policy",
+                    (),
+                    request_id,
+                    {"policy": "exact_ipv4_allowlist", "verified": True},
+                    timestamp,
+                )
+            return True
+
+    def record_trusted_auto_removal_failed(
+        self, device_id: int, ip: IPv4Address, request_id: str, reason: str
+    ) -> None:
+        with self._connection() as db:
+            self._insert_event(
+                db,
+                "SHUN_TRUSTED_AUTO_REMOVE_FAILED",
+                device_id,
+                ip,
+                None,
+                "system:trusted-ip-policy",
+                "Trusted IP policy",
+                (),
+                request_id,
+                {"policy": "exact_ipv4_allowlist", "reason": reason[:256]},
+                now(),
+            )
+
     def create_removal_requested(
         self, device_id: int, ip: IPv4Address, actor_subject: str, actor_display_name: str,
         actor_roles: tuple[str, ...], request_id: str,
@@ -261,3 +412,12 @@ class Store:
              interface, actor_subject, actor_display_name, json.dumps(actor_roles), request_id,
              json.dumps(details, sort_keys=True)),
         )
+
+
+def _safe_interface(interface: str) -> bool:
+    return (
+        1 <= len(interface) <= 64
+        and interface[0].isalpha()
+        and interface.isascii()
+        and all(character.isalnum() or character in "/._-" for character in interface)
+    )

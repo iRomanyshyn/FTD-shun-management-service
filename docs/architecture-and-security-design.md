@@ -584,6 +584,20 @@ expected packet length = 7 bytes
 
 Any other length must be rejected.
 
+`LIST_SHUNS` has a distinct fixed binary success response. Its maximum total
+size is 64 KiB and it contains no Cisco text beyond a validated interface name:
+
+```text
+0x00 + 2-byte entry count + repeated entries
+entry = 4-byte IPv4 + 1-byte ASCII interface length + interface bytes
+```
+
+The agent must reject a parsed `show shun` line unless it exactly matches the
+validated FTD layout: `shun (<allowlisted-interface>) <IPv4> <IPv4-mask> <u16>
+<u16> <u16>`. The API must reject a truncated, oversized, duplicate, malformed,
+or trailing-byte response. A rejected snapshot must never be reconciled as an
+empty snapshot.
+
 ---
 
 # 15. Cisco Command Generation
@@ -603,7 +617,7 @@ and:
 ```text
 REMOVE_SHUN + IPv4Address
 →
-no shun <canonical IPv4>
+no shun <canonical IPv4> interface <agent-observed allowlisted interface>
 ```
 
 There must not be a generic function exposed across the internal API such as:
@@ -740,6 +754,11 @@ SHUN_REMOVED_BY_UI
 SHUN_REMOVE_NOOP
 SHUN_REMOVE_FAILED
 
+SHUN_TRUSTED_AUTO_REMOVE_REQUESTED
+SHUN_TRUSTED_AUTO_REMOVED
+SHUN_TRUSTED_AUTO_REMOVE_NOOP
+SHUN_TRUSTED_AUTO_REMOVE_FAILED
+
 DEVICE_CONNECTED
 DEVICE_DISCONNECTED
 DEVICE_UNREACHABLE
@@ -783,11 +802,12 @@ The v1 polling policy is configurable. Its default is:
 baseline poll interval = 5 minutes
 ```
 
-The future implementation configuration names are:
+The implementation configuration names are:
 
 ```text
 FTD_SHUN_POLL_INTERVAL=5m
 FTD_SHUN_INTERACTIVE_REFRESH_MIN_INTERVAL=60s
+FTD_SHUN_TRUSTED_AUTO_REMOVE_IPS=
 ```
 
 The baseline interval must accept a practical range of `60s` to `24h`. The interactive minimum interval must not be lower than `60s`.
@@ -799,6 +819,33 @@ At most one interactive refresh sweep may be queued globally within the configur
 An interactive hint is considered only while there is active authenticated Web/BFF use. If there is no such activity, the service performs only the baseline polling schedule.
 
 Each successful poll produces a complete current snapshot.
+
+The initial process sweep runs asynchronously at startup. It establishes state
+without delaying an HTTP request; an unsuccessful device does not alter that
+device's stored snapshot. The synchronizer records per-device success or
+failure metadata and a next-baseline timestamp. The BFF uses that metadata for
+the visible freshness state and browser countdown.
+
+## Trusted-IP automatic removal
+
+The optional `FTD_SHUN_TRUSTED_AUTO_REMOVE_IPS` policy is an exact IPv4
+allowlist. It is empty by default. It accepts a comma-separated list of
+individual IPv4 addresses only; CIDRs, hostnames, ranges, and IPv6 addresses
+are rejected at startup.
+
+After the agent returns a complete, successfully parsed snapshot for a device,
+the synchronizer compares each observed address with this policy. For every
+exact match it records a policy request, sends the existing fixed
+`REMOVE_SHUN` operation for that device and address, and records a policy
+success only after the agent's normal post-write verification. It uses the
+actor `system:trusted-ip-policy`, never a browser identity. The policy does
+not run after an unavailable or malformed snapshot, does not broaden the
+agent protocol, and does not permit a command or route supplied by a user.
+
+Each policy request, verified removal, verified no-op, and failure is retained
+as an append-only event. A failure leaves the locally observed shun active and
+visible. Operators must use this policy only for carefully verified addresses
+whose automatic removal is intended on every enabled FTD device.
 
 The application compares:
 
@@ -1137,6 +1184,12 @@ interactive refresh state: idle, queued, or rate-limited
 ```
 
 The countdown may update in the browser, but its displayed state must originate from synchronizer metadata. If a device or snapshot is stale, unavailable, or has a parser error, the UI must make that condition visible.
+
+The active-shun list must provide a local exact/prefix IPv4 search that filters
+the already-rendered state. Search neither sends a query to Cisco nor bypasses
+the refresh-hint rate limit. User-facing text must explain `idle`, `queued`,
+and `rate-limited` in operational language rather than expose those internal
+state labels as unexplained status values.
 
 For every row, the primary action is **Remove from this device**. It opens a confirmation dialog showing the device hostname, IP, and affected interfaces. A separate **Remove from all devices** action is shown only on the IP detail page and uses the bulk confirmation workflow defined above.
 

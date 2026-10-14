@@ -30,7 +30,7 @@ For local browser work, proxy the Web/BFF Unix socket with Caddy or use a test c
 
 ## Safety boundaries
 
-- `mock` accepts only the typed `REMOVE_SHUN` operation; it never opens an SSH connection.
+- `mock` accepts the typed `LIST_SHUNS` and `REMOVE_SHUN` operations; it returns an empty snapshot and never opens an SSH connection.
 - `disabled` is the safe default and returns an error for every removal attempt.
 - `socket` is the only production mode. It requires an FTD agent on `FTD_SHUN_AGENT_SOCKET` to return the one-byte verified-success result.
 - No test, fixture, route, or configuration field accepts Cisco CLI text.
@@ -50,4 +50,4 @@ docker compose -f deploy/compose.yml config
 cargo test --manifest-path agent/Cargo.toml
 ```
 
-The agent test suite covers strict binary request decoding and fail-closed parsing of `show shun <IPv4>` output. Do not use `mock` to validate Cisco behavior. The actual agent requires recorded, sanitized device output and a non-production FTD lab.
+The agent test suite covers strict binary request decoding, the typed `LIST_SHUNS` response, and fail-closed parsing of `show shun` output. Do not use `mock` to validate Cisco behavior. The actual agent requires recorded, sanitized device output and a non-production FTD lab.

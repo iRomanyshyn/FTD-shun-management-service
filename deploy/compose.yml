@@ -32,15 +32,45 @@ services:
     cap_add: [NET_BIND_SERVICE]
     tmpfs: ["/tmp:rw,noexec,nosuid,nodev"]
 
+  authelia-data-init:
+    image: alpine:3.21
+    # The main Authelia process is non-root. This one-shot initializer is the
+    # only container allowed to prepare ownership on its SQLite volume.
+    command: ["/bin/sh", "-ec", "mkdir -p /var/lib/authelia && chown -R \"$$FTD_SHUN_AUTHELIA_UID:$$FTD_SHUN_AUTHELIA_GID\" /var/lib/authelia"]
+    environment:
+      FTD_SHUN_AUTHELIA_UID: "${FTD_SHUN_AUTHELIA_UID:-1000}"
+      FTD_SHUN_AUTHELIA_GID: "${FTD_SHUN_AUTHELIA_GID:-1000}"
+    volumes:
+      - authelia-data:/var/lib/authelia
+    network_mode: none
+    read_only: true
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    cap_add: [CHOWN]
+    tmpfs: ["/tmp:rw,noexec,nosuid,nodev"]
+
   authelia:
     image: authelia/authelia:4.39.15
     restart: unless-stopped
     env_file: ../.env
+    # The upstream entrypoint recursively chowns /config and calls su-exec. Our
+    # protected configuration mounts are deliberately read-only, so invoke the
+    # binary directly with every Linux capability removed instead.
+    entrypoint: ["/app/authelia"]
+    command: ["--config", "/config/configuration.yml"]
+    environment:
+      # Configuration-file templates are disabled by default in Authelia. This
+      # enables only the non-secret deployment names in configuration.yml.
+      X_AUTHELIA_CONFIG_FILTERS: template
     volumes:
       - ./authelia/configuration.yml:/config/configuration.yml:ro
       - ./authelia/users.yml:/config/users.yml:ro
       - authelia-data:/var/lib/authelia
+    depends_on:
+      authelia-data-init:
+        condition: service_completed_successfully
     networks: [edge]
+    user: "${FTD_SHUN_AUTHELIA_UID:-1000}:${FTD_SHUN_AUTHELIA_GID:-1000}"
     read_only: true
     security_opt: [no-new-privileges:true]
     cap_drop: [ALL]

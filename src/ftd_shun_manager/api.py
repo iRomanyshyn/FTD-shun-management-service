@@ -1,5 +1,6 @@
 """Internal state and event API. It is intended to listen only on a Unix socket."""
 
+from contextlib import asynccontextmanager
 from ipaddress import IPv4Address
 from uuid import uuid4
 
@@ -17,6 +18,7 @@ from .agent_client import (
 from .config import Settings
 from .inventory import load_devices
 from .store import Shun, Store
+from .synchronizer import Synchronizer
 
 
 class Actor(BaseModel):
@@ -47,19 +49,52 @@ def _agent(settings: Settings) -> AgentClient:
     return DisabledAgentClient()
 
 
-def create_app(settings: Settings | None = None, store: Store | None = None) -> FastAPI:
+def create_app(
+    settings: Settings | None = None,
+    store: Store | None = None,
+    agent_client: AgentClient | None = None,
+) -> FastAPI:
     settings = settings or Settings.from_environment()
     store = store or Store(settings.database_path)
     store.initialize()
     if settings.device_inventory_path:
         for device, host_key in load_devices(settings.device_inventory_path):
             store.upsert_device(device, host_key)
-    agent = _agent(settings)
-    app = FastAPI(title="FTD Shun Internal API", docs_url=None, redoc_url=None, openapi_url=None)
+    agent = agent_client or _agent(settings)
+    synchronizer = Synchronizer(
+        store,
+        agent,
+        settings.poll_interval_seconds,
+        settings.interactive_refresh_min_interval_seconds,
+        settings.trusted_auto_remove_ips,
+    )
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        if settings.agent_mode != "disabled":
+            await synchronizer.start()
+        app.state.synchronizer = synchronizer
+        try:
+            yield
+        finally:
+            await synchronizer.stop()
+
+    app = FastAPI(
+        title="FTD Shun Internal API",
+        docs_url=None,
+        redoc_url=None,
+        openapi_url=None,
+        lifespan=lifespan,
+    )
 
     @app.get("/api/v1/status")
-    def service_status() -> dict[str, str]:
-        return {"status": "ready", "agent_mode": settings.agent_mode}
+    def service_status() -> dict[str, object]:
+        return {"status": "ready", "agent_mode": settings.agent_mode, **synchronizer.status()}
+
+    @app.post("/api/v1/refresh-hint", status_code=status.HTTP_202_ACCEPTED)
+    def refresh_hint() -> dict[str, str]:
+        synchronizer.note_activity()
+        return {"status": "queued"}
 
     @app.get("/api/v1/shuns")
     def list_shuns() -> list[dict[str, str | int | bool]]:

@@ -5,17 +5,29 @@ itself. That keeps secret handling outside application code.
 """
 
 from dataclasses import dataclass
+from ipaddress import IPv4Address
 from os import environ
 from pathlib import Path
 
 
 def _duration(value: str) -> int:
-    """Return a duration in seconds for a small, explicit duration grammar."""
-    if value.endswith("h") and value[:-1].isdigit():
-        return int(value[:-1]) * 3600
-    if value.endswith("m") and value[:-1].isdigit():
-        return int(value[:-1]) * 60
-    raise ValueError("duration must use whole minutes or hours, for example 1h or 30m")
+    """Return seconds for an explicit whole-number seconds/minutes/hours grammar."""
+    units = {"s": 1, "m": 60, "h": 3600}
+    if len(value) >= 2 and value[-1] in units and value[:-1].isdigit():
+        return int(value[:-1]) * units[value[-1]]
+    raise ValueError("duration must use whole seconds, minutes, or hours, for example 60s, 5m, or 1h")
+
+
+def _ipv4_csv(value: str) -> frozenset[IPv4Address]:
+    if not value.strip():
+        return frozenset()
+    values = [entry.strip() for entry in value.split(",")]
+    if not all(values):
+        raise ValueError("FTD_SHUN_TRUSTED_AUTO_REMOVE_IPS must be a comma-separated list of IPv4 addresses")
+    try:
+        return frozenset(IPv4Address(entry) for entry in values)
+    except ValueError as error:
+        raise ValueError("FTD_SHUN_TRUSTED_AUTO_REMOVE_IPS must contain only IPv4 addresses") from error
 
 
 @dataclass(frozen=True)
@@ -27,8 +39,11 @@ class Settings:
     api_socket: str
     agent_mode: str
     agent_timeout_seconds: int
+    poll_interval_seconds: int
+    interactive_refresh_min_interval_seconds: int
     sensitive_action_max_age_seconds: int
     development_auth: bool
+    trusted_auto_remove_ips: frozenset[IPv4Address]
 
     @classmethod
     def from_environment(cls) -> "Settings":
@@ -38,6 +53,14 @@ class Settings:
         agent_timeout_seconds = int(environ.get("FTD_SHUN_AGENT_TIMEOUT_SECONDS", "45"))
         if not 5 <= agent_timeout_seconds <= 120:
             raise ValueError("FTD_SHUN_AGENT_TIMEOUT_SECONDS must be between 5 and 120")
+        poll_interval_seconds = _duration(environ.get("FTD_SHUN_POLL_INTERVAL", "5m"))
+        if not 60 <= poll_interval_seconds <= 24 * 3600:
+            raise ValueError("FTD_SHUN_POLL_INTERVAL must be between 60s and 24h")
+        interactive_refresh_min_interval_seconds = _duration(
+            environ.get("FTD_SHUN_INTERACTIVE_REFRESH_MIN_INTERVAL", "60s")
+        )
+        if interactive_refresh_min_interval_seconds < 60:
+            raise ValueError("FTD_SHUN_INTERACTIVE_REFRESH_MIN_INTERVAL must be at least 60s")
         return cls(
             database_path=Path(environ.get("FTD_SHUN_DATABASE", "/var/lib/ftd-shun-manager/state.db")),
             device_inventory_path=(
@@ -50,9 +73,12 @@ class Settings:
             api_socket=environ.get("FTD_SHUN_API_SOCKET", "/run/ftd-shun-manager/api.sock"),
             agent_mode=agent_mode,
             agent_timeout_seconds=agent_timeout_seconds,
+            poll_interval_seconds=poll_interval_seconds,
+            interactive_refresh_min_interval_seconds=interactive_refresh_min_interval_seconds,
             sensitive_action_max_age_seconds=_duration(
                 environ.get("AUTH_SENSITIVE_ACTION_MAX_AGE", "24h")
             ),
             development_auth=environ.get("FTD_SHUN_DEVELOPMENT_AUTH", "false").lower()
             == "true",
+            trusted_auto_remove_ips=_ipv4_csv(environ.get("FTD_SHUN_TRUSTED_AUTO_REMOVE_IPS", "")),
         )

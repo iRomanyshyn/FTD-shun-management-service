@@ -200,6 +200,304 @@ The typed `UnixAgentClient` request from the API container for device ID `1` and
 
 **Known limitations:** This direct typed-client check bypassed the Web/BFF and API HTTP endpoint. It does not prove Caddy/Authelia identity handling, CSRF, UI behavior, API authorization, SQLite removal audit events, Caddy routing, direct FTD post-operation CLI observation, or the documented negative/failure scenarios. Production writes remain unapproved.
 
+## 2026-10-14 — Typed snapshots, reconciliation, and freshness scheduling
+
+**Status:** Implemented; live FTD snapshot validation pending
+
+Added the typed `LIST_SHUNS` agent operation and a bounded fixed binary snapshot response. The Rust agent opens its existing short-lived pinned-host-key/password/PTY session, runs only source-defined `show shun`, and accepts only the recorded FTD shun line layout with an allowlisted interface, IPv4/mask, and three numeric fields. The API decodes the complete response fail-closed; a malformed, truncated, duplicate, oversized, or rejected response is never interpreted as an empty snapshot.
+
+Added SQLite snapshot reconciliation: new records produce `SHUN_DETECTED`, inactive records produce `SHUN_REAPPEARED`, unchanged records update only `last_seen_at`, and absent active records produce `SHUN_DISAPPEARED`. The API synchronizer starts an asynchronous initial sweep, then uses `FTD_SHUN_POLL_INTERVAL` (default `5m`). Authenticated Web/BFF state views can only post a local refresh hint; the scheduler enforces the configured 60-second minimum and never makes a browser request wait for SSH. The UI now displays last success, a metadata-derived next-baseline countdown, interactive state, and a refresh warning when a device fails.
+
+**Validation:** `cargo fmt --manifest-path agent/Cargo.toml -- --check`; `cargo build --release --locked --manifest-path agent/Cargo.toml`; `cargo clippy --locked --manifest-path agent/Cargo.toml -- -D warnings`; `cargo test --locked --manifest-path agent/Cargo.toml` (10 passed); `python3 -m compileall -q src tests`; `python3 -m pytest -q` (22 passed); `python3 -m ruff check .`; `git diff --check`; `docker compose --env-file .env -f deploy/compose.yml config --quiet` using ignored local configuration.
+
+**Known limitations:** The existing non-production FPR1010 evidence validates the write path, but has not yet exercised the new `LIST_SHUNS` response or a complete poll/reconciliation cycle. `GET_SHUN` and remote-access counter operations remain intentionally unavailable. Full Web/BFF, Caddy/Authelia, audit, failure-path, egress/source-ACL, external-log, and production validation remain required.
+
+## 2026-10-14 — Live empty typed snapshot validation
+
+**Status:** Empty snapshot path validated; non-empty reconciliation pending
+
+The API-container `UnixAgentClient` issued `LIST_SHUNS` for laboratory device ID `1` through the private agent socket and received `[]`. The result verifies the live pinned-host-key/password/PTY session, exact empty `show shun` handling, fixed binary complete-snapshot response, and Python decoder. It did not make a Cisco configuration change.
+
+**Validation:** Operator-provided typed-client output: `[]`.
+
+**Known limitations:** This does not exercise a non-empty list parser result, SQLite reconciliation, scheduled/interactive polling, Web/BFF freshness display, browser authorization/CSRF, external logging, or failure paths. Production remains unapproved.
+
+## 2026-10-14 — Live non-empty snapshot reconciliation validation
+
+**Status:** Agent/API/SQLite path validated; browser and recurring baseline pending
+
+The FPR1010 laboratory `LIST_SHUNS` request returned two non-empty allowlisted entries, including the documented TEST-NET fixture. The API's asynchronous startup sweep reconciled both entries into SQLite under device ID `1` and its configured hostname, and created `SHUN_DETECTED` for the fixture. The API status reported a successful sweep, a five-minute next-baseline timestamp, and no device error. A browser-style refresh hint issued only seconds later became `rate_limited`, demonstrating that it did not cause a second immediate FTD connection.
+
+**Validation:** Operator-provided typed agent response, internal API `/shuns` and `/history/<TEST-NET-IP>` responses, and synchronizer status. The test results showed active records with `management` interface and a durable detection event.
+
+**Known limitations:** This validates the initial non-empty sweep, not an elapsed five-minute baseline or browser rendering. It does not validate the Web/BFF/Caddy/Authelia path, UI countdown, UI removal audit, external disappearance/reappearance, failure paths, or production controls. The additional laboratory test address is intentionally not recorded.
+
+## 2026-10-14 — Local browser-lab profile
+
+**Status:** Implemented; workstation setup pending
+
+Added a separate `compose.local-lab.yml` overlay and `Caddyfile.local-lab` for
+controlled workstation testing before internal DNS and organization TLS exist.
+It binds the existing Caddy routes to local `.test` names and uses only Caddy's
+Internal CA. The profile preserves the normal Authelia ForwardAuth path,
+server-rendered Web/BFF, private Unix sockets, and the prohibition on
+development authentication. Added a structured Fedora procedure for local host
+mapping, interactive Argon2 password-hash generation, local Authelia user-file
+creation, Caddy root trust, start, and rollback to the normal profile.
+
+**Validation:** Reviewed the merged Compose override design; `git diff --check`
+will be run with the final validation set.
+
+**Known limitations:** The local lab profile has not been started in a browser
+yet. It is explicitly unsuitable for shared or production deployment, and the
+operator must not commit `.env`, `users.yml`, local CA files, or other
+deployment secrets.
+
+## 2026-10-14 — Authelia read-only startup repair
+
+**Status:** Implemented; browser retry pending
+
+The first local browser-lab start returned a Caddy 502 because Authelia's
+official image entrypoint tried to recursively `chown /config` and invoke
+`su-exec`, while this service correctly mounts its configuration and user file
+read-only and drops all capabilities. The service now invokes `/app/authelia`
+directly with its explicit configuration path. It retains the read-only root
+filesystem and `cap_drop: [ALL]`, rather than granting `CHOWN`, `SETUID`, or
+`SETGID` or making the configuration writable.
+
+**Validation:** Operator-provided Authelia logs identified the read-only
+`chown` and denied `setgroups` calls. The upstream entrypoint behavior was
+verified against the official Authelia source. Compose rendering is pending
+with the final validation set.
+
+**Known limitations:** The repaired Authelia container and full browser flow
+need a lab retry. The local `.env` must define both local hostnames and their
+shared cookie domain; a stale `AUTH_HOST` causes login redirection failure even
+when Authelia is healthy.
+
+## 2026-10-14 — Authelia configuration-template startup repair
+
+**Status:** Implemented; browser retry pending
+
+The preceding read-only-entrypoint repair exposed a separate Authelia startup
+failure: the checked-in configuration uses deployment-name templates, but
+Authelia disables file templates unless explicitly configured to apply them.
+The Compose service now enables its `template` configuration filter. Session
+and storage secrets were removed from the templated file and remain supplied by
+Authelia's dedicated `AUTHELIA_SESSION_SECRET` and
+`AUTHELIA_STORAGE_ENCRYPTION_KEY` environment configuration. This prevents a
+template expansion from unnecessarily handling a secret.
+
+The local file authentication backend is deliberately mounted read-only, so
+self-service password reset and password change are now disabled. This also
+removes the need to configure a reset-password JWT secret for the lab-only
+local-user flow. A future LDAP(S) deployment must separately design and validate
+identity-management and reset-password behavior before enabling it.
+
+**Validation:** Official Authelia documentation confirms that configuration
+file templates require the explicit `X_AUTHELIA_CONFIG_FILTERS=template`
+setting, that normal environment configuration overrides file values, and that
+password reset can be disabled under the authentication backend. Full Compose
+and browser validation remains pending the operator retry.
+
+**Known limitations:** This fixes the configuration-load failure reported by
+the local profile but does not yet prove the browser login, ForwardAuth
+redirect, Caddy local-CA trust, or application page. The local file backend is
+not a production identity-management service.
+
+## 2026-10-14 — Authelia local-user ownership repair
+
+**Status:** Implemented; browser retry pending
+
+The configuration-template repair let Authelia reach its provider startup
+checks, which then correctly revealed that its protected `users.yml` file was
+unreadable. The image's direct binary invocation starts as root, but the main
+container intentionally drops every capability; a root UID without
+`DAC_OVERRIDE` cannot read a mode `0600` file owned by the workstation user.
+
+The service now runs under explicitly configured `FTD_SHUN_AUTHELIA_UID` and
+`FTD_SHUN_AUTHELIA_GID`, matching the protected local user file owner. A networkless
+one-shot `authelia-data-init` container owns only the Authelia SQLite volume and
+has the minimal `CHOWN` capability required to prepare it. The primary
+Authelia process remains read-only, capability-free, and unable to write its
+configuration or user database. The manuals and environment example now make
+the required host UID/GID explicit.
+
+**Validation:** Operator-provided logs identified the failed read as
+`open /config/users.yml: permission denied`. The local host owner is UID/GID
+`1000:1000`, matching the safe default. Compose rendering and full local
+browser retry remain pending.
+
+**Known limitations:** This change has not yet been started on the laboratory
+stack. Deployments using a non-default host UID/GID must set both values in the
+ignored `.env`; using a mismatched value fails closed at authentication startup.
+
+**Correction:** The first initializer invocation correctly changed ownership
+but attempted its final permission change too late, after it had ceased to own
+the directory. The command now applies mode `0700` before `chown`, preserving
+the `CHOWN`-only capability boundary rather than adding `FOWNER`.
+
+**Correction to the correction:** After the first ownership change, the
+capability-minimal initializer also cannot change the directory mode on a
+subsequent run. The mode operation was therefore removed entirely rather than
+adding `FOWNER` or `DAC_OVERRIDE`. The named volume is not published and is
+mounted only by Authelia and this networkless initializer; access isolation is
+provided by the Compose mount topology and the main process UID.
+
+**Follow-up:** After ownership was fixed, Authelia reached service provisioning
+and reported that its optional in-image healthcheck metadata writer attempted
+to create `/app/.healthcheck.env`. The `server.disable_healthcheck` option is
+now set so the writer is not invoked on the intentionally read-only root
+filesystem. This preserves the main container hardening rather than making
+`/app` writable; the browser ForwardAuth flow remains the current laboratory
+health validation.
+
+## 2026-10-14 — Local Caddy/Authelia ForwardAuth path validation
+
+**Status:** Unauthenticated path validated; interactive browser login pending
+
+The local browser-lab profile was started successfully after the read-only
+Authelia repairs. The `authelia-data-init` one-shot service completed, Authelia
+reported `Startup complete`, and the container healthcheck became healthy. A
+local HTTPS request to the protected service hostname returned a `302` redirect
+to the local Authelia hostname. The redirect set an `HttpOnly`, `Secure`,
+`SameSite=Strict` session cookie scoped to the configured shared local domain.
+A direct local HTTPS request to the Authelia hostname returned `200`.
+
+**Validation:** `docker compose --env-file .env -f deploy/compose.yml -f
+deploy/compose.local-lab.yml config --quiet`; `git diff --check`; local Caddy
+HTTPS requests with explicit loopback hostname resolution; Authelia container
+state `healthy` and Caddy container state `Up`. No application service port was
+published; Caddy remains the only host listener.
+
+**Known limitations:** This does not prove a human browser trusts the local CA,
+can submit the local credentials, receives forwarded identity headers, or can
+view/remove a shun. It does not validate LDAP(S), MFA, production TLS, or any
+write workflow.
+
+## 2026-10-14 — Web/BFF container resource-path repair
+
+**Status:** Implemented; runtime validation pending
+
+Post-login ForwardAuth requests reached Caddy correctly but returned `502`
+because the Web/BFF process repeatedly exited before creating its Unix socket.
+Its installed-package path calculation looked for `static/` and `templates/`
+below `/usr/local/lib/python3.12`, while the hardened runtime image copies those
+assets to `/app`. The image now sets the internal
+`FTD_SHUN_ASSET_ROOT=/app` value and the Web/BFF uses it when present, retaining
+the source-tree path as the development fallback.
+
+**Validation:** Operator-provided Caddy logs identified a missing
+`/run/ftd-shun-manager/web.sock`; Web/BFF traceback identified the missing
+`/usr/local/lib/python3.12/static` directory. Automated checks and rebuilt
+container validation are pending.
+
+**Known limitations:** This repair is limited to static/template resource
+location. It does not yet prove a browser can render the authenticated page,
+receive Caddy-provided identity headers, or invoke API-backed workflows.
+
+**Follow-up validation:** `python3 -m compileall -q src tests`; `python3 -m
+pytest -q` (22 passed); `python3 -m ruff check .`; `git diff --check`; and the
+merged Compose configuration all passed. The Web/BFF image was rebuilt and its
+server started on the private Unix socket. A private UDS request with test
+Caddy-provided identity headers returned `200` and rendered the application
+HTML. Interactive browser rendering after real Authelia login remains to be
+confirmed by the operator.
+
+## 2026-10-14 — Caddy ForwardAuth identity-header ordering repair
+
+**Status:** Implemented; interactive retest pending
+
+After the Web/BFF became available, an authenticated browser request still
+received `401 authentication required`. Caddy's adapted configuration showed
+that its default directive ordering placed the `Remote-*` request-header
+deletion after the ForwardAuth response header copy. It therefore removed the
+authenticated identity immediately before proxying to the BFF.
+
+Both production and local-lab Caddyfiles now place identity-header deletion,
+ForwardAuth, and the Web/BFF reverse proxy in a literal-order `route` block.
+This restores the intended trust sequence: a browser cannot supply a trusted
+identity header, while a successful Authelia decision can do so exactly once
+for the BFF request.
+
+**Validation:** Caddy's adapted JSON configuration demonstrated the incorrect
+previous order, and the official Caddy `route` documentation confirms that
+directives in the block are not reordered. Compose rendering and live
+authenticated-browser retest remain pending.
+
+**Known limitations:** The repair has not yet been exercised by a human browser
+after Caddy reload. It does not change group mapping, authorization policy,
+CSRF behavior, or the protected private-socket boundary.
+
+## 2026-10-14 — Web/BFF removal-timeout alignment and live audit validation
+
+**Status:** Implemented; rebuilt UI validation pending
+
+An authenticated local-browser removal reached the internal API, completed with
+`200`, and recorded both `SHUN_REMOVE_REQUESTED` and
+`SHUN_REMOVED_BY_UI` (`verified: true`). The active local state no longer
+contained the record. However, the BFF used a fixed 15-second internal API
+timeout, while the verified FTD operation completed after roughly 16 seconds,
+so the browser received an incorrect internal-server error after the successful
+write.
+
+The BFF now waits for the configured agent timeout plus ten seconds, exceeding
+the API's agent-plus-five-second margin. Removal and bulk-removal requests also
+convert internal HTTP failures into a controlled `503` which explicitly makes
+no success claim. Added a unit test which locks the timeout relationship at 45
+seconds agent timeout to 55 seconds BFF timeout.
+
+**Validation:** Operator-triggered browser operation; API log `200`; local
+read-only state and audit-history inspection; audit event `verified: true`.
+The selected record was absent from local active state afterward. Automated
+checks and rebuilt Web/BFF validation are pending.
+
+**Known limitations:** This evidence uses the agent's verified response and
+local audit record; it does not replace an independent direct `show shun`
+observation on the FTD. The BFF timeout repair has not yet been deployed to the
+running Web container.
+
+**Follow-up validation:** `python3 -m compileall -q src tests`; `python3 -m
+pytest -q` (23 passed); `python3 -m ruff check .`; `git diff --check`; and the
+merged Compose configuration passed. The Web/BFF image was rebuilt and
+restarted. Its effective internal API read timeout was verified as 55 seconds
+for the configured 45-second agent timeout. No additional FTD operation was
+issued during this deployment validation.
+
+## 2026-10-14 — Trusted-IP automatic-removal policy and list usability
+
+**Status:** Implemented; disabled by default; FTD policy validation pending
+
+Added the optional `FTD_SHUN_TRUSTED_AUTO_REMOVE_IPS` policy. It accepts only
+comma-separated exact IPv4 addresses and starts empty. After a complete,
+successfully parsed device snapshot, the synchronizer compares observed entries
+with that allowlist and invokes the existing fixed, verified device-scoped
+removal operation for an exact match. It records append-only
+`SHUN_TRUSTED_AUTO_REMOVE_*` events under `system:trusted-ip-policy`; it does
+not act after an unavailable or malformed snapshot, and a failed policy action
+does not mark the shun removed.
+
+The active-shun page now provides local IPv4 prefix filtering and presents
+refresh state in operational language, with browser-updated last-confirmed and
+next-refresh times. These display changes neither wait for Cisco output nor
+change the existing global 60-second interactive-refresh limit.
+
+The architecture, environment example, deployment and operations manuals, and
+lab checklist now specify the policy's exact-IPv4 scope, event trail, alerting,
+and required success/failure laboratory validation. No operator configuration
+was enabled or changed by this increment.
+
+**Validation:** `python3 -m compileall -q src tests`; `python3 -m pytest -q`
+(29 passed); `python3 -m ruff check .`; `git diff --check`; and
+`docker compose --env-file .env -f deploy/compose.yml config --quiet` all
+passed.
+
+**Known limitations:** The policy has automated success and failure coverage
+only. It has not sent an automatic removal to the FTD lab and must remain empty
+until the documented dedicated-fixture validation confirms both a verified
+removal and its fail-closed behavior. The new browser search/freshness
+presentation also awaits a post-deployment interactive check.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

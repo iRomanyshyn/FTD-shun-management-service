@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hmac
+import os
 import secrets
 from dataclasses import dataclass
 from ipaddress import IPv4Address
@@ -17,7 +18,7 @@ from fastapi.templating import Jinja2Templates
 
 from .config import Settings
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PROJECT_ROOT = Path(os.environ.get("FTD_SHUN_ASSET_ROOT", Path(__file__).resolve().parents[2]))
 templates = Jinja2Templates(directory=str(PROJECT_ROOT / "templates"))
 
 
@@ -61,7 +62,14 @@ def require_csrf(request: Request, supplied: str) -> None:
 
 def api_client(settings: Settings) -> httpx.Client:
     transport = httpx.HTTPTransport(uds=settings.api_socket)
-    return httpx.Client(transport=transport, base_url="http://ftd-internal", timeout=15)
+    # A removal can legitimately wait for the agent's bounded FTD SSH operation.
+    # The API itself allows five seconds of local IPC margin, so the BFF must
+    # never time out first and claim an internal error after a verified write.
+    return httpx.Client(
+        transport=transport,
+        base_url="http://ftd-internal",
+        timeout=settings.agent_timeout_seconds + 10,
+    )
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -86,23 +94,41 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def index(request: Request) -> HTMLResponse:
         identity = identity_from_request(request, settings.development_auth)
         with api_client(settings) as client:
+            client.post("/api/v1/refresh-hint")
             response = client.get("/api/v1/shuns")
+            refresh_status = client.get("/api/v1/status")
         if response.status_code != 200:
             return render(request, "error.html", {"message": "State API is unavailable."}, 503)
-        return render(request, "index.html", {"identity": identity, "shuns": response.json()})
+        return render(
+            request,
+            "index.html",
+            {
+                "identity": identity,
+                "shuns": response.json(),
+                "refresh": refresh_status.json() if refresh_status.status_code == 200 else None,
+            },
+        )
 
     @app.get("/shuns/{ip}", response_class=HTMLResponse)
     def detail(request: Request, ip: IPv4Address) -> HTMLResponse:
         identity = identity_from_request(request, settings.development_auth)
         with api_client(settings) as client:
+            client.post("/api/v1/refresh-hint")
             response = client.get(f"/api/v1/shuns/{ip}")
             history = client.get(f"/api/v1/history/{ip}")
+            refresh_status = client.get("/api/v1/status")
         if response.status_code != 200 or history.status_code != 200:
             return render(request, "error.html", {"message": "State API is unavailable."}, 503)
         return render(
             request,
             "detail.html",
-            {"identity": identity, "ip": ip, "shuns": response.json(), "events": history.json()},
+            {
+                "identity": identity,
+                "ip": ip,
+                "shuns": response.json(),
+                "events": history.json(),
+                "refresh": refresh_status.json() if refresh_status.status_code == 200 else None,
+            },
         )
 
     @app.post("/devices/{device_id}/shuns/{ip}/remove")
@@ -111,10 +137,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     ) -> RedirectResponse:
         require_csrf(request, csrf)
         identity = identity_from_request(request, settings.development_auth)
-        with api_client(settings) as client:
-            response = client.request(
-                "DELETE", f"/api/v1/devices/{device_id}/shuns/{ip}", json=identity.__dict__
-            )
+        try:
+            with api_client(settings) as client:
+                response = client.request(
+                    "DELETE", f"/api/v1/devices/{device_id}/shuns/{ip}", json=identity.__dict__
+                )
+        except httpx.HTTPError as error:
+            raise HTTPException(
+                status_code=503,
+                detail="State API did not return a removal result; no success is claimed.",
+            ) from error
         if response.status_code != 200:
             raise HTTPException(response.status_code, response.text)
         return RedirectResponse(url=f"/shuns/{ip}", status_code=303)
@@ -125,8 +157,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if confirm_ip != str(ip):
             raise HTTPException(status_code=400, detail="confirmation must match the IP address")
         identity = identity_from_request(request, settings.development_auth)
-        with api_client(settings) as client:
-            response = client.post(f"/api/v1/shuns/{ip}/remove-all", json=identity.__dict__)
+        try:
+            with api_client(settings) as client:
+                response = client.post(f"/api/v1/shuns/{ip}/remove-all", json=identity.__dict__)
+        except httpx.HTTPError as error:
+            raise HTTPException(
+                status_code=503,
+                detail="State API did not return a removal result; no success is claimed.",
+            ) from error
         if response.status_code != 200:
             raise HTTPException(response.status_code, response.text)
         return RedirectResponse(url="/", status_code=303)

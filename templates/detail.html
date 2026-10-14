@@ -1,6 +1,12 @@
 {% extends "base.html" %}
 {% block content %}
 <h1>Shun: {{ ip }}</h1>
+{% if refresh %}
+<p class="refresh-status" data-last-successful="{{ refresh.last_successful_refresh or '' }}" data-min-interval="{{ refresh.interactive_min_interval_seconds }}" data-state="{{ refresh.interactive_refresh_state }}">Data last confirmed: <time class="last-successful-refresh">{{ refresh.last_successful_refresh or "not yet available" }}</time>. Next scheduled check: <time class="baseline-countdown" data-next-baseline="{{ refresh.next_baseline_refresh or '' }}">{{ refresh.next_baseline_refresh or "not scheduled" }}</time>. <span class="interactive-refresh-status"></span></p>
+{% if refresh.trusted_auto_remove_ip_count %}<p class="trusted-policy">Trusted-IP automatic removal is active for {{ refresh.trusted_auto_remove_ip_count }} exact address{% if refresh.trusted_auto_remove_ip_count != 1 %}es{% endif %}. Policy actions are recorded in history.</p>{% endif %}
+{% if refresh.last_error %}<p class="refresh-error">Refresh warning: {{ refresh.last_error }}</p>{% endif %}
+<script src="/static/freshness.js" defer></script>
+{% endif %}
 <p>The device-specific operation removes all verified matching interfaces on that device.</p>
 <ul>{% for shun in shuns %}<li>{{ shun.device_hostname }} — {{ shun.interface }} — seen {{ shun.first_seen_at }}{% if 'Operator' in identity.roles or 'Administrator' in identity.roles %}<form method="post" action="/devices/{{ shun.device_id }}/shuns/{{ ip }}/remove"><input type="hidden" name="csrf" value="{{ csrf_token }}"><button>Remove from this device</button></form>{% endif %}</li>{% endfor %}</ul>
 {% if shuns and ('Operator' in identity.roles or 'Administrator' in identity.roles) %}

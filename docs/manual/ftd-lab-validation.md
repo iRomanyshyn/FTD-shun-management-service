@@ -1,13 +1,14 @@
 # FTD Laboratory Validation
 
-This procedure validates the existing removal agent and collects safe parser fixtures before polling or read RPC is implemented. Run it only against a non-production FTD under the organization's normal change process.
+This procedure validates the typed snapshot and removal agent and collects safe parser fixtures. Run it only against a non-production FTD under the organization's normal change process.
 
 ## Objectives
 
 1. Confirm that the agent can authenticate with the pinned host key and dedicated service identity.
 2. Capture the exact supported `show shun` output shape for parser fixtures.
 3. Validate a single device-scoped removal and its post-write verification.
-4. Confirm that expected security failures are fail-closed.
+4. Validate complete typed snapshot collection and reconciliation.
+5. Confirm that expected security failures are fail-closed.
 
 Do not use this procedure to create shuns, alter FTD configuration, or test against a production device. The product has no shun-creation operation.
 
@@ -76,6 +77,32 @@ Interactive SSH with a PTY successfully reached the FTD `>` prompt after the log
 
 On 2026-10-14, the isolated agent successfully completed a device-scoped removal through its fixed Unix socket protocol. The request was issued from the API container with the typed `UnixAgentClient` for device ID `1` and target `198.51.100.250`; it returned `verified removal`. This demonstrates the pinned-host-key, password-authentication, prompt-driven PTY, typed `show shun`, interface-qualified removal, and post-write verification path against the FPR1010 laboratory fixture. The direct test intentionally bypassed the Web/BFF and API HTTP workflow, so it does not validate browser authentication, CSRF, SQLite audit events, or Caddy routing.
 
+Also on 2026-10-14, the API container issued typed `LIST_SHUNS` for device ID `1` through the agent socket and received `[]`. This validates the empty `show shun` path, the complete binary snapshot response, and its client decoding against the same FPR1010 lab. It does not validate a non-empty snapshot, SQLite reconciliation, polling/freshness metadata, or the browser workflow.
+
+Later that day, an approved non-empty lab snapshot returned two allowlisted `management` entries, including the documented TEST-NET fixture. The API startup sweep persisted both active records with the configured device hostname and generated `SHUN_DETECTED` for the fixture. Its status showed a successful refresh and next-baseline timestamp; a hint issued seconds after that sweep was correctly marked `rate_limited`, without opening a second immediate FTD session. The additional test address is intentionally not recorded here.
+
+## Validate the typed snapshot path
+
+Rebuild the API and agent after deploying this increment. This check only reads
+the FTD and is safe to run when no shun is present; an empty list is a valid
+result.
+
+```bash
+docker compose --env-file .env -f deploy/compose.yml up -d --build agent api
+docker compose --env-file .env -f deploy/compose.yml exec -T api python -c \
+  "from ftd_shun_manager.agent_client import UnixAgentClient; print(UnixAgentClient('/run/ftd-shun-manager-agent/agent.sock').list_shuns(1))"
+```
+
+For the recorded fixture, create an approved TEST-NET shun only through the
+normal lab change process, then repeat the command. Confirm that the returned
+address and `management` interface exactly match `show shun` on the FTD. Wait
+for the initial API sweep or trigger an authenticated state-page view, then
+confirm that SQLite/UI state contains that shun and one `SHUN_DETECTED` event.
+After removing it by the approved path, wait for a successful snapshot and
+confirm `SHUN_DISAPPEARED` only when the disappearance was external rather than
+the recorded verified UI removal. Do not use a malformed production FTD response
+as a parser test.
+
 ## Validate the current removal path
 
 Choose an existing, approved lab shun whose target IPv4 and affected interfaces are known. Do not use a production address.
@@ -86,6 +113,21 @@ Choose an existing, approved lab shun whose target IPv4 and affected interfaces 
 4. Record the direct post-operation `show shun <IPv4>` output.
 5. Confirm that the target no longer appears and that SQLite history contains `SHUN_REMOVE_REQUESTED` followed by `SHUN_REMOVED_BY_UI` for the correct device, actor, and request ID.
 6. Record the test timestamp, FTD version, agent image digest, inventory revision, and outcome in the deployment change record.
+
+## Validate the trusted-IP automatic-removal policy
+
+This is a write test. Use one dedicated non-production TEST-NET fixture and
+ensure no unrelated address is present in `FTD_SHUN_TRUSTED_AUTO_REMOVE_IPS`.
+
+1. Add only the fixture IPv4 to `FTD_SHUN_TRUSTED_AUTO_REMOVE_IPS` in the ignored `.env`, then recreate the API service.
+2. Create the approved fixture shun through the normal lab change process and record direct `show shun <IPv4>` output.
+3. Wait for the next successful snapshot, or use one authenticated state-page view and wait for its permitted background sweep. Do not use a direct agent command to trigger the policy.
+4. Confirm the agent performs a verified removal, direct FTD output no longer lists the fixture, and history contains `SHUN_TRUSTED_AUTO_REMOVE_REQUESTED` followed by `SHUN_TRUSTED_AUTO_REMOVED` under `system:trusted-ip-policy`.
+5. Remove the fixture from `.env`, recreate the API service, and verify the policy count returns to zero. Record the outcome before adding any real trusted address.
+
+Also test one agent-unavailable failure in a lab. The history must contain
+`SHUN_TRUSTED_AUTO_REMOVE_FAILED`, must not contain a corresponding success,
+and the locally observed active state must remain visible.
 
 ## Required fail-closed checks
 
@@ -99,14 +141,17 @@ Perform these only in a lab and restore the approved configuration afterward.
 | Invalid binary RPC packet | Agent rejects the packet without opening SSH. |
 | SSH authentication failure | Removal fails; no audit success is recorded. |
 | Basic FTD CLI role cannot remove an approved lab shun | Do not silently promote the account. Record the result; Config access requires an explicit risk decision. |
+| Trusted-IP policy agent failure | A policy failure is audited, does not claim removal, and leaves observed state active. |
 
 Do not intentionally test malformed Cisco output on a production FTD. Use sanitized fixtures and agent unit tests for parser-negative cases.
 
-## Exit criteria for the next milestone
+## Exit criteria for production consideration
 
-The project may begin typed list/read RPC, polling, and reconciliation only when:
+Do not treat polling or removal as production-ready until:
 
 - the successful removal path has been observed on the supported FTD version;
+- the typed complete snapshot path and SQLite reconciliation have been observed on the supported FTD version;
+- if the trusted-IP policy will be enabled, its successful and fail-closed laboratory outcomes have been recorded;
 - all required fail-closed checks have their recorded outcomes;
 - approved sanitized fixtures cover the expected `show shun` variants; and
 - the host egress and FTD SSH source restrictions have been independently reviewed.

@@ -1,0 +1,5 @@
+# Compose overlay for a workstation-only browser lab. Do not use in deployment.
+services:
+  caddy:
+    volumes:
+      - ./caddy/Caddyfile.local-lab:/etc/caddy/Caddyfile:ro

@@ -3,8 +3,18 @@
 No Cisco CLI text belongs in this module or crosses this boundary.
 """
 
+from dataclasses import dataclass
 from enum import IntEnum
 from ipaddress import IPv4Address
+
+MAX_AGENT_RESPONSE_BYTES = 64 * 1024
+_SUCCESS = 0x00
+
+
+@dataclass(frozen=True, order=True)
+class ObservedShun:
+    ip: IPv4Address
+    interface: str
 
 
 class Operation(IntEnum):
@@ -46,3 +56,42 @@ def decode_request(packet: bytes) -> tuple[Operation, int, IPv4Address | None]:
     if device_id == 0:
         raise ValueError("device_id must not be zero")
     return operation, device_id, IPv4Address(packet[3:]) if requires_ip else None
+
+
+def decode_list_shuns_response(packet: bytes) -> list[ObservedShun]:
+    """Decode the agent's fixed binary complete-snapshot response."""
+    if len(packet) > MAX_AGENT_RESPONSE_BYTES:
+        raise ValueError("agent list-shuns response exceeds the maximum size")
+    if len(packet) < 3 or packet[0] != _SUCCESS:
+        raise ValueError("agent did not return a list-shuns success response")
+    expected_count = int.from_bytes(packet[1:3], "big")
+    offset = 3
+    entries: list[ObservedShun] = []
+    for _ in range(expected_count):
+        if offset + 5 > len(packet):
+            raise ValueError("agent list-shuns response is truncated")
+        ip = IPv4Address(packet[offset : offset + 4])
+        interface_length = packet[offset + 4]
+        offset += 5
+        if not 1 <= interface_length <= 64 or offset + interface_length > len(packet):
+            raise ValueError("agent list-shuns interface field is invalid")
+        try:
+            interface = packet[offset : offset + interface_length].decode("ascii")
+        except UnicodeDecodeError as error:
+            raise ValueError("agent list-shuns interface is not ASCII") from error
+        offset += interface_length
+        if not _valid_interface(interface):
+            raise ValueError("agent list-shuns interface is invalid")
+        entries.append(ObservedShun(ip, interface))
+    if offset != len(packet) or len(set(entries)) != len(entries):
+        raise ValueError("agent list-shuns response is malformed")
+    return entries
+
+
+def _valid_interface(value: str) -> bool:
+    return (
+        1 <= len(value) <= 64
+        and value[0].isalpha()
+        and value.isascii()
+        and all(character.isalnum() or character in "/._-" for character in value)
+    )
