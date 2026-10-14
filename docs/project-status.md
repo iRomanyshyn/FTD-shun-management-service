@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-10-13
+Last updated: 2026-10-14
 
 ## Current increment
 
@@ -15,7 +15,7 @@ Last updated: 2026-10-13
 | Internal API | Complete for first increment | Unix-socket-only FastAPI service with state, history, and semantic removal endpoints. Its agent-client timeout exceeds the configured agent operation timeout. |
 | Local state and audit trail | Complete for first increment | SQLite WAL stores device state and append-only removal events. |
 | Device inventory | Complete for first increment | Static JSON validates numeric IDs, hostnames, management addresses, pinned host keys, and interface allowlists. |
-| Agent boundary | Removal implemented; read operations pending | Rust agent verifies pinned server host keys, authenticates the FTD `Basic` account with a protected password secret, uses a prompt-driven PTY shell, performs only `REMOVE_SHUN`, parses strictly, verifies the resulting state, and emits sanitized structured diagnostics for rejected operations to a bounded Docker log channel. |
+| Agent boundary | Removal implemented and live-lab validated; read operations pending | Rust agent verifies pinned server host keys, authenticates the FTD `Basic` account with a protected password secret, uses a prompt-driven PTY shell, performs only `REMOVE_SHUN`, parses strictly, verifies the resulting state, and emits sanitized structured diagnostics for rejected operations to a bounded Docker log channel. |
 | Authentication edge | Complete for first increment | Caddy and Authelia ForwardAuth, beginning with Authelia local users and allowing later LDAP(S) migration. |
 | Container layout | Complete for first increment | Only Caddy TCP/443 is published; Web and API use private Unix sockets. The one-shot socket-volume initializer is capability-minimal and prepares ownership/mode for socket and SQLite state volumes before handing them to their service identities. |
 | Manuals | Complete for first increment | Development, deployment, and operations manuals are present. |
@@ -23,9 +23,9 @@ Last updated: 2026-10-13
 ## Explicit limitations
 
 - Scheduled polling, FTD command parsing, reconciliation, and real shun collection are not implemented.
-- A direct FTD 7.6.6 lab CLI check has validated the observed `show shun` line shape, empty-output case, and the agent's explicit interface-qualified removal syntax; the SSH agent and full service path have not yet been exercised against that lab, so production writes are not approved.
+- A non-production FPR1010 / FTD 7.6.6 lab has validated the observed `show shun` line shape, empty-output case, agent host-key/password/PTY connection, interface-qualified removal, and post-write verification. The successful request used the typed client from the API container; Web/BFF, HTTP API authorization, Caddy, SQLite audit-event creation, and direct post-operation CLI observation still require validation. Production writes are not approved.
 - Egress restriction to configured FTD TCP/22 targets and the matching FTD SSH source ACL are mandatory deployment controls, but are environment-specific host/network configuration rather than Compose-enforced policy.
-- In the current FPR1010 lab, the Compose host reaches FTD SSH through `cscotun0`, but the `ftd-management` bridge (`172.18.0.0/16`) cannot reach FTD TCP/22. No full-path FTD operation can proceed until a narrow host firewall/NAT egress policy is installed.
+- The original Fedora/`cscotun0` test host could not route its `ftd-management` bridge (`172.18.0.0/16`) to FTD TCP/22. Every deployment host must independently provide and review narrow agent-to-FTD TCP/22 egress and a matching FTD SSH source restriction.
 - Agent RPC read operations and threat-detection counters are intentionally rejected until their typed result formats are designed and tested.
 - FTD supplies broad `Basic` and `Config` CLI roles rather than a per-command authorization model. The FPR1010 / FTD 7.6.6 lab fixture confirms that `Basic` permits the product's `show shun` and interface-qualified removal; no `Config` account is needed for that supported profile.
 - The agent's bounded Docker log is the required local operational channel. Host collection/forwarding to a chosen external JSON log platform, metrics, alerting integration, and production backup automation remain environment-specific and are not implemented by this stack.
@@ -49,7 +49,7 @@ The foundation increment was checked with:
 
 ## Next work, in order
 
-1. Complete the [FTD laboratory validation](manual/ftd-lab-validation.md): validate pinned-host-key and protected-password agent access, the full service path, and all expected failure modes.
+1. Complete the [FTD laboratory validation](manual/ftd-lab-validation.md): validate the Web/BFF and HTTP API workflow, SQLite audit records, direct post-operation FTD observation, and all expected failure modes.
 2. Add typed list/read agent responses, strict FTD output parsing, and reconciliation; implement the configurable five-minute baseline poll plus activity-gated interactive refresh with a 60-second global/per-device minimum.
 3. Add agent/API failure-path integration tests, including host-key mismatch and private-socket peer checks.
 4. Add structured external logging, metrics, backups, retention procedures, and operator alerts.

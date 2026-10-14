@@ -68,11 +68,13 @@ no shun 198.51.100.250 interface management
 show shun
 ```
 
-This validates the current parser's observed line shape, the empty-output case, and the agent's explicit `no shun <IPv4> interface management` command form. It does **not** yet validate pinned-host-key authentication or the full service path.
+This direct-CLI evidence validates the current parser's observed line shape, the empty-output case, and the agent's explicit `no shun <IPv4> interface management` command form. By itself, it did not validate pinned-host-key authentication or the full service path; the later typed-agent result below adds that evidence.
 
 The same removal was then performed by a newly created local user with the FTD `Basic` role. This establishes that, on this FPR1010 / FTD 7.6.6 fixture, `Basic` is sufficient for the product's required read and removal commands. Do not promote the product account to `Config` for this version.
 
 Interactive SSH with a PTY successfully reached the FTD `>` prompt after the login banner. The banner took approximately 1.5 seconds in the observed lab session. This is a compatibility requirement for the agent, not a delay value: the agent waits for the prompt within its operation timeout and never uses a fixed login sleep. Plain SSH `exec` mode was rejected by the FTD login path and is intentionally unsupported by the agent.
+
+On 2026-10-14, the isolated agent successfully completed a device-scoped removal through its fixed Unix socket protocol. The request was issued from the API container with the typed `UnixAgentClient` for device ID `1` and target `198.51.100.250`; it returned `verified removal`. This demonstrates the pinned-host-key, password-authentication, prompt-driven PTY, typed `show shun`, interface-qualified removal, and post-write verification path against the FPR1010 laboratory fixture. The direct test intentionally bypassed the Web/BFF and API HTTP workflow, so it does not validate browser authentication, CSRF, SQLite audit events, or Caddy routing.
 
 ## Validate the current removal path
 
