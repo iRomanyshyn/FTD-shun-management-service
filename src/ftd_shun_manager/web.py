@@ -8,7 +8,9 @@ import secrets
 from dataclasses import dataclass
 from ipaddress import IPv4Address
 from pathlib import Path
+from typing import Annotated
 from urllib.parse import urlencode
+from uuid import UUID, uuid4
 
 import httpx
 import uvicorn
@@ -21,6 +23,7 @@ from .config import Settings
 
 PROJECT_ROOT = Path(os.environ.get("FTD_SHUN_ASSET_ROOT", Path(__file__).resolve().parents[2]))
 templates = Jinja2Templates(directory=str(PROJECT_ROOT / "templates"))
+templates.env.globals["new_operation_key"] = lambda: str(uuid4())
 
 
 @dataclass(frozen=True)
@@ -103,6 +106,10 @@ def refresh_metadata(refresh: object) -> dict[str, object]:
         "refresh_enabled",
         "server_time",
         "devices",
+        "queue",
+        "session_cycles_enabled",
+        "device_cycle",
+        "priority_refresh_available",
         "last_successful_refresh",
         "last_attempt",
         "last_error",
@@ -136,6 +143,24 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if set_cookie:
             response.set_cookie("ftd_shun_csrf", token, secure=True, httponly=True, samesite="strict")
         return response
+
+    def queued_result(request: Request, response: httpx.Response, target: str) -> Response:
+        if response.status_code not in {200, 202}:
+            try:
+                detail = response.json().get("detail", "Operation request was rejected.")
+            except (ValueError, AttributeError):
+                detail = "Operation request was rejected."
+            raise HTTPException(response.status_code, detail)
+        if "application/json" in request.headers.get("accept", ""):
+            try:
+                with api_client(settings) as client:
+                    refresh = client.get("/api/v1/status")
+            except httpx.HTTPError as error:
+                raise HTTPException(503, "Request status is unknown. Retry with the same operation key.") from error
+            if refresh.status_code != 200:
+                raise HTTPException(503, "Request may be queued; status is unavailable. Retry with the same operation key.")
+            return JSONResponse({**refresh_metadata(refresh.json()), "operation_result": response.json()})
+        return RedirectResponse(target, status_code=303)
 
     @app.get("/healthz")
     def healthz() -> dict[str, str]:
@@ -240,41 +265,52 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.post("/devices/{device_id}/shuns/{ip}/remove")
     def remove_device(
-        request: Request, device_id: int, ip: IPv4Address, csrf: str = Form(...)
-    ) -> RedirectResponse:
+        request: Request, device_id: int, ip: IPv4Address,
+        request_id: Annotated[UUID, Form()], csrf: str = Form(...),
+    ) -> Response:
         require_csrf(request, csrf)
         identity = identity_from_request(request, settings.development_auth)
         try:
             with api_client(settings) as client:
                 response = client.request(
-                    "DELETE", f"/api/v1/devices/{device_id}/shuns/{ip}", json=identity.__dict__
+                    "DELETE", f"/api/v1/devices/{device_id}/shuns/{ip}", json=identity.__dict__,
+                    headers={"Idempotency-Key": str(request_id)},
                 )
         except httpx.HTTPError as error:
             raise HTTPException(
                 status_code=503,
-                detail="State API did not return a removal result; no success is claimed.",
+                detail="Queue admission was not confirmed. Retry with the same operation key.",
             ) from error
-        if response.status_code != 200:
-            raise HTTPException(response.status_code, response.text)
-        return RedirectResponse(url=f"/shuns/{ip}", status_code=303)
+        return queued_result(request, response, f"/shuns/{ip}")
 
     @app.post("/shuns/{ip}/remove-all")
-    def remove_all(request: Request, ip: IPv4Address, csrf: str = Form(...), confirm_ip: str = Form(...)) -> RedirectResponse:
+    def remove_all(request: Request, ip: IPv4Address, request_id: Annotated[UUID, Form()],
+                   csrf: str = Form(...), confirm_ip: str = Form(...)) -> Response:
         require_csrf(request, csrf)
         if confirm_ip != str(ip):
             raise HTTPException(status_code=400, detail="confirmation must match the IP address")
         identity = identity_from_request(request, settings.development_auth)
         try:
             with api_client(settings) as client:
-                response = client.post(f"/api/v1/shuns/{ip}/remove-all", json=identity.__dict__)
+                response = client.post(f"/api/v1/shuns/{ip}/remove-all", json=identity.__dict__,
+                                       headers={"Idempotency-Key": str(request_id)})
         except httpx.HTTPError as error:
             raise HTTPException(
                 status_code=503,
-                detail="State API did not return a removal result; no success is claimed.",
+                detail="Queue admission was not confirmed. Retry with the same operation key.",
             ) from error
-        if response.status_code != 200:
-            raise HTTPException(response.status_code, response.text)
-        return RedirectResponse(url="/", status_code=303)
+        return queued_result(request, response, f"/shuns/{ip}")
+
+    @app.post("/operations/{operation_id}/cancel")
+    def cancel_operation(request: Request, operation_id: UUID, csrf: str = Form(...)) -> Response:
+        require_csrf(request, csrf)
+        identity = identity_from_request(request, settings.development_auth)
+        try:
+            with api_client(settings) as client:
+                response = client.post(f"/api/v1/operations/{operation_id}/cancel", json=identity.__dict__)
+        except httpx.HTTPError as error:
+            raise HTTPException(503, "Cancellation was not confirmed; check the operation queue.") from error
+        return queued_result(request, response, "/")
 
     return app
 

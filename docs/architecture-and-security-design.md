@@ -28,9 +28,10 @@ Security takes priority over extensibility.
 Sections 1–73 describe the current removal-oriented scope. The approved next
 increment in [Section 74](#74-approved-next-increment-queued-device-cycles-and-manual-imports)
 and the [Development Plan](development-plan.md) extends that scope with queued
-device cycles and one-time manual shun imports. These capabilities are planned,
-not implemented; current protocol and operating procedures remain in effect
-until the documented migration and laboratory gates are completed.
+device cycles and one-time manual shun imports. The durable removal queue is
+implemented; a bounded-session protocol is experimental and opt-in pending lab
+validation. Additions/imports remain planned. Default legacy protocol and
+operating procedures remain in effect until the documented gates are completed.
 
 ---
 
@@ -473,6 +474,10 @@ Rust is the preferred implementation language for the privileged agent.
 
 The v1 removal agent establishes a new SSH session for each semantic write and closes it after post-write verification. It does not retain an authenticated write session between user requests. This keeps the state model simple and lets each operation re-check the pinned host key.
 
+The experimental Section 74 cycle extension is the explicit opt-in exception:
+one authenticated session spans bounded sequential operations and is closed at
+cycle end, never retained between cycles.
+
 The supported FPR1010 / FTD 7.6.6 profile requires an interactive SSH PTY and shell; SSH `exec` requests are not a supported command path. The agent must therefore:
 
 1. authenticate and request an `xterm` PTY plus an interactive shell;
@@ -751,6 +756,11 @@ Once per day, the synchronizer removes event rows older than the calculated UTC
 cutoff and inactive `shun_state` rows whose `last_changed_at` is older than the
 same cutoff. It never removes an active shun-state row.
 
+Terminal operation-queue jobs and their orphaned request records follow the
+same retention period. Unfinished QUEUED/RUNNING jobs are not purged; expiry
+or recovery must settle them first. Queue cleanup records its deletion count
+in a new `HISTORY_RETENTION_PURGED` event.
+
 The history store remains append-only inside its configured retention window.
 When a purge removes one or more records, it adds a new
 `HISTORY_RETENTION_PURGED` event with the cutoff and deletion counts. The
@@ -781,6 +791,17 @@ SHUN_TRUSTED_AUTO_REMOVE_REQUESTED
 SHUN_TRUSTED_AUTO_REMOVED
 SHUN_TRUSTED_AUTO_REMOVE_NOOP
 SHUN_TRUSTED_AUTO_REMOVE_FAILED
+
+SHUN_OPERATION_QUEUED
+SHUN_OPERATION_RUNNING
+SHUN_OPERATION_VERIFIED
+SHUN_OPERATION_NOOP
+SHUN_OPERATION_FAILED
+SHUN_OPERATION_UNVERIFIED
+SHUN_OPERATION_RECONCILED_ABSENT
+SHUN_OPERATION_CANCELLED
+SHUN_OPERATION_DEFERRED
+OPERATION_QUEUE_RESTORE_SUSPENDED
 
 HISTORY_RETENTION_PURGED
 
@@ -860,8 +881,10 @@ are rejected at startup.
 
 After the agent returns a complete, successfully parsed snapshot for a device,
 the synchronizer compares each observed address with this policy. For every
-exact match it records a policy request, sends the existing fixed
-`REMOVE_SHUN` operation for that device and address, and records a policy
+exact match it admits a request into the shared durable removal queue. The
+worker sends the existing fixed `REMOVE_SHUN` operation within the same
+cycle budget as manual work (one removal in default mode; bounded multiple
+removals in experimental session mode), and records a policy
 success only after the agent's normal post-write verification. It uses the
 actor `system:trusted-ip-policy`, never a browser identity. The policy does
 not run after an unavailable or malformed snapshot, does not broaden the
@@ -975,12 +998,12 @@ When a user requests removal from one device in the UI:
 ```text
 1. Authenticate and authorize user.
 2. Validate the configured device ID and IPv4.
-3. Create SHUN_REMOVE_REQUESTED event.
-4. Send fixed REMOVE_SHUN operation to agent.
-5. Agent executes fixed Cisco operation.
-6. Perform immediate state verification.
-7. Update in-memory state.
-8. Create final audit event.
+3. Atomically persist the idempotent queued intention and SHUN_REMOVE_REQUESTED event.
+4. Return 202 Accepted and the parent request/operation ID; do not claim removal.
+5. The leased background worker refreshes state and claims an eligible queued item.
+6. Send fixed REMOVE_SHUN only for a positively observed target.
+7. Agent executes its fixed operation and immediate state verification.
+8. Atomically persist verified local state, queue outcome, and final audit events.
 ```
 
 A successful verified removal creates:
@@ -988,6 +1011,14 @@ A successful verified removal creates:
 ```text
 SHUN_REMOVED_BY_UI
 ```
+
+The queue panel reports pending and final states independently of HTTP
+admission. Duplicate intentions share one job while preserving every actor.
+The same key/payload returns the original request even after completion;
+changed scope or target is a conflict. Unstarted manual requests may be
+cancelled by their requester or an Administrator. Expired/disabled work fails
+before dispatch. A lost/rejected agent response or abandoned running worker
+produces UNVERIFIED, never a fabricated success or automatic replay.
 
 Fields include:
 
@@ -1077,6 +1108,7 @@ GET    /api/v1/shuns
 GET    /api/v1/shuns/{ip}
 DELETE /api/v1/devices/{device_id}/shuns/{ip}
 POST   /api/v1/shuns/{ip}/remove-all
+POST   /api/v1/operations/{operation_id}/cancel
 
 GET    /api/v1/history
 GET    /api/v1/history/{ip}
@@ -1087,6 +1119,20 @@ GET    /api/v1/threat-detection/client-initiations
 ```
 
 The API must never expose Cisco credentials or raw SSH functionality.
+
+The two removal routes return `202 Accepted` with `operation_id` (the parent
+request ID) and `replayed`. They do not return immediate `changed` results.
+An optional UUID `Idempotency-Key` header makes retries explicit; otherwise
+the API assigns a UUID. `/status` includes queue revision, retained outcome
+counts, next eligible cycle, and independently bounded job groups: up to 100
+active jobs (RUNNING first, then FIFO), 20 failed/unverified jobs, and the latest
+20 other completed jobs, with associated parent requests. Counts cover all
+retained jobs, not only displayed rows. No queue record is deleted to hide it.
+Counts and selected groups use one consistent SQLite read snapshot, including
+when a different worker completes an item during status collection.
+The cancel route requires the mapped write role and enforces requester/admin
+ownership; running work cannot be cancelled. Queue acceptance, updates, and
+audit share SQLite transactions.
 
 `/api/v1/search` searches only the bounded local SQLite active-state and
 retained event history. It accepts a full IPv4 address or a dotted IPv4 prefix,
@@ -1168,7 +1214,14 @@ The immutable Authelia username, login/display name, and mapped role set must be
 
 ## Sensitive-Operation Reauthentication
 
-Removal of a shun requires a session no older than the configured maximum age. Authelia enforces this through its session expiration; when expired, Caddy redirects the user to log in again.
+Admission or cancellation of a manual removal request requires a session no older than the configured maximum age. Authelia enforces this through its session expiration; when expired, Caddy redirects the user to log in again.
+
+Queue admission delegates the captured write authorization for at most 15
+minutes (or the configured sensitive-action age, if shorter). The executor
+checks this expiry and the captured role before dispatch; it does not retain
+browser credentials or revalidate the live Authelia session/directory role.
+Logout or role revocation after admission therefore does not revoke an already
+admitted request within that bounded window. Cancel unstarted requests explicitly.
 
 The limit is deliberately operationally configurable rather than hard-coded:
 
@@ -1259,7 +1312,10 @@ same-origin BFF status resource, not by relying on a POST/redirect race. A
 refresh request returns the scheduler's resulting state immediately (`queued`,
 `baseline_pending`, `running`, or rate-limited), and the browser polls the BFF
 status while the page is visible. Requests received during a queued/running
-sweep join that sweep and cannot schedule an additional one. The browser uses
+sweep join that sweep and cannot schedule an additional one. With experimental
+session cycles enabled, an eligible manual hint can request one priority
+snapshot at a safe checkpoint; recent full snapshots satisfy demand without
+another command. This exception does not start another cycle/session. The browser uses
 one sequential request loop for refresh submissions, status, and state reads,
 with finite request timeouts and failure backoff. Hidden pages suspend polling.
 
@@ -1284,6 +1340,26 @@ Per-device UI status distinguishes current, refreshing, stale, error, disabled,
 and not-yet-confirmed data. An unsuccessful snapshot never clears the previous
 observed state. Reaching a baseline countdown deadline alone is not proof of
 snapshot completion and must not initiate a reload.
+
+The working **Operation queue** shows QUEUED/RUNNING jobs only. Put FAILED and
+UNVERIFIED results in a separate visible **Needs attention** section, and other
+terminal outcomes in **Completed operations**, collapsed by default. Show
+displayed/total counts when bounded lists omit rows and link IPs to retained
+history. Completed work never remains visually pending or runs again because
+it is retained. Preserve the completed-panel disclosure state across updates;
+history retention and execution/idempotency behavior are unchanged.
+
+Active request progress uses the actual jobs linked to that parent request,
+across devices/cycles, never the per-cycle operation cap or elapsed time as its
+denominator. Show processed/total jobs, queued/running counts, and separate
+verified, no-op, failed, unverified, cancelled, and reconciled-absent outcomes.
+Processed means a recorded terminal outcome, not verified success. A RUNNING
+job has an indeterminate indicator until its outcome is known; no fabricated
+within-command percentage or ETA is permitted. Cancelled requesters must not
+remain in active progress merely because another requester shares their job.
+Return at most 20 active request summaries with the total request count, using
+the same consistent SQLite status snapshot. Idle historical results remain in
+the collapsed completed view. This presentation does not enable addition/import.
 
 The primary page must expose a collapsed **Last events log** containing the
 latest 100 local audit events. It is read-only, uses the same timestamp rules,
@@ -2286,7 +2362,7 @@ The first production-ready release is accepted when all of the following are tru
 
 27. Web authentication uses Authelia ForwardAuth; the application has no LDAP password-handling code.
 
-28. Removal requires a recent authentication within the configured `AUTH_SENSITIVE_ACTION_MAX_AGE` interval.
+28. Admission/cancellation of manual removals requires recent authentication within `AUTH_SENSITIVE_ACTION_MAX_AGE`; queued execution uses the explicitly bounded captured authorization described above.
 
 ---
 
@@ -2363,7 +2439,47 @@ The final system should remain intentionally small, predictable, auditable, and 
 
 # 74. Approved Next Increment: Queued Device Cycles and Manual Imports
 
-**Planning status: accepted direction, implementation pending (2026-10-15).**
+## Transitional removal queue
+
+### Experimental bounded-session extension
+
+The [Agent Cycle Protocol v1](manual/agent-cycle-protocol.md) defines the next
+implementation contract: a versioned BEGIN/SNAPSHOT/REMOVE/END conversation on
+one peer-checked SOCK_SEQPACKET connection and one pinned SSH session. It
+supersedes the per-operation session rule only when explicitly enabled with
+`FTD_SHUN_AGENT_CYCLES_ENABLED=true` in both API and agent. Default remains
+false pending live laboratory validation. Hard per-session bounds are 16
+removal steps, 64 CLI commands, 120 seconds, and one extra priority snapshot.
+Exact frame validation, sequential checkpoints, final-verification reserves,
+pre-write deferral, and abort-without-replay behavior are required by that
+contract. No addition or generic execution capability is introduced.
+
+The following transitional behavior remains the default while the extension
+is disabled:
+
+The implemented transitional queue increment retains the existing fixed agent RPC while
+removing immediate browser/API dispatch. Use one durable, leased executor and
+a persisted fleet-wide cycle gate (at least the configured 60-second minimum
+after completion). This conservative gate serializes devices as well as users.
+Allow at most one queued device/IP removal per device in a cycle, with the
+existing complete snapshot and verified-removal operations. Each RPC still
+opens its own short-lived SSH session; do not claim single-session batching or
+mid-batch priority reads until the new protocol is implemented and lab tested.
+
+Admission, duplicate coalescing, actor attribution, bounded capacity, expiry,
+cancellation, and uncertain-outcome recovery must already be durable. A lost
+worker's RUNNING items become UNVERIFIED after its lease expires and are
+never automatically replayed. Queue acceptance returns 202, not write success.
+Manual requests expire after at most 15 minutes (or the configured sensitive
+action age, if shorter); admission requires the current mapped write role.
+The worker uses that recorded, short-lived authorization, not saved session
+credentials. Existing trusted-policy removals use the same queue and budget.
+The lease must exceed the bounded in-flight RPC and be renewed before each
+RPC. A restored database must be reviewed before starting the worker.
+
+**Full-target status: bounded removal sessions and priority reads implemented
+behind a default-off laboratory gate; addition/import implementation pending
+(2026-10-15).**
 The [Development Plan](development-plan.md) specifies sequencing, validation,
 and the remaining detailed-design decisions. The following target requirements
 supersede immediate manual dispatch and independent refresh/write scheduling
@@ -2415,5 +2531,6 @@ only once that increment is implemented and validated:
 
 The topology, credential isolation, pinned host keys, exact binary validation,
 verified-success requirement, and prohibition on arbitrary Cisco commands are
-unchanged. No queue, import capability, schema migration, or new agent opcode
-is delivered by this documentation change.
+unchanged. The queue and experimental removal-cycle extension are implemented
+as recorded above; addition/import remains unavailable. Live validation of the
+new protocol is required before default enablement.

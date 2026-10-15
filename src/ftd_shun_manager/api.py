@@ -1,9 +1,8 @@
 """Internal state and event API. It is intended to listen only on a Unix socket."""
 
-import asyncio
 from contextlib import asynccontextmanager
 from ipaddress import IPv4Address
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request, status
@@ -11,13 +10,13 @@ from pydantic import BaseModel
 
 from .agent_client import (
     AgentClient,
-    AgentUnavailable,
     DisabledAgentClient,
     MockAgentClient,
     UnixAgentClient,
 )
 from .config import Settings
 from .inventory import load_devices
+from .operation_queue import QueueConflict, QueueFull
 from .store import Shun, Store
 from .synchronizer import Synchronizer
 
@@ -70,6 +69,8 @@ def create_app(
         settings.trusted_auto_remove_ips,
         settings.history_retention_days,
         enabled=settings.agent_mode != "disabled",
+        operation_timeout_seconds=settings.agent_timeout_seconds,
+        session_cycles_enabled=settings.agent_cycles_enabled,
     )
 
     @asynccontextmanager
@@ -89,6 +90,7 @@ def create_app(
         openapi_url=None,
         lifespan=lifespan,
     )
+    app.state.synchronizer = synchronizer
 
     @app.middleware("http")
     async def prevent_state_caching(request: Request, call_next):
@@ -140,43 +142,66 @@ def create_app(
         protected_ips = {str(item) for item in settings.trusted_auto_remove_ips}
         return [{**result, "protected": result["ip"] in protected_ips} for result in results]
 
-    def remove_one(device_id: int, ip: IPv4Address, actor: Actor, request_id: str) -> bool:
+    def require_operator(actor: Actor) -> None:
         if "Operator" not in actor.roles and "Administrator" not in actor.roles:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="operator role required")
-        if not store.active_shuns_for_device_ip(device_id, ip):
-            return False
-        store.create_removal_requested(
-            device_id, ip, actor.subject, actor.display_name, tuple(actor.roles), request_id
-        )
-        try:
-            agent.remove_shun(device_id, ip)
-        except AgentUnavailable as error:
-            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(error)) from error
-        return store.complete_removal(
-            device_id, ip, actor.subject, actor.display_name, tuple(actor.roles), request_id
-        )
 
-    @app.delete("/api/v1/devices/{device_id}/shuns/{ip}")
+    def request_key(request: Request) -> str:
+        value = request.headers.get("idempotency-key", request.headers.get("x-request-id"))
+        if value is None:
+            return str(uuid4())
+        try:
+            return str(UUID(value))
+        except ValueError as error:
+            raise HTTPException(422, "idempotency key must be a UUID") from error
+
+    def enqueue_removal(request: Request, ip: IPv4Address, actor: Actor, device_id: int | None) -> dict:
+        require_operator(actor)
+        if settings.agent_mode == "disabled":
+            raise HTTPException(503, "FTD agent is disabled; no removal was queued")
+        key = request_key(request)
+        scope = "all" if device_id is None else "device"
+        try:
+            replay = synchronizer.queue.replay(key, actor.subject, scope, ip, device_id)
+            if replay:
+                return replay
+            targets = sorted({shun.device_id for shun in store.list_active_shuns(ip)}) if device_id is None else [device_id]
+            if not targets:
+                raise HTTPException(409, "no current matching devices; refresh the displayed state")
+            result = synchronizer.queue.enqueue(
+                key, [(target, ip) for target in targets], actor.subject,
+                actor.display_name, tuple(actor.roles),
+                ttl_seconds=min(900, settings.sensitive_action_max_age_seconds), scope=scope,
+            )
+        except QueueConflict as error:
+            raise HTTPException(409, str(error)) from error
+        except QueueFull as error:
+            raise HTTPException(429, str(error)) from error
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from error
+        synchronizer.signal_work()
+        return result
+
+    @app.delete("/api/v1/devices/{device_id}/shuns/{ip}", status_code=202)
     async def remove_device_shun(device_id: int, ip: IPv4Address, request: Request, actor: Actor) -> dict:
-        request_id = request.headers.get("x-request-id", str(uuid4()))
-        try:
-            changed = await asyncio.to_thread(remove_one, device_id, ip, actor, request_id)
-        finally:
-            synchronizer.note_state_change()
-        return {"changed": changed, "request_id": request_id}
+        return enqueue_removal(request, ip, actor, device_id)
 
-    @app.post("/api/v1/shuns/{ip}/remove-all")
+    @app.post("/api/v1/shuns/{ip}/remove-all", status_code=202)
     async def remove_all_shuns(ip: IPv4Address, request: Request, actor: Actor) -> dict:
-        request_id = request.headers.get("x-request-id", str(uuid4()))
-        device_ids = sorted({shun.device_id for shun in store.list_active_shuns(ip)})
-        results = []
-        for device_id in device_ids:
-            try:
-                changed = await asyncio.to_thread(remove_one, device_id, ip, actor, request_id)
-            finally:
-                synchronizer.note_state_change()
-            results.append({"device_id": device_id, "changed": changed})
-        return {"results": results, "request_id": request_id}
+        return enqueue_removal(request, ip, actor, None)
+
+    @app.post("/api/v1/operations/{operation_id}/cancel")
+    async def cancel_operation(operation_id: UUID, actor: Actor) -> dict:
+        require_operator(actor)
+        try:
+            synchronizer.queue.cancel(str(operation_id), actor.subject, "Administrator" in actor.roles,
+                                      actor.display_name, tuple(actor.roles))
+        except PermissionError as error:
+            raise HTTPException(403, str(error)) from error
+        except QueueConflict as error:
+            raise HTTPException(409, str(error)) from error
+        synchronizer.note_state_change()
+        return {"status": "cancelled", "operation_id": str(operation_id)}
 
     return app
 

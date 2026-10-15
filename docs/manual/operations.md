@@ -1,19 +1,32 @@
 # Operations Manual
 
-## Planned workflow changes
+## Current queue increment and planned extensions
 
-The [Development Plan](../development-plan.md) records a future shared queue
-for multiple users, one bounded write-and-refresh cycle per device no more
-than once per minute, and manually imported shuns with visible provenance.
-Imports will be one-time additions: removing one will not cause reimport.
-The planned UI will expose shared queue progress. During a running import,
-an eligible interactive refresh will use a safe checkpoint in the current SSH
-session, publish the snapshot, and let the import continue. Duplicate requests
-will coalesce under shared rate and cycle-budget limits.
-These capabilities are not available yet. The immediate removal and current
-refresh procedures below describe the present implementation; do not assume
-queue admission, delayed writes, session reuse, or import support until their
-implementation and laboratory validation are recorded in Project Status.
+Manual and trusted-policy removals now use the durable shared SQLite queue.
+The UI exposes execution state and cancellation of unstarted manual requests.
+See [Operation Queue](operation-queue.md) for limits, expiry, failure handling,
+migration, backup/restore, and rollback.
+
+The working queue contains only queued/running work. **Needs attention** lists
+failed/unverified results separately; **Completed operations** is collapsed by
+default and shows only the latest 20 other terminal results. Display limits
+and totals are explicit. Retained results are history, not pending execution;
+they are never deleted or requeued merely to clear the working view.
+
+**Request progress** shows processed/total jobs for each active request, with
+verified and other outcomes listed separately. Percentages describe processing,
+not success; a currently running command has an indeterminate indicator. The
+actual request total spans devices/cycles and is not the 16-job cycle cap.
+Addition/import remains unavailable.
+
+This increment retains the current agent RPC: each read/removal opens its own
+short-lived session. It processes at most one queued removal per device per
+fleet cycle, with a persisted minimum of 60 seconds after cycle completion.
+An experimental, default-off [session-cycle protocol](agent-cycle-protocol.md)
+can handle up to 16 jobs per device/session with 64-command and 120-second work
+budgets and safe priority refresh checkpoints. It requires new agent/API
+versions and live laboratory validation before enablement. Addition and manual
+imports remain future work in the [Development Plan](../development-plan.md).
 
 ## Roles
 
@@ -25,22 +38,27 @@ implementation and laboratory validation are recorded in Project Status.
 
 ## Removal workflow
 
-1. An operator selects **Remove from this device**. The UI displays the hostname and every observed matching interface.
+1. An operator selects **Queue removal from this device** for the displayed hostname/IP.
 2. The BFF verifies its CSRF token and obtains the Authelia identity passed by Caddy.
-3. The internal API records `SHUN_REMOVE_REQUESTED` with actor, roles, device, IP, and request ID.
-4. Only the fixed binary `REMOVE_SHUN` operation is sent to the agent.
+3. The internal API atomically records the queued request, actor, role snapshot, expiry, device/IP, and audit events, then returns `202 Accepted` with the parent operation ID. This is not removal success.
+4. The leased background worker refreshes device state, revalidates live queued work, and sends only the fixed binary `REMOVE_SHUN` operation for an observed target. Duplicate users share the execution but retain separate audited requests.
 5. The agent pins the FTD host key, reads the target `show shun <IPv4>` state, removes only positively identified allowlisted interfaces, and reads it again for verification.
-6. The API records `SHUN_REMOVED_BY_UI` only after a verified agent result. Otherwise the write is unavailable or fails.
+6. The worker commits `VERIFIED` and `SHUN_REMOVED_BY_UI` only after the verified agent response. A lost/rejected response becomes `UNVERIFIED`; it does not clear active state or automatically retry the write.
 
-**Remove from all devices** is separate. It requires typing the target IP and creates one device-scoped audit result per matched device.
+**Queue removal from all devices** is separate. It requires typing the target IP and freezes the matched devices at admission, with one execution/result per device. An idempotent retry uses the original target set even if the current list has changed. Check the queue for completion or partial results.
 
 ## Snapshot collection and freshness
 
-The API performs a complete typed `show shun` snapshot at startup and then at
+The API schedules a complete typed `show shun` snapshot at startup and then at
 `FTD_SHUN_POLL_INTERVAL` (default `5m`). An authenticated list or detail page may
 queue one asynchronous refresh hint, but neither a page load nor a search waits
 for FTD SSH. The global/device minimum is
 `FTD_SHUN_INTERACTIVE_REFRESH_MIN_INTERVAL` (default `60s`).
+The minimum cycle gate is persisted in SQLite, so restarting does not bypass
+it. A fresh database can start immediately; a previous worker lease may require
+recovery waiting. Pending queued work schedules another eligible cycle instead
+of waiting for the idle five-minute baseline. All reads and queued removals
+are dispatched by the same worker.
 
 The UI shows the last complete successful sweep, a browser countdown derived
 from the synchronizer's next-baseline timestamp, and the interactive state.
@@ -77,6 +95,14 @@ freshness metadata; it does not poll the agent or FTD. A completed-cycle
 revision identifies every outcome, including repeated identical errors and
 partial fleet success. A separate data revision identifies committed local
 changes, and a process identifier handles API restarts.
+
+In experimental session mode, the control can offer **Request priority refresh**
+during a long cycle after the interactive minimum has elapsed. It shows
+**Refresh waiting for current operation…** until the current command and its
+verification finish. One extra full snapshot may then run before the next
+removal, publishing data while the queue is still running. Recent full
+snapshots satisfy demand without another CLI read; further demand joins the
+final snapshot. No extra session or unlimited command budget is created.
 
 The browser updates the state, history, and policy sections dynamically when
 these revisions change. Search text, removal confirmation input/focus, scroll,
@@ -115,10 +141,14 @@ contains only comma-separated, exact IPv4 addresses. Do not use CIDRs,
 hostnames, ranges, or a broad office subnet. Add only a verified egress address
 for which automatic removal is explicitly acceptable on every enabled device.
 
-After a complete successful snapshot, each matching shun is removed through
+After a complete successful snapshot, matching shuns are queued for removal through
 the same pinned-host-key, allowlisted-interface, post-write-verified agent
 operation as a manual removal. This is deliberately a background policy, not
 a browser action: an unavailable or malformed snapshot runs no policy action.
+The shared one-removal-per-device cycle budget also applies to this policy;
+extra matches stay queued. Removing an address from the configured policy
+cancels its unstarted policy request on the next worker cycle, while preserving
+an independent manual request for the same target.
 The history records `SHUN_TRUSTED_AUTO_REMOVE_REQUESTED` and then either
 `SHUN_TRUSTED_AUTO_REMOVED`, `SHUN_TRUSTED_AUTO_REMOVE_NOOP`, or
 `SHUN_TRUSTED_AUTO_REMOVE_FAILED`, under the actor `system:trusted-ip-policy`.
@@ -164,13 +194,13 @@ docker compose --env-file .env -f deploy/compose.yml logs --timestamps --tail=20
 
 Forward those Docker logs through the host's approved container-log collector to the organization log platform. Alert on agent events named `agent.remove_shun.failed`; their `reason` is sanitized and intentionally excludes credentials and raw Cisco output. Collector failure must generate a host/platform alert, but must not make the agent claim a successful removal.
 
-Useful event types include `SHUN_DETECTED`, `SHUN_REAPPEARED`, `SHUN_DISAPPEARED`, `SHUN_REMOVE_REQUESTED`, `SHUN_REMOVED_BY_UI`, `SHUN_REMOVE_NOOP`, and the `SHUN_TRUSTED_AUTO_REMOVE_*` policy events. Alert on `agent.list_shuns.failed`, `synchronizer.device_refresh_failed`, and `synchronizer.trusted_auto_remove_failed` as well as `agent.remove_shun.failed`.
+Useful event types include `SHUN_DETECTED`, `SHUN_REAPPEARED`, `SHUN_DISAPPEARED`, `SHUN_REMOVE_REQUESTED`, `SHUN_REMOVED_BY_UI`, `SHUN_REMOVE_NOOP`, `SHUN_OPERATION_*`, and the `SHUN_TRUSTED_AUTO_REMOVE_*` policy events. Alert on `agent.list_shuns.failed`, `synchronizer.device_refresh_failed`, `queue.removal.unverified`, and `agent.remove_shun.failed`.
 
 ## Backup and recovery
 
 Back up the `state` volume consistently while the service is stopped or using a SQLite-safe backup method. Back up Authelia's `authelia-data` volume separately. Neither backup contains the FTD SSH password; that credential is provisioned through the agent secret only.
 
-After restoring state, wait for a successful FTD synchronizer snapshot before treating the UI state as current. Investigate and resolve any visible refresh warning first.
+Before starting API against a restored database, follow the [queue recovery procedure](operation-queue.md#backup-restore-and-rollback) to suspend old mutations. After startup, wait for a successful FTD snapshot before treating the UI state as current. Investigate any visible warning first.
 
 ## Incident response
 

@@ -7,31 +7,61 @@ Last updated: 2026-10-15
 **Agent-enabled polling, reconciliation, and trusted-IP policy lab implementation.** The repository provides the secured management-plane skeleton, local state, UI workflows, deployment layout, manuals, and an isolated privileged agent. V1 deliberately uses one shared FTD service identity inside that isolated agent; reader/writer separation and one-time key bootstrap are deferred hardening options. The service remains unsuitable for production until it completes the expanded FTD lab validation.
 
 The [Development Plan](development-plan.md) records the approved next direction:
-implemented cycle-based freshness plus a planned durable multi-user queue, device changes and
-refresh in one bounded cycle no more than once per minute, and one-time manual
-blocklist imports with recorded provenance. The plan also includes shared queue
-progress and a coalesced interactive snapshot at the next safe checkpoint of
-a running import, using the existing session and rate/budget limits. Queue/import work remains planning only; current
-removals still dispatch immediately, the current agent opens a session per
-operation, and no addition/import or durable queue is implemented.
+implemented revision-based freshness and a transitional durable multi-user
+removal queue. A leased executor shares refresh and removal scheduling, with a
+persisted fleet-wide minimum interval and one removal per device per cycle
+in default mode.
+Default agent mode still opens separate sessions per RPC. An experimental,
+default-off single-session removal protocol now implements bounded batching
+and priority refresh checkpoints. It requires live lab validation; no
+addition/import operation is implemented.
+
+On 2026-10-15, the operator approved deployment and experimental enablement in
+the existing non-production lab. Agent/API/Web were rebuilt and recreated
+together, the four queue tables were added, and two live read-only cycles
+succeeded. Each used two full snapshots in one SSH session (about eight
+seconds); no removal was queued or performed. The local ignored `.env` enables
+the feature, while the tracked default remains false. The operator subsequently
+reported successful queued UI removals, and private API inspection confirmed
+two VERIFIED results with no active work or device error. Independent direct
+FTD observation, same-session multi-item evidence, and mid-batch priority
+validation remain pending. The operator explicitly waived
+a backup for this development migration; no data volume was reset.
+
+The subsequent queue-display refinement is deployed to API/Web with explicit
+operator approval: active work only, separate visible failed/unverified
+outcomes, and collapsed recent completed results. Independent 100/20/20 limits
+and total counts prevent a growing history from flooding the working queue.
+Both verified lab results remain stored; no record was deleted or requeued.
+
+Request progress bars are implemented and deployed to API/Web with explicit
+approval. They use each request's actual linked jobs across devices/cycles,
+separate processed from verified outcomes, and show indeterminate running
+commands. The status response includes at most 20 active request summaries
+with their total count. No creation/import capability or device work was added.
 
 ## Delivered
 
 | Area | Status | Notes |
 | --- | --- | --- |
 | Architecture and security design | Complete | Defines the trust boundaries, device model, state model, and fixed agent protocol. |
-| Web/BFF | Authenticated UI removal live validated; revised refresh flow tested locally in Chromium, deployment pending | Server-rendered search, Protected-IP markers, history/events, and timezone labels are preserved. Refresh now uses process/cycle/data revisions, a single sequential browser request loop, coalesced active-sweep hints, per-device freshness, error backoff, and dynamic state updates preserving search, confirmation input/focus, scroll, and expanded history. Local browser regression scenarios cover slow responses, multiple tabs, repeated errors, network recovery, API restart, and failed POST/retry. |
+| Web/BFF | Prior authenticated removal live validated; revised UI deployed to lab, interactive retest pending | Server-rendered search, Protected-IP markers, history/events, and timezone labels are preserved. Refresh now uses process/cycle/data revisions, a single sequential browser request loop, coalesced active-sweep hints, per-device freshness, error backoff, and dynamic state updates preserving search, confirmation input/focus, scroll, and expanded history. Local browser regression scenarios cover slow responses, multiple tabs, repeated errors, network recovery, API restart, and failed POST/retry. Deployed assets include queue/priority controls; anonymous page/status requests return 401 and HTTPS redirects to Authelia. |
 | Internal API | Complete for first increment | Unix-socket-only FastAPI service with state, history, bounded local IP-history search, an immediate scheduler-state refresh-hint response, and semantic removal endpoints. Its agent-client timeout exceeds the configured agent operation timeout. |
 | Local state and audit trail | Snapshot reconciliation, trusted-policy audit, and configurable retention implemented | SQLite WAL atomically reconciles complete successful device snapshots and retains append-only detection, reappearance, disappearance, manual-removal, and trusted-IP policy events within a configurable 366-day default retention window. |
+| Durable operation queue | Deployed/migrated in lab; operator reports successful UI removals | Removal admission returns 202 with a durable parent ID. Transactional coalescing/idempotency preserve multiple actors; ownership-checked cancellation, short authorization expiry, queue bounds, leases, persisted cooldown, uncertain-outcome recovery, queue progress, and matching JSON audit logs are implemented. Four additive tables exist and SQLite quick_check returned ok; inspection confirmed two VERIFIED results and no active work. Active, attention, and completed lists are now independently bounded; completed results collapse by default without deleting history. |
+| Experimental session cycles | Enabled in approved lab; two read-only cycles passed, batch writes/priority pending | `FTD_SHUN_AGENT_CYCLES_ENABLED=false` remains the tracked default. Versioned BEGIN/SNAPSHOT/REMOVE/END frames reuse one SSH session per device cycle; hard limits are 16 removal steps, 64 CLI commands, a 120-second work window, and one priority read. Pre-write deferral is explicit; failed responses never fall back or replay. Startup and one manual hint completed with two commands/zero removals each; the next immediate hint was rate-limited. |
 | Device inventory | Complete for first increment | Static JSON validates numeric IDs, hostnames, management addresses, pinned host keys, and interface allowlists. |
 | Agent boundary | Typed snapshot and removal live-lab validated | Rust agent verifies pinned server host keys, authenticates the FTD `Basic` account with a protected password secret, uses a prompt-driven PTY shell, performs only source-defined `LIST_SHUNS` and `REMOVE_SHUN`, parses strictly, verifies writes, and emits sanitized structured diagnostics for rejected operations to a bounded Docker log channel. |
-| Synchronizer and freshness | Revision/coalescing regression tests passed; prior agent/API/SQLite lab validation retained | Each completed sweep publishes a cycle revision including repeated identical errors and partial fleet results; committed observations/mutations publish a data revision. Instance IDs distinguish restarts. Concurrent hints join queued/running sweeps without leaving extra work. The existing baseline, cooldown, and trusted-IP policy remain; durable mutation queuing and single-session batch cycles are still pending. |
+| Synchronizer and freshness | Revision/coalescing, queue, and experimental cycle tests passed; prior agent/API/SQLite lab validation retained | Cycle/data revisions report partial and failed sweeps. One leased executor dispatches reads, queued manual removals, and trusted-policy removals. Pending work schedules the next eligible cycle; persisted cooldown prevents restart bypass. Opt-in session cycles coalesce interactive hints at verified checkpoints and publish full snapshots before cycle completion. |
 | Authentication edge | Header-order repair implemented; end-to-end interactive retest pending | Caddy and Authelia ForwardAuth use protected read-only configuration mounts. A literal-order Caddy `route` removes browser-supplied identity headers before ForwardAuth copies authenticated values to Web/BFF. Authelia runs as the owner of the protected local user file, while a one-shot networkless initializer with only `CHOWN` prepares its SQLite volume. Non-secret templates are explicitly enabled; the in-image healthcheck metadata writer is disabled to preserve the main process's read-only root filesystem and no-Linux-capability boundary. The local file backend disables self-service password mutations. LDAP(S) remains a future migration. |
 | Workstation browser lab | Authenticated UI and manual removal live validated | A separate Compose overlay provides Caddy Internal CA for local `.test` names and preserves Authelia ForwardAuth without requiring internal DNS. The authenticated browser path reached the API and completed an agent-verified removal; the new search and freshness copy require a browser retest after deployment. |
 | Container layout | Complete for first increment | Only Caddy TCP/443 is published; Web and API use private Unix sockets. The one-shot socket-volume initializer is capability-minimal and prepares ownership/mode for socket and SQLite state volumes before handing them to their service identities. |
 | Manuals | Complete for first increment | Development, deployment, and operations manuals are present. |
 
 ## Explicit limitations
+
+- The operator reports successful queued UI removals and private API counts confirm two VERIFIED outcomes. Direct FTD post-operation observation, same-session multi-item evidence, cancellation/concurrency, and priority reads during mutation still need live validation. Default throughput remains one removal per device per cycle; the local opt-in mode uses bounded batches and still requires the remaining [cycle laboratory checks](manual/agent-cycle-protocol.md#migration-and-laboratory-validation). Restore/downgrade must suspend old queued work using the [queue manual](manual/operation-queue.md#backup-restore-and-rollback); never run an older immediate-write API beside the executor.
+- Queued authorization is checked from captured roles and expires within 15 minutes; live directory revocation is not queried during execution. Lost/rejected responses remain UNVERIFIED and are not automatically replayed. A later absence is RECONCILED_ABSENT, not verified actor-attributed removal.
 
 - A non-empty typed snapshot has been collected through the isolated agent and reconciled into SQLite against the live FPR1010. The five-minute recurring baseline still needs elapsed-time validation. The browser freshness state is only as current as the most recent successful sweep.
 - A non-production FPR1010 / FTD 7.6.6 lab has validated the observed `show shun` line shape, empty-output case, agent host-key/password/PTY connection, interface-qualified removal, and post-write verification. The successful request used the typed client from the API container; Web/BFF, HTTP API authorization, Caddy, SQLite audit-event creation, and direct post-operation CLI observation still require validation. Production writes are not approved.
@@ -44,6 +74,19 @@ operation, and no addition/import or durable queue is implemented.
 - The trusted-IP automatic-removal policy is disabled by default and must be tested with a dedicated non-production address before it is enabled for any office or other trusted egress address. The current local lab configuration contains two configured exact addresses; a startup snapshot recorded one agent-verified policy removal. Direct FTD confirmation and a live fail-closed policy test remain required. The policy applies to every enabled device by design.
 
 ## Recent validation
+
+Latest display increment: 104 Python tests passed; real Chromium passed seven
+scenarios (eight reported tests including the parent). Rust is unchanged from
+the prior 20-test pass. Queue tests cover bounded groups and consistent status
+during concurrent completion; browser tests cover collapsed results, visible
+errors, counts/limits, transitions, preserved disclosure state, and request
+progress. Tests distinguish actual job totals from cycle caps, uncertain
+outcomes from success, and stable indicators from metadata-only phase changes.
+Compileall, Ruff, Node syntax, Rust format/Clippy, release build, and diff checks
+passed. Session tests use fake consoles and synthetic Unix transport, not live
+FTD. Subsequent approved deployment validated two live read-only cycles, private
+API/Web health and queue migration, HTTPS authentication redirection, and refresh
+cooldown. Full live batch-write/priority validation remains pending.
 
 The foundation increment was checked with:
 
@@ -65,9 +108,9 @@ The foundation increment was checked with:
 
 ## Next work, in order
 
-1. Deploy and verify the locally tested revision-based refresh increment through the authenticated Caddy/Authelia stack, including a real baseline interval and per-device failures. The automated Python and Chromium scenarios for slow devices, repeated failures, partial success, multiple tabs, preserved input, and restarts now pass against local fixtures.
-2. Design and implement the shared durable operation queue and one-minute device-cycle gate, including idempotency, conflicts, cancellation, bounded batches, restart recovery, and migration of existing removals and trusted-policy work. Expose queue progress and support coalesced priority refresh at safe checkpoints, with independent snapshot revisions and bounded fair scheduling.
-3. Design and lab validate the typed single-session cycle/batch protocol and narrow addition capability before enabling the paste/preview/manual-import workflow. Record manual provenance in SQLite and structured logs; removed imported entries must never be automatically re-added. Follow the [Development Plan](development-plan.md) for acceptance criteria.
+1. Retest the newly deployed UI in an authenticated browser, including a real baseline interval and per-device failures. Automated Python/Chromium scenarios pass; HTTPS redirects and private unauthenticated rejection were rechecked after deployment.
+2. Complete live queued-removal validation: 202 admission, duplicate users, cancellation, persisted cooldown, lease loss, expired authorization, queue bounds, audit attribution, and recovery without replay. The additive migration is deployed; SQLite integrity and empty-queue status passed. The operator waived a backup for this dev migration only, not future shared/production updates.
+3. Lab validate the implemented opt-in session-cycle protocol: one SSH login per device cycle, multiple verified removals, priority checkpoints, budgets, disconnects, and no legacy fallback. Only then consider default enablement. Separately design/lab validate narrow addition before paste/preview/import; preserve manual provenance and never automatically re-add removed imports. Follow the [Development Plan](development-plan.md).
 4. Complete the [FTD laboratory validation](manual/ftd-lab-validation.md), including direct post-operation observation, baseline behavior, queue load/concurrency, trusted-policy failures, host-key mismatch, private-socket checks, and snapshot rejection. Production writes remain unapproved.
 5. Add structured external logging, metrics, backup automation, and operator alerts; validate TLS, Authelia local users, LDAP(S), and the complete non-production deployment.
 

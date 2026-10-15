@@ -2,7 +2,7 @@
 
 Last updated: 2026-10-15
 
-**Status: refresh reliability increment implemented; queue/import implementation pending.** This document records
+**Status: refresh/queue implemented; bounded removal sessions and priority reads experimental; imports pending.** This document records
 the next product increments. It describes target behavior, not capabilities
 already available. See [Project Status](project-status.md) for delivery evidence
 and [Architecture and Security Design](architecture-and-security-design.md#74-approved-next-increment-queued-device-cycles-and-manual-imports)
@@ -16,10 +16,31 @@ browser requests with dynamic state updates preserving input. Python and real
 Chromium tests cover concurrency, repeated failures, partial success, restart,
 and recovery. Deployment and live FTD/Authelia verification remain pending.
 
-The durable mutation queue, progress panel, session reuse, priority reads
-during a background batch, and manual imports below remain planned. Their
-future independent snapshot/progress revisions extend the implemented local
-data/cycle revisions rather than indicate those batch features exist now.
+The transitional removal queue now provides durable multi-user admission,
+idempotency/coalescing, actor-preserving audit, cancellation, authorization
+expiry, a leased executor, persisted fleet-wide cooldown, and a queue panel.
+It deliberately handles one queued removal per device per cycle using the
+existing per-operation SSH sessions. See the [queue manual](manual/operation-queue.md)
+for the migration and recovery procedure.
+
+The [cycle protocol](manual/agent-cycle-protocol.md) now implements opt-in
+single-session removal batching and priority checkpoints, with shared Python/
+Rust wire vectors and local scheduler/transport/browser tests. Its hard limits
+are 16 removal steps, 64 CLI commands, a 120-second work window, and one extra
+priority snapshot; each step is capped at the smaller of 45 seconds and the
+configured operation timeout. `FTD_SHUN_AGENT_CYCLES_ENABLED=false` remains the
+default in API and agent pending live validation. Exact pre-write deferral may
+return a claimed job to QUEUED; uncertain writes never do. The extension uses
+the existing queue tables, actor/expiry/lease rules, and persisted cooldown.
+Manual addition/import remains unimplemented. The deployment checkpoint below
+separates completed read-only checks from remaining live mutation validation.
+
+Deployment checkpoint: on 2026-10-15 the operator approved the local upgrade
+and waived a backup for development data. Queue schema migration, SQLite
+integrity, two live BEGIN/END read-only session cycles, manual refresh/cooldown,
+and unauthenticated edge checks passed. The local stack enables the extension;
+tracked defaults remain false. Live queued batch removals, authenticated browser
+retest, and mid-batch priority reads remain pending.
 
 ## 1. Product decisions
 
@@ -152,8 +173,9 @@ cycle may perform its first startup cycle immediately.
 The agent will need an explicitly versioned, bounded typed cycle/batch protocol
 to reuse a session. Repeated calls to the existing one-session-per-operation
 RPC are not sufficient to meet this connection-load goal. The exact binary
-layout, count limits, interface IDs, and result bounds require a separate
-protocol design and review before implementation. Raw pasted text and CLI
+layout, count limits, and result bounds for removals are now defined in the
+cycle protocol manual; addition encoding still needs separate design/review.
+Raw pasted text and CLI
 strings must never enter that protocol.
 
 ### Interactive refresh priority during a running batch
@@ -363,6 +385,7 @@ manually supplied, removable one-time shun additions.
    and the outstanding FTD laboratory procedure. These remain tracked in
    [Project Status](project-status.md).
 
-Batch-size and time-budget defaults, final queue/protocol schemas, and exact
-execution-time authorization rules remain detailed-design tasks. The behavior
-above is the agreed direction; no implementation or deployment is implied.
+Removal-cycle limits, wire format, and captured-authorization expiry are now
+specified and implemented behind the laboratory gate. Addition/import schema,
+protocol, and validation remain detailed-design tasks. Target requirements
+above do not imply deployed or lab-validated batch/import capability.

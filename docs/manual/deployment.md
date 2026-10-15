@@ -154,6 +154,22 @@ production deployment.
 
 ## Start and validate
 
+The queue increment adds persistent SQLite tables and changes write responses
+to asynchronous `202 Accepted`. Before upgrading, take a SQLite-safe backup,
+review [queue migration/recovery](operation-queue.md#backup-restore-and-rollback),
+and recreate API/Web together. The current agent remains compatible. Reload
+browser tabs once so forms carry idempotency keys. Do not run an older
+immediate-write API alongside the new executor.
+
+The optional single-session protocol requires the new Rust agent as well as
+API/Web. `FTD_SHUN_AGENT_CYCLES_ENABLED` defaults to `false`; the existing
+Compose `env_file` passes it to both API and agent without a topology change.
+Keep it false outside an explicitly approved run of the
+[cycle lab procedure](agent-cycle-protocol.md#migration-and-laboratory-validation)
+in a non-production environment; complete that validation before wider use. A flag/version
+mismatch fails closed without falling back to a legacy write. Stop the old
+executor before upgrading; no independent writers may share the agent.
+
 ```bash
 docker compose -f deploy/compose.yml --env-file .env config
 docker compose -f deploy/compose.yml --env-file .env up -d --build
@@ -169,6 +185,7 @@ Expected results:
 - the agent process is healthy and its socket is owned by UID `10002`, group `10001`, mode `0660`;
 - the API reports a successful initial snapshot and the UI shows its last-confirmed refresh, next baseline countdown, and a plain-language background-refresh status;
 - the refresh controls show per-device freshness/errors and update state/history in place after revision changes, preserving search text and confirmation input; concurrent refresh hints join the same sweep;
+- removal admission appears in **Operation queue**; default mode executes at most one removal per device per cycle (experimental session mode has bounded batches), the persisted minimum interval survives restart, and an unstarted own request can be cancelled;
 - the primary page supports exact-IP/dotted-prefix local search across current state and retained history, clearly distinguishes historical-only results, and offers a countdown-backed **Request refresh** hint;
 - the collapsed **Last events log** shows up to 100 recent local audit events;
 - the UI reports the configured history-retention period (366 days by default);

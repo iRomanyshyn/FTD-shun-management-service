@@ -1,4 +1,4 @@
-<section class="refresh-panel" aria-labelledby="refresh-heading" data-refresh-controller data-status-url="/refresh-status" data-auto-request="true">
+<section class="refresh-panel" aria-labelledby="refresh-heading" data-refresh-controller data-status-url="/refresh-status" data-auto-request="true" data-subject="{{ identity.subject }}" data-operator="{{ 'true' if 'Operator' in identity.roles or 'Administrator' in identity.roles else 'false' }}" data-administrator="{{ 'true' if 'Administrator' in identity.roles else 'false' }}">
 <script type="application/json" data-refresh-initial>{{ refresh | tojson }}</script>
 <h2 id="refresh-heading">Refresh status</h2>
 <p class="refresh-status">Data last confirmed: <time class="last-successful-refresh" datetime="{{ refresh.last_successful_refresh or '' }}">{{ refresh.last_successful_refresh or "not yet available" }}</time>. Next scheduled check: <span class="baseline-countdown">{{ refresh.next_baseline_refresh or "not scheduled" }}</span>.</p>
@@ -14,4 +14,28 @@
 <tr><td>{{ device.hostname or device_id }}</td><td>{{ device.state or 'pending' }}</td><td>{{ device.last_successful_refresh or 'Not yet available' }}</td><td>{{ device.last_error or '—' }}</td></tr>
 {% endfor %}
 </tbody></table>
+<section aria-labelledby="operation-queue-heading">
+<h2 id="operation-queue-heading">Operation queue</h2>
+<p data-queue-summary>Loading queue status…</p>
+<p>Removal requests are queued. A verified result is shown after execution. {% if refresh.session_cycles_enabled %}Experimental session cycles handle up to 16 removals per device within command/time limits.{% else %}Each cycle handles at most one removal per device.{% endif %}</p>
+<p data-cycle-progress role="status" aria-live="polite"></p>
+<section data-request-progress-section hidden aria-labelledby="request-progress-heading">
+<h3 id="request-progress-heading">Request progress</h3>
+<p data-request-progress-summary></p>
+<p>Progress counts processed jobs, not successful writes. Verification and errors are reported separately.</p>
+<div data-request-progress></div>
+</section>
+<table class="operation-queue" data-queue-active-table hidden><thead><tr><th>Device / IP</th><th>State</th><th>Requested by</th><th>Details / action</th></tr></thead><tbody data-operation-queue></tbody></table>
+<section data-queue-attention-section hidden aria-labelledby="queue-attention-heading">
+<h3 id="queue-attention-heading">Needs attention</h3>
+<p data-queue-attention-summary></p>
+<table class="operation-queue"><thead><tr><th>Device / IP</th><th>Outcome</th><th>Requested by</th><th>Details</th></tr></thead><tbody data-queue-attention></tbody></table>
+</section>
+<details id="queue-results-details" hidden>
+<summary data-queue-completed-summary>Completed operations</summary>
+<p data-queue-completed-note></p>
+<p>These are retained results, not pending work. Full audit history is available on each IP's detail page.</p>
+<table class="operation-queue"><thead><tr><th>Device / IP</th><th>Outcome</th><th>Requested by</th><th>Details</th></tr></thead><tbody data-queue-completed></tbody></table>
+</details>
+</section>
 </section>

@@ -4,6 +4,8 @@
 //! strings are source-code constants; neither a command nor an interface name
 //! can cross the Web/API-to-agent boundary.
 
+mod cycle;
+
 use std::collections::{BTreeMap, BTreeSet};
 use std::env;
 use std::fs;
@@ -44,6 +46,7 @@ struct Agent {
     username: String,
     password_file: PathBuf,
     operation_timeout: Duration,
+    cycles_enabled: bool,
 }
 
 #[derive(Clone)]
@@ -136,6 +139,11 @@ impl Agent {
         if !(5..=120).contains(&operation_timeout.as_secs()) {
             bail!("FTD_SHUN_AGENT_TIMEOUT_SECONDS must be between 5 and 120");
         }
+        let cycles_enabled = match env::var("FTD_SHUN_AGENT_CYCLES_ENABLED").as_deref() {
+            Ok("true") => true,
+            Ok("false") | Err(env::VarError::NotPresent) => false,
+            _ => bail!("FTD_SHUN_AGENT_CYCLES_ENABLED must be true or false"),
+        };
 
         Ok((
             Self {
@@ -143,6 +151,7 @@ impl Agent {
                 username: required_env("FTD_SHUN_SSH_USERNAME")?,
                 password_file: required_env_path("FTD_SHUN_SSH_PASSWORD_FILE")?,
                 operation_timeout,
+                cycles_enabled,
             },
             socket_file,
             peer_uid,
@@ -504,14 +513,17 @@ fn serve(agent: Agent, socket_file: PathBuf, peer_uid: u32, runtime: Handle) -> 
 
     loop {
         let connection = accept_connection(listener.as_raw_fd())?;
+        if cycle::set_ipc_timeout(&connection, Duration::from_secs(10)).is_err() {
+            continue;
+        }
         let response = match getsockopt(&connection, PeerCredentials) {
             Ok(credentials) if credentials.uid() == peer_uid => {
-                handle_connection(&agent, connection.as_raw_fd(), &runtime)
+                handle_connection(&agent, &connection, &runtime)
             }
             Ok(_) => RESPONSE_REJECTED.to_vec(),
             Err(_) => RESPONSE_REJECTED.to_vec(),
         };
-        let _ = send(connection.as_raw_fd(), &response, MsgFlags::empty());
+        let _ = send(connection.as_raw_fd(), &response, MsgFlags::MSG_NOSIGNAL);
     }
 }
 
@@ -522,12 +534,25 @@ fn accept_connection(listener: std::os::fd::RawFd) -> Result<OwnedFd> {
     Ok(unsafe { OwnedFd::from_raw_fd(raw_fd) })
 }
 
-fn handle_connection(agent: &Agent, connection: std::os::fd::RawFd, runtime: &Handle) -> Vec<u8> {
+fn handle_connection(agent: &Agent, connection: &OwnedFd, runtime: &Handle) -> Vec<u8> {
     let mut packet = [0u8; MAX_REQUEST_BYTES];
-    let received = match recv(connection, &mut packet, MsgFlags::empty()) {
-        Ok(received) => received,
+    let received = match recv(connection.as_raw_fd(), &mut packet, MsgFlags::MSG_TRUNC) {
+        Ok(received) if received <= packet.len() => received,
+        Ok(_) => return RESPONSE_REJECTED.to_vec(),
         Err(_) => return RESPONSE_REJECTED.to_vec(),
     };
+    if packet.first() == Some(&0x10) {
+        return match cycle::handle(agent, connection, runtime, &packet[..received]) {
+            Ok(response) => response,
+            Err(error) => {
+                eprintln!(
+                    "{}",
+                    serde_json::json!({"event":"agent.cycle.rejected", "reason":error.to_string()})
+                );
+                RESPONSE_REJECTED.to_vec()
+            }
+        };
+    }
     let (operation, device_id, ip) = match decode_request(&packet[..received]) {
         Ok(request) => request,
         Err(_) => return RESPONSE_REJECTED.to_vec(),

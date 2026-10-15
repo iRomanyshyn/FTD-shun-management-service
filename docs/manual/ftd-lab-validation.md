@@ -83,6 +83,31 @@ Later that day, an approved non-empty lab snapshot returned two allowlisted `man
 
 ## Validate the typed snapshot path
 
+On 2026-10-15, following explicit operator approval, the new agent/API/Web were
+deployed to the non-production stack with session cycles enabled. The database
+received its four additive operation tables and `PRAGMA quick_check` returned
+`ok`. Startup completed at `2026-10-15T15:59:05Z`; an internal refresh hint was
+accepted with `202` and completed at `2026-10-15T16:00:56Z`. Agent logs recorded
+one session cycle per sweep, two full-snapshot commands, zero removal steps,
+and durations of 8151 ms and 7941 ms. A subsequent hint inside the cooldown was
+`rate_limited`. All four previously active entries remained and no policy
+match or queued mutation was present.
+
+This validates live BEGIN/END session reuse, non-empty snapshot decoding,
+reconciliation, and refresh scheduling only. It does not validate REMOVE in
+the new conversation, multi-item writes, mid-batch priority SNAPSHOT, browser
+submission, or failure recovery. Those remain required controlled lab checks.
+The operator waived a backup for this development migration; no data volume
+was removed or reinitialized. The repository default remains feature-off.
+
+Later on 2026-10-15, the operator reported that queued removals worked well in
+the browser. Read-only private API inspection confirmed two VERIFIED results,
+no queued/running work, a successful completed cycle, and no device error.
+This records the operator's UI result and durable API outcomes; it is not an
+independent direct FTD observation or evidence that both removals shared one
+session. Remaining concurrency, failure, and priority checkpoints still need
+their controlled lab cases.
+
 Rebuild the API and agent after deploying this increment. This check only reads
 the FTD and is safe to run when no shun is present; an empty list is a valid
 result.
@@ -108,8 +133,8 @@ as a parser test.
 Choose an existing, approved lab shun whose target IPv4 and affected interfaces are known. Do not use a production address.
 
 1. Record the direct pre-operation `show shun <IPv4>` output.
-2. Open the Web/BFF, confirm the displayed device hostname and interface summary, and select **Remove from this device**.
-3. Confirm that the UI reports success only after the agent finishes.
+2. Open the Web/BFF, confirm the displayed device hostname and interface summary, and select **Queue removal from this device**.
+3. Confirm acceptance appears as QUEUED, not removal success; wait for the background worker and a VERIFIED result in the queue. In session mode, queue several approved fixtures during the shared cooldown to test one bounded batch, and separately observe their actual disappearance on FTD.
 4. Record the direct post-operation `show shun <IPv4>` output.
 5. Confirm that the target no longer appears and that SQLite history contains `SHUN_REMOVE_REQUESTED` followed by `SHUN_REMOVED_BY_UI` for the correct device, actor, and request ID.
 6. Record the test timestamp, FTD version, agent image digest, inventory revision, and outcome in the deployment change record.
@@ -146,6 +171,12 @@ Perform these only in a lab and restore the approved configuration afterward.
 Do not intentionally test malformed Cisco output on a production FTD. Use sanitized fixtures and agent unit tests for parser-negative cases.
 
 ## Exit criteria for production consideration
+
+Experimental single-session cycles have a separate
+[protocol/lab checklist](agent-cycle-protocol.md#migration-and-laboratory-validation).
+Existing per-operation lab success does not validate session reuse. Keep
+`FTD_SHUN_AGENT_CYCLES_ENABLED=false` until the new procedure is executed and
+its evidence recorded; addition/import is still unavailable.
 
 Do not treat polling or removal as production-ready until:
 

@@ -25,7 +25,58 @@
   const readInitial = (root) => parseStatus(JSON.parse(
     root.querySelector("[data-refresh-initial]").textContent,
   ));
-  const version = (status) => `${status.instance_id}:${status.data_revision}:${status.cycle_revision}`;
+  const version = (status) => `${status.instance_id}:${status.data_revision}:${status.cycle_revision}:${status.queue?.revision || 0}`;
+  // Template JSON and BFF JSON may order object keys differently. Equivalent
+  // metadata must not restart native progress animations or replace controls.
+  const stableSignature = (value) => JSON.stringify(value, (_key, entry) =>
+    entry && typeof entry === "object" && !Array.isArray(entry)
+      ? Object.fromEntries(Object.keys(entry).sort().map((key) => [key, entry[key]])) : entry);
+
+  const renderRequestProgress = (panel, queue) => {
+    const section = panel.querySelector("[data-request-progress-section]");
+    const list = panel.querySelector("[data-request-progress]");
+    if (!section || !list) return;
+    const metadata = queue.progress || { requests: [], total_requests: 0 };
+    const requests = (metadata.requests || []).slice(0, 20);
+    section.hidden = !requests.length;
+    const signature = stableSignature(metadata);
+    if (list.dataset.signature === signature) return;
+    list.dataset.signature = signature;
+    list.replaceChildren();
+    panel.querySelector("[data-request-progress-summary]").textContent =
+      `Showing ${requests.length} of ${metadata.total_requests} active requests. Shared jobs may appear in multiple requests.`;
+    requests.forEach((request) => {
+      const counts = request.counts || {};
+      const card = document.createElement("div");
+      card.className = "request-progress";
+      card.dataset.requestId = request.id;
+      card.dataset.warning = String(Boolean(counts.FAILED || counts.UNVERIFIED));
+      const title = document.createElement("p");
+      title.id = `request-progress-title-${request.id}`;
+      title.textContent = `Request ${request.id.slice(0, 8)} · ${request.actor_display_name || request.actor_subject} (${request.source})`;
+      const progress = document.createElement("progress");
+      progress.setAttribute("aria-labelledby", title.id);
+      const known = Number.isSafeInteger(request.total) && request.total > 0
+        && Number.isSafeInteger(request.processed) && request.processed >= 0 && request.processed <= request.total;
+      const label = document.createElement("p");
+      label.setAttribute("role", "status");
+      label.textContent = known
+        ? `${request.processed} / ${request.total} jobs processed (${Math.floor(100 * request.processed / request.total)}%). `
+          + `${counts.RUNNING || 0} running; ${counts.QUEUED || 0} queued.`
+        : "Progress totals are not available yet.";
+      if (known) {
+        progress.max = request.total;
+        progress.value = request.processed;
+        progress.setAttribute("aria-valuetext", `${request.processed} of ${request.total} jobs processed; outcomes are listed separately`);
+      }
+      const outcomes = document.createElement("p");
+      outcomes.textContent = `${counts.VERIFIED || 0} verified; ${counts.NOOP || 0} no-op; `
+        + `${counts.FAILED || 0} failed; ${counts.UNVERIFIED || 0} unverified; `
+        + `${counts.CANCELLED || 0} cancelled; ${counts.RECONCILED_ABSENT || 0} reconciled absent.`;
+      card.append(title, progress, label, outcomes);
+      list.append(card);
+    });
+  };
 
   // Retain editable values and focus only for the same form action and field.
   // Hidden security fields always come from the fresh server-rendered form.
@@ -71,11 +122,15 @@
     let errorMessage = "";
     let failures = 0;
     let paused = false;
+    let actionPending = null;
+    let failedAction = null;
+    let actionError = "";
     const form = panel.querySelector("[data-refresh-form]");
     const button = panel.querySelector("[data-refresh-request]");
     const message = panel.querySelector("[data-refresh-message]");
     const warning = panel.querySelector("[data-refresh-warning]");
     const deviceRows = panel.querySelector("[data-device-status]");
+    const queueRows = panel.querySelector("[data-operation-queue]");
     const remaining = (value) => {
       const deadline = Date.parse(value || "");
       return Number.isNaN(deadline) ? null : (deadline - Date.now() - (clockOffset || 0)) / 1000;
@@ -93,6 +148,11 @@
       } else if (manualPending) {
         label = "Requesting refresh…";
         disabled = true;
+      } else if (status.refresh_in_progress && status.interactive_refresh_state === "checkpoint_pending") {
+        label = "Refresh waiting for current operation…";
+        disabled = true;
+      } else if (status.refresh_in_progress && status.priority_refresh_available) {
+        label = "Request priority refresh";
       } else if (status.refresh_in_progress) {
         label = "Refreshing…";
         disabled = true;
@@ -120,14 +180,14 @@
       last.textContent = formatTime(status.last_successful_refresh);
       warning.hidden = !status.last_error;
       warning.textContent = status.last_error ? `Refresh warning: ${status.last_error}` : "";
-      message.textContent = errorMessage || (status.refresh_in_progress
+      message.textContent = errorMessage || actionError || (actionPending ? "Submitting operation…" : status.refresh_in_progress
         ? "Refreshing device information…"
         : status.cycle_revision > 0
           ? ({ success: "Refresh completed.", partial: "Refresh partially completed. Check device details.",
               failed: "Refresh failed. Previous observations are retained.",
               interrupted: "Refresh interrupted. Check device details." }[status.cycle_outcome] || "")
           : "Waiting for the first refresh.");
-      message.classList.toggle("refresh-error", Boolean(errorMessage));
+      message.classList.toggle("refresh-error", Boolean(errorMessage || actionError));
       deviceRows.replaceChildren();
       Object.values(status.devices || {}).forEach((device) => {
         const row = document.createElement("tr");
@@ -143,6 +203,114 @@
         deviceRows.append(row);
       });
       renderButton();
+      renderQueue();
+    };
+
+    const renderQueue = () => {
+      if (!queueRows) return;
+      const queue = status.queue || { counts: {}, items: [] };
+      renderRequestProgress(panel, queue);
+      const progress = panel.querySelector("[data-cycle-progress]");
+      if (progress) {
+        progress.hidden = !status.refresh_in_progress;
+        const cycle = status.device_cycle;
+        const actions = { opening_session: "Opening session", remove_and_verify: "Removing and verifying",
+          priority_snapshot: "Reading priority snapshot", final_snapshot: "Reading final snapshot",
+          completed: "Cycle completed", failed: "Cycle failed" };
+        progress.textContent = status.session_cycles_enabled && cycle?.device_id
+          ? `${status.devices?.[String(cycle.device_id)]?.hostname || cycle.device_id}: `
+            + `${actions[cycle.action] || cycle.action}${cycle.ip ? ` ${cycle.ip}` : ""}. `
+            + `${cycle.completed} items completed (cycle limit ${cycle.limit}). `
+            + (cycle.priority_state === "waiting_for_checkpoint" ? "Refresh waiting for current verification. " : "")
+            + (cycle.priority_state === "joining_final_snapshot" ? "Refresh joins the final snapshot. " : "")
+            + (cycle.budget_deferred ? "Remaining work deferred to the next eligible cycle." : "")
+          : "";
+      }
+      const counts = queue.counts || {};
+      const activeStates = new Set(["QUEUED", "RUNNING"]);
+      const attentionStates = new Set(["FAILED", "UNVERIFIED"]);
+      const completedStates = new Set(["VERIFIED", "NOOP", "CANCELLED", "RECONCILED_ABSENT"]);
+      const items = queue.items || [];
+      const activeItems = items.filter((item) => activeStates.has(item.state)).slice(0, 100);
+      const attentionItems = items.filter((item) => attentionStates.has(item.state)).slice(0, 20);
+      const completedItems = items.filter((item) => completedStates.has(item.state)).slice(0, 20);
+      const totalFor = (states) => [...states].reduce((sum, state) => sum + (counts[state] || 0), 0);
+      const activeTotal = totalFor(activeStates);
+      const attentionTotal = totalFor(attentionStates);
+      const completedTotal = totalFor(completedStates);
+      const next = activeTotal && queue.next_eligible_at
+        ? ` Next eligible cycle: ${formatTime(queue.next_eligible_at)}.` : "";
+      panel.querySelector("[data-queue-summary]").textContent =
+        activeTotal ? `${counts.RUNNING || 0} running; ${counts.QUEUED || 0} queued. `
+          + `Showing ${activeItems.length} of ${activeTotal} active operations.${next}` : "Queue is empty.";
+      const activeTable = panel.querySelector("[data-queue-active-table]");
+      if (activeTable) activeTable.hidden = !activeItems.length;
+      const attentionRows = panel.querySelector("[data-queue-attention]");
+      const completedRows = panel.querySelector("[data-queue-completed]");
+      const attentionSection = panel.querySelector("[data-queue-attention-section]");
+      if (attentionSection) {
+        attentionSection.hidden = !attentionTotal;
+        panel.querySelector("[data-queue-attention-summary]").textContent =
+          `${counts.FAILED || 0} failed; ${counts.UNVERIFIED || 0} unverified. `
+          + `Showing the latest ${attentionItems.length} of ${attentionTotal}. Unverified writes are not automatically retried.`;
+      }
+      const results = panel.querySelector("#queue-results-details");
+      if (results) {
+        results.hidden = !completedTotal;
+        panel.querySelector("[data-queue-completed-summary]").textContent = `Completed operations (${completedTotal})`;
+        panel.querySelector("[data-queue-completed-note]").textContent =
+          `Showing the latest ${completedItems.length} of ${completedTotal} retained results. `
+          + `${counts.VERIFIED || 0} verified; ${counts.NOOP || 0} no-op; `
+          + `${counts.CANCELLED || 0} cancelled; ${counts.RECONCILED_ABSENT || 0} reconciled absent.`;
+      }
+      // Preserve native indeterminate animation (and focused cancellation
+      // controls) when only unrelated freshness/phase metadata changes.
+      const rowSignature = stableSignature([items, panel.dataset.operator, panel.dataset.subject, panel.dataset.administrator]);
+      if (queueRows.dataset.signature === rowSignature) return;
+      queueRows.dataset.signature = rowSignature;
+      queueRows.replaceChildren();
+      attentionRows?.replaceChildren();
+      completedRows?.replaceChildren();
+      [...activeItems, ...attentionItems, ...completedItems].forEach((item) => {
+        const row = document.createElement("tr");
+        row.dataset.operationId = item.id;
+        const requests = item.requests || [];
+        [ `${item.hostname} / ${item.ip}`, item.state,
+          requests.map((request) => `${request.actor_display_name} (${request.source}`
+            + `${activeStates.has(item.state) && request.state !== "ACTIVE" ? `, ${request.state}` : ""})`).join(", "),
+          item.reason || (item.completed_at ? `Completed: ${formatTime(item.completed_at)}`
+            : item.started_at ? `Started: ${formatTime(item.started_at)}` : `Queued: ${formatTime(item.requested_at)}`),
+        ].forEach((value) => {
+          const cell = document.createElement("td");
+          cell.textContent = value;
+          row.append(cell);
+        });
+        const targetLink = document.createElement("a");
+        targetLink.href = `/shuns/${encodeURIComponent(item.ip)}`;
+        targetLink.textContent = `${item.hostname} / ${item.ip}`;
+        row.firstElementChild.replaceChildren(targetLink);
+        if (item.state === "RUNNING") {
+          const running = document.createElement("progress");
+          running.className = "operation-running-progress";
+          running.setAttribute("aria-label", `Operation running for ${item.ip} on ${item.hostname}; outcome not yet verified`);
+          row.children[1].append(running);
+        }
+        if (item.state === "QUEUED" && panel.dataset.operator === "true") {
+          requests.filter((request) => request.state === "ACTIVE" && request.source === "manual"
+            && (request.actor_subject === panel.dataset.subject || panel.dataset.administrator === "true"))
+            .forEach((request) => {
+              const cancel = document.createElement("button");
+              cancel.type = "button";
+              cancel.dataset.operationCancel = request.id;
+              cancel.textContent = request.target_count > 1
+                ? `Cancel request (${request.target_count} targets)` : "Cancel request";
+              row.lastElementChild.append(" ", cancel);
+            });
+        }
+        const target = activeStates.has(item.state) ? queueRows
+          : attentionStates.has(item.state) ? attentionRows : completedRows;
+        target?.append(row);
+      });
     };
 
     const apply = (payload) => {
@@ -159,7 +327,11 @@
         signal: AbortSignal.timeout(15000),
       });
       if (!response.ok || !response.headers.get("content-type")?.includes(contentType)) {
-        throw new Error(response.status === 401 || response.status === 403
+        let detail;
+        if (!response.ok && response.headers.get("content-type")?.includes("application/json")) {
+          try { detail = (await response.json()).detail; } catch (_) { /* use the fallback */ }
+        }
+        throw new Error(typeof detail === "string" ? detail : response.status === 401 || response.status === 403
           ? "Authentication is required. Reload the page to sign in."
           : "Refresh is temporarily unavailable. Retrying automatically.");
       }
@@ -197,7 +369,24 @@
       window.clearTimeout(timer);
       try {
         let response;
-        if (manualPending) {
+        if (actionPending) {
+          const action = actionPending;
+          try {
+            action.body.set("csrf", form.querySelector("input[name=csrf]").value);
+            response = await fetchChecked(action.url, {
+              method: "POST", body: action.body, headers: { Accept: "application/json" },
+            }, "application/json");
+            failedAction = null;
+            actionError = "";
+          } catch (error) {
+            failedAction = action;
+            actionError = error.message;
+            throw error;
+          } finally {
+            actionPending = null;
+            if (action.button?.isConnected) action.button.disabled = false;
+          }
+        } else if (manualPending) {
           // Clear pending only after the request finishes. Further clicks are
           // disabled immediately and never start a parallel status loop.
           try {
@@ -222,7 +411,7 @@
       } finally {
         busy = false;
         render();
-        schedule(manualPending ? 0 : failures ? Math.min(30000, 3000 * 2 ** Math.min(failures, 3))
+        schedule(manualPending || actionPending ? 0 : failures ? Math.min(30000, 3000 * 2 ** Math.min(failures, 3))
           : status.refresh_in_progress || status.interactive_refresh_state === "queued" ? 1000 : 5000);
       }
     };
@@ -234,6 +423,33 @@
       errorMessage = "";
       renderButton();
       if (!busy) schedule(0);
+    });
+    const submitAction = (url, body, sourceButton) => {
+      if (actionPending) {
+        errorMessage = "An operation submission is in progress. Please wait for its result.";
+        render();
+        return;
+      }
+      if (failedAction?.url === url && failedAction.body.has("request_id")) {
+        body.set("request_id", failedAction.body.get("request_id"));
+      }
+      actionPending = { url, body, button: sourceButton };
+      if (sourceButton) sourceButton.disabled = true;
+      errorMessage = "";
+      actionError = "";
+      render();
+      if (!busy) schedule(0);
+    };
+    document.addEventListener("submit", (event) => {
+      if (!event.target.matches("[data-queue-form]")) return;
+      event.preventDefault();
+      submitAction(event.target.action, new FormData(event.target), event.submitter);
+    });
+    panel.addEventListener("click", (event) => {
+      const cancel = event.target.closest("[data-operation-cancel]");
+      if (!cancel) return;
+      const body = new FormData();
+      submitAction(`/operations/${cancel.dataset.operationCancel}/cancel`, body, cancel);
     });
     document.addEventListener("visibilitychange", () => {
       if (document.hidden) window.clearTimeout(timer);

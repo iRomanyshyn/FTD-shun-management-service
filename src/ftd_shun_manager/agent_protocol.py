@@ -8,6 +8,8 @@ from enum import IntEnum
 from ipaddress import IPv4Address
 
 MAX_AGENT_RESPONSE_BYTES = 64 * 1024
+CYCLE_VERSION = 1
+MAX_CYCLE_REMOVALS = 16
 _SUCCESS = 0x00
 
 
@@ -24,6 +26,45 @@ class Operation(IntEnum):
     GET_RA_AUTH_STATUS = 0x04
     GET_RA_INIT_STATUS = 0x05
     HEALTH = 0x06
+
+
+class CycleOperation(IntEnum):
+    BEGIN = 0x10
+    SNAPSHOT = 0x11
+    REMOVE = 0x12
+    END = 0x13
+
+
+def encode_cycle_request(operation: CycleOperation, sequence: int, *,
+                         device_id: int | None = None, ip: IPv4Address | None = None) -> bytes:
+    operation = CycleOperation(operation)
+    if operation == CycleOperation.BEGIN:
+        if sequence != 0 or device_id is None or not 1 <= device_id <= 65535 or ip is not None:
+            raise ValueError("invalid cycle begin fields")
+        return bytes([operation, CYCLE_VERSION]) + device_id.to_bytes(2, "big")
+    if not 1 <= sequence <= MAX_CYCLE_REMOVALS + 2 or device_id is not None:
+        raise ValueError("invalid cycle sequence or device")
+    if (operation == CycleOperation.REMOVE) != (ip is not None):
+        raise ValueError("invalid cycle target")
+    return bytes([operation, CYCLE_VERSION, sequence]) + (ip.packed if ip else b"")
+
+
+def decode_cycle_response(packet: bytes, operation: CycleOperation, sequence: int):
+    if len(packet) > MAX_AGENT_RESPONSE_BYTES or len(packet) < 4:
+        raise ValueError("invalid cycle response size")
+    if packet[1:4] != bytes([CYCLE_VERSION, operation, sequence]):
+        raise ValueError("cycle response version, operation, or sequence mismatch")
+    if operation in {CycleOperation.REMOVE, CycleOperation.SNAPSHOT} and packet == bytes(
+        [2, CYCLE_VERSION, operation, sequence]
+    ):
+        return None  # Explicit deferral, never an observed snapshot or successful write.
+    if operation == CycleOperation.REMOVE:
+        if len(packet) != 5 or packet[0] != 0 or packet[4] not in (0, 1):
+            raise ValueError("invalid cycle removal result")
+        return bool(packet[4])
+    if packet[0] != 0:
+        raise ValueError("cycle request rejected")
+    return decode_list_shuns_response(packet[4:])
 
 
 _IP_OPERATIONS = {Operation.GET_SHUN, Operation.REMOVE_SHUN}

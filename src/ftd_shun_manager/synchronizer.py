@@ -12,6 +12,8 @@ from time import monotonic
 from uuid import uuid4
 
 from .agent_client import AgentClient, AgentUnavailable
+from .agent_protocol import MAX_CYCLE_REMOVALS
+from .operation_queue import OperationQueue, QueueConflict, QueueFull
 from .store import Store
 
 
@@ -37,6 +39,8 @@ class Synchronizer:
         trusted_auto_remove_ips: frozenset[IPv4Address] = frozenset(),
         history_retention_days: int = 366,
         enabled: bool = True,
+        operation_timeout_seconds: int = 45,
+        session_cycles_enabled: bool = False,
     ) -> None:
         self.store = store
         self.agent = agent
@@ -45,6 +49,15 @@ class Synchronizer:
         self.trusted_auto_remove_ips = trusted_auto_remove_ips
         self.history_retention_days = history_retention_days
         self.enabled = enabled
+        self.session_cycles_enabled = session_cycles_enabled
+        self._device_cycle: dict[str, object] = {}
+        self._active_device_id: int | None = None
+        self._priority_pending = False
+        self._priority_used = False
+        self.queue = OperationQueue(store)
+        self.queue.initialize()
+        self._lease_seconds = operation_timeout_seconds + interactive_min_interval_seconds + 30
+        self._cycle_cutoff: int | None = None
         self.instance_id = str(uuid4())
         self._status_revision = 0
         self._data_revision = 0
@@ -120,6 +133,14 @@ class Synchronizer:
                 "state": state,
                 "stale": stale,
             }
+        active_success = self._device_success_at.get(self._active_device_id)
+        priority_available = bool(
+            self.session_cycles_enabled and self._refresh_in_progress
+            and self._active_device_id is not None and not self._priority_used
+            and not self._priority_pending and active_success is not None
+            and monotonic() - active_success >= self.interactive_min_interval_seconds
+            and self._device_cycle.get("action") not in {"final_snapshot", "completed", "failed"}
+        )
         return {
             "instance_id": self.instance_id,
             "status_revision": self._status_revision,
@@ -147,7 +168,16 @@ class Synchronizer:
             "last_retention_purge": self._last_retention_purge,
             "history_retention_error": self._last_retention_error,
             "devices": devices,
+            "queue": self.queue.status(),
+            "session_cycles_enabled": self.session_cycles_enabled,
+            "device_cycle": deepcopy(self._device_cycle),
+            "priority_refresh_available": priority_available,
         }
+
+    def signal_work(self) -> None:
+        self.note_state_change()
+        if not self._refresh_in_progress:
+            self._activity.set()
 
     def note_state_change(self) -> None:
         """Publish a local mutation committed by an API write."""
@@ -164,9 +194,26 @@ class Synchronizer:
             self._set_interactive_state("disabled")
             return
         if self._refresh_in_progress:
+            if self.session_cycles_enabled and self._active_device_id is not None:
+                last = self._device_success_at.get(self._active_device_id)
+                if last is not None and monotonic() - last < self.interactive_min_interval_seconds:
+                    self._set_interactive_state("snapshot_recent")
+                elif not self._priority_used:
+                    self._priority_pending = True
+                    self._device_cycle["priority_state"] = "waiting_for_checkpoint"
+                    self._set_interactive_state("checkpoint_pending")
+                else:
+                    self._device_cycle["priority_state"] = "joining_final_snapshot"
+                    self._set_interactive_state("running")
+                self._status_revision += 1
+                return
             self._set_interactive_state("running")
             return
         if self._activity.is_set():
+            return
+        if self.queue.delay() > 0:
+            self._next_interactive_refresh = _timestamp_after(int(self.queue.delay()) + 1)
+            self._set_interactive_state("rate_limited")
             return
         now = monotonic()
         if self._next_baseline_at is not None:
@@ -183,16 +230,28 @@ class Synchronizer:
         self._activity.set()
 
     async def _run(self) -> None:
-        next_baseline = monotonic()
+        next_baseline = monotonic() + self.queue.delay()
         self._next_baseline_at = next_baseline
+        self._next_baseline_refresh = _timestamp_after(int(self.queue.delay()) + 1)
         while True:
-            remaining = max(0.0, next_baseline - monotonic())
+            self.queue.expire_requests()
+            if self.queue.has_pending():
+                due = min(next_baseline, monotonic() + self.queue.delay())
+            else:
+                due = next_baseline
+            local_delay = 0.0 if self._last_sweep_at is None else max(
+                0.0, self.interactive_min_interval_seconds - (monotonic() - self._last_sweep_at)
+            )
+            remaining = max(0.0, due - monotonic(), self.queue.delay(), local_delay)
             try:
                 await asyncio.wait_for(self._activity.wait(), timeout=remaining)
                 self._activity.clear()
                 interactive = next_baseline > monotonic()
             except TimeoutError:
                 interactive = False
+
+            if self.queue.delay() > 0:
+                continue
 
             if interactive and self._last_sweep_at is not None and (
                 monotonic() - self._last_sweep_at < self.interactive_min_interval_seconds
@@ -205,10 +264,16 @@ class Synchronizer:
     async def _sweep(self) -> None:
         if self._refresh_in_progress:
             return
+        if not self.queue.claim_cycle(self.instance_id, self._lease_seconds):
+            self._next_interactive_refresh = _timestamp_after(int(self.queue.delay()) + 1)
+            return
+        self.queue.expire_requests()
+        self.queue.cancel_obsolete_policy(self.trusted_auto_remove_ips)
         self._activity.clear()
         self._refresh_in_progress = True
         self._cycle_id += 1
         self._cycle_started_at = _timestamp()
+        self._cycle_cutoff = self.queue.cutoff()
         self._cycle_outcome = "running"
         self._next_baseline_refresh = None
         self._next_interactive_refresh = None
@@ -217,6 +282,8 @@ class Synchronizer:
         try:
             await self._collect()
         finally:
+            self._active_device_id = None
+            self._priority_pending = False
             self._refresh_in_progress = False
             self._last_sweep_at = monotonic()
             self._next_baseline_at = self._last_sweep_at + self.poll_interval_seconds
@@ -228,6 +295,14 @@ class Synchronizer:
             self._cycle_revision += 1
             self._set_interactive_state("idle")
             self._status_revision += 1
+            # Cancellation may leave a bounded RPC in a worker thread. Keep
+            # its lease until expiry; the next owner reconciles, never replays.
+            if self._cycle_outcome != "interrupted":
+                self.queue.finish_cycle(self.instance_id, self.interactive_min_interval_seconds)
+
+    async def _agent_call(self, function, *args):
+        self.queue.renew(self.instance_id, self._lease_seconds)
+        return await asyncio.to_thread(function, *args)
 
     async def _collect(self) -> None:
         await self._prune_expired_history_if_due()
@@ -244,15 +319,25 @@ class Synchronizer:
                 "last_attempt": _timestamp(),
             }
             self._status_revision += 1
+            cycle = None
             try:
-                snapshot = await asyncio.to_thread(self.agent.list_shuns, device.id)
-                self.store.reconcile_snapshot(
-                    device.id, [(entry.ip, entry.interface) for entry in snapshot]
-                )
-                self._data_revision += 1
-                self._status_revision += 1
-                self._device_success_at[device.id] = monotonic()
+                if self.session_cycles_enabled:
+                    self._active_device_id = device.id
+                    self._priority_pending = self._priority_used = False
+                    self._device_cycle = {"device_id": device.id, "action": "opening_session",
+                                          "completed": 0, "limit": MAX_CYCLE_REMOVALS,
+                                          "priority_state": "none", "budget_deferred": False}
+                    cycle = await self._agent_call(self.agent.open_cycle, device.id)
+                    snapshot = cycle.initial_snapshot
+                else:
+                    snapshot = await self._agent_call(self.agent.list_shuns, device.id)
+                self._publish_snapshot(device.id, snapshot)
             except (AgentUnavailable, OSError, ValueError, sqlite3.Error) as error:
+                if cycle is not None:
+                    cycle.abort()
+                self._active_device_id = None
+                if self.session_cycles_enabled:
+                    self._device_cycle["action"] = "failed"
                 failures += 1
                 reason = str(error)
                 self._last_error = f"device {device.id}: {reason}"
@@ -283,51 +368,21 @@ class Synchronizer:
                 {entry.ip for entry in snapshot if entry.ip in self.trusted_auto_remove_ips},
                 key=int,
             )
-            removal_error: str | None = None
-            for trusted_ip in trusted_ips:
-                request_id = str(uuid4())
+            if cycle is None:
+                removal_error = await self._queued_removal(device.id, snapshot, trusted_ips)
+            else:
                 try:
-                    self.store.create_trusted_auto_removal_requested(device.id, trusted_ip, request_id)
-                    await asyncio.to_thread(self.agent.remove_shun, device.id, trusted_ip)
-                    self.store.complete_trusted_auto_removal(device.id, trusted_ip, request_id)
-                    self.note_state_change()
-                except (AgentUnavailable, OSError, ValueError, sqlite3.Error) as error:
-                    removal_error = f"trusted-IP automatic removal failed: {error}"
-                    failures += 1
-                    try:
-                        self.store.record_trusted_auto_removal_failed(
-                            device.id, trusted_ip, request_id, str(error)
-                        )
-                    except sqlite3.Error as audit_error:
-                        print(
-                            json.dumps(
-                                {
-                                    "event": "synchronizer.trusted_auto_remove_audit_failed",
-                                    "device_id": device.id,
-                                    "ip": str(trusted_ip),
-                                    "reason": str(audit_error),
-                                },
-                                sort_keys=True,
-                            ),
-                            flush=True,
-                        )
-                    print(
-                        json.dumps(
-                            {
-                                "event": "synchronizer.trusted_auto_remove_failed",
-                                "device_id": device.id,
-                                "ip": str(trusted_ip),
-                                "reason": str(error),
-                            },
-                            sort_keys=True,
-                        ),
-                        flush=True,
-                    )
+                    removal_error = await self._session_removals(device.id, cycle, snapshot)
+                finally:
+                    cycle.abort()
+                    self._active_device_id = None
+            if removal_error:
+                failures += 1
             self._devices[device.id] = {
                 **self._devices[device.id],
                 "state": "error" if removal_error else "ready",
-                "error_category": "policy_remove_failed" if removal_error else None,
-                "last_successful_refresh": _timestamp(),
+                "error_category": "device_cycle_failed" if removal_error else None,
+                "last_successful_refresh": self._devices[device.id]["last_successful_refresh"],
                 "last_error": removal_error,
             }
             successful_devices += 1
@@ -341,6 +396,125 @@ class Synchronizer:
             "success" if failures == 0 else "partial" if successful_devices else "failed"
         )
 
+    def _publish_snapshot(self, device_id: int, snapshot) -> None:
+        self.store.reconcile_snapshot(device_id, [(entry.ip, entry.interface) for entry in snapshot])
+        self.queue.reconcile_unknown(device_id, {entry.ip for entry in snapshot})
+        self._device_success_at[device_id] = monotonic()
+        self._devices[device_id] = {**self._devices.get(device_id, {}),
+                                    "last_successful_refresh": _timestamp(),
+                                    "last_error": None, "error_category": None}
+        if self.session_cycles_enabled:
+            self._next_interactive_refresh = _timestamp_after(self.interactive_min_interval_seconds)
+        self.note_state_change()
+
+    def _admit_trusted(self, device_id: int, ips) -> None:
+        for ip in ips:
+            if not self.queue.has_target(device_id, ip):
+                try:
+                    self.queue.enqueue(str(uuid4()), [(device_id, ip)], "system:trusted-ip-policy",
+                                       "Trusted IP policy", (), source="trusted_policy")
+                except QueueFull:
+                    break
+
+    async def _session_removals(self, device_id: int, cycle, snapshot) -> str | None:
+        try:
+            self._admit_trusted(device_id, sorted({entry.ip for entry in snapshot
+                               if entry.ip in self.trusted_auto_remove_ips}, key=int))
+            for _ in range(MAX_CYCLE_REMOVALS):
+                if self._priority_pending and not self._priority_used:
+                    self._priority_pending = False
+                    last = self._device_success_at.get(device_id)
+                    if last is None or monotonic() - last >= self.interactive_min_interval_seconds:
+                        self._priority_used = True
+                        self._device_cycle.update(action="priority_snapshot", priority_state="reading")
+                        self._status_revision += 1
+                        snapshot = await self._agent_call(cycle.snapshot)
+                        if snapshot is None:
+                            self._device_cycle.update(priority_state="joining_final_snapshot",
+                                                      budget_deferred=self.queue.has_pending(device_id))
+                            print(json.dumps({"event": "queue.priority_refresh.deferred",
+                                              "device_id": device_id, "joining_final_snapshot": True}), flush=True)
+                            break
+                        self._publish_snapshot(device_id, snapshot)
+                        self._admit_trusted(device_id, sorted({entry.ip for entry in snapshot
+                                           if entry.ip in self.trusted_auto_remove_ips}, key=int))
+                    self._device_cycle["priority_state"] = "satisfied"
+                    self._set_interactive_state("running")
+                cutoff = self._cycle_cutoff if self._cycle_cutoff is not None else self.queue.cutoff()
+                job = self.queue.claim_removal(device_id, self.instance_id, cutoff)
+                if job is None:
+                    break
+                target = IPv4Address(job["ip"])
+                self._device_cycle.update(action="remove_and_verify", ip=str(target))
+                self._status_revision += 1
+                if not any(entry.ip == target for entry in snapshot):
+                    result = False
+                else:
+                    try:
+                        result = await self._agent_call(cycle.remove_shun, target)
+                    except (AgentUnavailable, OSError, ValueError) as error:
+                        self.queue.finish_removal(job["id"], self.instance_id, "UNVERIFIED", str(error))
+                        self.note_state_change()
+                        print(json.dumps({"event": "queue.removal.unverified", "device_id": device_id,
+                                          "ip": str(target), "operation_id": job["id"], "reason": str(error)}), flush=True)
+                        raise
+                if result is None:
+                    self.queue.defer_removal(job["id"], self.instance_id)
+                    self._device_cycle["budget_deferred"] = True
+                    self.note_state_change()
+                    break
+                self.queue.finish_removal(job["id"], self.instance_id, "VERIFIED" if result else "NOOP")
+                self.note_state_change()
+                self._device_cycle["completed"] += 1
+                print(json.dumps({"event": "queue.removal.completed", "device_id": device_id,
+                                  "ip": str(target), "operation_id": job["id"],
+                                  "result": "VERIFIED" if result else "NOOP"}), flush=True)
+            self._device_cycle.update(action="final_snapshot", ip=None)
+            if self._device_cycle["completed"] >= MAX_CYCLE_REMOVALS and self.queue.has_pending(device_id):
+                self._device_cycle["budget_deferred"] = True
+            self._status_revision += 1
+            snapshot = await self._agent_call(cycle.finish)
+            self._publish_snapshot(device_id, snapshot)
+            self._priority_pending = False
+            self._device_cycle.update(action="completed", priority_state="satisfied")
+            return None
+        except (AgentUnavailable, OSError, ValueError, sqlite3.Error) as error:
+            self._device_cycle["action"] = "failed"
+            print(json.dumps({"event": "queue.cycle.failed", "device_id": device_id,
+                              "reason": str(error)}), flush=True)
+            return f"device cycle failed: {error}"
+
+    async def _queued_removal(self, device_id: int, snapshot, trusted_ips) -> str | None:
+        try:
+            # Policy discovery may join this cycle; user mutations admitted
+            # after its cutoff wait for the next cycle.
+            self._admit_trusted(device_id, trusted_ips)
+            cutoff = self._cycle_cutoff if self._cycle_cutoff is not None else self.queue.cutoff()
+            job = self.queue.claim_removal(device_id, self.instance_id, cutoff)
+            if job is None:
+                return None
+            target = IPv4Address(job["ip"])
+            present = any(entry.ip == target for entry in snapshot)
+            if not present:
+                self.queue.finish_removal(job["id"], self.instance_id, "NOOP")
+            else:
+                try:
+                    await self._agent_call(self.agent.remove_shun, device_id, target)
+                except (AgentUnavailable, OSError, ValueError) as error:
+                    self.queue.finish_removal(job["id"], self.instance_id, "UNVERIFIED", str(error))
+                    self.note_state_change()
+                    print(json.dumps({"event": "queue.removal.unverified", "device_id": device_id,
+                                      "ip": str(target), "operation_id": job["id"], "reason": str(error)}), flush=True)
+                    return f"removal outcome is unverified: {error}"
+                self.queue.finish_removal(job["id"], self.instance_id, "VERIFIED")
+            self.note_state_change()
+            print(json.dumps({"event": "queue.removal.completed", "device_id": device_id,
+                              "ip": str(target), "operation_id": job["id"],
+                              "result": "VERIFIED" if present else "NOOP"}), flush=True)
+        except (QueueConflict, ValueError, sqlite3.Error) as error:
+            return f"operation queue failed: {error}"
+        return None
+
     async def _prune_expired_history_if_due(self) -> None:
         if self._last_retention_attempt_at is not None and (
             monotonic() - self._last_retention_attempt_at < 24 * 3600
@@ -348,6 +522,7 @@ class Synchronizer:
             return
         self._last_retention_attempt_at = monotonic()
         try:
+            await asyncio.to_thread(self.queue.prune_completed, self.history_retention_days)
             result = await asyncio.to_thread(
                 self.store.prune_expired_history, self.history_retention_days
             )

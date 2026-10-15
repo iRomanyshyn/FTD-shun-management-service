@@ -840,6 +840,283 @@ this increment. Durable operation queues, cross-restart cycle gates, queued
 mutation progress, agent session reuse, mid-batch priority snapshots, and shun
 addition/import remain the subsequent planned work.
 
+## 2026-10-15 — Durable removal queue and shared cycle gate
+
+**Status:** Implemented and tested locally; deployment/live validation pending
+
+Added a transactional SQLite queue with separate user requests and device/IP
+jobs. Device-scoped and confirmed fleet-wide removals now return `202 Accepted`
+rather than dispatching immediately. UUID idempotency preserves a request after
+a lost response, frozen bulk targets prevent retry drift, and concurrent users
+share one pending execution while retaining individual actor/audit attribution.
+Capacity and per-user admission limits fail atomically. Operators may cancel
+their own unstarted requests; Administrators may cancel another user's.
+
+One leased executor serializes fleet cycles. A persisted cooldown survives API
+restart. Each cycle obtains fresh snapshots and handles at most one queued
+device/IP removal per device; trusted-IP policy shares the same queue and
+budget. Requests arriving mid-cycle wait for the next cycle, except newly
+discovered trusted-policy work. Expired/disabled requests settle without
+requiring a successful snapshot. Removed trusted-IP policy cancels its pending
+intent without cancelling an independently coalesced manual request.
+
+Verified agent success, queue completion, local state, and actor events commit
+atomically. A failed/lost write response or expired executor lease leaves an
+UNVERIFIED outcome, never an automatic write replay. A later snapshot can mark
+absence without claiming the original write succeeded. Queue progress,
+requesters, deadlines, reasons, and cancellation appear on list/detail pages;
+browser actions share the sequential update loop and preserve idempotency keys
+across partial page updates and failed replies. Structured queue events go to
+stdout; terminal queue records follow configured history retention.
+
+Documented the authorization boundary explicitly: current authentication/write
+role is required at admission/cancellation; execution uses captured authority
+for at most 15 minutes (or the sensitive-action age, if shorter), not saved
+session credentials or live directory revalidation. Logout/role changes do not
+revoke admitted work within this window; explicit cancellation is available.
+
+**Validation:** Python suite: 70 passed. Real Chromium suite: all four scenarios
+passed (five reported tests including the parent), including lost admission
+reply, DOM replacement, same-key retry, and cancellation. Tests also cover
+concurrent actors, atomic overflow, expiry, durable cooldown, executor loss,
+uncertain-write reconciliation, one-removal-per-device budgets, authentication/
+CSRF forwarding, additive initialization, retention, and the documented restore
+SQL. Python compileall, Ruff, Node syntax checks, and `git diff --check` passed.
+ASGI/thread-pool and browser tests required execution outside the restricted
+sandbox; all used fake agents/temporary data, not FTD or deployment credentials.
+
+**Operational impact:** Four additive queue tables/indexes are created on API
+initialization. Take a SQLite-safe backup first, rebuild API/Web together, and
+reload browser tabs. The agent and fixed binary RPC are unchanged. The new
+operation-queue manual includes migration, backup, restore, and rollback; a
+restored queue must have stale pending work suspended before workers restart.
+Do not run an old immediate writer beside the new executor.
+
+**Known limitations:** No deployment or live FTD/Authelia validation was
+performed. Each existing read/write RPC still opens a separate SSH session;
+single-session batching, command-boundary priority refresh, shun addition, and
+one-time manual blacklist import remain planned. This is a conservative queue
+increment, not completion of the full queued-device-cycle design.
+
+## 2026-10-15 — Experimental single-session removal cycles and priority checkpoints
+
+**Status:** Implemented and tested locally; default-off, live validation pending
+
+Defined the versioned BEGIN/SNAPSHOT/REMOVE/END protocol before implementing
+the agent/client extension. It retains peer-UID-checked SOCK_SEQPACKET, exact
+length/version/sequence validation, binary device/IP fields, the 64-KiB response
+limit, strict parsers, interface allowlists, and verified success. No command,
+route, arbitrary interface, addition, or import capability crosses the boundary.
+Python and Rust share golden wire vectors. Both transports now detect truncated
+packets explicitly; agent initial receive and sends have finite IPC timeouts.
+
+The opt-in agent opens one pinned/password-authenticated PTY session per device
+cycle, reuses it for sequential removals and snapshots, then disconnects. Hard
+limits are 16 removal steps, 64 actual CLI commands, one extra priority snapshot,
+and a 120-second work window. Each step is bounded by the smaller of the
+configured operation timeout and 45 seconds; connect plus initial observation
+share one bound. Preserve the existing 15-second prompt deadline. Reserve final
+observation and all observed interface writes/verification before mutation;
+an exact pre-write deferral returns the job to QUEUED with an append-only
+`SHUN_OPERATION_DEFERRED` event and structured stdout log. Uncertain responses
+remain UNVERIFIED and never trigger legacy fallback or automatic replay.
+
+The scheduler retains the durable executor/cooldown, frozen manual-admission
+cutoff, short captured authorization, and cancellation checks before each job.
+Trusted-policy discovery uses the same session/budget. Each verified job commits
+immediately; later final-snapshot/session failure preserves earlier success.
+A coalesced eligible interactive hint is served at the next verified operation
+checkpoint before another removal. Recent complete snapshots satisfy demand
+without another read; further hints join the final snapshot. If an extra
+snapshot cannot fit while reserving END, an exact read-deferral response joins
+the final snapshot and leaves further mutations for the next cycle; this does
+not consume a command or imply a successful snapshot. Snapshots publish
+data revisions before cycle completion. The browser shows current device/action,
+completed items, priority wait, and budget deferral, and enables a priority
+refresh button during an eligible long cycle without losing editable state.
+
+**Validation:** Python suite: 99 passed. Rust suite: 20 passed. Chromium:
+five scenarios passed (six reported tests including the parent), including a
+priority request and data update while the cycle remains running. Tests cover
+shared wire vectors, malformed/reordered/truncated frames, one Unix connection,
+count/command/time budgets, multi-interface pre-write deferral, failed/slow
+verification, default-off gating, coalescing/cancellation/cutoff, trusted-policy
+work, device isolation, preserved verified results, and shutdown/lease recovery
+without replay. Compileall, Ruff, Node syntax checks, Cargo format/Clippy,
+locked release build, and `git diff --check` passed. Socket/ASGI/Chromium tests
+needed execution outside the restricted sandbox; no test used FTD, deployment
+secrets, or the running Compose stack. Rust console tests use a fake console;
+they do not establish real SSH compatibility.
+
+**Operational impact:** `FTD_SHUN_AGENT_CYCLES_ENABLED=false` is the default in
+both API and agent; the tracked environment example documents it. No new queue
+table, dependency, listener, or Compose topology change is required. Enabling
+the extension requires coordinated new agent/API/Web versions and the separate
+cycle laboratory procedure, including independent FTD observations and session
+counts. The existing queue migration still needs a SQLite-safe backup. Rollback
+stops the executor/session before disabling the flag; unknown jobs must never
+be manually reset to QUEUED. Backup restore retains its suspension procedure.
+
+**Known limitations:** No deployment or live FTD/Authelia validation was
+performed; `.env` and the running stack were untouched. Default mode remains
+one removal per device per cycle. Session caps are fixed conservative limits,
+not performance promises; disconnect cleanup is bounded to two further seconds
+and sends no Cisco command. Fleet scheduling remains conservatively serialized.
+Manual additions/imports and production readiness remain separate future work.
+
+## 2026-10-15 — Approved lab deployment and live session read checks
+
+**Status:** Deployed with experimental session mode enabled in the local lab;
+queued batch-write and priority checks remain pending
+
+Following explicit operator approval, built new Rust agent/API/Web images and
+performed a coordinated upgrade: stopped Web, then API, then agent; started the
+new agent before the new API and Web. Caddy, Authelia, runtime networks, secrets,
+and data volumes were not recreated or reset. The ignored local `.env` now sets
+`FTD_SHUN_AGENT_CYCLES_ENABLED=true`; the repository example/default stays false.
+Restricted `.env` access from 0644 to owner-only 0600 without logging its secret
+contents. The operator explicitly waived a SQLite backup for this development
+migration; this is not a general change to shared/production backup procedures.
+
+Preflight found four active entries, no match with the two configured protected
+addresses, and no existing operation-queue tables. API initialization added the
+four queue tables while preserving existing state. SQLite `PRAGMA quick_check`
+returned `ok`, and queue counts remained empty. No test shun was created and
+no removal was queued or performed.
+
+The startup session cycle completed at `2026-10-15T15:59:05Z`. A subsequent
+single internal `POST /api/v1/refresh-hint` returned `202`/`queued`, and its
+cycle completed at `2026-10-15T16:00:56Z`. Both were successful with no device
+error; structured agent logs reported two CLI commands and zero removal steps
+per session, with durations 8151 ms and 7941 ms. All four entries remained.
+The next hint inside the minimum interval returned `rate_limited`, without
+another immediate session. This is live BEGIN/END snapshot/session-reuse
+evidence, not proof of the new REMOVE or priority SNAPSHOT paths.
+
+**Validation:** All three image builds and quiet merged Compose configuration
+validation passed. Private API reported socket mode, session mode enabled,
+successful cycle revision 2, ready device state, empty queue, and no error.
+Web served the new queue/priority JavaScript; anonymous page and status requests
+returned 401. HTTPS certificate verification succeeded and unauthenticated
+access returned 302 through the unchanged Caddy/Authelia path. Only Caddy
+loopback TCP/443 remains published; Authelia is healthy. `git diff --check`
+passed. Source/unit suites were unchanged from the prior recorded 99 Python,
+20 Rust, and five Chromium scenarios; they were not rerun for this deployment.
+
+**Known limitations:** Authenticated browser submissions, queued multi-item
+removals, direct post-removal FTD observations, live cancellation/concurrency,
+mid-batch priority reads, budget/uncertain-outcome recovery, and a full elapsed
+baseline interval still need their controlled lab checks. Do not infer
+production readiness from read-only startup success. Old browser tabs need a
+reload to load the new script and idempotent forms. Rollback must stop the
+executor/session and preserve uncertain queue outcomes; follow the queue and
+cycle manuals rather than resetting jobs or volumes.
+
+## 2026-10-15 — Separate working queue from retained results
+
+**Status:** Implemented, tested, and deployed to the approved development stack
+
+Following the operator's successful queued-removal test and feedback about
+completed rows cluttering the queue, separated the working view from retained
+outcomes. Only QUEUED/RUNNING jobs appear in the working table; an idle queue
+says `Queue is empty`. FAILED/UNVERIFIED results stay visible in a separate
+Needs attention section. Other terminal outcomes move to Completed operations,
+collapsed by default, with only the latest 20 results, completion information,
+total counts, and IP-history links. User disclosure state survives dynamic
+updates. Idle completed-cycle progress and irrelevant next-eligibility text
+are hidden, and completed requesters are no longer misleadingly labelled ACTIVE.
+
+Status independently selects up to 100 active jobs (RUNNING first, then FIFO),
+20 latest failed/unverified results, and 20 other terminal results ordered by
+completion. The additive `display_limits` metadata makes these bounds explicit.
+Counts cover all retained work. Counts, rows, and requesters use one SQLite
+read transaction to avoid contradictory groups during concurrent completion.
+No queue record, audit event, authorization, idempotency rule, retention policy,
+agent operation, or database schema was changed to clear the display.
+
+The operator reported successful live queued removals; read-only private API
+inspection independently confirmed two VERIFIED results, no active work, and
+no device error. This adds durable result evidence without claiming independent
+direct FTD observation or same-session multi-item/priority validation.
+
+**Validation:** 101 Python tests passed, including a 156-job bounded-selection
+fixture and concurrent completion/read-snapshot regression. All six Chromium
+scenarios passed (seven reported tests including the parent), covering collapsed
+completed rows, active-to-completed transitions, visible errors, bounded long
+history, counts, links, cancellation, and disclosure/input preservation.
+Compileall, Ruff, Node syntax, and `git diff --check` passed. Tests used temporary
+data/fake devices; socket/thread/browser checks ran outside the restricted
+sandbox. Rust source is unchanged and its prior 20-test validation still applies.
+
+**Deployment:** After explicit approval, built and recreated API/Web together,
+stopping Web before the API executor; the agent and authentication edge were
+not recreated. Deployed status exposes the 100/20/20 limits, zero active rows,
+both preserved verified results, a successful cycle, and no error. New Web
+assets/templates are present; anonymous page/status requests return 401 and
+HTTPS returns the expected 302 with TLS verification. No new removal was
+submitted. Reload browser tabs once to load the new script.
+
+**Operational impact and limitations:** No migration or data cleanup is needed;
+roll back paired API/Web images without deleting queue/history data. Completed
+records still follow configured retention (366 days by default), not the display
+limit. These are bounded summaries, not a full paginated queue browser. Live
+concurrency, direct FTD post-removal checks, and mid-batch priority validation
+remain the separate documented lab work.
+
+## 2026-10-15 — Actual request progress bars and running-job indicators
+
+**Status:** Implemented, tested, and deployed to the approved development stack
+
+Added bounded request-progress metadata to queue status: up to 20 active
+request summaries with the total request count, actual linked-job total,
+processed count, and per-state outcomes. Counts span devices/cycles and come
+from the existing consistent SQLite read snapshot, rather than the cycle cap,
+elapsed time, historical totals, or new process-local counters. Cancelled
+requesters are excluded even when another requester still needs a shared job.
+Coalesced execution may contribute to multiple request bars without creating
+additional device operations.
+
+The Web displays labelled native determinate request bars, processed/total
+counts and percentages, queued/running counts, and separate verified, no-op,
+failed, unverified, cancelled, and reconciled-absent outcomes. Failed/unverified
+outcomes have warning treatment; processed does not imply successful removal.
+RUNNING jobs show native indeterminate indicators without a fabricated command
+percentage or ETA. Settled request cards disappear from active progress while
+their outcomes remain in the existing attention/completed views. Read/priority
+phases do not advance job progress.
+
+Canonical metadata signatures preserve indicator nodes, animations, and focused
+queue controls when only status phases or JSON object-key ordering differ.
+The first browser regression exposed a template/BFF key-order-induced replacement;
+normalizing comparisons fixed it and the final suite passed. This is generic
+queued-job presentation, not an addition/import implementation.
+
+**Validation:** 104 Python tests passed, including actual multi-job totals,
+uncertain outcomes, cancelled coalesced requesters, 20-request bounds, and
+consistent snapshots. All seven Chromium scenarios passed (eight reported
+tests including the parent). The new scenario checks a real denominator of 3
+instead of cycle limit 16, distinct unverified results, an indeterminate running
+command, stable nodes through a priority-read phase, and removal of settled
+cards without hiding errors. Compileall, Ruff, Node syntax, and
+`git diff --check` passed. Tests used fake devices/temporary data outside the
+restricted sandbox where socket/thread/browser support was required. Rust was
+unchanged and was not rebuilt/retested for this increment.
+
+**Deployment:** Following explicit operator approval, rebuilt and recreated
+API/Web together, stopping Web before API; the agent, secrets, `.env`, schema,
+and persisted outcomes were unchanged. Live API status exposes progress limit
+20, zero active requests, both prior VERIFIED results, a successful cycle, and
+no error. New template/JavaScript/CSS assets are present. Anonymous Web page/
+status requests return 401 and HTTPS returns 302 with TLS verification. No new
+device operation request was submitted for validation. Reload browser tabs once.
+
+**Operational impact and limitations:** No schema migration or new dependency
+is needed. Roll back paired API/Web images without changing stored queue data.
+The current lab has no active request for a live visual check; the animated/
+multi-job scenarios use Chromium fixtures. Addition/import, direct independent
+FTD write checks, and live concurrency/priority failure cases remain separate
+planned work. Displayed processing percentages are not success percentages.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

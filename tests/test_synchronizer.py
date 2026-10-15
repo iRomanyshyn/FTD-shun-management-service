@@ -1,4 +1,5 @@
 import asyncio
+from datetime import timedelta
 from ipaddress import IPv4Address
 from time import monotonic
 
@@ -107,6 +108,8 @@ def test_repeated_failures_publish_distinct_completed_revisions(tmp_path, monkey
 
     asyncio.run(synchronizer._sweep())
     first = synchronizer.status()
+    original_clock = synchronizer.queue._now
+    monkeypatch.setattr(synchronizer.queue, "_now", lambda: original_clock() + timedelta(seconds=61))
     asyncio.run(synchronizer._sweep())
     second = synchronizer.status()
 

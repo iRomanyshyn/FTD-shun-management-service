@@ -55,9 +55,13 @@ class Settings:
     sensitive_action_max_age_seconds: int
     development_auth: bool
     trusted_auto_remove_ips: frozenset[IPv4Address]
+    agent_cycles_enabled: bool = False
 
     @classmethod
     def from_environment(cls) -> "Settings":
+        cycles = environ.get("FTD_SHUN_AGENT_CYCLES_ENABLED", "false")
+        if cycles not in {"true", "false"}:
+            raise ValueError("FTD_SHUN_AGENT_CYCLES_ENABLED must be true or false")
         agent_mode = environ.get("FTD_SHUN_AGENT_MODE", "disabled")
         if agent_mode not in {"disabled", "mock", "socket"}:
             raise ValueError("FTD_SHUN_AGENT_MODE must be disabled, mock, or socket")
@@ -95,4 +99,5 @@ class Settings:
             development_auth=environ.get("FTD_SHUN_DEVELOPMENT_AUTH", "false").lower()
             == "true",
             trusted_auto_remove_ips=_ipv4_csv(environ.get("FTD_SHUN_TRUSTED_AUTO_REMOVE_IPS", "")),
+            agent_cycles_enabled=cycles == "true",
         )

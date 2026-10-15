@@ -1,0 +1,8 @@
+[
+  {"operation":16,"sequence":0,"device_id":7,"request":"10010007","response":"00011000000000"},
+  {"operation":17,"sequence":1,"request":"110101","response":"00011101000000"},
+  {"operation":18,"sequence":2,"ip":"203.0.113.17","request":"120102cb007111","response":"0001120201"},
+  {"operation":19,"sequence":3,"request":"130103","response":"00011303000000"},
+  {"operation":18,"sequence":1,"ip":"203.0.113.17","request":"120101cb007111","response":"02011201"},
+  {"operation":17,"sequence":1,"request":"110101","response":"02011101"}
+]
