@@ -26,6 +26,11 @@ The agent implements typed `LIST_SHUNS` and verified, device-scoped `REMOVE_SHUN
 
 The detailed current state and planned sequence are maintained in the [Project Status](docs/project-status.md). Material engineering work is recorded chronologically in the [Development Log](docs/development-log.md).
 
+The [Development Plan](docs/development-plan.md) records the next approved
+increments: reliable refresh completion, a shared multi-user queue with
+minute-spaced device cycles, and one-time manual blocklist imports with audit
+provenance. These are planned capabilities and are not currently available.
+
 ## Manuals
 
 - [Development](docs/manual/development.md)

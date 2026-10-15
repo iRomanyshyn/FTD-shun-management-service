@@ -1,3 +1,4 @@
+import asyncio
 from ipaddress import IPv4Address
 
 from ftd_shun_manager.api import create_app as create_api
@@ -70,3 +71,28 @@ def test_status_exposes_configured_trusted_ips_without_a_removal_timestamp(tmp_p
     assert status["trusted_auto_remove_ips"] == [
         {"ip": "198.51.100.10", "last_auto_removed_at": None}
     ]
+
+
+def test_refresh_hint_returns_the_queued_state_immediately(tmp_path) -> None:
+    settings = Settings(
+        database_path=tmp_path / "state.db",
+        device_inventory_path=None,
+        agent_socket=str(tmp_path / "agent.sock"),
+        web_socket=str(tmp_path / "web.sock"),
+        api_socket=str(tmp_path / "api.sock"),
+        agent_mode="disabled",
+        agent_timeout_seconds=45,
+        poll_interval_seconds=300,
+        interactive_refresh_min_interval_seconds=60,
+        history_retention_days=366,
+        sensitive_action_max_age_seconds=86400,
+        development_auth=False,
+        trusted_auto_remove_ips=frozenset(),
+    )
+
+    app = create_api(settings)
+    refresh_route = next(route for route in app.routes if route.path == "/api/v1/refresh-hint")
+    response = asyncio.run(refresh_route.endpoint())
+
+    assert response["status"] == "queued"
+    assert response["refresh"]["interactive_refresh_state"] == "queued"

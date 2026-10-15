@@ -46,6 +46,7 @@ class Synchronizer:
         self._task: asyncio.Task[None] | None = None
         self._loop: asyncio.AbstractEventLoop | None = None
         self._last_sweep_at: float | None = None
+        self._refresh_in_progress = False
         self._interactive_state = "idle"
         self._last_successful_refresh: str | None = None
         self._last_attempt: str | None = None
@@ -76,11 +77,17 @@ class Synchronizer:
         if self._loop is not None:
             self._loop.call_soon_threadsafe(self._queue_activity)
 
+    def request_activity(self) -> dict[str, object]:
+        """Queue an activity hint from the owning event loop and return its real state."""
+        self._queue_activity()
+        return self.status()
+
     def status(self) -> dict[str, object]:
         return {
             "last_successful_refresh": self._last_successful_refresh,
             "last_attempt": self._last_attempt,
             "last_error": self._last_error,
+            "refresh_in_progress": self._refresh_in_progress,
             "next_baseline_refresh": self._next_baseline_refresh,
             "next_interactive_refresh": self._next_interactive_refresh,
             "baseline_interval_seconds": self.poll_interval_seconds,
@@ -129,13 +136,17 @@ class Synchronizer:
             ):
                 self._interactive_state = "rate_limited"
                 continue
-            self._interactive_state = "idle"
             # Expose a future baseline while the current bounded sweep is in
             # progress, preventing browser countdowns from repeatedly reloading
             # against the completed deadline.
             self._next_baseline_at = monotonic() + self.poll_interval_seconds
             self._next_baseline_refresh = _timestamp_after(self.poll_interval_seconds)
-            await self._sweep()
+            self._refresh_in_progress = True
+            try:
+                await self._sweep()
+            finally:
+                self._refresh_in_progress = False
+                self._interactive_state = "idle"
             self._last_sweep_at = monotonic()
             next_baseline = monotonic() + self.poll_interval_seconds
             self._next_baseline_at = next_baseline

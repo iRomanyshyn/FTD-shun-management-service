@@ -25,6 +25,13 @@ This is not intended to be a generic FTD management system, SSH proxy, terminal 
 
 Security takes priority over extensibility.
 
+Sections 1–73 describe the current removal-oriented scope. The approved next
+increment in [Section 74](#74-approved-next-increment-queued-device-cycles-and-manual-imports)
+and the [Development Plan](development-plan.md) extends that scope with queued
+device cycles and one-time manual shun imports. These capabilities are planned,
+not implemented; current protocol and operating procedures remain in effect
+until the documented migration and laboratory gates are completed.
+
 ---
 
 # 2. Core Security Principle
@@ -1088,6 +1095,12 @@ match it returns the current-state flag, last observed time, last verified
 removal time when applicable, latest event time, device count, and whether the
 exact address is in the configured trusted-IP policy.
 
+`POST /api/v1/refresh-hint` runs the scheduler transition on its owning event
+loop and returns the resulting refresh metadata in the same `202` response.
+It never waits for a device operation. The Web/BFF uses this response for the
+button state and exposes a separate authenticated, same-origin status view for
+browser polling; neither route exposes the agent socket or FTD credentials.
+
 `remove-all` is a semantic operation, not a command endpoint. Its request contains no Cisco CLI text and operates only on the matching configured device records returned by the current state snapshot.
 
 ---
@@ -1241,10 +1254,14 @@ must instead show that scheduled refresh and its remaining countdown. Outside
 that final interval, an accepted activity hint may run immediately and resets
 the following baseline interval after the sweep completes.
 
-When the baseline countdown reaches zero, the browser may reload the
-authenticated BFF page once to retrieve the latest locally reconciled state.
-That reload is not a Cisco operation and must not be represented as proof that
-the scheduled FTD snapshot has completed successfully.
+The authenticated browser must obtain freshness transitions through a dedicated
+same-origin BFF status resource, not by relying on a POST/redirect race. A
+refresh request returns the scheduler's resulting state immediately (`queued`,
+`baseline_pending`, or rate-limited), and the browser polls the BFF status while
+the page remains open. It reloads the server-rendered state exactly once only
+after a successful-refresh timestamp or refresh error changes. Reaching a
+baseline countdown deadline alone is not proof that the scheduled FTD snapshot
+has completed and must not trigger a reload loop.
 
 The primary page must expose a collapsed **Last events log** containing the
 latest 100 local audit events. It is read-only, uses the same timestamp rules,
@@ -2181,6 +2198,10 @@ generic SSH proxy
 
 Any future extension that introduces a new Cisco command must require explicit source-code implementation and security review.
 
+Manual creation remains unavailable in the current release. Section 74 records
+the approved future exception for one-time, typed, audited manual imports; it
+does not authorize arbitrary commands or enable an addition operation today.
+
 ---
 
 # 71. Acceptance Criteria
@@ -2315,3 +2336,62 @@ Development priorities, in order:
 Feature count is explicitly less important than maintaining these properties.
 
 The final system should remain intentionally small, predictable, auditable, and difficult to repurpose into a generic privileged FTD management channel.
+
+---
+
+# 74. Approved Next Increment: Queued Device Cycles and Manual Imports
+
+**Planning status: accepted direction, implementation pending (2026-10-15).**
+The [Development Plan](development-plan.md) specifies sequencing, validation,
+and the remaining detailed-design decisions. The following target requirements
+supersede immediate manual dispatch and independent refresh/write scheduling
+only once that increment is implemented and validated:
+
+- All user additions and removals enter a shared durable SQLite queue. Queue
+  acceptance is distinct from verified FTD success. Preserve the actor,
+  request ID, and outcome for every user's submission, including duplicates,
+  conflicts, cancellations, and partial fleet results.
+- One background scheduler combines queued writes and snapshot reconciliation
+  into bounded per-device cycles. Use one SSH session at a time on each device
+  and start no new cycle earlier than 60 seconds after the preceding one
+  completes. Persist this eligibility across restarts. Baseline refresh,
+  interactive hints, retries, and trusted-IP automatic removals share that
+  budget; requests cannot bypass it through a separate write path.
+- A cycle uses a strictly parsed initial snapshot, ordered typed operations,
+  and post-write verification through one bounded prompt-driven SSH session.
+  A versioned fixed binary cycle/batch protocol must be designed and reviewed
+  before adding session reuse. No raw import text, comments, CLI, or arbitrary
+  interface strings may cross the agent boundary.
+- During a background batch, one coalesced, eligible interactive refresh may
+  insert a typed full-snapshot read at the next safe command boundary, after
+  any required write verification and before the next background mutation.
+  It uses the existing session and bounded cycle budget. Enforce the shared
+  interactive cooldown, reserve at most one extra priority snapshot per cycle,
+  and coalesce later requests with final/next-cycle reads to prevent starvation.
+  The typed protocol must support bounded checkpoint/progress signaling;
+  concurrent CLI commands and extra SSH sessions are prohibited.
+- Addition is a new narrow semantic capability, provisionally `ADD_SHUN`, not
+  a generic executor. Its interface scope, Basic-role support, parsers, and
+  verification require live laboratory validation before enablement.
+- A pasted blocklist creates one-time manual additions. Successful removal,
+  external disappearance, reconciliation, and restart never regenerate those
+  completed add requests. It is not a continuously enforced blocklist or feed.
+- SQLite events and structured logs identify `manual_import` provenance,
+  batch, actor, targets, and verified results. Associate provenance with the
+  actual operation/occurrence; do not claim ownership of a preexisting shun.
+- Protected IPs cannot be added by import. Check policy at preview, admission,
+  and execution. Serialize or explicitly reject conflicting user intentions;
+  never silently replay an uncertain write or promise physical exactly-once
+  execution across a lost SSH response.
+- Publish cycle completion revisions, including failures and partial success,
+  and per-device freshness. Publish observed-snapshot revisions independently
+  so an interactive read can update the UI before the import finishes. Expose
+  a shared queue/progress panel with counts, current device/action, requester,
+  outcomes, and wait reasons. Browser polling reads local BFF metadata and
+  updates displayed results while preserving user input; a current snapshot
+  must not imply completion of a still-running batch.
+
+The topology, credential isolation, pinned host keys, exact binary validation,
+verified-success requirement, and prohibition on arbitrary Cisco commands are
+unchanged. No queue, import capability, schema migration, or new agent opcode
+is delivered by this documentation change.

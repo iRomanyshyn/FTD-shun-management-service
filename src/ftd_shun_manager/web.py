@@ -13,7 +13,7 @@ from urllib.parse import urlencode
 import httpx
 import uvicorn
 from fastapi import FastAPI, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -87,6 +87,24 @@ def trusted_policy_ips(refresh: object) -> frozenset[str]:
     )
 
 
+def refresh_metadata(refresh: object) -> dict[str, object]:
+    """Whitelist the status fields required by browser-side freshness updates."""
+    if not isinstance(refresh, dict):
+        raise TypeError("State API returned an invalid refresh status")
+    fields = (
+        "last_successful_refresh",
+        "last_attempt",
+        "last_error",
+        "refresh_in_progress",
+        "next_baseline_refresh",
+        "next_interactive_refresh",
+        "baseline_interval_seconds",
+        "interactive_min_interval_seconds",
+        "interactive_refresh_state",
+    )
+    return {field: refresh.get(field) for field in fields}
+
+
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or Settings.from_environment()
     app = FastAPI(title="FTD Shun Manager", docs_url=None, redoc_url=None, openapi_url=None)
@@ -110,7 +128,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         identity = identity_from_request(request, settings.development_auth)
         search_query = q.strip()
         with api_client(settings) as client:
-            client.post("/api/v1/refresh-hint")
             response = client.get("/api/v1/shuns")
             recent_events = client.get("/api/v1/history", params={"limit": 100})
             search_response = (
@@ -138,8 +155,25 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             },
         )
 
+    @app.get("/refresh-status")
+    def refresh_status(request: Request) -> JSONResponse:
+        identity_from_request(request, settings.development_auth)
+        try:
+            with api_client(settings) as client:
+                response = client.get("/api/v1/status")
+        except httpx.HTTPError as error:
+            raise HTTPException(status_code=503, detail="State API is unavailable.") from error
+        if response.status_code != 200:
+            raise HTTPException(response.status_code, response.text)
+        try:
+            return JSONResponse(refresh_metadata(response.json()))
+        except TypeError as error:
+            raise HTTPException(status_code=503, detail="State API returned invalid status.") from error
+
     @app.post("/refresh")
-    def request_refresh(request: Request, csrf: str = Form(...), q: str = Form("")) -> RedirectResponse:
+    def request_refresh(
+        request: Request, csrf: str = Form(...), q: str = Form("")
+    ) -> Response:
         require_csrf(request, csrf)
         identity_from_request(request, settings.development_auth)
         try:
@@ -149,6 +183,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(status_code=503, detail="State API is unavailable.") from error
         if response.status_code != 202:
             raise HTTPException(response.status_code, response.text)
+        if "application/json" in request.headers.get("accept", ""):
+            try:
+                payload = response.json()
+                return JSONResponse(refresh_metadata(payload["refresh"]))
+            except (KeyError, TypeError, ValueError) as error:
+                raise HTTPException(
+                    status_code=503, detail="State API returned invalid refresh status."
+                ) from error
         target = "/" if not q else f"/?{urlencode({'q': q})}"
         return RedirectResponse(url=target, status_code=303)
 
@@ -156,7 +198,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def detail(request: Request, ip: IPv4Address) -> HTMLResponse:
         identity = identity_from_request(request, settings.development_auth)
         with api_client(settings) as client:
-            client.post("/api/v1/refresh-hint")
             response = client.get(f"/api/v1/shuns/{ip}")
             history = client.get(f"/api/v1/history/{ip}")
             refresh_status = client.get("/api/v1/status")

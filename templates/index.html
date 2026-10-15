@@ -14,10 +14,10 @@
 </section>
 
 {% if refresh %}
-<section class="refresh-panel" aria-labelledby="refresh-heading">
+<section class="refresh-panel" aria-labelledby="refresh-heading" data-refresh-controller data-status-url="/refresh-status" data-initial-last-successful="{{ refresh.last_successful_refresh or '' }}" data-initial-error="{{ refresh.last_error or '' }}" data-auto-request="true">
 <h2 id="refresh-heading">Refresh status</h2>
 <p class="refresh-status" data-last-successful="{{ refresh.last_successful_refresh or '' }}" data-min-interval="{{ refresh.interactive_min_interval_seconds }}" data-state="{{ refresh.interactive_refresh_state }}" data-next-interactive="{{ refresh.next_interactive_refresh or '' }}">Data last confirmed: <time class="last-successful-refresh" datetime="{{ refresh.last_successful_refresh or '' }}">{{ refresh.last_successful_refresh or "not yet available" }}</time>. Next scheduled check: <time class="baseline-countdown" data-next-baseline="{{ refresh.next_baseline_refresh or '' }}" data-reload-on-due="true">{{ refresh.next_baseline_refresh or "not scheduled" }}</time>.</p>
-<form method="post" action="/refresh" class="request-refresh-form">
+<form method="post" action="/refresh" class="request-refresh-form" data-refresh-form>
 <input type="hidden" name="csrf" value="{{ csrf_token }}">
 <input type="hidden" name="q" value="{{ search_query }}">
 <button type="submit" data-refresh-request data-state="{{ refresh.interactive_refresh_state }}" data-next-interactive="{{ refresh.next_interactive_refresh or '' }}" data-next-baseline="{{ refresh.next_baseline_refresh or '' }}">Request refresh</button>

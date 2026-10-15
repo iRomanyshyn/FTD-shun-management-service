@@ -11,6 +11,7 @@ These manuals describe the first implementation increment. The service is safe t
 | [Local Browser Laboratory](local-lab-web.md) | Workstation-only Caddy Internal CA and local Authelia setup without DNS. |
 | [Project Status](../project-status.md) | Implemented scope, explicit limitations, and next work. |
 | [Development Log](../development-log.md) | Chronological record of material engineering changes. |
+| [Development Plan](../development-plan.md) | Planned multi-user queue, bounded device cycles, refresh reliability, and one-time manual blocklist imports; not a current operating procedure. |
 
 The [Architecture and Security Design](../architecture-and-security-design.md) remains the normative security specification.
 

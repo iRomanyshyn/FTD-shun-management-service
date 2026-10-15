@@ -100,9 +100,12 @@ def create_app(
         }
 
     @app.post("/api/v1/refresh-hint", status_code=status.HTTP_202_ACCEPTED)
-    def refresh_hint() -> dict[str, str]:
-        synchronizer.note_activity()
-        return {"status": str(synchronizer.status()["interactive_refresh_state"])}
+    async def refresh_hint() -> dict[str, object]:
+        refresh = synchronizer.request_activity()
+        return {
+            "status": str(refresh["interactive_refresh_state"]),
+            "refresh": refresh,
+        }
 
     @app.get("/api/v1/shuns")
     def list_shuns() -> list[dict[str, str | int | bool]]:

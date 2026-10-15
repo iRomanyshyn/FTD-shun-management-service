@@ -688,6 +688,106 @@ check .`; and `git diff --check` passed.
 validation at both sides of the 60-second boundary and an elapsed five-minute
 baseline check against the FTD lab.
 
+## 2026-10-15 — Asynchronous freshness state machine
+
+**Status:** Implemented; authenticated browser validation pending
+
+Replaced the refresh UI's POST/redirect and deadline-reload behaviour with a
+same-origin BFF freshness state machine. `POST /api/v1/refresh-hint` now runs
+on the synchronizer's owning event loop and returns the actual scheduler state
+in the same response, eliminating the prior cross-thread callback race. The
+Web/BFF exposes a whitelisted read-only refresh-status response and accepts an
+asynchronous CSRF-protected refresh form request.
+
+The browser immediately applies the returned state to the button, then polls
+only the BFF status endpoint. It reloads the server-rendered shun, history, and
+event data once when the successful-refresh timestamp or refresh error changes;
+it no longer reloads merely because a baseline countdown reaches zero. While a
+sweep runs, status explicitly reports that in-progress condition and the button
+stays disabled. This preserves the semantic agent boundary: browser polling
+does not reach the agent or FTD directly.
+
+**Validation:** Added API endpoint coverage verifying that a refresh hint
+returns `queued` immediately. `node --check static/freshness.js`; `python3 -m
+compileall -q src tests`; `python3 -m pytest -q`; `python3 -m ruff check .`; and
+`git diff --check` passed.
+
+**Known limitations:** The new BFF/API image has not been recreated or reviewed
+in an authenticated browser. Validate manual, imminent-baseline, successful,
+and failed refresh paths before treating the UI flow as production-ready.
+
+## 2026-10-15 — Multi-user queue and manual blocklist import plan
+
+**Status:** Design recorded; no runtime changes
+
+Added `docs/development-plan.md` to preserve the agreed product direction and
+implementation order. Manual blocklists are one-time, operator-confirmed shun
+additions with `manual_import` provenance in SQLite and structured logs. A
+later removal, external disappearance, restart, or reconciliation must not
+automatically re-add them. The plan includes paste/parse/preview, comments and
+embedded addresses, invalid/ambiguous/unsupported input handling, protected-IP
+exclusions, batch progress, and per-device audit attribution.
+
+Recorded a shared durable SQLite queue for concurrent users and bounded
+per-device cycles combining additions, removals, and state refresh. Cycles use
+one serialized SSH session, with at least 60 seconds from the preceding cycle's
+completion to the next start. All device work, including trusted-policy
+removals and retries, uses this budget. The plan covers duplicate admission,
+conflicting intentions, cancellation, queue bounds, uncertain outcomes,
+restart/backup recovery, and the absence of a physical exactly-once guarantee
+across an SSH response loss.
+
+Also recorded explicit cycle-completion revisions, per-device health, browser
+response ordering, input preservation, and concurrency/failure acceptance
+scenarios. Architecture Section 74 identifies the approved future exception
+to the current prohibition on manual creation and the required typed protocol
+and laboratory gates. README, manual index, operations, and project status
+link the plan and clearly distinguish it from the current immediate-removal
+implementation.
+
+**Validation:** Documentation-only review of cross-document scope and relative
+Markdown links; `git diff --check` passed. No runtime tests, deployment, CLI
+operations, schema migration, or agent protocol changes were performed.
+
+**Known limitations:** Queue storage/claims, bounded batch wire format, import
+parser, addition operation, and browser completion revisions remain
+unimplemented. Batch-size/time defaults and execution-time authorization are
+detailed-design tasks; addition and single-session batching require live FTD
+validation before enablement.
+
+## 2026-10-15 — Queue visibility and priority refresh checkpoints
+
+**Status:** Design refinement recorded; implementation pending
+
+Extended the shared-queue plan with a visible operation/progress panel showing
+device, active batch/action, requester, completed/total items, outcomes,
+eligibility delays, and failure/backoff reasons. Added independent snapshot
+and queue-progress revisions alongside completed-cycle revisions, so observed
+state can update while a large import is still running.
+
+An eligible UI refresh during an active batch now has planned priority at the
+next safe command checkpoint in the current SSH session, before the next
+background mutation. The current command and any outstanding write
+verification finish first. Concurrent users share one pending refresh; the
+interactive cooldown, one-extra-priority-snapshot limit per cycle, and command/
+time budget bound console load and prevent background-work starvation. Session
+uncertainty aborts the cycle instead of injecting another command. The future
+typed cycle protocol must support checkpoint/progress signaling; a blocking
+opaque batch RPC alone cannot implement the requirement.
+
+Updated the development plan, normative next-increment architecture, project
+status, and planned-operations note. Added acceptance scenarios for mid-import
+refresh, multi-user coalescing, independent snapshot publication, budget
+exhaustion, lost prompt, and continued background progress.
+
+**Validation:** Documentation consistency review and `git diff --check` passed.
+No code, runtime configuration, device commands, or deployments changed.
+
+**Known limitations:** The queue/progress UI, priority refresh scheduler, and
+agent checkpoint protocol remain planned. Their exact binary layout and batch
+limits require detailed design and lab validation before implementation is
+enabled.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

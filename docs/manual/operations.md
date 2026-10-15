@@ -1,5 +1,20 @@
 # Operations Manual
 
+## Planned workflow changes
+
+The [Development Plan](../development-plan.md) records a future shared queue
+for multiple users, one bounded write-and-refresh cycle per device no more
+than once per minute, and manually imported shuns with visible provenance.
+Imports will be one-time additions: removing one will not cause reimport.
+The planned UI will expose shared queue progress. During a running import,
+an eligible interactive refresh will use a safe checkpoint in the current SSH
+session, publish the snapshot, and let the import continue. Duplicate requests
+will coalesce under shared rate and cycle-budget limits.
+These capabilities are not available yet. The immediate removal and current
+refresh procedures below describe the present implementation; do not assume
+queue admission, delayed writes, session reuse, or import support until their
+implementation and laboratory validation are recorded in Project Status.
+
 ## Roles
 
 | Group | Application role | Capability |
@@ -22,9 +37,9 @@
 ## Snapshot collection and freshness
 
 The API performs a complete typed `show shun` snapshot at startup and then at
-`FTD_SHUN_POLL_INTERVAL` (default `5m`). An authenticated list or detail page
-may queue one asynchronous refresh hint, but neither a page load nor a search
-waits for FTD SSH. The global/device minimum is
+`FTD_SHUN_POLL_INTERVAL` (default `5m`). The authenticated primary page may
+queue one asynchronous refresh hint, but neither a page load nor a search waits
+for FTD SSH. The global/device minimum is
 `FTD_SHUN_INTERACTIVE_REFRESH_MIN_INTERVAL` (default `60s`).
 
 The UI shows the last complete successful sweep, a browser countdown derived
@@ -55,10 +70,12 @@ scheduled-refresh countdown. At any earlier point, an accepted button request
 queues an immediate refresh and the subsequent baseline is measured from that
 sweep.
 
-When the baseline countdown reaches zero, the page reloads once to request the
-latest already-reconciled local state. This is not a browser-issued Cisco query:
-if the scheduled sweep is still running or failed, the refreshed page continues
-to show the previous confirmed time or a refresh warning.
+The page sends the refresh request asynchronously and receives its actual
+scheduler state immediately. It then polls the same authenticated Web/BFF for
+freshness metadata; it does not poll the agent or FTD. Once the successful
+refresh timestamp or refresh error changes, it reloads the rendered state once.
+The countdown reaching zero does not itself reload the page, preventing a
+reload loop while a bounded scheduled sweep is still running.
 
 Use the collapsed **Last events log** on the primary page for the latest 100
 local audit events. It is a convenient recent view, not an external log

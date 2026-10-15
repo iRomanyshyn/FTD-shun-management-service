@@ -1,18 +1,27 @@
 # Project Status
 
-Last updated: 2026-10-14
+Last updated: 2026-10-15
 
 ## Current increment
 
 **Agent-enabled polling, reconciliation, and trusted-IP policy lab implementation.** The repository provides the secured management-plane skeleton, local state, UI workflows, deployment layout, manuals, and an isolated privileged agent. V1 deliberately uses one shared FTD service identity inside that isolated agent; reader/writer separation and one-time key bootstrap are deferred hardening options. The service remains unsuitable for production until it completes the expanded FTD lab validation.
+
+The [Development Plan](development-plan.md) records the approved next direction:
+reliable cycle-based freshness, a durable multi-user queue, device changes and
+refresh in one bounded cycle no more than once per minute, and one-time manual
+blocklist imports with recorded provenance. The plan also includes shared queue
+progress and a coalesced interactive snapshot at the next safe checkpoint of
+a running import, using the existing session and rate/budget limits. This is planning only; current
+removals still dispatch immediately, the current agent opens a session per
+operation, and no addition/import or durable queue is implemented.
 
 ## Delivered
 
 | Area | Status | Notes |
 | --- | --- | --- |
 | Architecture and security design | Complete | Defines the trust boundaries, device model, state model, and fixed agent protocol. |
-| Web/BFF | Authenticated UI removal live validated; unified search/events refinement implemented, deployment pending | Server-rendered UI, role mapping, CSRF protection, device hostname display, and an agent-verified single-device removal were exercised. The primary page supports server-side bounded local IPv4 prefix search across active state and retained history, clear current-versus-historical presentation, Protected-IP matches, a cooldown-aware refresh request, browser-local timestamps, and a collapsed 100-event local audit view. The BFF waits beyond the bounded API/agent timeout and fails closed with a controlled `503` if no result is returned. |
-| Internal API | Complete for first increment | Unix-socket-only FastAPI service with state, history, bounded local IP-history search, refresh hints, and semantic removal endpoints. Its agent-client timeout exceeds the configured agent operation timeout. |
+| Web/BFF | Authenticated UI removal live validated; unified search/events and asynchronous freshness refinement implemented, deployment pending | Server-rendered UI, role mapping, CSRF protection, device hostname display, and an agent-verified single-device removal were exercised. The primary page supports server-side bounded local IPv4 prefix search across active state and retained history, clear current-versus-historical presentation, Protected-IP matches, browser-local timestamps, a collapsed 100-event local audit view, and an asynchronous refresh control backed by a same-origin BFF status poll. The BFF waits beyond the bounded API/agent timeout and fails closed with a controlled `503` if no result is returned. |
+| Internal API | Complete for first increment | Unix-socket-only FastAPI service with state, history, bounded local IP-history search, an immediate scheduler-state refresh-hint response, and semantic removal endpoints. Its agent-client timeout exceeds the configured agent operation timeout. |
 | Local state and audit trail | Snapshot reconciliation, trusted-policy audit, and configurable retention implemented | SQLite WAL atomically reconciles complete successful device snapshots and retains append-only detection, reappearance, disappearance, manual-removal, and trusted-IP policy events within a configurable 366-day default retention window. |
 | Device inventory | Complete for first increment | Static JSON validates numeric IDs, hostnames, management addresses, pinned host keys, and interface allowlists. |
 | Agent boundary | Typed snapshot and removal live-lab validated | Rust agent verifies pinned server host keys, authenticates the FTD `Basic` account with a protected password secret, uses a prompt-driven PTY shell, performs only source-defined `LIST_SHUNS` and `REMOVE_SHUN`, parses strictly, verifies writes, and emits sanitized structured diagnostics for rejected operations to a bounded Docker log channel. |
@@ -56,10 +65,11 @@ The foundation increment was checked with:
 
 ## Next work, in order
 
-1. Complete the [FTD laboratory validation](manual/ftd-lab-validation.md): deploy and validate the unified search, cooldown-backed refresh control, 100-event view, five-minute baseline, SQLite removal audit records, direct post-operation FTD observation, the trusted-IP policy, and all expected failure modes.
-2. Add agent/API failure-path integration tests, including host-key mismatch, private-socket peer checks, and snapshot rejection.
-3. Add structured external logging, metrics, backup automation, and operator alerts.
-4. Test the full deployment with Caddy TLS, Authelia local users, LDAP(S), and a non-production FTD environment.
+1. Stabilize browser refresh around explicit cycle completion revisions and per-device status; validate repeated failures, partial success, slow devices, multiple tabs, preserved input, and restarts.
+2. Design and implement the shared durable operation queue and one-minute device-cycle gate, including idempotency, conflicts, cancellation, bounded batches, restart recovery, and migration of existing removals and trusted-policy work. Expose queue progress and support coalesced priority refresh at safe checkpoints, with independent snapshot revisions and bounded fair scheduling.
+3. Design and lab validate the typed single-session cycle/batch protocol and narrow addition capability before enabling the paste/preview/manual-import workflow. Record manual provenance in SQLite and structured logs; removed imported entries must never be automatically re-added. Follow the [Development Plan](development-plan.md) for acceptance criteria.
+4. Complete the [FTD laboratory validation](manual/ftd-lab-validation.md), including direct post-operation observation, baseline behavior, queue load/concurrency, trusted-policy failures, host-key mismatch, private-socket checks, and snapshot rejection. Production writes remain unapproved.
+5. Add structured external logging, metrics, backup automation, and operator alerts; validate TLS, Authelia local users, LDAP(S), and the complete non-production deployment.
 
 ## Record-keeping rule
 
