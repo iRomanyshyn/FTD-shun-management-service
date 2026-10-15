@@ -34,10 +34,41 @@ write action based on an assumed current FTD state. A failed or malformed
 snapshot is retained as a failure only and is never interpreted as an empty
 device state.
 
-The active-shun list has an in-browser IPv4 prefix search. It filters the
-already displayed state only; it neither waits for nor directly triggers a
-Cisco operation. A page view may still submit the normal asynchronous,
-globally rate-limited refresh hint.
+Use the primary-page **IP search** field with a full IPv4 address or dotted
+prefix to find both active shuns and retained local history. Search does not
+wait for or directly trigger a Cisco operation. A result marked **Current
+shun** is active in the latest local state; **Historical — not currently
+shunned** means that the address is retained only as history and must not be
+treated as a present FTD block. Results show the last seen time, last verified
+removal when one exists, latest event, number of known devices, and the
+**Protected IP** marker for an exact trusted-policy match.
+
+A page view may still submit the normal asynchronous, globally rate-limited
+refresh hint. The **Request refresh** control gives that same hint explicitly;
+it never waits for FTD SSH or promises an immediate live result. Its countdown
+shows when another browser hint is permitted. The service independently enforces
+the minimum interval, so reloading or using multiple browsers cannot bypass it.
+If the next five-minute baseline is less than the configured minimum interval
+away (60 seconds by default), the service preserves that scheduled refresh
+instead of starting a redundant manual one. The button then displays the
+scheduled-refresh countdown. At any earlier point, an accepted button request
+queues an immediate refresh and the subsequent baseline is measured from that
+sweep.
+
+When the baseline countdown reaches zero, the page reloads once to request the
+latest already-reconciled local state. This is not a browser-issued Cisco query:
+if the scheduled sweep is still running or failed, the refreshed page continues
+to show the previous confirmed time or a refresh warning.
+
+Use the collapsed **Last events log** on the primary page for the latest 100
+local audit events. It is a convenient recent view, not an external log
+replacement; use an IP detail page for that address's history and the container
+log collector for diagnostics and long-term forwarding.
+
+The database and internal API use UTC timestamps. The Web UI displays those
+times in the viewer's browser timezone and includes the timezone abbreviation
+or UTC offset. A raw timestamp ending in `Z` is UTC, including the no-JavaScript
+fallback.
 
 ## Trusted-IP automatic-removal policy
 
@@ -55,6 +86,33 @@ The history records `SHUN_TRUSTED_AUTO_REMOVE_REQUESTED` and then either
 `SHUN_TRUSTED_AUTO_REMOVE_FAILED`, under the actor `system:trusted-ip-policy`.
 On failure the active record remains visible; investigate the agent log before
 retrying or changing the policy.
+
+The primary page exposes the configured list as a read-only table for all
+authenticated application roles. For each allowed address it shows **Last
+auto-removed**, the latest verified policy-removal timestamp across all enabled
+devices, or **Never**. The table is status only: update the ignored `.env` and
+recreate the API service to change the policy. Treat the displayed addresses as
+internal operational information; access to the application already requires
+Authelia authentication.
+
+An active shun whose address exactly matches that table is highlighted with a
+**Protected IP** badge and an amber row. Its detail page repeats the warning.
+The marker indicates policy membership only: review the audit history to learn
+whether an automatic removal was requested, verified, or failed.
+
+## History retention
+
+The service retains historical events and inactive shun state for
+`FTD_SHUN_HISTORY_RETENTION_DAYS`, which defaults to **366 days**. Once daily,
+the synchronizer purges records older than that UTC cutoff. Active shun state
+is never purged. A non-empty run adds a `HISTORY_RETENTION_PURGED` event with
+the cutoff and deletion counts; the status endpoint also reports the most
+recent retention run and any retention error.
+
+This is irreversible for the live SQLite database. Take a SQLite-safe backup
+before reducing the period, and retain backups under the organization’s own
+audit-retention policy. After restoring a backup, wait for a successful FTD
+snapshot before treating any active state as current.
 
 ## Logs and audit
 

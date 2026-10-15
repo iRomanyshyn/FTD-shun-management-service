@@ -498,6 +498,196 @@ until the documented dedicated-fixture validation confirms both a verified
 removal and its fail-closed behavior. The new browser search/freshness
 presentation also awaits a post-deployment interactive check.
 
+## 2026-10-14 — Visible trusted-IP policy status
+
+**Status:** Implemented; browser retest pending
+
+The authenticated primary page now has a read-only **Trusted-IP automatic
+removal** table. It shows every configured exact address and its latest
+verified automatic-removal timestamp across the fleet, or `Never` when no
+verified policy removal has occurred. With an empty configuration it explicitly
+shows that the policy is disabled. The internal status endpoint obtains this
+from the current configuration and append-only success events; it does not
+provide a web mutation path or expose any credential material.
+
+**Validation:** Added store and API-status coverage for configured addresses,
+the no-removal case, and a verified-removal timestamp. `python3 -m compileall -q src tests`; `python3 -m pytest -q` (31 passed); `python3 -m ruff check .`; and `git diff --check` passed.
+
+**Known limitations:** The policy table has not yet been viewed in a browser
+with a non-empty lab configuration, because the local policy remains disabled
+until its documented FTD write validation is approved and completed.
+
+**Correction:** After deployment, the ignored local environment was found to
+contain two configured trusted addresses. The private status endpoint confirmed
+both entries, no trusted-policy audit event, and no refresh error after the
+startup snapshot. Therefore no automatic removal was observed or claimed. The
+two values are intentionally not recorded in this repository; the required
+dedicated-fixture policy validation remains outstanding.
+
+## 2026-10-14 — Configurable history retention
+
+**Status:** Implemented; production retention and backup policy remains an operator responsibility
+
+Added `FTD_SHUN_HISTORY_RETENTION_DAYS`, defaulting to 366 days and limited to
+1–3653 whole days. The background synchronizer runs the lifecycle task at most
+once every 24 hours. It removes expired event rows and inactive state rows,
+preserves active shuns, and records `HISTORY_RETENTION_PURGED` when data was
+removed. Retention errors are surfaced in synchronizer status and structured
+logs without changing the result of an FTD snapshot.
+
+The UI now displays the current configured retention period. Architecture and
+operator documents define the purge scope, the audit marker, and the required
+SQLite-safe backup before reducing the period.
+
+**Validation:** Added parsing and data-lifecycle tests, including preservation
+of an active shun. `python3 -m compileall -q src tests`; `python3 -m pytest -q`
+(35 passed); `python3 -m ruff check .`; and `git diff --check` passed.
+
+**Known limitations:** The local SQLite file is not automatically compacted
+after deletion; use an approved maintenance procedure if physical file-size
+reclamation is required. External retained audit copies and backup automation
+are not implemented by this stack.
+
+## 2026-10-14 — Protected-IP visual marker
+
+**Status:** Implemented; deployment pending existing write-side-effect approval
+
+The Web/BFF now derives the configured exact trusted-IP set from its internal
+status response and marks a matching active shun with an amber table row and
+**Protected IP** badge. The shun detail page repeats this warning. The marker
+is presentation only: it neither changes policy membership nor makes a Cisco
+request, and it does not claim that automatic removal succeeded.
+
+**Validation:** Added template coverage for the marker. `python3 -m compileall -q src tests`; `python3 -m pytest -q` (36 passed); `python3 -m ruff check .`; and `git diff --check` passed.
+
+**Known limitations:** Rebuilding the API will trigger its ordinary startup
+snapshot. Because the current local policy contains trusted addresses, that
+snapshot could invoke existing automatic removal for a matching active shun;
+deployment therefore awaits explicit operator approval.
+
+## 2026-10-14 — Explicit browser timezone labels
+
+**Status:** Implemented; deployment pending existing write-side-effect approval
+
+All UI timestamp fields now use semantic `<time>` elements with their canonical
+UTC ISO-8601 values. Browser-side rendering formats active-state, history,
+freshness, and trusted-policy timestamps in the viewer's local timezone with a
+timezone name or offset. The original `Z` timestamp remains as the fallback,
+so the application never presents an unlabeled local time.
+
+**Validation:** Updated template coverage. `python3 -m compileall -q src tests`; `python3 -m pytest -q` (36 passed); `python3 -m ruff check .`; and `git diff --check` passed.
+
+**Known limitations:** The deployed containers still use the prior image until
+the already-disclosed API restart risk is explicitly approved.
+
+## 2026-10-14 — Approved API/Web deployment and policy outcome
+
+**Status:** Deployed to the local laboratory stack
+
+Following explicit operator approval, rebuilt and recreated the local API and
+Web/BFF with configurable 366-day retention, Protected-IP presentation, and
+explicit browser timezone labels. The retention preflight found no expired
+local records; the first lifecycle run completed with no retention error.
+
+The ordinary startup snapshot encountered one configured trusted-IP match. Its
+append-only audit trail contains `SHUN_TRUSTED_AUTO_REMOVE_REQUESTED` followed
+by `SHUN_TRUSTED_AUTO_REMOVED`; the local active-shun state was empty afterward.
+This is the agent's existing verified-removal result, not a replacement for an
+independent direct FTD `show shun` confirmation. Configured IP values are not
+recorded in repository documentation.
+
+**Validation:** Container services were `Up`; private API status reported a
+successful refresh, `history_retention_days: 366`, and no retention or refresh
+error. A local SQLite aggregate confirmed one trusted-policy request, one
+trusted-policy verified-removal event, and zero active shuns.
+
+**Known limitations:** A live trusted-policy failure and browser visual review
+of timezone labels/Protected-IP highlighting still need their documented lab
+checks.
+
+## 2026-10-14 — Unified local IP search, refresh control, and recent-event view
+
+**Status:** Implemented; deployment and browser validation pending
+
+Replaced the active-table-only browser filter with a bounded internal
+`GET /api/v1/search` resource and primary-page search workflow. It accepts a
+strictly validated full IPv4 address or dotted prefix, searches only local
+SQLite active state and retained audit history, and returns at most 100 matches.
+Every result reports current status, last seen, latest event, last verified
+manual or trusted-policy removal when available, device count, and exact
+trusted-IP-policy membership. Historical-only entries are explicitly labelled
+**Historical — not currently shunned** so they cannot be mistaken for a live
+block.
+
+The primary page now includes a CSRF-protected **Request refresh** control.
+It only invokes the existing asynchronous refresh hint; the synchronizer still
+enforces the global minimum interval. Synchronizer status now provides the next
+interactive-refresh timestamp, including the initial queued request, so the
+browser can present a live cooldown on the control. The page also has a
+collapsed read-only **Last events log** that renders the newest 100 local audit
+events. None of these views sends a new Cisco command or expands the fixed
+agent protocol.
+
+Architecture, deployment, operations, and status documents now cover the
+bounded-search semantics, current-versus-historical visual distinction,
+refresh-control constraints, and recent-event view.
+
+**Validation:** Added store coverage for current/historical result composition
+and invalid search inputs, synchronizer coverage for the initial interactive
+cooldown, and template coverage for the historical Protected-IP state.
+`python3 -m compileall -q src tests`; `python3 -m pytest -q` (43 passed);
+`python3 -m ruff check .`; and `git diff --check` passed.
+
+**Known limitations:** The new image has not yet been recreated and the
+authenticated browser presentation has not yet been reviewed. Recreating API
+may run the existing trusted-IP automatic-removal policy as part of its startup
+snapshot; use the established explicit operator-approval procedure before
+deployment.
+
+## 2026-10-14 — Refresh presentation refinements
+
+**Status:** Implemented; browser retest pending
+
+Corrected the primary-page timestamp renderer so that removing the duplicated
+interactive-refresh text does not bypass browser-local formatting of **Data
+last confirmed**. Retention wording now appears beside the event/history view,
+where it describes the records affected, rather than beside the refresh button.
+When a scheduled baseline countdown reaches zero, the browser makes a single
+page reload after a short delay to retrieve the newest locally reconciled
+state. It does not send a direct Cisco command or claim a successful snapshot.
+
+**Validation:** `node --check static/freshness.js`; `python3 -m pytest -q` (43
+passed); and `git diff --check` passed.
+
+**Known limitations:** The browser must still be refreshed with the rebuilt Web
+image to confirm its presentation against the local stack.
+
+## 2026-10-14 — Baseline-aware interactive refresh scheduling
+
+**Status:** Implemented; browser and elapsed-time validation pending
+
+The synchronizer now gives an imminent scheduled baseline precedence over a
+manual browser refresh hint. When the baseline is due within the configured
+interactive minimum interval (60 seconds by default), it reports
+`baseline_pending` and does not queue a redundant FTD sweep. The Web control
+then presents **Scheduled refresh** with the remaining seconds; the existing
+baseline-expiry reload fetches the updated local state. If the baseline is
+farther away, a permitted manual request remains immediate and resets the
+following baseline interval after the resulting sweep.
+
+While any bounded sweep runs, freshness status exposes a future baseline
+timestamp so an expired browser countdown cannot enter a reload loop against
+the previous deadline.
+
+**Validation:** Added synchronizer tests for both the imminent-baseline deferral
+and a distant-baseline immediate queue. `node --check static/freshness.js`;
+`python3 -m compileall -q src tests`; `python3 -m pytest -q`; `python3 -m ruff
+check .`; and `git diff --check` passed.
+
+**Known limitations:** The behavior still requires authenticated browser
+validation at both sides of the 60-second boundary and an elapsed five-minute
+baseline check against the FTD lab.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

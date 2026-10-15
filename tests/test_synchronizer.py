@@ -89,6 +89,37 @@ def test_synchronizer_rate_limits_browser_hints_after_any_sweep(tmp_path) -> Non
     assert not synchronizer._activity.is_set()
 
 
+def test_synchronizer_exposes_interactive_cooldown_after_queueing_first_refresh(tmp_path) -> None:
+    synchronizer = Synchronizer(_store(tmp_path), SnapshotAgent(), 300, 60)
+
+    synchronizer._queue_activity()
+
+    assert synchronizer.status()["interactive_refresh_state"] == "queued"
+    assert synchronizer.status()["next_interactive_refresh"] is not None
+
+
+def test_synchronizer_defers_manual_hint_to_imminent_baseline(tmp_path) -> None:
+    synchronizer = Synchronizer(_store(tmp_path), SnapshotAgent(), 300, 60)
+    synchronizer._last_sweep_at = monotonic() - 120
+    synchronizer._next_baseline_at = monotonic() + 30
+
+    synchronizer._queue_activity()
+
+    assert synchronizer.status()["interactive_refresh_state"] == "baseline_pending"
+    assert not synchronizer._activity.is_set()
+
+
+def test_synchronizer_queues_manual_hint_when_baseline_is_not_imminent(tmp_path) -> None:
+    synchronizer = Synchronizer(_store(tmp_path), SnapshotAgent(), 300, 60)
+    synchronizer._last_sweep_at = monotonic() - 120
+    synchronizer._next_baseline_at = monotonic() + 180
+
+    synchronizer._queue_activity()
+
+    assert synchronizer.status()["interactive_refresh_state"] == "queued"
+    assert synchronizer._activity.is_set()
+
+
 def test_synchronizer_automatically_removes_exact_trusted_ip_after_snapshot(tmp_path, monkeypatch) -> None:
     monkeypatch.setattr(asyncio, "to_thread", _immediate)
     target = IPv4Address("198.51.100.250")

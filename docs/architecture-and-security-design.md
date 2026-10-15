@@ -736,6 +736,22 @@ SQLite stores the event history and enough current-state metadata to perform res
 
 Runtime access may additionally use an in-memory map/cache.
 
+## History retention
+
+`FTD_SHUN_HISTORY_RETENTION_DAYS` controls the local lifecycle of historical
+data. Its default is `366` days and the accepted range is 1 through 3653 days.
+Once per day, the synchronizer removes event rows older than the calculated UTC
+cutoff and inactive `shun_state` rows whose `last_changed_at` is older than the
+same cutoff. It never removes an active shun-state row.
+
+The history store remains append-only inside its configured retention window.
+When a purge removes one or more records, it adds a new
+`HISTORY_RETENTION_PURGED` event with the cutoff and deletion counts. The
+retention change is intentionally irreversible in the live database; operators
+must take a SQLite-safe backup before reducing the configured period. Restoring
+an older backup is a separate recovery action and must be followed by a
+successful FTD snapshot before its active state is trusted.
+
 ---
 
 # 19. Shun Event Model
@@ -758,6 +774,8 @@ SHUN_TRUSTED_AUTO_REMOVE_REQUESTED
 SHUN_TRUSTED_AUTO_REMOVED
 SHUN_TRUSTED_AUTO_REMOVE_NOOP
 SHUN_TRUSTED_AUTO_REMOVE_FAILED
+
+HISTORY_RETENTION_PURGED
 
 DEVICE_CONNECTED
 DEVICE_DISCONNECTED
@@ -846,6 +864,13 @@ Each policy request, verified removal, verified no-op, and failure is retained
 as an append-only event. A failure leaves the locally observed shun active and
 visible. Operators must use this policy only for carefully verified addresses
 whose automatic removal is intended on every enabled FTD device.
+
+`GET /api/v1/status` exposes the sorted configured trusted-IP list and, for
+each address, the timestamp of its latest verified automatic removal across
+the fleet. The authenticated primary page renders this read-only policy
+summary, including `Never` where no verified automatic removal exists. It is
+operational status, not a policy editor: changing the list remains an ignored
+environment-file change followed by API recreation.
 
 The application compares:
 
@@ -1040,6 +1065,7 @@ Suggested resources:
 
 ```text
 GET    /api/v1/status
+POST   /api/v1/refresh-hint
 GET    /api/v1/shuns
 GET    /api/v1/shuns/{ip}
 DELETE /api/v1/devices/{device_id}/shuns/{ip}
@@ -1047,12 +1073,20 @@ POST   /api/v1/shuns/{ip}/remove-all
 
 GET    /api/v1/history
 GET    /api/v1/history/{ip}
+GET    /api/v1/search?ip={exact_ipv4_or_dotted_prefix}
 
 GET    /api/v1/threat-detection/authentication
 GET    /api/v1/threat-detection/client-initiations
 ```
 
 The API must never expose Cisco credentials or raw SSH functionality.
+
+`/api/v1/search` searches only the bounded local SQLite active-state and
+retained event history. It accepts a full IPv4 address or a dotted IPv4 prefix,
+returns at most 100 addresses, and never triggers a Cisco operation. For each
+match it returns the current-state flag, last observed time, last verified
+removal time when applicable, latest event time, device count, and whether the
+exact address is in the configured trusted-IP policy.
 
 `remove-all` is a semantic operation, not a command endpoint. Its request contains no Cisco CLI text and operates only on the matching configured device records returned by the current state snapshot.
 
@@ -1185,11 +1219,51 @@ interactive refresh state: idle, queued, or rate-limited
 
 The countdown may update in the browser, but its displayed state must originate from synchronizer metadata. If a device or snapshot is stale, unavailable, or has a parser error, the UI must make that condition visible.
 
-The active-shun list must provide a local exact/prefix IPv4 search that filters
-the already-rendered state. Search neither sends a query to Cisco nor bypasses
-the refresh-hint rate limit. User-facing text must explain `idle`, `queued`,
-and `rate-limited` in operational language rather than expose those internal
-state labels as unexplained status values.
+The primary page must provide an exact/prefix IPv4 search across local current
+state and retained history. Search neither sends a query to Cisco nor bypasses
+the refresh-hint rate limit. It must show a matching active address as
+**Current shun**, and any historical-only address as **Historical — not
+currently shunned**, together with last seen, last verified removal when
+available, latest event, device count, and the Protected-IP marker where it
+matches the trusted-IP policy.
+
+The page also provides a CSRF-protected **Request refresh** control. It may
+only enqueue the existing asynchronous refresh hint and must not wait for FTD
+SSH. The control displays a browser countdown to the next permitted interactive
+request and remains an advisory presentation of synchronizer metadata; the API
+enforces the rate limit independently. User-facing text must explain `idle`,
+`queued`, and `rate-limited` in operational language rather than expose those
+internal state labels as unexplained status values.
+
+If a scheduled baseline refresh is due within the configured interactive
+minimum interval, an activity hint must not start another sweep first. The UI
+must instead show that scheduled refresh and its remaining countdown. Outside
+that final interval, an accepted activity hint may run immediately and resets
+the following baseline interval after the sweep completes.
+
+When the baseline countdown reaches zero, the browser may reload the
+authenticated BFF page once to retrieve the latest locally reconciled state.
+That reload is not a Cisco operation and must not be represented as proof that
+the scheduled FTD snapshot has completed successfully.
+
+The primary page must expose a collapsed **Last events log** containing the
+latest 100 local audit events. It is read-only, uses the same timestamp rules,
+and is not a substitute for the fuller IP-detail history or external log
+collection.
+
+When the trusted-IP policy is configured, the primary page must also show each
+allowed IP and its last verified automatic-removal timestamp; when no policy is
+configured, it must clearly say that automatic removal is disabled.
+
+If an active shun exactly matches a configured trusted IP, the list row and IP
+detail page must display a visually distinct **Protected IP** marker. This is
+an operational warning based only on the configured exact-address policy; it
+does not itself dispatch a Cisco operation or imply that removal has succeeded.
+
+All persisted and API timestamps use UTC ISO 8601 with a `Z` suffix. The Web
+UI renders timestamps in the browser's local timezone and explicitly includes
+the timezone name or offset. If browser-side formatting is unavailable, the
+UTC `Z` source timestamp remains visible rather than an unlabeled local time.
 
 For every row, the primary action is **Remove from this device**. It opens a confirmation dialog showing the device hostname, IP, and affected interfaces. A separate **Remove from all devices** action is shown only on the IP detail page and uses the bulk confirmation workflow defined above.
 

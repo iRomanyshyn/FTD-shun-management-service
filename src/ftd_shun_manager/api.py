@@ -67,6 +67,7 @@ def create_app(
         settings.poll_interval_seconds,
         settings.interactive_refresh_min_interval_seconds,
         settings.trusted_auto_remove_ips,
+        settings.history_retention_days,
     )
 
     @asynccontextmanager
@@ -89,12 +90,19 @@ def create_app(
 
     @app.get("/api/v1/status")
     def service_status() -> dict[str, object]:
-        return {"status": "ready", "agent_mode": settings.agent_mode, **synchronizer.status()}
+        return {
+            "status": "ready",
+            "agent_mode": settings.agent_mode,
+            **synchronizer.status(),
+            "trusted_auto_remove_ips": store.list_trusted_auto_removal_status(
+                settings.trusted_auto_remove_ips
+            ),
+        }
 
     @app.post("/api/v1/refresh-hint", status_code=status.HTTP_202_ACCEPTED)
     def refresh_hint() -> dict[str, str]:
         synchronizer.note_activity()
-        return {"status": "queued"}
+        return {"status": str(synchronizer.status()["interactive_refresh_state"])}
 
     @app.get("/api/v1/shuns")
     def list_shuns() -> list[dict[str, str | int | bool]]:
@@ -111,6 +119,15 @@ def create_app(
     @app.get("/api/v1/history/{ip}")
     def history_for_ip(ip: IPv4Address, limit: int = 200) -> list[dict]:
         return store.list_events(ip=ip, limit=limit)
+
+    @app.get("/api/v1/search")
+    def search_ip_history(ip: str) -> list[dict[str, str | int | bool | None]]:
+        try:
+            results = store.search_ip_history(ip)
+        except ValueError as error:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error)) from error
+        protected_ips = {str(item) for item in settings.trusted_auto_remove_ips}
+        return [{**result, "protected": result["ip"] in protected_ips} for result in results]
 
     def remove_one(device_id: int, ip: IPv4Address, actor: Actor, request_id: str) -> bool:
         if "Operator" not in actor.roles and "Administrator" not in actor.roles:

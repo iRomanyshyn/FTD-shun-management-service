@@ -34,12 +34,14 @@ class Synchronizer:
         poll_interval_seconds: int,
         interactive_min_interval_seconds: int,
         trusted_auto_remove_ips: frozenset[IPv4Address] = frozenset(),
+        history_retention_days: int = 366,
     ) -> None:
         self.store = store
         self.agent = agent
         self.poll_interval_seconds = poll_interval_seconds
         self.interactive_min_interval_seconds = interactive_min_interval_seconds
         self.trusted_auto_remove_ips = trusted_auto_remove_ips
+        self.history_retention_days = history_retention_days
         self._activity = asyncio.Event()
         self._task: asyncio.Task[None] | None = None
         self._loop: asyncio.AbstractEventLoop | None = None
@@ -49,7 +51,12 @@ class Synchronizer:
         self._last_attempt: str | None = None
         self._last_error: str | None = None
         self._next_baseline_refresh: str | None = None
+        self._next_baseline_at: float | None = None
+        self._next_interactive_refresh: str | None = None
         self._devices: dict[int, dict[str, str | None]] = {}
+        self._last_retention_attempt_at: float | None = None
+        self._last_retention_purge: str | None = None
+        self._last_retention_error: str | None = None
 
     async def start(self) -> None:
         self._loop = asyncio.get_running_loop()
@@ -75,25 +82,39 @@ class Synchronizer:
             "last_attempt": self._last_attempt,
             "last_error": self._last_error,
             "next_baseline_refresh": self._next_baseline_refresh,
+            "next_interactive_refresh": self._next_interactive_refresh,
             "baseline_interval_seconds": self.poll_interval_seconds,
             "interactive_min_interval_seconds": self.interactive_min_interval_seconds,
             "interactive_refresh_state": self._interactive_state,
             "trusted_auto_remove_ip_count": len(self.trusted_auto_remove_ips),
+            "history_retention_days": self.history_retention_days,
+            "last_retention_purge": self._last_retention_purge,
+            "history_retention_error": self._last_retention_error,
             "devices": self._devices,
         }
 
     def _queue_activity(self) -> None:
         now = monotonic()
+        if self._next_baseline_at is not None:
+            until_baseline = self._next_baseline_at - now
+            if 0 <= until_baseline <= self.interactive_min_interval_seconds:
+                self._interactive_state = "baseline_pending"
+                return
         if self._last_sweep_at is not None and (
             now - self._last_sweep_at < self.interactive_min_interval_seconds
         ):
             self._interactive_state = "rate_limited"
             return
         self._interactive_state = "queued"
+        if self._next_interactive_refresh is None:
+            self._next_interactive_refresh = _timestamp_after(
+                self.interactive_min_interval_seconds
+            )
         self._activity.set()
 
     async def _run(self) -> None:
         next_baseline = monotonic()
+        self._next_baseline_at = next_baseline
         while True:
             remaining = max(0.0, next_baseline - monotonic())
             try:
@@ -109,12 +130,20 @@ class Synchronizer:
                 self._interactive_state = "rate_limited"
                 continue
             self._interactive_state = "idle"
+            # Expose a future baseline while the current bounded sweep is in
+            # progress, preventing browser countdowns from repeatedly reloading
+            # against the completed deadline.
+            self._next_baseline_at = monotonic() + self.poll_interval_seconds
+            self._next_baseline_refresh = _timestamp_after(self.poll_interval_seconds)
             await self._sweep()
             self._last_sweep_at = monotonic()
             next_baseline = monotonic() + self.poll_interval_seconds
+            self._next_baseline_at = next_baseline
             self._next_baseline_refresh = _timestamp_after(self.poll_interval_seconds)
+            self._next_interactive_refresh = _timestamp_after(self.interactive_min_interval_seconds)
 
     async def _sweep(self) -> None:
+        await self._prune_expired_history_if_due()
         self._last_attempt = _timestamp()
         failures = 0
         for device in self.store.list_devices():
@@ -200,3 +229,31 @@ class Synchronizer:
         if failures == 0:
             self._last_successful_refresh = _timestamp()
             self._last_error = None
+
+    async def _prune_expired_history_if_due(self) -> None:
+        if self._last_retention_attempt_at is not None and (
+            monotonic() - self._last_retention_attempt_at < 24 * 3600
+        ):
+            return
+        self._last_retention_attempt_at = monotonic()
+        try:
+            result = await asyncio.to_thread(
+                self.store.prune_expired_history, self.history_retention_days
+            )
+        except (OSError, ValueError, sqlite3.Error) as error:
+            self._last_retention_error = str(error)
+            print(
+                json.dumps(
+                    {"event": "synchronizer.history_retention_failed", "reason": str(error)},
+                    sort_keys=True,
+                ),
+                flush=True,
+            )
+            return
+        self._last_retention_purge = _timestamp()
+        self._last_retention_error = None
+        if result["events_deleted"] or result["inactive_state_deleted"]:
+            print(
+                json.dumps({"event": "synchronizer.history_retention_purged", **result}, sort_keys=True),
+                flush=True,
+            )

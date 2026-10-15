@@ -7,7 +7,7 @@ import sqlite3
 from collections.abc import Iterable
 from contextlib import contextmanager
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from ipaddress import IPv4Address
 from pathlib import Path
 from uuid import uuid4
@@ -173,6 +173,49 @@ class Store:
             }
             for row in rows
         ]
+
+    def search_ip_history(self, query: str, limit: int = 100) -> list[dict[str, str | int | bool | None]]:
+        """Search local active and historical state by a validated IPv4 prefix."""
+        normalized = _ip_prefix(query)
+        if not 1 <= limit <= 100:
+            raise ValueError("search limit must be between 1 and 100")
+        with self._connection() as db:
+            rows = db.execute(
+                """SELECT ip FROM shun_state
+                   UNION
+                   SELECT ip FROM shun_events WHERE ip IS NOT NULL"""
+            ).fetchall()
+            matches = sorted(
+                (IPv4Address(row["ip"]) for row in rows if str(IPv4Address(row["ip"])).startswith(normalized)),
+                key=int,
+            )[:limit]
+            result: list[dict[str, str | int | bool | None]] = []
+            for ip in matches:
+                state = db.execute(
+                    """SELECT MAX(active) AS active, MAX(last_seen_at) AS last_seen_at,
+                              COUNT(DISTINCT device_id) AS device_count
+                       FROM shun_state WHERE ip = ?""",
+                    (ip.packed,),
+                ).fetchone()
+                events = db.execute(
+                    """SELECT MAX(timestamp) AS last_event_at,
+                              MAX(CASE WHEN event_type IN
+                                  ('SHUN_REMOVED_BY_UI', 'SHUN_TRUSTED_AUTO_REMOVED')
+                                  THEN timestamp END) AS last_removed_at
+                       FROM shun_events WHERE ip = ?""",
+                    (ip.packed,),
+                ).fetchone()
+                result.append(
+                    {
+                        "ip": str(ip),
+                        "active": bool(state["active"]),
+                        "last_seen_at": state["last_seen_at"],
+                        "last_removed_at": events["last_removed_at"],
+                        "last_event_at": events["last_event_at"],
+                        "device_count": state["device_count"],
+                    }
+                )
+        return result
 
     def record_observed_shun(self, device_id: int, ip: IPv4Address, interface: str) -> None:
         if not interface or len(interface) > 128:
@@ -387,6 +430,72 @@ class Store:
                 now(),
             )
 
+    def list_trusted_auto_removal_status(
+        self, trusted_ips: Iterable[IPv4Address]
+    ) -> list[dict[str, str | None]]:
+        """Return configured trusted addresses with their latest verified policy removal."""
+        result: list[dict[str, str | None]] = []
+        with self._connection() as db:
+            for ip in sorted(set(trusted_ips), key=int):
+                row = db.execute(
+                    """SELECT MAX(timestamp) AS last_auto_removed_at
+                       FROM shun_events
+                       WHERE event_type = ? AND ip = ?""",
+                    ("SHUN_TRUSTED_AUTO_REMOVED", ip.packed),
+                ).fetchone()
+                result.append(
+                    {
+                        "ip": str(ip),
+                        "last_auto_removed_at": row["last_auto_removed_at"],
+                    }
+                )
+        return result
+
+    def prune_expired_history(
+        self, retention_days: int, reference_time: datetime | None = None
+    ) -> dict[str, int | str]:
+        """Purge expired audit rows and inactive state under the configured lifecycle policy."""
+        if retention_days < 1:
+            raise ValueError("history retention must be at least one day")
+        reference_time = reference_time or datetime.now(UTC)
+        if reference_time.tzinfo is None:
+            raise ValueError("history retention reference time must include a timezone")
+        cutoff = (reference_time.astimezone(UTC) - timedelta(days=retention_days)).isoformat(
+            timespec="milliseconds"
+        ).replace("+00:00", "Z")
+        with self._connection() as db:
+            events_deleted = db.execute(
+                "DELETE FROM shun_events WHERE timestamp < ?", (cutoff,)
+            ).rowcount
+            inactive_state_deleted = db.execute(
+                """DELETE FROM shun_state
+                   WHERE active = 0 AND last_changed_at < ?""",
+                (cutoff,),
+            ).rowcount
+            if events_deleted or inactive_state_deleted:
+                self._insert_event(
+                    db,
+                    "HISTORY_RETENTION_PURGED",
+                    None,
+                    None,
+                    None,
+                    "system:retention-policy",
+                    "History retention policy",
+                    (),
+                    None,
+                    {
+                        "cutoff": cutoff,
+                        "events_deleted": events_deleted,
+                        "inactive_state_deleted": inactive_state_deleted,
+                        "retention_days": retention_days,
+                    },
+                )
+        return {
+            "cutoff": cutoff,
+            "events_deleted": events_deleted,
+            "inactive_state_deleted": inactive_state_deleted,
+        }
+
     def create_removal_requested(
         self, device_id: int, ip: IPv4Address, actor_subject: str, actor_display_name: str,
         actor_roles: tuple[str, ...], request_id: str,
@@ -421,3 +530,15 @@ def _safe_interface(interface: str) -> bool:
         and interface.isascii()
         and all(character.isalnum() or character in "/._-" for character in interface)
     )
+
+
+def _ip_prefix(value: str) -> str:
+    """Validate a dotted IPv4 prefix without accepting a route or hostname."""
+    query = value.strip()
+    if not 1 <= len(query) <= 15 or any(character not in "0123456789." for character in query):
+        raise ValueError("IP search must be an IPv4 address or dotted IPv4 prefix")
+    trailing_dot = query.endswith(".")
+    parts = query[:-1].split(".") if trailing_dot else query.split(".")
+    if not parts or len(parts) > 4 or any(not part or int(part) > 255 for part in parts):
+        raise ValueError("IP search must be an IPv4 address or dotted IPv4 prefix")
+    return query

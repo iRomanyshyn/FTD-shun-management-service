@@ -1,19 +1,82 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>Active shuns</h1>
+<h1>Shun search and current entries</h1>
+
+<section class="universal-search" aria-labelledby="ip-search-heading">
+<h2 id="ip-search-heading">IP search</h2>
+<p>Search current shuns and retained local history by a full IPv4 address or dotted prefix. This does not issue a Cisco query.</p>
+<form method="get" action="/" class="universal-search-form">
+<label for="ip-search">IP address or prefix</label>
+<input id="ip-search" name="q" type="search" inputmode="numeric" autocomplete="off" pattern="[0-9.]+" value="{{ search_query }}" placeholder="e.g. 198.51.100" required>
+<button type="submit">Search</button>
+{% if search_query %}<a href="/">Clear</a>{% endif %}
+</form>
+</section>
+
 {% if refresh %}
-<p class="refresh-status" data-last-successful="{{ refresh.last_successful_refresh or '' }}" data-min-interval="{{ refresh.interactive_min_interval_seconds }}" data-state="{{ refresh.interactive_refresh_state }}">Data last confirmed: <time class="last-successful-refresh">{{ refresh.last_successful_refresh or "not yet available" }}</time>. Next scheduled check: <time class="baseline-countdown" data-next-baseline="{{ refresh.next_baseline_refresh or '' }}">{{ refresh.next_baseline_refresh or "not scheduled" }}</time>. <span class="interactive-refresh-status"></span></p>
-{% if refresh.trusted_auto_remove_ip_count %}<p class="trusted-policy">Trusted-IP automatic removal is active for {{ refresh.trusted_auto_remove_ip_count }} exact address{% if refresh.trusted_auto_remove_ip_count != 1 %}es{% endif %}. Policy actions are recorded in history.</p>{% endif %}
+<section class="refresh-panel" aria-labelledby="refresh-heading">
+<h2 id="refresh-heading">Refresh status</h2>
+<p class="refresh-status" data-last-successful="{{ refresh.last_successful_refresh or '' }}" data-min-interval="{{ refresh.interactive_min_interval_seconds }}" data-state="{{ refresh.interactive_refresh_state }}" data-next-interactive="{{ refresh.next_interactive_refresh or '' }}">Data last confirmed: <time class="last-successful-refresh" datetime="{{ refresh.last_successful_refresh or '' }}">{{ refresh.last_successful_refresh or "not yet available" }}</time>. Next scheduled check: <time class="baseline-countdown" data-next-baseline="{{ refresh.next_baseline_refresh or '' }}" data-reload-on-due="true">{{ refresh.next_baseline_refresh or "not scheduled" }}</time>.</p>
+<form method="post" action="/refresh" class="request-refresh-form">
+<input type="hidden" name="csrf" value="{{ csrf_token }}">
+<input type="hidden" name="q" value="{{ search_query }}">
+<button type="submit" data-refresh-request data-state="{{ refresh.interactive_refresh_state }}" data-next-interactive="{{ refresh.next_interactive_refresh or '' }}" data-next-baseline="{{ refresh.next_baseline_refresh or '' }}">Request refresh</button>
+</form>
 {% if refresh.last_error %}<p class="refresh-error">Refresh warning: {{ refresh.last_error }}</p>{% endif %}
-<script src="/static/freshness.js" defer></script>
+</section>
+
+<section class="trusted-policy" aria-labelledby="trusted-ip-policy-heading">
+<h2 id="trusted-ip-policy-heading">Trusted-IP automatic removal</h2>
+{% if refresh.trusted_auto_remove_ips %}
+<p>Active for {{ refresh.trusted_auto_remove_ip_count }} exact address{% if refresh.trusted_auto_remove_ip_count != 1 %}es{% endif %}. Policy actions are recorded in history.</p>
+<table><thead><tr><th>Allowed IP</th><th>Last auto-removed</th></tr></thead><tbody>
+{% for policy_ip in refresh.trusted_auto_remove_ips %}<tr><td>{{ policy_ip.ip }}</td><td>{% if policy_ip.last_auto_removed_at %}<time class="local-timestamp" datetime="{{ policy_ip.last_auto_removed_at }}">{{ policy_ip.last_auto_removed_at }}</time>{% else %}Never{% endif %}</td></tr>{% endfor %}
+</tbody></table>
+{% else %}<p>Disabled. No trusted IP addresses are configured.</p>{% endif %}
+</section>
 {% endif %}
+
+{% if search_results is not none %}
+<section class="search-results" aria-labelledby="search-results-heading">
+<h2 id="search-results-heading">Search results for {{ search_query }}</h2>
+{% if search_results %}
+<table><thead><tr><th>IP address</th><th>State</th><th>Protection</th><th>Last seen</th><th>Last removed</th><th>Latest event</th><th>Devices</th></tr></thead><tbody>
+{% for result in search_results %}<tr{% if result.protected %} class="protected-shun"{% endif %}>
+<td><a href="/shuns/{{ result.ip }}">{{ result.ip }}</a></td>
+<td>{% if result.active %}<strong class="current-state">Current shun</strong>{% else %}<span class="historical-state">Historical — not currently shunned</span>{% endif %}</td>
+<td>{% if result.protected %}<span class="protected-ip-badge">Protected IP</span>{% else %}—{% endif %}</td>
+<td>{% if result.last_seen_at %}<time class="local-timestamp" datetime="{{ result.last_seen_at }}">{{ result.last_seen_at }}</time>{% else %}—{% endif %}</td>
+<td>{% if result.last_removed_at %}<time class="local-timestamp" datetime="{{ result.last_removed_at }}">{{ result.last_removed_at }}</time>{% else %}—{% endif %}</td>
+<td>{% if result.last_event_at %}<time class="local-timestamp" datetime="{{ result.last_event_at }}">{{ result.last_event_at }}</time>{% else %}—{% endif %}</td>
+<td>{{ result.device_count }}</td>
+</tr>{% endfor %}</tbody></table>
+{% else %}<p>No current or retained historical entries match this address or prefix.</p>{% endif %}
+</section>
+{% endif %}
+
+<section aria-labelledby="active-shuns-heading">
+<h2 id="active-shuns-heading">Current active shuns</h2>
 {% if shuns %}
-<label class="ip-search" for="shun-ip-search">Search by IP <input id="shun-ip-search" type="search" inputmode="numeric" autocomplete="off" placeholder="e.g. 198.51.100" aria-controls="shun-table"></label><p id="shun-search-summary" class="search-summary" aria-live="polite"></p>
 <table><thead><tr><th>IP address</th><th>Device hostname</th><th>Interface</th><th>First seen</th><th>Last seen</th><th>Action</th></tr></thead>
-<tbody id="shun-table">{% for shun in shuns %}<tr data-shun-ip="{{ shun.ip }}">
-<td><a href="/shuns/{{ shun.ip }}">{{ shun.ip }}</a></td><td>{{ shun.device_hostname }}</td><td>{{ shun.interface }}</td><td>{{ shun.first_seen_at }}</td><td>{{ shun.last_seen_at }}</td>
+<tbody>{% for shun in shuns %}<tr{% if shun.ip in trusted_policy_ips %} class="protected-shun"{% endif %}>
+<td><a href="/shuns/{{ shun.ip }}">{{ shun.ip }}</a>{% if shun.ip in trusted_policy_ips %}<span class="protected-ip-badge">Protected IP</span>{% endif %}</td><td>{{ shun.device_hostname }}</td><td>{{ shun.interface }}</td><td><time class="local-timestamp" datetime="{{ shun.first_seen_at }}">{{ shun.first_seen_at }}</time></td><td><time class="local-timestamp" datetime="{{ shun.last_seen_at }}">{{ shun.last_seen_at }}</time></td>
 <td>{% if 'Operator' in identity.roles or 'Administrator' in identity.roles %}<form method="post" action="/devices/{{ shun.device_id }}/shuns/{{ shun.ip }}/remove"><input type="hidden" name="csrf" value="{{ csrf_token }}"><button>Remove from this device</button></form>{% else %}Read-only{% endif %}</td>
 </tr>{% endfor %}</tbody></table>
-<script src="/static/shun-search.js" defer></script>
 {% else %}<p>No active shuns are currently recorded.</p>{% endif %}
+</section>
+
+<section class="recent-events" aria-labelledby="recent-events-heading">
+<h2 id="recent-events-heading">Last events log</h2>
+{% if refresh %}<p class="history-retention">History retention: {{ refresh.history_retention_days }} days. Expired inactive history is purged daily.</p>{% endif %}
+<details>
+<summary>Show the latest {{ recent_events|length }} of 100 local audit events</summary>
+{% if recent_events %}
+<table><thead><tr><th>Time</th><th>Event</th><th>IP address</th><th>Device</th><th>Actor</th></tr></thead><tbody>
+{% for event in recent_events %}<tr><td><time class="local-timestamp" datetime="{{ event.timestamp }}">{{ event.timestamp }}</time></td><td>{{ event.event_type }}</td><td>{% if event.ip %}<a href="/shuns/{{ event.ip }}">{{ event.ip }}</a>{% else %}—{% endif %}</td><td>{{ event.device_hostname or "—" }}</td><td>{{ event.actor_display_name or event.actor_subject or "System" }}</td></tr>{% endfor %}
+</tbody></table>
+{% else %}<p>No audit events are retained yet.</p>{% endif %}
+</details>
+</section>
+
+<script src="/static/freshness.js" defer></script>
 {% endblock %}

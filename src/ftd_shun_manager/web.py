@@ -8,6 +8,7 @@ import secrets
 from dataclasses import dataclass
 from ipaddress import IPv4Address
 from pathlib import Path
+from urllib.parse import urlencode
 
 import httpx
 import uvicorn
@@ -72,6 +73,20 @@ def api_client(settings: Settings) -> httpx.Client:
     )
 
 
+def trusted_policy_ips(refresh: object) -> frozenset[str]:
+    """Return only the exact configured trusted addresses from internal API status."""
+    if not isinstance(refresh, dict):
+        return frozenset()
+    entries = refresh.get("trusted_auto_remove_ips", [])
+    if not isinstance(entries, list):
+        return frozenset()
+    return frozenset(
+        entry["ip"]
+        for entry in entries
+        if isinstance(entry, dict) and isinstance(entry.get("ip"), str)
+    )
+
+
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or Settings.from_environment()
     app = FastAPI(title="FTD Shun Manager", docs_url=None, redoc_url=None, openapi_url=None)
@@ -91,23 +106,51 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return {"status": "ok"}
 
     @app.get("/", response_class=HTMLResponse)
-    def index(request: Request) -> HTMLResponse:
+    def index(request: Request, q: str = "") -> HTMLResponse:
         identity = identity_from_request(request, settings.development_auth)
+        search_query = q.strip()
         with api_client(settings) as client:
             client.post("/api/v1/refresh-hint")
             response = client.get("/api/v1/shuns")
+            recent_events = client.get("/api/v1/history", params={"limit": 100})
+            search_response = (
+                client.get("/api/v1/search", params={"ip": search_query})
+                if search_query
+                else None
+            )
             refresh_status = client.get("/api/v1/status")
-        if response.status_code != 200:
+        if response.status_code != 200 or recent_events.status_code != 200:
             return render(request, "error.html", {"message": "State API is unavailable."}, 503)
+        if search_response is not None and search_response.status_code != 200:
+            return render(request, "error.html", {"message": "IP search is invalid or unavailable."}, 422)
+        refresh = refresh_status.json() if refresh_status.status_code == 200 else None
         return render(
             request,
             "index.html",
             {
                 "identity": identity,
                 "shuns": response.json(),
-                "refresh": refresh_status.json() if refresh_status.status_code == 200 else None,
+                "refresh": refresh,
+                "trusted_policy_ips": trusted_policy_ips(refresh),
+                "search_query": search_query,
+                "search_results": search_response.json() if search_response is not None else None,
+                "recent_events": recent_events.json(),
             },
         )
+
+    @app.post("/refresh")
+    def request_refresh(request: Request, csrf: str = Form(...), q: str = Form("")) -> RedirectResponse:
+        require_csrf(request, csrf)
+        identity_from_request(request, settings.development_auth)
+        try:
+            with api_client(settings) as client:
+                response = client.post("/api/v1/refresh-hint")
+        except httpx.HTTPError as error:
+            raise HTTPException(status_code=503, detail="State API is unavailable.") from error
+        if response.status_code != 202:
+            raise HTTPException(response.status_code, response.text)
+        target = "/" if not q else f"/?{urlencode({'q': q})}"
+        return RedirectResponse(url=target, status_code=303)
 
     @app.get("/shuns/{ip}", response_class=HTMLResponse)
     def detail(request: Request, ip: IPv4Address) -> HTMLResponse:
@@ -119,6 +162,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             refresh_status = client.get("/api/v1/status")
         if response.status_code != 200 or history.status_code != 200:
             return render(request, "error.html", {"message": "State API is unavailable."}, 503)
+        refresh = refresh_status.json() if refresh_status.status_code == 200 else None
+        policy_ips = trusted_policy_ips(refresh)
         return render(
             request,
             "detail.html",
@@ -127,7 +172,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "ip": ip,
                 "shuns": response.json(),
                 "events": history.json(),
-                "refresh": refresh_status.json() if refresh_status.status_code == 200 else None,
+                "refresh": refresh,
+                "is_trusted_policy_ip": str(ip) in policy_ips,
             },
         )
 

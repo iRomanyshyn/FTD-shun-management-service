@@ -30,6 +30,16 @@ def _ipv4_csv(value: str) -> frozenset[IPv4Address]:
         raise ValueError("FTD_SHUN_TRUSTED_AUTO_REMOVE_IPS must contain only IPv4 addresses") from error
 
 
+def _retention_days(value: str) -> int:
+    try:
+        days = int(value)
+    except ValueError as error:
+        raise ValueError("FTD_SHUN_HISTORY_RETENTION_DAYS must be a whole number") from error
+    if not 1 <= days <= 3653:
+        raise ValueError("FTD_SHUN_HISTORY_RETENTION_DAYS must be between 1 and 3653")
+    return days
+
+
 @dataclass(frozen=True)
 class Settings:
     database_path: Path
@@ -41,6 +51,7 @@ class Settings:
     agent_timeout_seconds: int
     poll_interval_seconds: int
     interactive_refresh_min_interval_seconds: int
+    history_retention_days: int
     sensitive_action_max_age_seconds: int
     development_auth: bool
     trusted_auto_remove_ips: frozenset[IPv4Address]
@@ -75,6 +86,9 @@ class Settings:
             agent_timeout_seconds=agent_timeout_seconds,
             poll_interval_seconds=poll_interval_seconds,
             interactive_refresh_min_interval_seconds=interactive_refresh_min_interval_seconds,
+            history_retention_days=_retention_days(
+                environ.get("FTD_SHUN_HISTORY_RETENTION_DAYS", "366")
+            ),
             sensitive_action_max_age_seconds=_duration(
                 environ.get("AUTH_SENSITIVE_ACTION_MAX_AGE", "24h")
             ),

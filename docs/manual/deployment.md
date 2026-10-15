@@ -66,6 +66,12 @@ verified removal of a matching observed shun on every enabled device after a
 successful complete snapshot. Enable it only after a lab validation with a
 non-production address; changing it requires recreating the API service.
 
+`FTD_SHUN_HISTORY_RETENTION_DAYS` defaults to `366` and accepts whole days
+from `1` through `3653`. The API purges expired history and inactive state once
+daily. Active shuns are never removed by this lifecycle task. Reducing the
+value can permanently delete more local audit data on the next API sweep, so
+take a SQLite-safe backup before recreating the API with a smaller value.
+
 ### Provision the FTD service-account password
 
 Use the unique high-entropy password set while creating the dedicated `Basic` FTD service account. Obtain it from the approved secret store and write it into `deploy/secrets/ftd_ssh_password` with mode `0600`; never enter the password on a shell command line or commit it to Git. The `0600` file mode, isolated agent, FTD SSH source ACL, host egress policy, and short-lived sessions are mandatory compensating controls.
@@ -162,7 +168,11 @@ Expected results:
 - `ftd-shun-operators` and `ftd-shun-administrators` can see removal actions;
 - the agent process is healthy and its socket is owned by UID `10002`, group `10001`, mode `0660`;
 - the API reports a successful initial snapshot and the UI shows its last-confirmed refresh, next baseline countdown, and a plain-language background-refresh status;
+- the primary page supports exact-IP/dotted-prefix local search across current state and retained history, clearly distinguishes historical-only results, and offers a countdown-backed **Request refresh** hint;
+- the collapsed **Last events log** shows up to 100 recent local audit events;
+- the UI reports the configured history-retention period (366 days by default);
 - if configured, the UI reports the number of exact addresses covered by the trusted-IP automatic-removal policy; the policy's audit events are visible in history;
+- if configured, the primary page lists each allowed address and its **Last auto-removed** timestamp (or `Never`); editing remains `.env`-only;
 - removal succeeds only for a lab shun on an allowlisted interface, then a direct FTD `show shun <IPv4>` confirms it is absent;
 - a changed host key, unknown interface, malformed response, agent timeout, or unavailable agent causes a failed write and never an audit success.
 

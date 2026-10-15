@@ -1,16 +1,17 @@
 {% extends "base.html" %}
 {% block content %}
 <h1>Shun: {{ ip }}</h1>
+{% if is_trusted_policy_ip %}<p class="protected-ip-notice"><strong>Protected IP.</strong> This address is in the trusted-IP automatic-removal policy.</p>{% endif %}
 {% if refresh %}
-<p class="refresh-status" data-last-successful="{{ refresh.last_successful_refresh or '' }}" data-min-interval="{{ refresh.interactive_min_interval_seconds }}" data-state="{{ refresh.interactive_refresh_state }}">Data last confirmed: <time class="last-successful-refresh">{{ refresh.last_successful_refresh or "not yet available" }}</time>. Next scheduled check: <time class="baseline-countdown" data-next-baseline="{{ refresh.next_baseline_refresh or '' }}">{{ refresh.next_baseline_refresh or "not scheduled" }}</time>. <span class="interactive-refresh-status"></span></p>
+<p class="refresh-status" data-last-successful="{{ refresh.last_successful_refresh or '' }}" data-min-interval="{{ refresh.interactive_min_interval_seconds }}" data-state="{{ refresh.interactive_refresh_state }}" data-next-interactive="{{ refresh.next_interactive_refresh or '' }}">Data last confirmed: <time class="last-successful-refresh" datetime="{{ refresh.last_successful_refresh or '' }}">{{ refresh.last_successful_refresh or "not yet available" }}</time>. Next scheduled check: <time class="baseline-countdown" data-next-baseline="{{ refresh.next_baseline_refresh or '' }}" data-reload-on-due="true">{{ refresh.next_baseline_refresh or "not scheduled" }}</time>. <span class="interactive-refresh-status"></span></p>
 {% if refresh.trusted_auto_remove_ip_count %}<p class="trusted-policy">Trusted-IP automatic removal is active for {{ refresh.trusted_auto_remove_ip_count }} exact address{% if refresh.trusted_auto_remove_ip_count != 1 %}es{% endif %}. Policy actions are recorded in history.</p>{% endif %}
 {% if refresh.last_error %}<p class="refresh-error">Refresh warning: {{ refresh.last_error }}</p>{% endif %}
-<script src="/static/freshness.js" defer></script>
 {% endif %}
 <p>The device-specific operation removes all verified matching interfaces on that device.</p>
-<ul>{% for shun in shuns %}<li>{{ shun.device_hostname }} — {{ shun.interface }} — seen {{ shun.first_seen_at }}{% if 'Operator' in identity.roles or 'Administrator' in identity.roles %}<form method="post" action="/devices/{{ shun.device_id }}/shuns/{{ ip }}/remove"><input type="hidden" name="csrf" value="{{ csrf_token }}"><button>Remove from this device</button></form>{% endif %}</li>{% endfor %}</ul>
+<ul>{% for shun in shuns %}<li>{{ shun.device_hostname }} — {{ shun.interface }} — seen <time class="local-timestamp" datetime="{{ shun.first_seen_at }}">{{ shun.first_seen_at }}</time>{% if 'Operator' in identity.roles or 'Administrator' in identity.roles %}<form method="post" action="/devices/{{ shun.device_id }}/shuns/{{ ip }}/remove"><input type="hidden" name="csrf" value="{{ csrf_token }}"><button>Remove from this device</button></form>{% endif %}</li>{% endfor %}</ul>
 {% if shuns and ('Operator' in identity.roles or 'Administrator' in identity.roles) %}
 <h2>Remove from all listed devices</h2><form method="post" action="/shuns/{{ ip }}/remove-all"><input type="hidden" name="csrf" value="{{ csrf_token }}"><label>Type {{ ip }} to confirm <input name="confirm_ip" required></label><button>Remove from all devices</button></form>
 {% endif %}
-<h2>History</h2><ul>{% for event in events %}<li>{{ event.timestamp }} — {{ event.event_type }}{% if event.device_hostname %} — {{ event.device_hostname }}{% endif %}{% if event.actor_display_name %} — {{ event.actor_display_name }}{% endif %}</li>{% else %}<li>No recorded events.</li>{% endfor %}</ul>
+<h2>History</h2>{% if refresh %}<p class="history-retention">History retention: {{ refresh.history_retention_days }} days. Expired inactive history is purged daily.</p>{% endif %}<ul>{% for event in events %}<li><time class="local-timestamp" datetime="{{ event.timestamp }}">{{ event.timestamp }}</time> — {{ event.event_type }}{% if event.device_hostname %} — {{ event.device_hostname }}{% endif %}{% if event.actor_display_name %} — {{ event.actor_display_name }}{% endif %}</li>{% else %}<li>No recorded events.</li>{% endfor %}</ul>
+<script src="/static/freshness.js" defer></script>
 {% endblock %}

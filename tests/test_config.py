@@ -2,7 +2,7 @@ from ipaddress import IPv4Address
 
 import pytest
 
-from ftd_shun_manager.config import _ipv4_csv
+from ftd_shun_manager.config import _ipv4_csv, _retention_days
 
 
 def test_trusted_auto_remove_ips_accepts_exact_ipv4_addresses() -> None:
@@ -15,3 +15,9 @@ def test_trusted_auto_remove_ips_accepts_exact_ipv4_addresses() -> None:
 def test_trusted_auto_remove_ips_rejects_non_exact_ipv4_values(value: str) -> None:
     with pytest.raises(ValueError, match="FTD_SHUN_TRUSTED_AUTO_REMOVE_IPS"):
         _ipv4_csv(value)
+
+
+@pytest.mark.parametrize("value", ["0", "366.5", "3654"])
+def test_history_retention_rejects_unsafe_values(value: str) -> None:
+    with pytest.raises(ValueError, match="FTD_SHUN_HISTORY_RETENTION_DAYS"):
+        _retention_days(value)
