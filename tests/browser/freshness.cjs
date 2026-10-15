@@ -13,19 +13,32 @@ const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const future = (seconds) => new Date(Date.now() + seconds * 1000).toISOString();
 const renderScript = `
 import json, sys
+from ftd_shun_manager.import_preview import parse_blocklist, summarize_preview
 from ftd_shun_manager.web import Identity, templates
 p = json.load(sys.stdin)
+policy_entries = (p.get("policy") or {}).get("entries", [])
+enabled_ips = frozenset(entry["ip"] for entry in policy_entries if entry["enabled"])
+disabled_ips = frozenset(entry["ip"] for entry in policy_entries if not entry["enabled"])
+preview = None
+if p.get("submitted"):
+    parsed = parse_blocklist(p["source_text"])
+    preview = summarize_preview(parsed, dict(policy_revision=1, devices=[dict(id=1,hostname="lab-ftd")],
+        addresses=[dict(ip=ip,protected=ip=="198.51.100.10",devices=[dict(id=1,hostname="lab-ftd",already_shunned=ip=="203.0.113.20")]) for ip in parsed["ips"]]))
 shun = dict(ip="198.51.100.10", device_id=1, device_hostname="lab-ftd FIXTURE_EVENT_" + str(p["generation"]), interface="outside",
             first_seen_at="2026-10-15T10:00:00Z", last_seen_at="2026-10-15T10:00:00Z")
 event = dict(timestamp="2026-10-15T10:00:00Z", event_type="FIXTURE_EVENT_" + str(p["generation"]),
              device_hostname="lab-ftd", actor_display_name="Test Operator", actor_subject="test", ip=shun["ip"])
 print(templates.get_template(p["template"]).render(identity=Identity("test", "Test Operator", ("Operator",)),
     csrf_token="fixture-token", shuns=[shun], refresh=p["refresh"], search_query=p["query"],
-    search_results=None, trusted_policy_ips=frozenset(), recent_events=p.get("history", {}).get("events", [event]),
+    search_results=None, trusted_policy_ips=enabled_ips, disabled_policy_ips=disabled_ips, recent_events=p.get("history", {}).get("events", [event]),
     pagination=p.get("history", {}), anchored_history=bool(p.get("anchor")),
-    ip=shun["ip"], events=[event], is_trusted_policy_ip=False, policy=p.get("policy"),
-    active_page="protected" if p["template"] == "protected-ips.html" else "history" if p["template"] == "history.html" else "shuns",
-    auto_request=p["template"] not in ("protected-ips.html", "history.html")))
+    ip=shun["ip"], events=[event], is_trusted_policy_ip=shun["ip"] in enabled_ips,
+    is_disabled_policy_ip=shun["ip"] in disabled_ips, policy=p.get("policy"),
+    source_text=p.get("source_text", ""), batch_label=p.get("label", ""), batch_reason=p.get("reason", ""),
+    selected_devices=[1] if p.get("submitted") else [], preview=preview, preview_error=None,
+    devices=[dict(id=1,hostname="lab-ftd",enabled=True),dict(id=2,hostname="disabled-ftd",enabled=False)],
+    active_page="imports" if p["template"] == "import-preview.html" else "protected" if p["template"] == "protected-ips.html" else "history" if p["template"] == "history.html" else "shuns",
+    auto_request=p["template"] not in ("protected-ips.html", "history.html", "import-preview.html")))
 `;
 
 const initial = () => ({
@@ -100,6 +113,7 @@ test("refresh interaction in real Chromium", { timeout: 90000 }, async (t) => {
   const removalKeys = [];
   let policy = { revision: 1, limit: 1000, entries: [] };
   let policyPosts = 0;
+  let previewPosts = 0;
   let historyRows = [];
   const appendHistory = () => {
     const sequence = historyRows.length + 1;
@@ -205,8 +219,18 @@ test("refresh interaction in real Chromium", { timeout: 90000 }, async (t) => {
       status.policy_revision = policy.revision;
       status.status_revision += 1;
       response.end(JSON.stringify(stamp()));
-    } else if (["/", "/history", "/protected-ips"].includes(url.pathname) || url.pathname.startsWith("/shuns/")) {
+    } else if (["/", "/history", "/protected-ips", "/imports"].includes(url.pathname) || url.pathname.startsWith("/shuns/")) {
       pageReads += 1;
+      let previewFields = {};
+      if (url.pathname === "/imports" && request.method === "POST") {
+        let body = "";
+        for await (const chunk of request) body += chunk;
+        const fields = new URLSearchParams(body);
+        assert.equal(fields.get("csrf"), "fixture-token");
+        assert.deepEqual(fields.getAll("device_ids"), ["1"]);
+        previewPosts += 1;
+        previewFields = { submitted: true, source_text: fields.get("text"), label: fields.get("label"), reason: fields.get("reason") };
+      }
       let history;
       if (url.pathname === "/history") {
         const anchor = url.searchParams.get("anchor");
@@ -219,8 +243,9 @@ test("refresh interaction in real Chromium", { timeout: 90000 }, async (t) => {
       }
       const payload = { refresh: stamp(), generation, query: url.searchParams.get("q") || "",
         history, anchor: url.searchParams.get("anchor"),
+        ...previewFields,
         policy, template: url.pathname === "/" ? "index.html" : url.pathname === "/history" ? "history.html"
-          : url.pathname === "/protected-ips" ? "protected-ips.html" : "detail.html" };
+          : url.pathname === "/protected-ips" ? "protected-ips.html" : url.pathname === "/imports" ? "import-preview.html" : "detail.html" };
       response.setHeader("Content-Type", "text/html; charset=utf-8");
       response.end(execFileSync("python3", ["-c", renderScript], {
         cwd: root, input: JSON.stringify(payload), encoding: "utf8",
@@ -575,6 +600,36 @@ test("refresh interaction in real Chromium", { timeout: 90000 }, async (t) => {
         assert.equal(postCount, hints, "Policy page background polling and CRUD do not request FTD refresh");
       } finally { await page.close(); }
     });
+    await t.test("enabled/disabled badges and observed disabled protection update across policy, shuns and detail", async () => {
+      status = initial();
+      status.policy_revision = 1;
+      policy = { revision: 1, limit: 1000, entries: [
+        { ip: "198.51.100.10", name: "Paused office", enabled: false, active_devices: 1, last_auto_removed_at: null },
+        { ip: "198.51.100.11", name: "Enabled office", enabled: true, active_devices: 0, last_auto_removed_at: null },
+      ] };
+      const page = await connectPage(debugOrigin, `${origin}/protected-ips`);
+      try {
+        assert.equal(await page.evaluate("document.querySelector('.policy-disabled').textContent"), "Disabled");
+        assert.equal(await page.evaluate("getComputedStyle(document.querySelector('.policy-disabled')).backgroundColor"), "rgb(180, 35, 24)");
+        assert.equal(await page.evaluate("getComputedStyle(document.querySelector('.policy-enabled')).backgroundColor"), "rgb(22, 101, 52)");
+        assert.ok(await page.evaluate("document.querySelector('.policy-disabled-warning').textContent.includes('Protection disabled — currently shunned.')"));
+        await page.call("Page.navigate", { url: `${origin}/` });
+        await page.until("Boolean(document.querySelector('#active-shuns .disabled-protection-shun'))");
+        assert.equal(await page.evaluate("document.querySelector('#active-shuns .policy-disabled').textContent"), "Protection disabled");
+        await page.call("Page.navigate", { url: `${origin}/shuns/198.51.100.10` });
+        await page.until("Boolean(document.querySelector('.disabled-protection-notice'))");
+        assert.ok(await page.evaluate("document.querySelector('#protection-notice').textContent.includes('currently shunned')"));
+        policy.entries[0].enabled = true;
+        policy.revision = status.policy_revision = 2;
+        status.status_revision += 1;
+        await wake(page);
+        await page.until("Boolean(document.querySelector('.protected-ip-notice'))");
+        assert.equal(await page.evaluate("Boolean(document.querySelector('.disabled-protection-notice'))"), false);
+        await page.call("Page.navigate", { url: `${origin}/` });
+        await page.until("Boolean(document.querySelector('#active-shuns .protected-shun'))");
+        assert.equal(await page.evaluate("Boolean(document.querySelector('#active-shuns .policy-disabled'))"), false);
+      } finally { await page.close(); policy = { revision: 0, limit: 1000, entries: [] }; }
+    });
     await t.test("history is expanded and paginates 100 records without shifting older windows", async () => {
       status = initial();
       historyRows = [];
@@ -640,6 +695,41 @@ test("refresh interaction in real Chromium", { timeout: 90000 }, async (t) => {
           await page.until("document.querySelector('[data-action-warning]').hidden");
         }
       } finally { failStatus = false; await page.close(); }
+    });
+    await t.test("import preview is non-executable, escaped and preserved through metadata updates", async () => {
+      status = initial();
+      const hints = postCount;
+      const executions = executionCount;
+      const page = await connectPage(debugOrigin, `${origin}/imports`);
+      const source = "# ignore 192.0.2.99\n198.51.100.10 # <img src=x onerror=alert(1)>\n203.0.113.20\n192.0.2.30,192.0.2.30\nsource 192.0.2.40 destination 192.0.2.41\n192.0.2.0/24";
+      try {
+        assert.equal(await page.evaluate("document.querySelectorAll('[name=device_ids]:checked').length"), 0);
+        assert.equal(await page.evaluate("document.querySelector('[name=device_ids][value=\"2\"]').disabled"), true);
+        await page.evaluate(`document.querySelector('#blocklist-text').value=${JSON.stringify(source)}; document.querySelector('[name=device_ids][value="1"]').checked=true; document.querySelector('.import-form').requestSubmit()`);
+        await page.until("Boolean(document.querySelector('#import-results'))");
+        assert.equal(previewPosts, 1);
+        for (const state of ["Protected", "Already shunned", "Ready", "Duplicate", "Ambiguous", "Unsupported"]) {
+          assert.equal(await page.evaluate(`document.querySelectorAll('[data-preview-state="${state}"]').length`), 1);
+        }
+        assert.ok(await page.evaluate("document.querySelector('#import-results').textContent.includes('1 candidate device/IP pairs')"));
+        assert.equal(await page.evaluate("document.querySelectorAll('#import-results img').length"), 0);
+        assert.equal(await page.evaluate("document.querySelector('#blocklist-text').value"), source);
+        assert.equal(await page.evaluate("Boolean(document.querySelector('[data-queue-form], [data-policy-form]'))"), false);
+        await page.evaluate("document.querySelector('#blocklist-text').value+='\\n192.0.2.55'; document.querySelector('#blocklist-text').focus()");
+        const previousReads = pageReads;
+        complete("partial");
+        await wake(page);
+        await page.until("document.querySelector('[data-refresh-message]').textContent.includes('partially completed')");
+        const deadline = Date.now() + 8000;
+        while (pageReads <= previousReads && Date.now() < deadline) await delay(50);
+        assert.ok(pageReads > previousReads, "Metadata-driven GET completed while the preview stayed local");
+        assert.equal(await page.evaluate("document.querySelector('#blocklist-text').value"), source + "\n192.0.2.55");
+        assert.ok(await page.evaluate("Boolean(document.querySelector('#import-results'))"));
+        assert.equal(await page.evaluate("document.activeElement.id"), "blocklist-text");
+        assert.equal(previewPosts, 1);
+        assert.equal(postCount, hints);
+        assert.equal(executionCount, executions);
+      } finally { await page.close(); }
     });
   } finally {
     browser.kill("SIGTERM");

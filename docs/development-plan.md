@@ -2,13 +2,20 @@
 
 Last updated: 2026-10-15
 
-**Status: refresh/queue implemented; bounded removal sessions and priority reads experimental; imports pending.** This document records
+**Status: refresh/queue implemented; bounded removal sessions and priority reads experimental; parse-only import preview implemented, addition pending.** This document records
 the next product increments. It describes target behavior, not capabilities
 already available. See [Project Status](project-status.md) for delivery evidence
 and [Architecture and Security Design](architecture-and-security-design.md#74-approved-next-increment-queued-device-cycles-and-manual-imports)
 for the approved scope extension and unchanged security boundaries.
 
 ## Implementation checkpoint — 2026-10-15
+
+The independent preparatory [Import Preview](manual/import-preview.md) is
+implemented: bounded pasted-text parsing in Web, typed local-state classification
+in API, explicit target selection, protected/current/duplicate/refused outcomes
+and advisory pair counts. It never queues, persists a batch, sends raw paste to
+the API/agent or creates a write capability. Existing session-cycle laboratory
+work and the narrow ADD design/validation gates still precede actual admission.
 
 The compact UI/managed-policy increment adds Status and Queue disclosures,
 separate History and Protected IPs pages, progress spacing and persistent safety
@@ -41,7 +48,7 @@ configured operation timeout. `FTD_SHUN_AGENT_CYCLES_ENABLED=false` remains the
 default in API and agent pending live validation. Exact pre-write deferral may
 return a claimed job to QUEUED; uncertain writes never do. The extension uses
 the existing queue tables, actor/expiry/lease rules, and persisted cooldown.
-Manual addition/import remains unimplemented. The deployment checkpoint below
+Manual addition/import execution remains unimplemented. The deployment checkpoint below
 separates completed read-only checks from remaining live mutation validation.
 
 Deployment checkpoint: on 2026-10-15 the operator approved the local upgrade

@@ -16,6 +16,7 @@ from .agent_client import (
     UnixAgentClient,
 )
 from .config import Settings
+from .import_preview import MAX_DEVICES, MAX_ROWS, classify_targets
 from .inventory import load_devices
 from .operation_queue import QueueConflict, QueueFull
 from .store import HistoryWindowExpired, Shun, Store
@@ -35,6 +36,11 @@ class PolicyChange(BaseModel):
     comment: str = Field(default="", max_length=500)
     enabled: StrictBool = True
     confirm_ip: str = ""
+
+
+class ImportPreviewRequest(BaseModel):
+    ips: list[IPv4Address] = Field(max_length=MAX_ROWS)
+    device_ids: list[Annotated[int, Field(ge=1, le=65535)]] = Field(min_length=1, max_length=MAX_DEVICES)
 
 
 def _serialize(shun: Shun) -> dict[str, str | int | bool]:
@@ -118,6 +124,7 @@ def create_app(
             **synchronizer.status(),
             "policy_revision": policy_state["revision"],
             "trusted_auto_remove_ips": [entry for entry in policy_state["entries"] if entry["enabled"]],
+            "disabled_protected_ips": [{"ip": entry["ip"]} for entry in policy_state["entries"] if not entry["enabled"]],
         }
 
     @app.get("/api/v1/protected-ips")
@@ -155,6 +162,18 @@ def create_app(
     @app.get("/api/v1/shuns")
     def list_shuns() -> list[dict[str, str | int | bool]]:
         return [_serialize(shun) for shun in store.list_active_shuns()]
+
+    @app.get("/api/v1/import-devices")
+    def import_devices() -> list[dict]:
+        return [{"id": device.id, "hostname": device.hostname, "enabled": device.enabled}
+                for device in store.list_devices()]
+
+    @app.post("/api/v1/import-preview")
+    def import_preview(preview: ImportPreviewRequest) -> dict:
+        try:
+            return classify_targets(store, preview.ips, preview.device_ids)
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from error
 
     @app.get("/api/v1/shuns/{ip}")
     def shun_detail(ip: IPv4Address) -> list[dict[str, str | int | bool]]:

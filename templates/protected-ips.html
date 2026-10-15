@@ -18,8 +18,9 @@
 <button type="submit">Add protected IP</button>
 </form></details>
 {% for entry in policy.entries %}
-<article class="policy-card{% if entry.active_devices and entry.enabled %} policy-warning{% endif %}">
-<div class="policy-card-heading"><h2><a href="/shuns/{{ entry.ip }}">{{ entry.ip }}</a>{% if entry.name %} · {{ entry.name }}{% endif %}</h2><span class="state-badge">{{ 'Enabled' if entry.enabled else 'Disabled' }}</span></div>
+<article class="policy-card{% if entry.active_devices %} {{ 'policy-warning' if entry.enabled else 'policy-disabled-warning' }}{% endif %}">
+<div class="policy-card-heading"><h2><a href="/shuns/{{ entry.ip }}">{{ entry.ip }}</a>{% if entry.name %} · {{ entry.name }}{% endif %}</h2><span class="state-badge {{ 'policy-enabled' if entry.enabled else 'policy-disabled' }}">{{ 'Enabled' if entry.enabled else 'Disabled' }}</span></div>
+{% if entry.active_devices and not entry.enabled %}<p class="disabled-protection-summary"><strong>Protection disabled — currently shunned.</strong> Automatic removal is off for this address.</p>{% endif %}
 {% if entry.comment %}<p class="policy-comment">{{ entry.comment }}</p>{% endif %}
 <p>Observed shun: {% if entry.active_devices %}{{ entry.active_devices }} device(s){% else %}not currently observed{% endif %} · Last auto-removed: {% if entry.last_auto_removed_at %}<time class="local-timestamp" datetime="{{ entry.last_auto_removed_at }}">{{ entry.last_auto_removed_at }}</time>{% else %}Never recorded{% endif %}</p>
 <details id="edit-policy-{{ entry.ip }}" class="policy-editor"><summary>Edit / enable / disable</summary>

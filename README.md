@@ -23,6 +23,7 @@ The governing specification is the [Architecture and Security Design](docs/archi
 - Durable shared SQLite removal queue with multi-user audit, idempotent admission, progress/cancellation, and a persisted cycle gate.
 - Compact Status/Queue menus, paginated history (100 events per page), and Protected IPs managed by all authenticated users in SQLite (no ongoing `.env` policy control).
 - Container deployment assets that publish only Caddy TCP/443.
+- Non-executable [Import preview](docs/manual/import-preview.md) for pasted IPv4 lists: parsing, duplicates/protection/current-state checks and bounded candidate counts. No shun addition is enabled.
 
 The agent implements typed `LIST_SHUNS` and verified, device-scoped `REMOVE_SHUN`. It pins each device host key, requires an explicit per-device interface allowlist, and re-reads `show shun <IPv4>` after removal. The API reconciles complete snapshots on a configurable five-minute baseline, provides freshness metadata and local IP search to the UI, and can optionally apply an exact-IPv4 trusted-IP automatic-removal policy. That policy is disabled by default and requires laboratory validation. Do not treat the service as production-ready until it has passed the laboratory validation in the deployment manual.
 

@@ -15,6 +15,14 @@ removal, not an admission/no-op/unknown result. `Never recorded` can also mean
 that older evidence expired under history retention. Observations can be stale:
 check the persistent warnings and **Status** menu.
 
+**Enabled** badges are green and **Disabled** badges are red, with text labels
+so state does not depend on colour alone. If a disabled address is currently
+observed in shun, its card is highlighted red with **Protection disabled —
+currently shunned**. The active-shun list, search results and IP detail page
+also flag disabled protection. This means automatic policy removal is off,
+not that a removal has succeeded or that a new manual request was submitted.
+An enabled address still in shun retains the amber operational warning.
+
 **Every authenticated user** can add, edit, enable, disable or delete entries,
 including Viewer, Operator and users with no mapped application group. A separate
 Administrator group is not required. Admit only people trusted to manage this
@@ -104,7 +112,10 @@ then explicitly review/re-enable addresses through the UI. Never blindly replay
 restored policy or queued mutations.
 
 Schema changes are additive; do not drop tables to roll back presentation.
-An API predating this increment ignores SQLite policy and reads its old
+The enabled/disabled colour and warning update requires paired API/Web images
+and a browser reload only: no schema migration, policy edit or backup restore.
+Rolling back that presentation update leaves the saved policy unchanged.
+An API predating SQLite policy support ignores SQLite policy and reads its old
 environment list instead. It is **not** a safe policy-aware rollback: first
 stop API/Web, suspend queued work, disable its legacy policy (remove the
 variable), and keep device writes disabled until the desired policy/queue

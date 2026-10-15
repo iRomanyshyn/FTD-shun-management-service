@@ -223,3 +223,61 @@ def test_policy_store_rejects_missing_identity_even_with_administrator_role(poli
     with pytest.raises(PermissionError, match="authenticated user"):
         policy.change("add", IP, policy.revision(), subject, "Display name", ("Administrator",))
     assert policy.snapshot()["entries"] == [] and policy.store.list_events() == []
+
+
+@pytest.mark.parametrize("enabled", [True, False])
+@pytest.mark.parametrize("active", [True, False])
+def test_policy_state_badges_and_disabled_shun_warnings_are_read_only(policy, monkeypatch, enabled, active):
+    edit(policy, enabled=enabled)
+    if active:
+        policy.store.record_observed_shun(1, IP, "outside")
+    config = replace(Settings.from_environment(), database_path=policy.store.path,
+                     device_inventory_path=None, agent_mode="disabled", development_auth=False)
+    api = create_app(config, policy.store)
+    events_before = policy.store.list_events()
+
+    def internal(request):
+        async def read():
+            assert request.method == "GET", "Display must not mutate policy or request refresh"
+            async with httpx.AsyncClient(transport=httpx.ASGITransport(app=api), base_url="http://internal") as client:
+                response = await client.get(str(request.url))
+                return httpx.Response(response.status_code, content=response.content, headers=response.headers)
+        return asyncio.run(read())
+
+    monkeypatch.setattr(web, "api_client", lambda _: httpx.Client(transport=httpx.MockTransport(internal), base_url="http://internal"))
+
+    async def scenario():
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=api), base_url="http://internal") as client:
+            status = (await client.get("/api/v1/status")).json()
+            assert [entry["ip"] for entry in status["trusted_auto_remove_ips"]] == ([str(IP)] if enabled else [])
+            assert status["disabled_protected_ips"] == ([] if enabled else [{"ip": str(IP)}])
+            assert status["trusted_auto_remove_ip_count"] == int(enabled)
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=web.create_app(config)), base_url="https://lab.test",
+                                     headers={"Remote-User": "viewer", "Remote-Groups": "ftd-shun-viewers"}) as client:
+            listing = await client.get("/protected-ips")
+            assert listing.status_code == 200
+            badge = 'class="state-badge policy-enabled">Enabled' if enabled else 'class="state-badge policy-disabled">Disabled'
+            assert badge in listing.text
+            assert ('class="disabled-protection-summary"' in listing.text) == (active and not enabled)
+            assert ('policy-disabled-warning' in listing.text) == (active and not enabled)
+            index = await client.get("/", params={"q": str(IP)})
+            assert index.status_code == 200
+            assert ('class="disabled-protection-shun"' in index.text) == (active and not enabled)
+            assert ('class="protected-shun"' in index.text) == enabled
+            if active and not enabled:
+                assert index.text.count('class="state-badge policy-disabled"') == 2, "Both search and active row must warn"
+            detail = await client.get(f"/shuns/{IP}")
+            assert detail.status_code == 200
+            assert ('class="disabled-protection-notice"' in detail.text) == (not enabled)
+            assert ('Protection disabled — currently shunned.' in detail.text) == (active and not enabled)
+            assert ('class="protected-ip-notice"' in detail.text) == enabled
+    asyncio.run(scenario())
+    assert policy.store.list_events() == events_before
+    assert policy.queue.status()["counts"] == {}
+    assert policy.enabled_ips() == ({IP} if enabled else set())
+
+
+@pytest.mark.parametrize("refresh", [None, {}, {"disabled_protected_ips": None},
+    {"disabled_protected_ips": [None, {"ip": 12}, {"name": "Missing IP"}]}])
+def test_missing_or_malformed_disabled_display_metadata_is_not_invented(refresh):
+    assert web.protected_policy_ips(refresh, enabled=False) == frozenset()

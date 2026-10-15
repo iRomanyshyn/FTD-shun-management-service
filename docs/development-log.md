@@ -1294,6 +1294,123 @@ Agent, Caddy, Authelia, user/group files, `.env` and schema were unchanged. No
 policy edit or new device operation was submitted for validation. Reload tabs
 once; authenticated live policy-editor testing remains an operator task.
 
+## 2026-10-15 — Non-executable blocklist parsing and local-state import preview
+
+**Status:** Implemented, tested and deployed to the explicitly approved lab
+
+Added an authenticated Import preview page with optional label/reason, explicit
+enabled-device selection, bounded paste field and an always-non-executable result.
+The Web parser accepts exact IPv4 literals, explicit whitespace/comma/semicolon
+lists, whole-line #/ // comments, inline # comments and one address in surrounding
+text. Canonical duplicates retain source-line references and bounded comments.
+Multiple address-like tokens in free text are ambiguous; CIDR/range/IPv6/URL/
+path/port forms never yield a truncated target. Spaced IPv4 range/CIDR/port lines
+are excluded as a whole. Maximum-length numeric/wrapper fixtures prompted
+linear bounded token recognition rather than unbounded regex backtracking.
+
+Raw text, label and reason remain only in Web/browser memory and escaped HTML,
+not SQLite/logs/internal API/agent requests. The API exposes an ID/hostname/
+enabled selector and a typed canonical-IP/device-ID classification read using
+one SQLite transaction. Protected addresses and already-observed device/IPs are
+excluded from candidate counts. Duplicates do not multiply pairs. Ready means
+candidate data only; no ADD opcode, queue admission/confirmation, batch storage,
+provenance relabeling, refresh hint or creation-interface scope is introduced.
+Unrelated queued removals/policy execution continue normally.
+
+Limits are 64 KiB UTF-8 text, 2,000 lines, 1,000 total rows, 64 selected devices
+and 5,000 expanded unique IP/device pairs. The form rejects oversized declared
+or chunked bodies above 256 KiB before decoding; uploads and unexpected/repeated
+scalar fields are unsupported. CSRF remains mandatory; byte comparison now
+rejects non-ASCII invalid tokens safely rather than raising a comparison error.
+Synchronous API/render work runs in a worker thread, not the Web event loop.
+Background metadata updates intentionally retain the point-in-time preview and
+unsaved source instead of resubmitting or replacing the paste. New manual
+documents supported syntax, limits, privacy, release boundary and rollback.
+
+**Validation:** 169 Python tests passed. All twelve Chromium scenarios passed
+(13 reported browser tests). New coverage checks valid/ambiguous/invalid/
+unsupported input, comment exclusion, canonical duplicates and independent
+source references, hostile maximum-length tokens, UTF-8/line/row/body/pair limits,
+chunked/duplicate-field rejection, explicit enabled devices, changed policy,
+per-device observations, typed-only API forwarding, CSRF/XSS/no-store and no
+queue/audit changes. The browser fixture initially used an invalid unquoted
+numeric attribute selector; quoting it fixed the harness. The final scenario
+covers every outcome and source/result/focus preservation without extra parses,
+hints or execution. Compileall, Ruff, Node syntax and diff checks passed.
+Tests use temporary state/fake devices; Rust and the fixed protocol are unchanged.
+
+**Operational impact and limitations:** Paired API/Web upgrade and tab reload
+only; no schema migration, setting, secret, agent upgrade or data cleanup.
+Rollback to the preceding pair removes preview without touching SQLite. This
+is intentionally not executable import and not new FTD laboratory evidence.
+Creation-interface scope, Basic permission, strict addition verification,
+actual blocking behavior and narrow ADD encoding still need separate design
+and live validation before admission/provenance/worker support is enabled.
+
+**Deployment:** Tagged the preceding API/Web images
+`before-import-preview-20261015t180217z`, built replacements, stopped Web before
+API and recreated only API/Web after explicit approval. A typed local preview
+for one documentation address on one enabled device returned preview_only=true
+and can_execute=false, with zero audit-row change during the read. Before/after
+checks retained all six already VERIFIED outcomes, both protected addresses
+and policy revision 3 (existing operator changes, not this increment). SQLite
+quick_check is ok and a cycle succeeded without error. Anonymous GET/POST
+Import preview, other pages and status return 401; assets return 200 and HTTPS
+Import preview returns the expected TLS-verified Authelia 302. No shun, policy
+edit, queue admission or refresh hint was submitted for validation. Agent,
+Caddy, Authelia, `.env`, secrets and schema were unchanged. Reload tabs once;
+authenticated live paste/preview inspection remains an operator task.
+
+## 2026-10-15 — Enabled/disabled Protected IP badges and disabled-shun warnings
+
+**Status:** Implemented, tested and deployed to the explicitly approved dev lab
+
+Added green Enabled and red Disabled badges to the Protected IP list, retaining
+text labels for colour-independent state recognition. A disabled entry with
+active local observations has a red card and explicit warning that automatic
+removal is off. Search/current-shun rows and the IP detail view also identify
+disabled protection instead of silently treating a saved disabled IP as an
+unconfigured address. Existing amber warnings for enabled protected shuns remain.
+
+The internal status response adds a separate bounded disabled-IP display list
+from the same policy snapshot as the revision/enabled list. BFF display helpers
+keep enabled and disabled sets separate; neither the worker policy nor queue
+authorization changes. Existing revision-driven rendering updates the markers.
+No migration, setting, secret, agent/protocol operation or device write was added.
+
+**Validation:** 177 Python tests passed; all thirteen Chromium scenarios passed
+(14 reported browser tests including the parent). Compileall, Ruff, Node syntax
+and diff checks passed. New cases cover all four
+enabled/disabled and active/inactive combinations through API/BFF, metadata
+absence, unchanged eligibility/counts, and no queue/audit mutation during display.
+Browser coverage checks actual badge colours and revision-driven replacement
+across policy/shun/detail pages. The initial test adapter reused an asynchronous
+HTTPX response stream in a synchronous mock; reconstructing the mock response
+fixed the adapter without changing product behavior. The restricted sandbox
+cannot run the browser's localhost server; validation uses the approved local
+test execution outside that sandbox with fake devices and temporary state.
+
+**Operational impact:** Paired API/Web upgrade and browser reload only. Rollback
+to the preceding pair removes these display distinctions without changing
+SQLite policy or queue data. The operator explicitly approved dev deployment
+after checks, acknowledging that API restart can execute existing work. New
+device writes/policy edits/refresh hints will not be submitted for validation.
+Executable import and the operator's longer blocklist remain separate lab work.
+
+**Deployment:** Preserved prior API/Web images under
+`before-policy-badges-20261015t181200z`, built replacements, gracefully stopped
+Web before API and recreated only those two services. Read-only checks retained
+three existing policy entries (two enabled, one disabled), policy revision 3
+and all six VERIFIED results. Enabled and disabled status sets exactly match
+the SQLite snapshot and are disjoint; quick_check is ok and last_error is null.
+The new process initially reports cycle_outcome=not_started; no extra refresh
+was requested to bypass normal scheduling. Anonymous Shuns, Protected IPs,
+detail, Import preview and status requests return 401; new CSS returns 200 and
+HTTPS Protected IPs returns the expected TLS-verified Authelia 302. Agent,
+Caddy, Authelia, schema, secrets and `.env` are unchanged. No policy mutation,
+queue admission or new device write was submitted for validation. Reload tabs;
+authenticated live UI inspection remains an operator task.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

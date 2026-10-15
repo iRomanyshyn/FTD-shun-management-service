@@ -12,6 +12,7 @@
       <a href="/"{% if active_page | default('shuns') == 'shuns' %} aria-current="page"{% endif %}>Shuns</a>
       <a href="/protected-ips"{% if active_page == 'protected' %} aria-current="page"{% endif %}>Protected IPs</a>
       <a href="/history"{% if active_page == 'history' %} aria-current="page"{% endif %}>History</a>
+      <a href="/imports"{% if active_page == 'imports' %} aria-current="page"{% endif %}>Import preview</a>
     </nav>{% endif %}
     <main>{% block content %}{% endblock %}</main>
   </body>

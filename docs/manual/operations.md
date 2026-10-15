@@ -44,6 +44,11 @@ ownership checks. Real roles remain in every audit event.
 
 ## Removal workflow
 
+For the separate, non-executable **Import preview** page, follow the
+[preview manual](import-preview.md). Parsing/classification never queues work,
+opens SSH, issues a refresh hint or saves a server-side batch. Ready rows are
+candidate data only; additions remain unavailable for all roles.
+
 1. An operator selects **Queue removal from this device** for the displayed hostname/IP.
 2. The BFF verifies its CSRF token and obtains the Authelia identity passed by Caddy.
 3. The internal API atomically records the queued request, actor, role snapshot, expiry, device/IP, and audit events, then returns `202 Accepted` with the parent operation ID. This is not removal success.

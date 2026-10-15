@@ -905,6 +905,8 @@ visible. Operators must use this policy only for carefully verified addresses
 whose automatic removal is intended on every enabled FTD device.
 
 `GET /api/v1/status` exposes enabled addresses and a durable policy revision.
+Its separate `disabled_protected_ips` list contains only disabled entries' IPs
+for display; it never grants automatic-removal eligibility.
 The separate Protected IPs page shows enabled and disabled entries, names,
 comments, observed active-shun counts, and latest retained verified automatic
 removal (`Never recorded` if absent). Every user admitted by Authelia may
@@ -918,6 +920,12 @@ transaction; independent manual requests survive. RUNNING work is not interrupte
 The executor revalidates live SQLite policy before every claim, including within
 a multi-item session. Newly enabled protection takes effect at a successful
 snapshot through the existing queue and budgets, not a new out-of-band writer.
+Enabled entries have green text-labelled badges; disabled entries have red
+text-labelled badges. A disabled entry with locally observed active shuns has
+a red warning in the policy list, current-shun/search rows and IP detail view.
+The warning explicitly states that automatic removal is off. Enabled matching
+shuns retain their existing amber operational warning. These display states
+do not issue device operations or change policy/queue authorization.
 
 The application compares:
 
@@ -2505,12 +2513,27 @@ The lease must exceed the bounded in-flight RPC and be renewed before each
 RPC. A restored database must be reviewed before starting the worker.
 
 **Full-target status: bounded removal sessions and priority reads implemented
-behind a default-off laboratory gate; addition/import implementation pending
+behind a default-off laboratory gate; parse-only preview implemented, write-side addition/import pending
 (2026-10-15).**
 The [Development Plan](development-plan.md) specifies sequencing, validation,
 and the remaining detailed-design decisions. The following target requirements
 supersede immediate manual dispatch and independent refresh/write scheduling
 only once that increment is implemented and validated:
+
+A preparatory **Import preview** may be implemented independently of addition.
+It accepts bounded, CSRF-protected pasted text as data in the authenticated BFF
+only. It parses exact IPv4 literals, recognizes explicit lists/comments and
+rejects ambiguous/unsupported forms without substring extraction. Raw text is
+not persisted, logged, or sent to the internal API/agent. The API receives only
+bounded typed addresses and explicitly selected enabled device IDs for a local
+SQLite classification read. It cannot enqueue work, issue refresh hints, open
+SSH or claim a validated creation-interface scope. Preview results are point-in-
+time advisory data; there is no Queue import action or executable preview token.
+Limits are 64 KiB UTF-8 text, 2,000 lines, 1,000 preview rows, 64 selected devices
+and 5,000 expanded device/IP pairs. The form request body is capped at 256 KiB
+before decoding, including chunked bodies. Preview is available to authenticated
+users; future admission still requires its separate write authorization and
+fresh policy/state checks. No source text becomes a Cisco command.
 
 - All user additions and removals enter a shared durable SQLite queue. Queue
   acceptance is distinct from verified FTD success. Preserve the actor,

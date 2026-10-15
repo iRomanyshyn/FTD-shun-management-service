@@ -33,7 +33,8 @@ For local browser work, proxy the Web/BFF Unix socket with Caddy or use a test c
 - `mock` accepts the typed `LIST_SHUNS` and `REMOVE_SHUN` operations; it returns an empty snapshot and never opens an SSH connection.
 - `disabled` is the safe default and returns an error for every removal attempt.
 - `socket` is the only deployment mode. It requires an FTD agent on `FTD_SHUN_AGENT_SOCKET` to return the exact verified-success result. Default legacy removal uses one byte; experimental cycles use the versioned response envelope.
-- No test, fixture, route, or configuration field accepts Cisco CLI text.
+- No interface accepts executable Cisco CLI. Import preview accepts untrusted
+  paste as data only; no raw text or comment reaches the agent.
 
 ## Checks
 
@@ -63,6 +64,16 @@ compatibility evidence. The opt-in flag remains false until the
 [cycle laboratory procedure](agent-cycle-protocol.md#migration-and-laboratory-validation).
 
 ## Browser refresh regression checks
+
+The [Import Preview manual](import-preview.md) documents its independent
+preparatory boundary. Parser tests cover literal/list/comment/free-text rules,
+ambiguous and unsupported forms, no substring extraction, duplicate references,
+UTF-8/line/row/body/pair limits and maximum-length hostile tokens without
+unbounded regex backtracking. API/BFF checks cover explicit enabled targets,
+snapshot classification, CSRF/escaping, chunked-body limits, and no queue/audit/
+agent side effects. Raw source is not forwarded to the internal API. The browser
+scenario checks every preview outcome, escaping and draft/result/focus retention
+through metadata updates without extra parses, hints or execution.
 
 With Node.js 22+ (built-in WebSocket support), Chromium, and the Python package
 available in the same environment, run:
@@ -115,6 +126,10 @@ search, and policy revalidation before each claim. Chromium also checks menu
 keyboard/Escape/outside-click behavior, narrow viewport bounds, persistent
 warnings, progress spacing, separate history updates, per-IP drafts with original
 revisions, escaped labels and the protected-IP add/edit/disable/delete flow.
+Display regressions cover enabled/disabled badges, active versus inactive
+observations, disabled protection in search/shun/detail views and live badge
+transitions without policy writes, audit changes or refresh hints. Chromium
+checks the actual green/red styles and revision-driven warning replacement.
 
 Protected-IP authorization now intentionally permits every authenticated user:
 Viewer, Operator, Administrator and users without a mapped group. Parameterized

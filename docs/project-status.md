@@ -4,6 +4,37 @@ Last updated: 2026-10-15
 
 ## Current increment
 
+**Protected IP state visibility (2026-10-15).** Enabled entries use green badges
+and disabled entries use red badges, both with explicit text. Disabled addresses
+still locally observed in shun get red warnings in Protected IPs, active rows,
+search and detail. A separate read-only disabled-IP status list preserves this
+distinction without making disabled addresses eligible for automatic removal.
+No schema, agent, queue, policy or authentication behavior changed. All 177
+Python tests and thirteen Chromium scenarios passed (14 reported browser tests),
+covering the state combinations and live transitions. API/Web were deployed
+after explicit approval; three existing policy entries (two enabled, one
+disabled), revision 3 and six VERIFIED results were retained. Disabled display
+metadata matches SQLite, quick_check is ok, anonymous pages/status remain 401
+and HTTPS redirects to Authelia with TLS verification. Reload browser tabs;
+authenticated live colour/warning inspection remains an operator task.
+
+**Non-executable blocklist import preview (2026-10-15).** Authenticated users
+can paste bounded text, explicitly select enabled devices and inspect exact
+IPv4 candidates, duplicate source references, protected/already-shunned rows,
+invalid/unsupported/ambiguous lines and expanded candidate pair counts. Raw
+text stays in Web/browser memory; API receives typed canonical IPs/device IDs
+for one SQLite classification snapshot. There is no queue admission, batch
+storage, ADD opcode, creation-interface claim or extra refresh hint. Additions
+and executable imports remain unavailable. 169 Python tests and twelve Chromium
+scenarios passed (13 reported browser tests). Following explicit approval,
+API/Web were rebuilt/recreated. A deployed typed preview read returned
+preview_only=true/can_execute=false with no audit change; all six pre-existing
+VERIFIED outcomes, both protected addresses and policy revision 3 remain intact.
+SQLite quick_check is ok and a cycle succeeded without error. Anonymous GET/POST
+preview routes return 401; HTTPS redirects to Authelia with TLS verification.
+Reload tabs; authenticated live UI retest remains pending. See the
+[preview manual](manual/import-preview.md).
+
 **Shared Protected IP management (2026-10-15).** Every authenticated user may
 add/edit/enable/disable/delete protected addresses, including Viewer/Operator
 and users without a mapped application group. Only service admission through
@@ -109,6 +140,7 @@ with their total count. No creation/import capability or device work was added.
 | Container layout | Complete for first increment | Only Caddy TCP/443 is published; Web and API use private Unix sockets. The one-shot socket-volume initializer is capability-minimal and prepares ownership/mode for socket and SQLite state volumes before handing them to their service identities. |
 | Manuals | Complete for first increment | Development, deployment, and operations manuals are present. |
 | Protected IP administration | Shared authenticated access implemented, tested and deployed to approved lab | SQLite policy, all-authenticated-user CSRF-protected editor, bounded fields/count, revision conflicts, one-time legacy import, actual actor/role audit and atomic unstarted-policy cancellation. No new agent operation or ongoing environment policy control. Authenticated live retest pending. |
+| Blocklist import preview | Implemented, tested and deployed to approved lab | Bounded paste parser, explicit enabled-device selection, protected/current/duplicate/refused outcomes, source references and local pair counts. Preview only: no persisted batch, agent capability or queued addition. Authenticated live retest pending. |
 
 ## Explicit limitations
 
@@ -127,7 +159,16 @@ with their total count. No creation/import capability or device work was added.
 
 ## Recent validation
 
-Latest shared-policy increment: 131 Python tests passed; eleven Chromium
+Latest preview increment: 169 Python tests passed; twelve Chromium scenarios
+passed (13 reported tests). Checks cover comments/lists/free-text ambiguity,
+malformed/unsupported forms without substring extraction, duplicate references,
+max-length hostile tokens, UTF-8/row/line/body/target-pair bounds, chunked requests,
+CSRF/escaping, typed-only API forwarding, enabled devices and no queue/audit side
+effects. Browser preview covers all outcomes and retains text/result/focus through
+metadata updates without extra parses, hints or execution. Compileall, Ruff,
+Node syntax and diff checks passed. Rust/protocol are unchanged.
+
+Previous shared-policy increment: 131 Python tests passed; eleven Chromium
 scenarios passed (12 reported tests). BFF/API tests cover Viewer, Operator,
 Administrator and unmapped authenticated users; blank/anonymous identities,
 forged form identity, missing/invalid CSRF, stale edits and unconfirmed deletion
@@ -190,6 +231,9 @@ The foundation increment was checked with:
 0. Retest compact menus, separate History and shared authenticated Protected IP CRUD
    in an authenticated lab browser. Use only a dedicated non-production address
    for policy execution checks; configuration changes apply fleet-wide.
+   Exercise Import preview with a local paste only; Ready is not a write or
+   validated creation scope. The ADD protocol and live addition gate remain next
+   only after the documented removal/session laboratory checks.
 1. Retest the newly deployed UI in an authenticated browser, including a real baseline interval and per-device failures. Automated Python/Chromium scenarios pass; HTTPS redirects and private unauthenticated rejection were rechecked after deployment.
 2. Complete live queued-removal validation: 202 admission, duplicate users, cancellation, persisted cooldown, lease loss, expired authorization, queue bounds, audit attribution, and recovery without replay. The additive migration is deployed; SQLite integrity and empty-queue status passed. The operator waived a backup for this dev migration only, not future shared/production updates.
 3. Lab validate the implemented opt-in session-cycle protocol: one SSH login per device cycle, multiple verified removals, priority checkpoints, budgets, disconnects, and no legacy fallback. Only then consider default enablement. Separately design/lab validate narrow addition before paste/preview/import; preserve manual provenance and never automatically re-add removed imports. Follow the [Development Plan](development-plan.md).

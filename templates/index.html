@@ -19,10 +19,10 @@
 <h2 id="search-results-heading">Search results for {{ search_query }}</h2>
 {% if search_results %}
 <table><thead><tr><th>IP address</th><th>State</th><th>Protection</th><th>Last seen</th><th>Last removed</th><th>Latest event</th><th>Devices</th></tr></thead><tbody>
-{% for result in search_results %}<tr{% if result.protected %} class="protected-shun"{% endif %}>
+{% for result in search_results %}<tr{% if result.protected %} class="protected-shun"{% elif result.active and result.ip in disabled_policy_ips %} class="disabled-protection-shun"{% endif %}>
 <td><a href="/shuns/{{ result.ip }}">{{ result.ip }}</a></td>
 <td>{% if result.active %}<strong class="current-state">Current shun</strong>{% elif result.last_seen_at %}<span class="historical-state">Historical — not currently shunned</span>{% else %}<span class="historical-state">Not currently shunned</span>{% endif %}</td>
-<td>{% if result.protected %}<span class="protected-ip-badge">Protected IP</span>{% else %}—{% endif %}</td>
+<td>{% if result.protected %}<span class="protected-ip-badge">Protected IP</span>{% elif result.ip in disabled_policy_ips %}<span class="state-badge policy-disabled">Protection disabled</span>{% else %}—{% endif %}</td>
 <td>{% if result.last_seen_at %}<time class="local-timestamp" datetime="{{ result.last_seen_at }}">{{ result.last_seen_at }}</time>{% else %}—{% endif %}</td>
 <td>{% if result.last_removed_at %}<time class="local-timestamp" datetime="{{ result.last_removed_at }}">{{ result.last_removed_at }}</time>{% else %}—{% endif %}</td>
 <td>{% if result.last_event_at %}<time class="local-timestamp" datetime="{{ result.last_event_at }}">{{ result.last_event_at }}</time>{% else %}—{% endif %}</td>
@@ -36,8 +36,8 @@
 <h2 id="active-shuns-heading">Current active shuns</h2>
 {% if shuns %}
 <table><thead><tr><th>IP address</th><th>Device hostname</th><th>Interface</th><th>First seen</th><th>Last seen</th><th>Action</th></tr></thead>
-<tbody>{% for shun in shuns %}<tr{% if shun.ip in trusted_policy_ips %} class="protected-shun"{% endif %}>
-<td><a href="/shuns/{{ shun.ip }}">{{ shun.ip }}</a>{% if shun.ip in trusted_policy_ips %}<span class="protected-ip-badge">Protected IP</span>{% endif %}</td><td>{{ shun.device_hostname }}</td><td>{{ shun.interface }}</td><td><time class="local-timestamp" datetime="{{ shun.first_seen_at }}">{{ shun.first_seen_at }}</time></td><td><time class="local-timestamp" datetime="{{ shun.last_seen_at }}">{{ shun.last_seen_at }}</time></td>
+<tbody>{% for shun in shuns %}<tr{% if shun.ip in trusted_policy_ips %} class="protected-shun"{% elif shun.ip in disabled_policy_ips %} class="disabled-protection-shun"{% endif %}>
+<td><a href="/shuns/{{ shun.ip }}">{{ shun.ip }}</a>{% if shun.ip in trusted_policy_ips %}<span class="protected-ip-badge">Protected IP</span>{% elif shun.ip in disabled_policy_ips %}<span class="state-badge policy-disabled" title="Automatic removal is off for this address.">Protection disabled</span>{% endif %}</td><td>{{ shun.device_hostname }}</td><td>{{ shun.interface }}</td><td><time class="local-timestamp" datetime="{{ shun.first_seen_at }}">{{ shun.first_seen_at }}</time></td><td><time class="local-timestamp" datetime="{{ shun.last_seen_at }}">{{ shun.last_seen_at }}</time></td>
 <td>{% if 'Operator' in identity.roles or 'Administrator' in identity.roles %}<form method="post" action="/devices/{{ shun.device_id }}/shuns/{{ shun.ip }}/remove" data-queue-form><input type="hidden" name="csrf" value="{{ csrf_token }}"><input type="hidden" name="request_id" value="{{ new_operation_key() }}"><button>Queue removal from this device</button></form>{% else %}Read-only{% endif %}</td>
 </tr>{% endfor %}</tbody></table>
 {% else %}<p>No active shuns are currently recorded.</p>{% endif %}

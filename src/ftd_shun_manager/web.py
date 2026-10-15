@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from ipaddress import IPv4Address
 from pathlib import Path
 from typing import Annotated, Literal
-from urllib.parse import urlencode
+from urllib.parse import parse_qs, urlencode
 from uuid import UUID, uuid4
 
 import httpx
@@ -18,8 +18,10 @@ from fastapi import FastAPI, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from starlette.concurrency import run_in_threadpool
 
 from .config import Settings
+from .import_preview import MAX_FORM_BYTES, MAX_TEXT_BYTES, parse_blocklist, summarize_preview
 
 PROJECT_ROOT = Path(os.environ.get("FTD_SHUN_ASSET_ROOT", Path(__file__).resolve().parents[2]))
 templates = Jinja2Templates(directory=str(PROJECT_ROOT / "templates"))
@@ -60,8 +62,34 @@ def csrf_token(request: Request) -> tuple[str, bool]:
 
 def require_csrf(request: Request, supplied: str) -> None:
     existing = request.cookies.get("ftd_shun_csrf", "")
-    if not existing or not hmac.compare_digest(existing, supplied):
+    if not existing or not hmac.compare_digest(existing.encode("utf-8"), supplied.encode("utf-8")):
         raise HTTPException(status_code=403, detail="CSRF validation failed")
+
+
+async def preview_form(request: Request) -> dict[str, list[str]]:
+    """Bound the paste request before parsing; file/multipart uploads are unsupported."""
+    if request.headers.get("content-type", "").split(";", 1)[0].strip().lower() != "application/x-www-form-urlencoded":
+        raise HTTPException(415, "Paste preview requires a URL-encoded form; uploads are unsupported.")
+    length = request.headers.get("content-length")
+    if length is not None:
+        if not length.isascii() or not length.isdecimal() or len(length) > 10:
+            raise HTTPException(400, "Invalid request length.")
+        if int(length) > MAX_FORM_BYTES:
+            raise HTTPException(413, "Paste request exceeds 256 KiB.")
+    body = bytearray()
+    async for chunk in request.stream():
+        if len(body) + len(chunk) > MAX_FORM_BYTES:
+            raise HTTPException(413, "Paste request exceeds 256 KiB.")
+        body.extend(chunk)
+    try:
+        fields = parse_qs(body.decode("ascii"), encoding="utf-8", errors="strict", keep_blank_values=True, max_num_fields=80)
+    except (ValueError, UnicodeError) as error:
+        raise HTTPException(400, "Invalid preview form encoding or field count.") from error
+    if set(fields) - {"csrf", "text", "device_ids", "label", "reason"} or any(
+        len(values) != 1 for key, values in fields.items() if key != "device_ids"
+    ):
+        raise HTTPException(422, "Unexpected or repeated preview form field.")
+    return fields
 
 
 def api_client(settings: Settings) -> httpx.Client:
@@ -76,11 +104,11 @@ def api_client(settings: Settings) -> httpx.Client:
     )
 
 
-def trusted_policy_ips(refresh: object) -> frozenset[str]:
-    """Return only the exact configured trusted addresses from internal API status."""
+def protected_policy_ips(refresh: object, *, enabled: bool = True) -> frozenset[str]:
+    """Read exact enabled/disabled policy addresses for display, not authorization."""
     if not isinstance(refresh, dict):
         return frozenset()
-    entries = refresh.get("trusted_auto_remove_ips", [])
+    entries = refresh.get("trusted_auto_remove_ips" if enabled else "disabled_protected_ips", [])
     if not isinstance(entries, list):
         return frozenset()
     return frozenset(
@@ -193,7 +221,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "identity": identity,
                 "shuns": response.json(),
                 "refresh": refresh,
-                "trusted_policy_ips": trusted_policy_ips(refresh),
+                "trusted_policy_ips": protected_policy_ips(refresh),
+                "disabled_policy_ips": protected_policy_ips(refresh, enabled=False),
                 "search_query": search_query,
                 "search_results": search_response.json() if search_response is not None else None,
             },
@@ -213,6 +242,70 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             return JSONResponse(refresh_metadata(response.json()))
         except (TypeError, ValueError) as error:
             raise HTTPException(status_code=503, detail="State API returned invalid status.") from error
+
+    async def import_page(request: Request, submitted: bool = False) -> HTMLResponse:
+        identity = identity_from_request(request, settings.development_auth)
+        text, label, reason = "", "", ""
+        selected: list[int] = []
+        parsed, error_message = None, None
+        if submitted:
+            fields = await preview_form(request)
+            require_csrf(request, fields.get("csrf", [""])[0])
+            text = fields.get("text", [""])[0]
+            label = fields.get("label", [""])[0]
+            reason = fields.get("reason", [""])[0]
+            if len(text.encode("utf-8")) > MAX_TEXT_BYTES:
+                raise HTTPException(413, "Paste at most 64 KiB of UTF-8 text.")
+            if len(label) > 100 or len(reason) > 500:
+                raise HTTPException(422, "Label/reason exceeds 100/500 characters.")
+            try:
+                raw_devices = fields.get("device_ids", [])
+                if any(not value.isascii() or not value.isdecimal() for value in raw_devices):
+                    raise ValueError("Select configured devices using the checkboxes.")
+                selected = [int(value) for value in raw_devices]
+                parsed = parse_blocklist(text)
+                if not parsed["rows"]:
+                    raise ValueError("Paste at least one non-comment line.")
+            except ValueError as error:
+                parsed, error_message = None, str(error)
+        return await run_in_threadpool(import_view, request, identity, text, label, reason, selected, parsed, error_message)
+
+    def import_view(request: Request, identity: Identity, text: str, label: str, reason: str,
+                    selected: list[int], parsed: dict | None, error_message: str | None) -> HTMLResponse:
+        try:
+            with api_client(settings) as client:
+                refresh = client.get("/api/v1/status")
+                devices = client.get("/api/v1/import-devices")
+                classification = client.post("/api/v1/import-preview", json={
+                    "ips": parsed["ips"], "device_ids": selected,
+                }) if parsed is not None else None
+        except httpx.HTTPError as error:
+            raise HTTPException(503, "Local preview state is unavailable. Nothing was queued.") from error
+        if refresh.status_code != 200 or devices.status_code != 200:
+            raise HTTPException(503, "Local preview state is unavailable. Nothing was queued.")
+        preview = None
+        if classification is not None:
+            if classification.status_code == 422:
+                detail = classification.json().get("detail")
+                error_message = detail if isinstance(detail, str) else "Select 1–64 distinct enabled devices and at most 5,000 device/IP pairs."
+            elif classification.status_code != 200:
+                raise HTTPException(503, "Local preview state is unavailable. Nothing was queued.")
+            else:
+                preview = summarize_preview(parsed, classification.json())
+        return render(request, "import-preview.html", {
+            "identity": identity, "refresh": refresh.json(), "devices": devices.json(),
+            "source_text": text, "batch_label": label, "batch_reason": reason,
+            "selected_devices": selected, "preview": preview, "preview_error": error_message,
+            "active_page": "imports", "auto_request": False,
+        }, status_code=422 if error_message else 200)
+
+    @app.get("/imports", response_class=HTMLResponse)
+    async def imports(request: Request) -> HTMLResponse:
+        return await import_page(request)
+
+    @app.post("/imports", response_class=HTMLResponse)
+    async def parse_import(request: Request) -> HTMLResponse:
+        return await import_page(request, submitted=True)
 
     @app.get("/protected-ips", response_class=HTMLResponse)
     def protected_ips(request: Request) -> HTMLResponse:
@@ -310,7 +403,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if response.status_code != 200 or history.status_code != 200:
             return render(request, "error.html", {"message": "State API is unavailable."}, 503)
         refresh = refresh_status.json() if refresh_status.status_code == 200 else None
-        policy_ips = trusted_policy_ips(refresh)
+        policy_ips = protected_policy_ips(refresh)
         return render(
             request,
             "detail.html",
@@ -321,6 +414,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "events": history.json(),
                 "refresh": refresh,
                 "is_trusted_policy_ip": str(ip) in policy_ips,
+                "is_disabled_policy_ip": str(ip) in protected_policy_ips(refresh, enabled=False),
             },
         )
 

@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 <h1>Shun: {{ ip }}</h1>
-<section id="protection-notice" data-live-region>{% if is_trusted_policy_ip %}<p class="protected-ip-notice"><strong>Protected IP.</strong> This address is in the trusted-IP automatic-removal policy.</p>{% endif %}</section>
+<section id="protection-notice" data-live-region>{% if is_trusted_policy_ip %}<p class="protected-ip-notice"><strong>Protected IP.</strong> This address is in the trusted-IP automatic-removal policy.</p>{% elif is_disabled_policy_ip %}<p class="disabled-protection-notice"><strong>Protection disabled{% if shuns %} — currently shunned{% endif %}.</strong> This address is saved in Protected IPs, but automatic removal is off.</p>{% endif %}</section>
 {% if refresh %}
 {% include "refresh-panel.html" %}
 {% endif %}
