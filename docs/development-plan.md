@@ -2,11 +2,24 @@
 
 Last updated: 2026-10-15
 
-**Status: approved direction; implementation pending.** This document records
+**Status: refresh reliability increment implemented; queue/import implementation pending.** This document records
 the next product increments. It describes target behavior, not capabilities
 already available. See [Project Status](project-status.md) for delivery evidence
 and [Architecture and Security Design](architecture-and-security-design.md#74-approved-next-increment-queued-device-cycles-and-manual-imports)
 for the approved scope extension and unchanged security boundaries.
+
+## Implementation checkpoint — 2026-10-15
+
+The refresh reliability increment now provides process/cycle/data/status
+revisions, coalesced active-sweep requests, per-device status, and serialized
+browser requests with dynamic state updates preserving input. Python and real
+Chromium tests cover concurrency, repeated failures, partial success, restart,
+and recovery. Deployment and live FTD/Authelia verification remain pending.
+
+The durable mutation queue, progress panel, session reuse, priority reads
+during a background batch, and manual imports below remain planned. Their
+future independent snapshot/progress revisions extend the implemented local
+data/cycle revisions rather than indicate those batch features exist now.
 
 ## 1. Product decisions
 

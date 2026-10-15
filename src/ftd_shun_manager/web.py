@@ -92,6 +92,17 @@ def refresh_metadata(refresh: object) -> dict[str, object]:
     if not isinstance(refresh, dict):
         raise TypeError("State API returned an invalid refresh status")
     fields = (
+        "instance_id",
+        "status_revision",
+        "data_revision",
+        "cycle_revision",
+        "cycle_id",
+        "cycle_started_at",
+        "cycle_completed_at",
+        "cycle_outcome",
+        "refresh_enabled",
+        "server_time",
+        "devices",
         "last_successful_refresh",
         "last_attempt",
         "last_error",
@@ -109,6 +120,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or Settings.from_environment()
     app = FastAPI(title="FTD Shun Manager", docs_url=None, redoc_url=None, openapi_url=None)
     app.mount("/static", StaticFiles(directory=str(PROJECT_ROOT / "static")), name="static")
+
+    @app.middleware("http")
+    async def prevent_state_caching(request: Request, call_next):
+        response = await call_next(request)
+        if not request.url.path.startswith("/static/"):
+            response.headers["Cache-Control"] = "no-store"
+        return response
 
     def render(request: Request, name: str, context: dict, status_code: int = 200) -> HTMLResponse:
         token, set_cookie = csrf_token(request)
@@ -128,6 +146,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         identity = identity_from_request(request, settings.development_auth)
         search_query = q.strip()
         with api_client(settings) as client:
+            # Capture the revision before state reads. If reconciliation occurs
+            # during rendering, the next poll will fetch the newer revision.
+            refresh_status = client.get("/api/v1/status")
             response = client.get("/api/v1/shuns")
             recent_events = client.get("/api/v1/history", params={"limit": 100})
             search_response = (
@@ -135,7 +156,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 if search_query
                 else None
             )
-            refresh_status = client.get("/api/v1/status")
         if response.status_code != 200 or recent_events.status_code != 200:
             return render(request, "error.html", {"message": "State API is unavailable."}, 503)
         if search_response is not None and search_response.status_code != 200:
@@ -167,7 +187,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(response.status_code, response.text)
         try:
             return JSONResponse(refresh_metadata(response.json()))
-        except TypeError as error:
+        except (TypeError, ValueError) as error:
             raise HTTPException(status_code=503, detail="State API returned invalid status.") from error
 
     @app.post("/refresh")
@@ -198,9 +218,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def detail(request: Request, ip: IPv4Address) -> HTMLResponse:
         identity = identity_from_request(request, settings.development_auth)
         with api_client(settings) as client:
+            refresh_status = client.get("/api/v1/status")
             response = client.get(f"/api/v1/shuns/{ip}")
             history = client.get(f"/api/v1/history/{ip}")
-            refresh_status = client.get("/api/v1/status")
         if response.status_code != 200 or history.status_code != 200:
             return render(request, "error.html", {"message": "State API is unavailable."}, 503)
         refresh = refresh_status.json() if refresh_status.status_code == 200 else None

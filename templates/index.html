@@ -14,18 +14,9 @@
 </section>
 
 {% if refresh %}
-<section class="refresh-panel" aria-labelledby="refresh-heading" data-refresh-controller data-status-url="/refresh-status" data-initial-last-successful="{{ refresh.last_successful_refresh or '' }}" data-initial-error="{{ refresh.last_error or '' }}" data-auto-request="true">
-<h2 id="refresh-heading">Refresh status</h2>
-<p class="refresh-status" data-last-successful="{{ refresh.last_successful_refresh or '' }}" data-min-interval="{{ refresh.interactive_min_interval_seconds }}" data-state="{{ refresh.interactive_refresh_state }}" data-next-interactive="{{ refresh.next_interactive_refresh or '' }}">Data last confirmed: <time class="last-successful-refresh" datetime="{{ refresh.last_successful_refresh or '' }}">{{ refresh.last_successful_refresh or "not yet available" }}</time>. Next scheduled check: <time class="baseline-countdown" data-next-baseline="{{ refresh.next_baseline_refresh or '' }}" data-reload-on-due="true">{{ refresh.next_baseline_refresh or "not scheduled" }}</time>.</p>
-<form method="post" action="/refresh" class="request-refresh-form" data-refresh-form>
-<input type="hidden" name="csrf" value="{{ csrf_token }}">
-<input type="hidden" name="q" value="{{ search_query }}">
-<button type="submit" data-refresh-request data-state="{{ refresh.interactive_refresh_state }}" data-next-interactive="{{ refresh.next_interactive_refresh or '' }}" data-next-baseline="{{ refresh.next_baseline_refresh or '' }}">Request refresh</button>
-</form>
-{% if refresh.last_error %}<p class="refresh-error">Refresh warning: {{ refresh.last_error }}</p>{% endif %}
-</section>
+{% include "refresh-panel.html" %}
 
-<section class="trusted-policy" aria-labelledby="trusted-ip-policy-heading">
+<section id="trusted-policy" data-live-region class="trusted-policy" aria-labelledby="trusted-ip-policy-heading">
 <h2 id="trusted-ip-policy-heading">Trusted-IP automatic removal</h2>
 {% if refresh.trusted_auto_remove_ips %}
 <p>Active for {{ refresh.trusted_auto_remove_ip_count }} exact address{% if refresh.trusted_auto_remove_ip_count != 1 %}es{% endif %}. Policy actions are recorded in history.</p>
@@ -37,7 +28,7 @@
 {% endif %}
 
 {% if search_results is not none %}
-<section class="search-results" aria-labelledby="search-results-heading">
+<section id="search-results" data-live-region class="search-results" aria-labelledby="search-results-heading">
 <h2 id="search-results-heading">Search results for {{ search_query }}</h2>
 {% if search_results %}
 <table><thead><tr><th>IP address</th><th>State</th><th>Protection</th><th>Last seen</th><th>Last removed</th><th>Latest event</th><th>Devices</th></tr></thead><tbody>
@@ -54,7 +45,7 @@
 </section>
 {% endif %}
 
-<section aria-labelledby="active-shuns-heading">
+<section id="active-shuns" data-live-region aria-labelledby="active-shuns-heading">
 <h2 id="active-shuns-heading">Current active shuns</h2>
 {% if shuns %}
 <table><thead><tr><th>IP address</th><th>Device hostname</th><th>Interface</th><th>First seen</th><th>Last seen</th><th>Action</th></tr></thead>
@@ -65,10 +56,10 @@
 {% else %}<p>No active shuns are currently recorded.</p>{% endif %}
 </section>
 
-<section class="recent-events" aria-labelledby="recent-events-heading">
+<section id="recent-events" data-live-region class="recent-events" aria-labelledby="recent-events-heading">
 <h2 id="recent-events-heading">Last events log</h2>
 {% if refresh %}<p class="history-retention">History retention: {{ refresh.history_retention_days }} days. Expired inactive history is purged daily.</p>{% endif %}
-<details>
+<details id="recent-events-details">
 <summary>Show the latest {{ recent_events|length }} of 100 local audit events</summary>
 {% if recent_events %}
 <table><thead><tr><th>Time</th><th>Event</th><th>IP address</th><th>Device</th><th>Actor</th></tr></thead><tbody>

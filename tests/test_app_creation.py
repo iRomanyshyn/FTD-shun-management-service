@@ -66,14 +66,14 @@ def test_status_exposes_configured_trusted_ips_without_a_removal_timestamp(tmp_p
 
     app = create_api(settings)
     status_route = next(route for route in app.routes if route.path == "/api/v1/status")
-    status = status_route.endpoint()
+    status = asyncio.run(status_route.endpoint())
 
     assert status["trusted_auto_remove_ips"] == [
         {"ip": "198.51.100.10", "last_auto_removed_at": None}
     ]
 
 
-def test_refresh_hint_returns_the_queued_state_immediately(tmp_path) -> None:
+def test_refresh_hint_returns_disabled_when_no_scheduler_runs(tmp_path) -> None:
     settings = Settings(
         database_path=tmp_path / "state.db",
         device_inventory_path=None,
@@ -94,5 +94,5 @@ def test_refresh_hint_returns_the_queued_state_immediately(tmp_path) -> None:
     refresh_route = next(route for route in app.routes if route.path == "/api/v1/refresh-hint")
     response = asyncio.run(refresh_route.endpoint())
 
-    assert response["status"] == "queued"
-    assert response["refresh"]["interactive_refresh_state"] == "queued"
+    assert response["status"] == "disabled"
+    assert response["refresh"]["refresh_enabled"] is False

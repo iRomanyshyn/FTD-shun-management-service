@@ -1,5 +1,6 @@
 """Internal state and event API. It is intended to listen only on a Unix socket."""
 
+import asyncio
 from contextlib import asynccontextmanager
 from ipaddress import IPv4Address
 from uuid import uuid4
@@ -68,6 +69,7 @@ def create_app(
         settings.interactive_refresh_min_interval_seconds,
         settings.trusted_auto_remove_ips,
         settings.history_retention_days,
+        enabled=settings.agent_mode != "disabled",
     )
 
     @asynccontextmanager
@@ -88,8 +90,14 @@ def create_app(
         lifespan=lifespan,
     )
 
+    @app.middleware("http")
+    async def prevent_state_caching(request: Request, call_next):
+        response = await call_next(request)
+        response.headers["Cache-Control"] = "no-store"
+        return response
+
     @app.get("/api/v1/status")
-    def service_status() -> dict[str, object]:
+    async def service_status() -> dict[str, object]:
         return {
             "status": "ready",
             "agent_mode": settings.agent_mode,
@@ -151,17 +159,23 @@ def create_app(
     @app.delete("/api/v1/devices/{device_id}/shuns/{ip}")
     async def remove_device_shun(device_id: int, ip: IPv4Address, request: Request, actor: Actor) -> dict:
         request_id = request.headers.get("x-request-id", str(uuid4()))
-        changed = remove_one(device_id, ip, actor, request_id)
+        try:
+            changed = await asyncio.to_thread(remove_one, device_id, ip, actor, request_id)
+        finally:
+            synchronizer.note_state_change()
         return {"changed": changed, "request_id": request_id}
 
     @app.post("/api/v1/shuns/{ip}/remove-all")
     async def remove_all_shuns(ip: IPv4Address, request: Request, actor: Actor) -> dict:
         request_id = request.headers.get("x-request-id", str(uuid4()))
         device_ids = sorted({shun.device_id for shun in store.list_active_shuns(ip)})
-        results = [
-            {"device_id": device_id, "changed": remove_one(device_id, ip, actor, request_id)}
-            for device_id in device_ids
-        ]
+        results = []
+        for device_id in device_ids:
+            try:
+                changed = await asyncio.to_thread(remove_one, device_id, ip, actor, request_id)
+            finally:
+                synchronizer.note_state_change()
+            results.append({"device_id": device_id, "changed": changed})
         return {"results": results, "request_id": request_id}
 
     return app

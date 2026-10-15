@@ -37,7 +37,7 @@ implementation and laboratory validation are recorded in Project Status.
 ## Snapshot collection and freshness
 
 The API performs a complete typed `show shun` snapshot at startup and then at
-`FTD_SHUN_POLL_INTERVAL` (default `5m`). The authenticated primary page may
+`FTD_SHUN_POLL_INTERVAL` (default `5m`). An authenticated list or detail page may
 queue one asynchronous refresh hint, but neither a page load nor a search waits
 for FTD SSH. The global/device minimum is
 `FTD_SHUN_INTERACTIVE_REFRESH_MIN_INTERVAL` (default `60s`).
@@ -71,11 +71,32 @@ queues an immediate refresh and the subsequent baseline is measured from that
 sweep.
 
 The page sends the refresh request asynchronously and receives its actual
-scheduler state immediately. It then polls the same authenticated Web/BFF for
-freshness metadata; it does not poll the agent or FTD. Once the successful
-refresh timestamp or refresh error changes, it reloads the rendered state once.
-The countdown reaching zero does not itself reload the page, preventing a
-reload loop while a bounded scheduled sweep is still running.
+scheduler state immediately. Requests from several users/tabs join an already
+queued or running sweep. It then polls the same authenticated Web/BFF for
+freshness metadata; it does not poll the agent or FTD. A completed-cycle
+revision identifies every outcome, including repeated identical errors and
+partial fleet success. A separate data revision identifies committed local
+changes, and a process identifier handles API restarts.
+
+The browser updates the state, history, and policy sections dynamically when
+these revisions change. Search text, removal confirmation input/focus, scroll,
+and expanded event history are preserved. The refresh controls and device
+status update without navigating or reloading the page. Status/submission/view
+requests run sequentially with finite timeouts, visible errors, and automatic
+retry backoff; polling pauses in hidden tabs and resumes when visible.
+
+The per-device table shows **Current**, **Refreshing**, **Stale**, **Error**,
+**Disabled**, or **Not yet confirmed**, last success, and error details. Data
+becomes stale once its last successful observation is older than the polling
+interval, or after a reported device failure. A failed device does not erase
+its stored entries or hide a successful observation from another device.
+Check the device table even when the fleet's last fully successful timestamp
+has not advanced. Disabled agent mode offers no refresh action.
+
+The countdown reaching zero does not itself reload the page or prove that the
+snapshot finished. If status becomes unavailable, the page retains the last
+displayed observations and shows an error. Authentication failures require a
+normal page reload/sign-in; there is no authentication bypass.
 
 Use the collapsed **Last events log** on the primary page for the latest 100
 local audit events. It is a convenient recent view, not an external log

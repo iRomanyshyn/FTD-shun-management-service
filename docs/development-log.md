@@ -788,6 +788,58 @@ agent checkpoint protocol remain planned. Their exact binary layout and batch
 limits require detailed design and lab validation before implementation is
 enabled.
 
+## 2026-10-15 — Revision-based refresh and preserved browser state
+
+**Status:** Implemented and tested locally; deployment/live integration pending
+
+Added process identity and explicit status/data/completed-cycle revisions to
+the synchronizer. Every sweep completion advances the cycle revision even for
+the same repeated error or a partially successful fleet refresh. Committed
+snapshots, local write outcomes, and retention deletions advance the data
+revision. Status now includes cycle start/completion/outcome and detached
+per-device health/freshness. Queued/running requests coalesce, so hints received
+during a slow sweep cannot leave an unintended extra sweep queued. Disabled
+agent mode no longer reports a refresh as queued.
+
+Replaced the browser's timestamp/error comparison and automatic reload with
+one sequential request loop covering manual POST, local BFF status, and
+authenticated page reads. Request deadlines, failure backoff, visible errors,
+hidden-tab suspension, and immediate retry controls avoid overlapping polling
+or silently losing a failed request. Updated data regions preserve unsent
+search text, confirmation values and focus, scroll, and expanded event history.
+The same refresh control and per-device status table are available on list and
+detail pages. Server timestamps are localized with timezone labels.
+
+The BFF captures revision metadata before state reads, whitelists status fields,
+and marks dynamic responses no-store. API status runs on the scheduler's event
+loop. Existing immediate manual removals perform their blocking agent call in
+a worker thread and publish a local data revision afterward, keeping status
+responsive and other tabs informed; this is not the planned durable queue.
+The Rust agent, fixed binary protocol, and verified-write requirements did not
+change. No schema migration, new secret, or new runtime dependency is needed.
+
+**Validation:** Python suite (51 passed) covers slow-cycle coalescing, repeated
+failures, partial fleet success, restart identity, detached status, disabled
+refresh, and BFF authentication/CSRF/no-store behavior. Real Chromium suite
+passed all three scenarios (four reported tests including the parent) using
+production templates/JavaScript and a synthetic localhost BFF: single-click
+refresh, slow in-flight status, two tabs, imminent baseline, repeated identical
+failures, status recovery, API restart, POST failure/retry, and preserved form/
+history state. Node syntax checks, Python compileall, Ruff, and
+`git diff --check` passed. The ASGI/thread-pool and Chromium checks required
+execution outside the restricted sandbox; no test connected to FTD or used
+the local deployment's credentials or users.
+
+**Operational impact:** Rebuild API and Web together; old browser tabs need a
+one-time reload to load the new script. Reverting both images is sufficient
+for rollback because there is no schema/configuration change. The normal API
+startup snapshot and configured trusted-IP policy still apply on restart.
+
+**Known limitations:** No deployment or live FTD/Authelia test was performed in
+this increment. Durable operation queues, cross-restart cycle gates, queued
+mutation progress, agent session reuse, mid-batch priority snapshots, and shun
+addition/import remain the subsequent planned work.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

@@ -51,3 +51,28 @@ cargo test --manifest-path agent/Cargo.toml
 ```
 
 The agent test suite covers strict binary request decoding, the typed `LIST_SHUNS` response, and fail-closed parsing of `show shun` output. Do not use `mock` to validate Cisco behavior. The actual agent requires recorded, sanitized device output and a non-production FTD lab.
+
+## Browser refresh regression checks
+
+With Node.js 22+ (built-in WebSocket support), Chromium, and the Python package
+available in the same environment, run:
+
+```bash
+node --test tests/browser/freshness.cjs
+```
+
+Set `CHROMIUM` to the Chromium executable if it is not `chromium-browser`.
+The test uses the real repository templates and freshness JavaScript, an
+ephemeral localhost server with synthetic status/state, and a temporary browser
+profile. It requires local socket binding and Chromium's sandbox support; it
+does not use Docker, `.env`, real authentication users, or FTD connectivity.
+No npm installation is needed.
+
+Scenarios cover a single manual request, a slow in-flight status response,
+multiple tabs, imminent-baseline display, repeated identical failures, API
+restart, status/network recovery, failed POST/retry, and preservation of search
+text, expanded history, confirmation values, and focus during partial updates.
+Python tests separately exercise the real scheduler's slow-cycle coalescing,
+partial fleet success, detached revisions, and BFF authentication/CSRF/no-store
+boundaries. The browser fixture is not evidence of live FTD or Authelia
+compatibility; that remains an integration/laboratory check.

@@ -1,0 +1,17 @@
+<section class="refresh-panel" aria-labelledby="refresh-heading" data-refresh-controller data-status-url="/refresh-status" data-auto-request="true">
+<script type="application/json" data-refresh-initial>{{ refresh | tojson }}</script>
+<h2 id="refresh-heading">Refresh status</h2>
+<p class="refresh-status">Data last confirmed: <time class="last-successful-refresh" datetime="{{ refresh.last_successful_refresh or '' }}">{{ refresh.last_successful_refresh or "not yet available" }}</time>. Next scheduled check: <span class="baseline-countdown">{{ refresh.next_baseline_refresh or "not scheduled" }}</span>.</p>
+<form method="post" action="/refresh" class="request-refresh-form" data-refresh-form>
+<input type="hidden" name="csrf" value="{{ csrf_token }}">
+<input type="hidden" name="q" value="{{ search_query | default('') }}">
+<button type="submit" data-refresh-request>Request refresh</button>
+</form>
+<p data-refresh-message role="status" aria-live="polite"></p>
+<p class="refresh-error" data-refresh-warning{% if not refresh.last_error %} hidden{% endif %}>{{ refresh.last_error or '' }}</p>
+<table class="device-status"><thead><tr><th>Device</th><th>State</th><th>Last confirmed</th><th>Details</th></tr></thead><tbody data-device-status>
+{% for device_id, device in refresh.devices.items() %}
+<tr><td>{{ device.hostname or device_id }}</td><td>{{ device.state or 'pending' }}</td><td>{{ device.last_successful_refresh or 'Not yet available' }}</td><td>{{ device.last_error or '—' }}</td></tr>
+{% endfor %}
+</tbody></table>
+</section>

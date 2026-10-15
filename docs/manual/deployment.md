@@ -168,6 +168,7 @@ Expected results:
 - `ftd-shun-operators` and `ftd-shun-administrators` can see removal actions;
 - the agent process is healthy and its socket is owned by UID `10002`, group `10001`, mode `0660`;
 - the API reports a successful initial snapshot and the UI shows its last-confirmed refresh, next baseline countdown, and a plain-language background-refresh status;
+- the refresh controls show per-device freshness/errors and update state/history in place after revision changes, preserving search text and confirmation input; concurrent refresh hints join the same sweep;
 - the primary page supports exact-IP/dotted-prefix local search across current state and retained history, clearly distinguishes historical-only results, and offers a countdown-backed **Request refresh** hint;
 - the collapsed **Last events log** shows up to 100 recent local audit events;
 - the UI reports the configured history-retention period (366 days by default);

@@ -1257,11 +1257,33 @@ the following baseline interval after the sweep completes.
 The authenticated browser must obtain freshness transitions through a dedicated
 same-origin BFF status resource, not by relying on a POST/redirect race. A
 refresh request returns the scheduler's resulting state immediately (`queued`,
-`baseline_pending`, or rate-limited), and the browser polls the BFF status while
-the page remains open. It reloads the server-rendered state exactly once only
-after a successful-refresh timestamp or refresh error changes. Reaching a
-baseline countdown deadline alone is not proof that the scheduled FTD snapshot
-has completed and must not trigger a reload loop.
+`baseline_pending`, `running`, or rate-limited), and the browser polls the BFF
+status while the page is visible. Requests received during a queued/running
+sweep join that sweep and cannot schedule an additional one. The browser uses
+one sequential request loop for refresh submissions, status, and state reads,
+with finite request timeouts and failure backoff. Hidden pages suspend polling.
+
+Status includes a process `instance_id`, monotonic `status_revision`,
+`data_revision`, and `cycle_revision`, plus cycle ID, start/completion times,
+outcome, and per-device state/freshness. Every finished sweep increments
+`cycle_revision`, including identical repeated failures and partial fleet
+success. `data_revision` advances after committed snapshots, verified local
+mutation results, and history purges. These counters are process-local; a new
+instance ID invalidates previous counters after restart. Timestamps remain
+operator information, not completion/change tokens.
+
+The Web/BFF captures status before reading state for a page, so a change during
+rendering cannot be hidden behind a newer revision. When data/cycle revisions
+or the instance change, the browser fetches that same authenticated page and
+replaces only designated state/history regions. Preserve unsent search text,
+confirmation values, focus, scroll, and expanded history; use fresh server CSRF
+fields and do not automatically reload the page. Status responses, dynamic
+state reads, and refresh responses use `Cache-Control: no-store`.
+
+Per-device UI status distinguishes current, refreshing, stale, error, disabled,
+and not-yet-confirmed data. An unsuccessful snapshot never clears the previous
+observed state. Reaching a baseline countdown deadline alone is not proof of
+snapshot completion and must not initiate a reload.
 
 The primary page must expose a collapsed **Last events log** containing the
 latest 100 local audit events. It is read-only, uses the same timestamp rules,
