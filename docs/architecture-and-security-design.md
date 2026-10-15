@@ -2529,9 +2529,16 @@ bounded typed addresses and explicitly selected enabled device IDs for a local
 SQLite classification read. It cannot enqueue work, issue refresh hints, open
 SSH or claim a validated creation-interface scope. Preview results are point-in-
 time advisory data; there is no Queue import action or executable preview token.
-Limits are 64 KiB UTF-8 text, 2,000 lines, 1,000 preview rows, 64 selected devices
-and 5,000 expanded device/IP pairs. The form request body is capped at 256 KiB
-before decoding, including chunked bodies. Preview is available to authenticated
+Limits are 1 MiB UTF-8 text, 20,000 lines, 10,000 preview rows, 64 selected devices
+and 100,000 expanded device/IP pairs. The form request body is capped at
+3 MiB + 16 KiB before decoding, including chunked bodies, allowing worst-case
+percent encoding and bounded metadata. Browser validation counts UTF-8 bytes
+with native form CRLF line endings; it must not silently truncate pasted text.
+All rows are classified before rendering a 100-row result page with full-list
+counts. Pagination re-submits the current form for a fresh local preview; no
+source/batch is stored in a server session or URL. Decoded-source validation failures
+retain the escaped form and explicit error rather than a JSON-only page.
+Preview is available to authenticated
 users; future admission still requires its separate write authorization and
 fresh policy/state checks. No source text becomes a Cisco command.
 

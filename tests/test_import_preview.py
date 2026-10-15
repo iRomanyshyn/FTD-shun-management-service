@@ -12,7 +12,11 @@ from ftd_shun_manager.api import create_app
 from ftd_shun_manager.config import Settings
 from ftd_shun_manager.import_preview import (
     MAX_FORM_BYTES,
+    MAX_LINES,
+    MAX_ROWS,
+    MAX_TEXT_BYTES,
     classify_targets,
+    paginate_preview,
     parse_blocklist,
     summarize_preview,
 )
@@ -67,7 +71,8 @@ def test_free_text_with_multiple_candidates_is_ambiguous(source):
 
 
 def test_parser_limits_and_bounded_excerpt_comments():
-    for text in ["x" * 65537, "ї" * 32769, "\n" * 2001, "198.51.100.10 " * 1001]:
+    for text in ["x" * (MAX_TEXT_BYTES + 1), "ї" * (MAX_TEXT_BYTES // 2 + 1),
+                 "\n" * (MAX_LINES + 1), "198.51.100.10 " * (MAX_ROWS + 1)]:
         with pytest.raises(ValueError):
             parse_blocklist(text)
     row = parse_blocklist("198.51.100.10 # " + "x" * 500)["rows"][0]
@@ -76,7 +81,8 @@ def test_parser_limits_and_bounded_excerpt_comments():
 
 
 def test_maximum_length_hostile_tokens_do_not_extract_substrings():
-    for text in ["9" * 65536, "9" * 65535 + ".", "(" * 32760 + "1.2.3.4" + ")" * 32760]:
+    for text in ["9" * MAX_TEXT_BYTES, "9" * (MAX_TEXT_BYTES - 1) + ".",
+                 "(" * (MAX_TEXT_BYTES // 2 - 8) + "1.2.3.4" + ")" * (MAX_TEXT_BYTES // 2 - 8)]:
         parsed = parse_blocklist(text)
         assert parsed["ips"] == [] and len(parsed["rows"]) == 1
 
@@ -118,10 +124,10 @@ def test_preview_validation_limits_and_no_stale_policy_cache(fixture):
             classify_targets(store, [ip], ids)
     with pytest.raises(ValueError):
         classify_targets(store, [ip, ip], [1])
-    many = [IPv4Address(0xC0000200 + index) for index in range(1000)]
-    with pytest.raises(ValueError, match="5,000"):
-        classify_targets(store, many, list(range(1, 7)))
-    with pytest.raises(ValueError, match="1,000"):
+    many = [IPv4Address(0xC0000200 + index) for index in range(MAX_ROWS)]
+    with pytest.raises(ValueError, match="100,000"):
+        classify_targets(store, many, list(range(1, 12)))
+    with pytest.raises(ValueError, match="10,000"):
         classify_targets(store, [*many, IPv4Address("198.51.100.99")], [1])
     policy.change("edit", ip, policy.revision(), "fixture", "Fixture", (), enabled=False)
     assert classify_targets(store, [ip], [1])["addresses"][0]["protected"] is False
@@ -194,6 +200,26 @@ def test_bff_preview_auth_csrf_escaping_raw_text_is_not_forwarded(fixture, monke
             assert not any("refresh-hint" in r.url.path for r in captured)
             no_devices = await client.post("/imports", data={"csrf": token, "text": "192.0.2.10"})
             assert no_devices.status_code == 422 and "Nothing was queued" in no_devices.text
+            assert 'maxlength="65536"' not in page.text
+            for oversized in ["x" * (MAX_TEXT_BYTES + 1), "ї" * (MAX_TEXT_BYTES // 2 + 1)]:
+                captured.clear()
+                rejected = await client.post("/imports", data={**data, "text": oversized})
+                assert rejected.status_code == 413 and "text/html" in rejected.headers["content-type"]
+                assert "Paste at most 1 MiB" in rejected.text and oversized in rejected.text
+                assert not any(r.method == "POST" for r in captured), "Oversize text must not be classified or queued"
+            for invalid_page in ["0", "101", "9999", "invalid", "１"]:
+                rejected = await client.post("/imports", data={**data, "page": invalid_page})
+                assert rejected.status_code == 422 and "Select a preview page" in rejected.text
+            long_source = "\r\n".join(f"shun {IPv4Address(0xC6120000 + index)}" for index in range(7307))
+            for selected_page, row_count in [("1", 100), ("2", 100), ("74", 7), ("100", 7)]:
+                response = await client.post("/imports", data={**data, "text": long_source, "page": selected_page})
+                assert response.status_code == 200
+                assert "7307 rows · 7307 unique IPv4 addresses" in response.text
+                assert "7307 candidate device/IP pairs" in response.text
+                assert response.text.count("data-preview-state=") == row_count
+                assert "shun 198.18.28.138" in response.text, "The final source line must survive every form render"
+                assert f"Page {min(int(selected_page), 74)} of 74" in response.text
+            assert api.state.synchronizer.queue.status()["counts"] == {}
     asyncio.run(scenario())
 
 
@@ -204,15 +230,35 @@ def test_preview_body_limits_include_chunked_encoding_and_repeated_fields(fixtur
     async def scenario():
         async with httpx.AsyncClient(transport=httpx.ASGITransport(app=web.create_app(config)), base_url="https://lab.test", headers={"Remote-User": "user"}) as client:
             client.cookies.set("ftd_shun_csrf", "token")
-            for body, expected in [("x" * (MAX_FORM_BYTES + 1), 413), ("csrf=token&text=" + "x" * 65537, 413),
+            for body, expected in [("x" * (MAX_FORM_BYTES + 1), 413),
                                    ("csrf=token&csrf=token&text=198.51.100.10", 422), ("csrf=token&subject=forged", 422)]:
                 assert (await client.post("/imports", content=body, headers={"Content-Type": "application/x-www-form-urlencoded"})).status_code == expected
             assert (await client.post("/imports", json={"text": "198.51.100.10"})).status_code == 415
 
             async def oversized():
                 for _ in range(5):
-                    yield b"x" * 65536
+                    yield b"x" * (MAX_FORM_BYTES // 4)
             assert (await client.post("/imports", content=oversized(), headers={"Content-Type": "application/x-www-form-urlencoded"})).status_code == 413
-            body = urlencode({"csrf": "token", "text": "ї" * 32769})
-            assert (await client.post("/imports", content=body, headers={"Content-Type": "application/x-www-form-urlencoded"})).status_code == 413
     asyncio.run(scenario())
+
+
+def test_maximum_batch_is_classified_whole_and_paginated_without_loss(fixture):
+    store, policy, _ = fixture
+    source = "\n".join(f"shun {IPv4Address(0xC6120000 + index)}" for index in range(MAX_ROWS))
+    before = store.list_events()
+    parsed = parse_blocklist(source)
+    classified = classify_targets(store, [IPv4Address(ip) for ip in parsed["ips"]], [1, 2])
+    result = summarize_preview(parsed, classified)
+    assert result["candidate_pairs"] == 2 * MAX_ROWS and result["counts"] == {"Ready": MAX_ROWS}
+    pages = [paginate_preview(result, index) for index in range(1, 101)]
+    assert all(len(page["page_rows"]) == 100 for page in pages)
+    assert [row["ip"] for page in pages for row in page["page_rows"]] == parsed["ips"]
+    assert pages[-1]["first_row"] == 9901 and pages[-1]["last_row"] == MAX_ROWS
+    assert store.list_events() == before and policy.queue.status()["counts"] == {}
+
+
+def test_largest_utf8_form_encoding_with_metadata_fits_request_cap():
+    source = "ї" * (MAX_TEXT_BYTES // 2)
+    body = urlencode({"csrf": "x" * 43, "text": source, "label": "ї" * 100, "reason": "ї" * 500})
+    assert len(body.encode("ascii")) <= MAX_FORM_BYTES
+    assert parse_blocklist(source)["rows"][0]["status"] == "Invalid"

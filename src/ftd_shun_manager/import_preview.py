@@ -6,12 +6,13 @@ from ipaddress import IPv4Address, IPv6Address
 
 from .store import Store
 
-MAX_TEXT_BYTES = 65536
-MAX_FORM_BYTES = 262144
-MAX_LINES = 2000
-MAX_ROWS = 1000
+MAX_TEXT_BYTES = 1024 * 1024
+MAX_FORM_BYTES = 3 * MAX_TEXT_BYTES + 16 * 1024
+MAX_LINES = 20000
+MAX_ROWS = 10000
 MAX_DEVICES = 64
-MAX_PAIRS = 5000
+MAX_PAIRS = 100000
+PAGE_SIZE = 100
 
 _DOTTED = re.compile(r"[0-9]\.[0-9]")
 _LABEL = re.compile(r"[A-Za-z_][A-Za-z0-9_-]*=(.+)")
@@ -61,10 +62,10 @@ def _token(value: str) -> dict | None:
 
 def parse_blocklist(text: str) -> dict:
     if len(text.encode("utf-8")) > MAX_TEXT_BYTES:
-        raise ValueError("Paste at most 64 KiB of UTF-8 text.")
+        raise ValueError("Paste at most 1 MiB of UTF-8 text. Nothing was parsed; shorten the input and try again.")
     lines = text.splitlines()
     if len(lines) > MAX_LINES:
-        raise ValueError("Paste at most 2,000 lines.")
+        raise ValueError(f"Paste at most {MAX_LINES:,} lines.")
     rows = []
     first = {}
     ignored = 0
@@ -89,13 +90,13 @@ def parse_blocklist(text: str) -> dict:
             entries = candidates
         for entry in entries:
             if len(rows) >= MAX_ROWS:
-                raise ValueError("Preview is limited to 1,000 rows; split the input into smaller batches.")
+                raise ValueError(f"Preview is limited to {MAX_ROWS:,} rows; split the input into smaller batches.")
             row = {**base, "source_lines": [number], **{key: entry[key] for key in ("ip", "status", "reason")}}
             if row["ip"] is not None:
                 if row["ip"] in first:
                     previous = first[row["ip"]]
                     row.update(status="Duplicate", reason=f"Already listed on line {previous['line']}.")
-                    if number not in previous["source_lines"]:
+                    if previous["source_lines"][-1] != number:
                         previous["source_lines"].append(number)
                 else:
                     first[row["ip"]] = row
@@ -106,11 +107,11 @@ def parse_blocklist(text: str) -> dict:
 def classify_targets(store: Store, ips: list[IPv4Address], device_ids: list[int]) -> dict:
     """Read one consistent SQLite snapshot, without queue or agent access."""
     if len(ips) > MAX_ROWS or len(set(ips)) != len(ips):
-        raise ValueError("At most 1,000 unique IPv4 addresses may be previewed.")
+        raise ValueError(f"At most {MAX_ROWS:,} unique IPv4 addresses may be previewed.")
     if not 1 <= len(device_ids) <= MAX_DEVICES or len(set(device_ids)) != len(device_ids):
         raise ValueError("Select between 1 and 64 distinct devices.")
     if len(ips) * len(device_ids) > MAX_PAIRS:
-        raise ValueError("Preview exceeds 5,000 device/IP pairs; reduce the batch or selected devices.")
+        raise ValueError(f"Preview exceeds {MAX_PAIRS:,} device/IP pairs; reduce the batch or selected devices.")
     with store._connection() as db:
         db.execute("BEGIN")
         placeholders = ",".join("?" for _ in device_ids)
@@ -155,3 +156,13 @@ def summarize_preview(parsed: dict, classification: dict) -> dict:
     return {**parsed, "counts": dict(Counter(row["status"] for row in parsed["rows"])),
             "candidate_pairs": pairs, "devices": classification["devices"],
             "policy_revision": classification["policy_revision"]}
+
+
+def paginate_preview(preview: dict, page: int = 1) -> dict:
+    """Bound rendered rows only; classification and totals cover the entire input."""
+    pages = max(1, (len(preview["rows"]) + PAGE_SIZE - 1) // PAGE_SIZE)
+    page = min(max(1, page), pages)
+    offset = (page - 1) * PAGE_SIZE
+    return {**preview, "page": page, "pages": pages,
+            "first_row": offset + 1, "last_row": min(offset + PAGE_SIZE, len(preview["rows"])),
+            "page_rows": preview["rows"][offset:offset + PAGE_SIZE]}

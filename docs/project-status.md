@@ -4,6 +4,25 @@ Last updated: 2026-10-15
 
 ## Current increment
 
+**Large-list preview fix (2026-10-15).** Removed the textarea character limit
+that silently truncated pastes and conflicted with server UTF-8 validation.
+Preview now accepts 1 MiB, 20,000 lines, 10,000 rows, 64 selected devices and
+100,000 expanded pairs; the encoded body cap is 3 MiB + 16 KiB. A live byte
+counter uses native form CRLF line endings and preserves over-limit input for
+correction. Bounded decoded-text errors render the form rather than a JSON-only
+page. Full-list parsing/classification precedes 100-row result pagination;
+page changes re-parse current input without storing source. The supplied
+149,376-byte list parses fully as 7,307 unique candidates (not executed).
+179 Python tests and fourteen Chromium scenarios passed (15 reported browser
+tests). API/Web were deployed after explicit approval. The updated Web parser
+accepts all 7,307 supplied addresses; a deployed typed synthetic preview also
+returns all 7,307 with can_execute=false and zero audit change. Six VERIFIED
+outcomes, three policy entries and revision 3 remain intact; quick_check is ok.
+Anonymous preview GET/POST remain 401 and HTTPS redirects normally to Authelia.
+No ADD/queue admission or schema change. Reload tabs and paste the original
+full source again: content truncated by the old field cannot be recovered by
+the update. Authenticated live UI inspection remains an operator task.
+
 **Protected IP state visibility (2026-10-15).** Enabled entries use green badges
 and disabled entries use red badges, both with explicit text. Disabled addresses
 still locally observed in shun get red warnings in Protected IPs, active rows,

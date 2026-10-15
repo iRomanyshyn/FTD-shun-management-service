@@ -26,6 +26,10 @@ from a Ready preview row, mock tests or the number of candidates.
 5. Review every outcome, source line, bounded excerpt/comment and selected
    device state. The candidate pair count excludes duplicates, protected IPs
    and already observed device/IP matches. It is not a queued-operation count.
+6. Results show 100 rows per page, with First/Previous/Next/Last controls and
+   full-list counts. Changing pages submits the current form again and reads
+   fresh local policy/observations; edited input can change the page count.
+   No input is saved in a server session or placed in a URL.
 
 The classification reads one SQLite snapshot. Status gives observation
 freshness; preview does not query Cisco or request a refresh. A snapshot may be
@@ -73,14 +77,26 @@ before correcting anything: parser refusal is not permission to truncate input.
 
 ## Limits and privacy
 
-- 64 KiB of UTF-8 source text, 2,000 lines, 1,000 total preview rows (including
-  duplicates/refused rows), up to 64 selected devices and 5,000 expanded unique
+- 1 MiB of UTF-8 source text, 20,000 lines, 10,000 total preview rows (including
+  duplicates/refused rows), up to 64 selected devices and 100,000 expanded unique
   device/IP pairs before exclusions. Exceeding limits rejects the preview;
   there is no silently accepted partial batch.
-- The URL-encoded form body is capped at 256 KiB before decoding, including
+- The paste field has no character-count truncation. Its live counter measures
+  UTF-8 bytes including native form CRLF line endings, not JavaScript character
+  count. Oversized input stays editable with an explicit validation message;
+  it is not submitted while over the limit. Without JavaScript, the server
+  still validates the full input and displays bounded validation errors in
+  the form with the pasted source retained. Nothing is partially parsed.
+- The URL-encoded form body is capped at 3 MiB + 16 KiB before decoding, including
   chunked requests. Multipart/file uploads are unsupported. Unexpected/repeated
   scalar fields and excessive field counts are rejected. The larger encoded
-  limit allows percent-encoded UTF-8 and ordinary metadata overhead.
+  limit allows worst-case percent-encoded UTF-8 and bounded metadata overhead.
+  Requests exceeding that outer cap are rejected before form rendering; use
+  browser Back to recover the original paste if JavaScript was unavailable.
+- All source rows are parsed and classified before selecting the visible
+  100-row page. Rendering fewer rows never reduces the candidate count or
+  silently accepts a partial batch. Divide devices/batches explicitly if the
+  expanded device/IP limit is exceeded.
 - Source excerpts and inline comments are each bounded to 200 characters and
   HTML-escaped, as are the paste, label and reason. All source is treated as data.
 - Raw paste/labels/reason remain in Web memory/browser form only. They are not
@@ -97,6 +113,8 @@ Upgrade paired API/Web and reload tabs. No schema migration, environment
 setting, agent update or state reset is needed. Reverting to the preceding paired
 images removes preview routes/UI without touching existing policy/history/queue.
 No real test shun needs to be created to validate this preview.
+Reverting only the large-list update restores the older paste/row/pair limits;
+it does not affect stored data because previews remain unpersisted.
 
 Next, finish the existing removal-cycle laboratory evidence and separately
 design/lab validate the narrow ADD operation before creating import admission,

@@ -3,7 +3,7 @@
 <h1>Blocklist import preview</h1>
 {% include "refresh-panel.html" %}
 <p class="preview-boundary"><strong>Preview only — device additions are unavailable.</strong> Nothing is queued or sent to FTD. Creation interface scope and the ADD operation still require implementation and laboratory validation.</p>
-<form method="post" action="/imports" class="import-form">
+<form id="import-preview-form" method="post" action="/imports" class="import-form">
 <input type="hidden" name="csrf" value="{{ csrf_token }}">
 <label for="batch-label">Batch label (optional)</label><input id="batch-label" name="label" value="{{ batch_label }}" maxlength="100">
 <label for="batch-reason">Reason (optional)</label><input id="batch-reason" name="reason" value="{{ batch_reason }}" maxlength="500">
@@ -11,9 +11,10 @@
 {% for device in devices %}<label class="device-choice"><input type="checkbox" name="device_ids" value="{{ device.id }}"{% if device.id in selected_devices %} checked{% endif %}{% if not device.enabled %} disabled{% endif %}> {{ device.hostname }}{% if not device.enabled %} — disabled{% endif %}</label>{% else %}<p>No configured devices are available.</p>{% endfor %}
 </fieldset>
 <label for="blocklist-text">Pasted addresses</label>
-<textarea id="blocklist-text" name="text" rows="12" maxlength="65536" required placeholder="198.51.100.10 # example office&#10;203.0.113.20, 203.0.113.21&#10;Suspicious source 192.0.2.30 detected">{{ source_text }}</textarea>
-<p class="preview-help">Up to 64 KiB UTF-8, 2,000 lines and 1,000 preview rows. Use exact IPv4 addresses, whitespace/comma/semicolon lists or one address in text. Whole-line # / // comments and inline # comments are ignored as targets. CIDRs, ranges, IPv6, URLs and IP:port forms are not expanded or guessed.</p>
-<button type="submit">Parse preview</button>
+<textarea id="blocklist-text" name="text" rows="12" spellcheck="false" autocapitalize="off" autocomplete="off" data-max-bytes="{{ import_text_limit }}" aria-describedby="paste-size paste-help" required placeholder="198.51.100.10 # example office&#10;203.0.113.20, 203.0.113.21&#10;Suspicious source 192.0.2.30 detected">{{ source_text }}</textarea>
+<p id="paste-size" class="preview-help" role="status">Limit: 1 MiB of UTF-8 text. Input is never silently truncated.</p>
+<p id="paste-help" class="preview-help">Up to 1 MiB UTF-8, 20,000 lines, 10,000 preview rows and 100,000 device/IP pairs. Use exact IPv4 addresses, whitespace/comma/semicolon lists or one address in text. Whole-line # / // comments and inline # comments are ignored as targets. CIDRs, ranges, IPv6, URLs and IP:port forms are not expanded or guessed.</p>
+<button type="submit" name="page" value="1">Parse preview</button>
 </form>
 {% if preview_error %}<p class="preview-error" role="alert">{{ preview_error }} Nothing was queued.</p>{% endif %}
 {% if preview %}
@@ -25,8 +26,17 @@
 <p><strong>{{ preview.candidate_pairs }} candidate device/IP pairs</strong> after excluding duplicates, protected addresses and already observed shuns. These are not queued operations.</p>
 <p>This is a point-in-time check of retained local observations (policy revision {{ preview.policy_revision }}), not a fresh Cisco query. Open Status for freshness. Policy and observations can change: parse again to recheck.</p>
 <p>Selected devices: {% for device in preview.devices %}{{ device.hostname }}{% if not loop.last %}, {% endif %}{% endfor %}. <strong>Creation interface scope: not yet validated.</strong></p>
+<nav class="preview-pagination" aria-label="Preview result pages">
+<p>Page {{ preview.page }} of {{ preview.pages }} · Showing rows {{ preview.first_row }}–{{ preview.last_row }} of {{ preview.rows | length }}. Counts above cover the entire list.</p>
+<div class="pagination-controls">
+<button type="submit" form="import-preview-form" name="page" value="1"{% if preview.page <= 1 %} disabled{% endif %}>First page</button>
+<button type="submit" form="import-preview-form" name="page" value="{{ preview.page - 1 }}"{% if preview.page <= 1 %} disabled{% endif %}>Previous 100</button>
+<button type="submit" form="import-preview-form" name="page" value="{{ preview.page + 1 }}"{% if preview.page >= preview.pages %} disabled{% endif %}>Next 100</button>
+<button type="submit" form="import-preview-form" name="page" value="{{ preview.pages }}" data-preview-last{% if preview.page >= preview.pages %} disabled{% endif %}>Last page</button>
+</div><p class="preview-help">Changing pages re-parses the current form and rechecks local state. No source is saved on the server. Changed input or policy can change the results.</p>
+</nav>
 <div class="table-scroll"><table class="preview-table"><thead><tr><th>IP / result</th><th>Source lines</th><th>Selected device state</th><th>Reason / comment</th><th>Source excerpt</th></tr></thead><tbody>
-{% for row in preview.rows %}<tr data-preview-state="{{ row.status }}"{% if row.protected %} class="protected-shun"{% endif %}>
+{% for row in preview.page_rows %}<tr data-preview-state="{{ row.status }}"{% if row.protected %} class="protected-shun"{% endif %}>
 <td>{% if row.ip %}{{ row.ip }}{% else %}—{% endif %}<br><strong>{{ row.status }}</strong>{% if row.protected %}<span class="protected-ip-badge">Protected IP</span>{% endif %}</td>
 <td>{{ row.source_lines | join(', ') }}</td>
 <td>{% for device in row.devices %}<div>{{ device.hostname }}: {% if row.protected %}Protected — excluded{% elif row.status == 'Duplicate' %}Duplicate — excluded{% elif device.already_shunned %}Already shunned{% else %}Candidate only{% endif %}</div>{% else %}No target extracted{% endfor %}</td>
@@ -36,4 +46,5 @@
 </section>
 {% endif %}
 <script src="/static/freshness.js" defer></script>
+<script src="/static/import-preview.js" defer></script>
 {% endblock %}

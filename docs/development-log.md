@@ -1411,6 +1411,73 @@ Caddy, Authelia, schema, secrets and `.env` are unchanged. No policy mutation,
 queue admission or new device write was submitted for validation. Reload tabs;
 authenticated live UI inspection remains an operator task.
 
+## 2026-10-15 — Large-list preview limits, byte validation and result pagination
+
+**Status:** Implemented, tested and deployed to the explicitly approved dev lab
+
+The operator supplied a 149,376-byte, 7,307-address list that exceeded the
+original 64 KiB/2,000-line/1,000-row limits. HTML maxlength also truncated pastes
+by characters while the server measured UTF-8 bytes, causing confusing partial
+input and JSON-only errors. Raised the reviewed bounded preview limits to
+1 MiB source, 20,000 lines, 10,000 rows, 64 devices and 100,000 expanded pairs.
+The outer encoded-body cap is 3 MiB + 16 KiB for worst-case percent encoding
+and metadata, including chunked requests. These are read/preview budgets,
+not agent command or worker mutation limits.
+
+Removed textarea maxlength and added a local UTF-8 byte counter using native
+form CRLF line endings. Over-limit input remains editable and is blocked with
+an explicit message; no silent truncation. Server-side decoded-text errors
+retain escaped form data and HTML feedback even without JavaScript. Outer body
+cap/encoding/CSRF failures remain controlled request rejections. The parser
+runs in a worker thread and duplicate source-line tracking is linear in the
+number of occurrences rather than repeatedly scanning the growing list.
+
+All rows are parsed/classified before rendering 100-row pages with full-list
+counts and First/Previous/Next/Last controls. Bounded page values submit the
+same CSRF-protected form and recheck the current local snapshot; no URL text,
+server-side draft, executable token, SQLite data or source logging is added.
+The supplied attachment was processed locally in memory, producing 7,307
+unique Ready candidates with no rejected/truncated rows; it was not committed,
+queued, sent to an agent or applied to FTD.
+
+**Validation:** 179 Python tests passed. Extended tests exercise the maximum
+10,000-row batch, all-page coverage without omissions/overlap, full pair counts,
+7,307-row BFF requests, page clamping/validation, oversized ASCII/multibyte HTML
+feedback, worst-case UTF-8 encoding, chunked body caps and retained no-write
+boundaries. All fourteen Chromium scenarios passed (15 reported browser tests),
+including a real 7,307-row clipboard paste, first/next/last pages with 100/100/7
+rows, preserved final source address, full candidate counts and oversized
+multibyte input rejected without submission/truncation. Initial CDP text-entry
+attempts timed out; the test now exercises actual clipboard paste within its
+isolated headless profile with fixture-local permission, not the operator's
+browser. CDP calls now have explicit 15-second deadlines. Spell checking is
+disabled for the bulk address field. Compileall, Ruff, JavaScript syntax and
+diff checks passed. No live authenticated UI or FTD write was used as evidence.
+
+**Operational impact:** Upgrade API/Web together and reload tabs. No schema,
+configuration, secret, agent/protocol or queue-budget change. Prior paired
+images restore the former input limits without changing persisted state.
+The operator approved deployment after tests, acknowledging that restart may
+execute existing queue/policy work. No device mutation or new refresh hint is
+needed for validation; actual addition/import remains unavailable.
+
+**Deployment:** Tagged preceding API/Web images
+`before-large-preview-20261015t182533z`, built replacements, gracefully stopped
+Web before API and recreated only those services. The deployed Web's pure parser
+read the operator attachment through stdin in memory and accepted all 7,307
+unique addresses/149,376 bytes; only counts were printed. Raw attachment text
+was not sent to API/agent or stored. A separate typed synthetic API preview
+returned 7,307 addresses, preview_only=true/can_execute=false and zero audit
+change during the read. All six VERIFIED outcomes, three existing protected
+entries and policy revision 3 remain; quick_check is ok, last_error is null,
+and the restarted scheduler initially reports not_started without an extra
+refresh hint. Anonymous Import preview GET/POST and other pages/status return
+401; the new script returns 200 and HTTPS redirects to Authelia with normal TLS
+verification. No schema, environment, secret, policy, agent, Caddy or Authelia
+change was made. Reload tabs and re-paste the original full list because the
+old field's already-truncated content cannot be reconstructed. Authenticated
+live browser inspection remains an operator task.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

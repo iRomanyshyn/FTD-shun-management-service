@@ -21,11 +21,20 @@ from fastapi.templating import Jinja2Templates
 from starlette.concurrency import run_in_threadpool
 
 from .config import Settings
-from .import_preview import MAX_FORM_BYTES, MAX_TEXT_BYTES, parse_blocklist, summarize_preview
+from .import_preview import (
+    MAX_FORM_BYTES,
+    MAX_ROWS,
+    MAX_TEXT_BYTES,
+    PAGE_SIZE,
+    paginate_preview,
+    parse_blocklist,
+    summarize_preview,
+)
 
 PROJECT_ROOT = Path(os.environ.get("FTD_SHUN_ASSET_ROOT", Path(__file__).resolve().parents[2]))
 templates = Jinja2Templates(directory=str(PROJECT_ROOT / "templates"))
 templates.env.globals["new_operation_key"] = lambda: str(uuid4())
+templates.env.globals["import_text_limit"] = MAX_TEXT_BYTES
 
 
 @dataclass(frozen=True)
@@ -75,17 +84,17 @@ async def preview_form(request: Request) -> dict[str, list[str]]:
         if not length.isascii() or not length.isdecimal() or len(length) > 10:
             raise HTTPException(400, "Invalid request length.")
         if int(length) > MAX_FORM_BYTES:
-            raise HTTPException(413, "Paste request exceeds 256 KiB.")
+            raise HTTPException(413, "Encoded paste request exceeds 3 MiB + 16 KiB. Nothing was parsed or queued.")
     body = bytearray()
     async for chunk in request.stream():
         if len(body) + len(chunk) > MAX_FORM_BYTES:
-            raise HTTPException(413, "Paste request exceeds 256 KiB.")
+            raise HTTPException(413, "Encoded paste request exceeds 3 MiB + 16 KiB. Nothing was parsed or queued.")
         body.extend(chunk)
     try:
         fields = parse_qs(body.decode("ascii"), encoding="utf-8", errors="strict", keep_blank_values=True, max_num_fields=80)
     except (ValueError, UnicodeError) as error:
         raise HTTPException(400, "Invalid preview form encoding or field count.") from error
-    if set(fields) - {"csrf", "text", "device_ids", "label", "reason"} or any(
+    if set(fields) - {"csrf", "text", "device_ids", "label", "reason", "page"} or any(
         len(values) != 1 for key, values in fields.items() if key != "device_ids"
     ):
         raise HTTPException(422, "Unexpected or repeated preview form field.")
@@ -248,30 +257,34 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         text, label, reason = "", "", ""
         selected: list[int] = []
         parsed, error_message = None, None
+        page = 1
         if submitted:
             fields = await preview_form(request)
             require_csrf(request, fields.get("csrf", [""])[0])
             text = fields.get("text", [""])[0]
             label = fields.get("label", [""])[0]
             reason = fields.get("reason", [""])[0]
-            if len(text.encode("utf-8")) > MAX_TEXT_BYTES:
-                raise HTTPException(413, "Paste at most 64 KiB of UTF-8 text.")
             if len(label) > 100 or len(reason) > 500:
                 raise HTTPException(422, "Label/reason exceeds 100/500 characters.")
             try:
+                raw_page = fields.get("page", ["1"])[0]
+                if (not raw_page.isascii() or not raw_page.isdecimal() or len(raw_page) > 3
+                        or not 1 <= int(raw_page) <= (MAX_ROWS + PAGE_SIZE - 1) // PAGE_SIZE):
+                    raise ValueError("Select a preview page between 1 and 100.")
+                page = int(raw_page)
                 raw_devices = fields.get("device_ids", [])
                 if any(not value.isascii() or not value.isdecimal() for value in raw_devices):
                     raise ValueError("Select configured devices using the checkboxes.")
                 selected = [int(value) for value in raw_devices]
-                parsed = parse_blocklist(text)
+                parsed = await run_in_threadpool(parse_blocklist, text)
                 if not parsed["rows"]:
                     raise ValueError("Paste at least one non-comment line.")
             except ValueError as error:
                 parsed, error_message = None, str(error)
-        return await run_in_threadpool(import_view, request, identity, text, label, reason, selected, parsed, error_message)
+        return await run_in_threadpool(import_view, request, identity, text, label, reason, selected, parsed, error_message, page)
 
     def import_view(request: Request, identity: Identity, text: str, label: str, reason: str,
-                    selected: list[int], parsed: dict | None, error_message: str | None) -> HTMLResponse:
+                    selected: list[int], parsed: dict | None, error_message: str | None, page: int) -> HTMLResponse:
         try:
             with api_client(settings) as client:
                 refresh = client.get("/api/v1/status")
@@ -287,17 +300,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if classification is not None:
             if classification.status_code == 422:
                 detail = classification.json().get("detail")
-                error_message = detail if isinstance(detail, str) else "Select 1–64 distinct enabled devices and at most 5,000 device/IP pairs."
+                error_message = detail if isinstance(detail, str) else "Select 1–64 distinct enabled devices and at most 100,000 device/IP pairs."
             elif classification.status_code != 200:
                 raise HTTPException(503, "Local preview state is unavailable. Nothing was queued.")
             else:
-                preview = summarize_preview(parsed, classification.json())
+                preview = paginate_preview(summarize_preview(parsed, classification.json()), page)
         return render(request, "import-preview.html", {
             "identity": identity, "refresh": refresh.json(), "devices": devices.json(),
             "source_text": text, "batch_label": label, "batch_reason": reason,
             "selected_devices": selected, "preview": preview, "preview_error": error_message,
             "active_page": "imports", "auto_request": False,
-        }, status_code=422 if error_message else 200)
+        }, status_code=413 if len(text.encode("utf-8")) > MAX_TEXT_BYTES else 422 if error_message else 200)
 
     @app.get("/imports", response_class=HTMLResponse)
     async def imports(request: Request) -> HTMLResponse:

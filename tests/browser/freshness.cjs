@@ -13,7 +13,7 @@ const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const future = (seconds) => new Date(Date.now() + seconds * 1000).toISOString();
 const renderScript = `
 import json, sys
-from ftd_shun_manager.import_preview import parse_blocklist, summarize_preview
+from ftd_shun_manager.import_preview import paginate_preview, parse_blocklist, summarize_preview
 from ftd_shun_manager.web import Identity, templates
 p = json.load(sys.stdin)
 policy_entries = (p.get("policy") or {}).get("entries", [])
@@ -22,8 +22,8 @@ disabled_ips = frozenset(entry["ip"] for entry in policy_entries if not entry["e
 preview = None
 if p.get("submitted"):
     parsed = parse_blocklist(p["source_text"])
-    preview = summarize_preview(parsed, dict(policy_revision=1, devices=[dict(id=1,hostname="lab-ftd")],
-        addresses=[dict(ip=ip,protected=ip=="198.51.100.10",devices=[dict(id=1,hostname="lab-ftd",already_shunned=ip=="203.0.113.20")]) for ip in parsed["ips"]]))
+    preview = paginate_preview(summarize_preview(parsed, dict(policy_revision=1, devices=[dict(id=1,hostname="lab-ftd")],
+        addresses=[dict(ip=ip,protected=ip=="198.51.100.10",devices=[dict(id=1,hostname="lab-ftd",already_shunned=ip=="203.0.113.20")]) for ip in parsed["ips"]])), p.get("page", 1))
 shun = dict(ip="198.51.100.10", device_id=1, device_hostname="lab-ftd FIXTURE_EVENT_" + str(p["generation"]), interface="outside",
             first_seen_at="2026-10-15T10:00:00Z", last_seen_at="2026-10-15T10:00:00Z")
 event = dict(timestamp="2026-10-15T10:00:00Z", event_type="FIXTURE_EVENT_" + str(p["generation"]),
@@ -65,14 +65,19 @@ async function connectPage(debugOrigin, url) {
     const value = JSON.parse(data);
     if (value.method === "Runtime.exceptionThrown") errors.push(value.params.exceptionDetails);
     if (pending.has(value.id)) {
-      const { resolve, reject } = pending.get(value.id);
+      const { resolve, reject, deadline } = pending.get(value.id);
+      clearTimeout(deadline);
       pending.delete(value.id);
       if (value.error) reject(new Error(value.error.message)); else resolve(value.result);
     }
   });
   const call = (method, params = {}) => new Promise((resolve, reject) => {
     const next = ++id;
-    pending.set(next, { resolve, reject });
+    const deadline = setTimeout(() => {
+      pending.delete(next);
+      reject(new Error(`CDP timed out: ${method} ${(params.expression || "").slice(0, 100)}`));
+    }, 15000);
+    pending.set(next, { resolve, reject, deadline });
     socket.send(JSON.stringify({ id: next, method, params }));
   });
   const evaluate = async (expression) => {
@@ -143,6 +148,9 @@ test("refresh interaction in real Chromium", { timeout: 90000 }, async (t) => {
     } else if (url.pathname === "/static/freshness.js") {
       response.setHeader("Content-Type", "text/javascript");
       response.end(fs.readFileSync(path.join(root, "static/freshness.js")));
+    } else if (url.pathname === "/static/import-preview.js") {
+      response.setHeader("Content-Type", "text/javascript");
+      response.end(fs.readFileSync(path.join(root, "static/import-preview.js")));
     } else if (url.pathname === "/refresh-status") {
       if (holdStatus) await holdStatus;
       response.setHeader("Content-Type", "application/json");
@@ -229,7 +237,7 @@ test("refresh interaction in real Chromium", { timeout: 90000 }, async (t) => {
         assert.equal(fields.get("csrf"), "fixture-token");
         assert.deepEqual(fields.getAll("device_ids"), ["1"]);
         previewPosts += 1;
-        previewFields = { submitted: true, source_text: fields.get("text"), label: fields.get("label"), reason: fields.get("reason") };
+        previewFields = { submitted: true, source_text: fields.get("text"), label: fields.get("label"), reason: fields.get("reason"), page: Number(fields.get("page") || 1) };
       }
       let history;
       if (url.pathname === "/history") {
@@ -727,6 +735,50 @@ test("refresh interaction in real Chromium", { timeout: 90000 }, async (t) => {
         assert.ok(await page.evaluate("Boolean(document.querySelector('#import-results'))"));
         assert.equal(await page.evaluate("document.activeElement.id"), "blocklist-text");
         assert.equal(previewPosts, 1);
+        assert.equal(postCount, hints);
+        assert.equal(executionCount, executions);
+      } finally { await page.close(); }
+    });
+    await t.test("large pasted lists are not truncated; UTF-8 limit is explicit and results page by 100", async () => {
+      status = initial();
+      const hints = postCount;
+      const executions = executionCount;
+      const parses = previewPosts;
+      const source = Array.from({ length: 7307 }, (_, i) => `shun 198.18.${i >> 8}.${i & 255}`).join("\n");
+      const page = await connectPage(debugOrigin, `${origin}/imports`);
+      try {
+        assert.equal(await page.evaluate("document.querySelector('#blocklist-text').maxLength"), -1);
+        assert.equal(await page.evaluate("document.querySelector('#blocklist-text').spellcheck"), false);
+        await page.evaluate("document.querySelector('#blocklist-text').focus()");
+        // Exercise clipboard paste rather than CDP text insertion. Permissions
+        // apply only to the synthetic localhost in this isolated headless profile.
+        await page.call("Browser.grantPermissions", { origin, permissions: ["clipboardReadWrite", "clipboardSanitizedWrite"] });
+        await page.evaluate("navigator.clipboard.writeText(Array.from({length:7307},(_,i)=>`shun 198.18.${i>>8}.${i&255}`).join('\\n'))");
+        await page.call("Input.dispatchKeyEvent", { type: "keyDown", key: "v", code: "KeyV", modifiers: 2, windowsVirtualKeyCode: 86 });
+        await page.call("Input.dispatchKeyEvent", { type: "keyUp", key: "v", code: "KeyV", modifiers: 2, windowsVirtualKeyCode: 86 });
+        await page.until("document.querySelector('#blocklist-text').value.endsWith('198.18.28.138')");
+        assert.equal(await page.evaluate("document.querySelector('#blocklist-text').value"), source, "Real paste retains the final address");
+        const bytes = Buffer.byteLength(source.replace(/\n/g, "\r\n"));
+        assert.ok(await page.evaluate(`document.querySelector('#paste-size').textContent.includes((${bytes}).toLocaleString())`));
+        await page.evaluate("document.querySelector('[name=device_ids][value=\"1\"]').checked=true; document.querySelector('.import-form').requestSubmit()");
+        await page.until("document.querySelector('.preview-pagination')?.textContent.includes('Page 1 of 74')");
+        assert.equal(await page.evaluate("document.querySelectorAll('[data-preview-state]').length"), 100);
+        assert.ok(await page.evaluate("document.querySelector('#import-results').textContent.includes('7307 candidate device/IP pairs')"));
+        await page.evaluate("document.querySelector('.preview-pagination button[value=\"2\"]').click()");
+        await page.until("document.querySelector('.preview-pagination')?.textContent.includes('Page 2 of 74')");
+        assert.equal(await page.evaluate("document.querySelectorAll('[data-preview-state]').length"), 100);
+        assert.equal(await page.evaluate("document.querySelector('#blocklist-text').value"), source);
+        await page.evaluate("document.querySelector('[data-preview-last]').click()");
+        await page.until("document.querySelector('.preview-pagination')?.textContent.includes('Page 74 of 74')");
+        assert.equal(await page.evaluate("document.querySelectorAll('[data-preview-state]').length"), 7);
+        assert.ok(await page.evaluate("document.querySelector('.preview-table').textContent.includes('198.18.28.138')"));
+        assert.equal(previewPosts, parses + 3);
+        await page.evaluate(`(() => { const input=document.querySelector('#blocklist-text'); input.value='ї'.repeat(524289);
+          input.dispatchEvent(new Event('input',{bubbles:true})); document.querySelector('.import-form').requestSubmit(); })()`);
+        assert.equal(await page.evaluate("document.querySelector('#blocklist-text').validity.customError"), true);
+        assert.ok(await page.evaluate("document.querySelector('#paste-size').textContent.includes('Over limit')"));
+        assert.equal(await page.evaluate("document.querySelector('#blocklist-text').value.length"), 524289);
+        assert.equal(previewPosts, parses + 3, "Oversize Unicode paste is blocked without discarding its source");
         assert.equal(postCount, hints);
         assert.equal(executionCount, executions);
       } finally { await page.close(); }

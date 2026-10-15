@@ -70,9 +70,14 @@ preparatory boundary. Parser tests cover literal/list/comment/free-text rules,
 ambiguous and unsupported forms, no substring extraction, duplicate references,
 UTF-8/line/row/body/pair limits and maximum-length hostile tokens without
 unbounded regex backtracking. API/BFF checks cover explicit enabled targets,
-snapshot classification, CSRF/escaping, chunked-body limits, and no queue/audit/
-agent side effects. Raw source is not forwarded to the internal API. The browser
-scenario checks every preview outcome, escaping and draft/result/focus retention
+snapshot classification, CSRF/escaping, chunked-body limits, no queue/audit/agent
+side effects and no raw-source forwarding to the internal API. They also cover
+large synthetic batches up to 10,000 rows, complete classification before
+100-row pagination, retained HTML errors for oversized decoded text and worst-
+case percent-encoded UTF-8. Browser tests paste a 7,307-row synthetic list with
+real input events, navigate result pages and block oversized multibyte input
+without truncation, queue admission or device execution. The browser scenario
+checks every preview outcome, escaping and draft/result/focus retention
 through metadata updates without extra parses, hints or execution.
 
 With Node.js 22+ (built-in WebSocket support), Chromium, and the Python package
