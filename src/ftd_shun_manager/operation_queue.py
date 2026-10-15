@@ -206,27 +206,29 @@ class OperationQueue:
             if changed:
                 self._bump(db)
 
-    def cancel_obsolete_policy(self, allowed: frozenset[IPv4Address]) -> None:
+    def cancel_obsolete_policy(self) -> None:
         with self.store._connection() as db:
             db.execute("BEGIN IMMEDIATE")
-            rows = db.execute("""SELECT r.*,j.id AS job_id,j.device_id,j.ip
-                FROM operation_requests r JOIN operation_links l ON l.request_id=r.id
-                JOIN operation_jobs j ON j.id=l.job_id
-                WHERE r.source='trusted_policy' AND r.state='ACTIVE' AND j.state='QUEUED'""").fetchall()
-            for request in rows:
-                if IPv4Address(request["ip"]) in allowed:
-                    continue
-                job = {"id": request["job_id"], "device_id": request["device_id"], "ip": request["ip"]}
-                db.execute("UPDATE operation_requests SET state='CANCELLED' WHERE id=?", (request["id"],))
-                self._event(db, "SHUN_OPERATION_CANCELLED", request, job, {"reason": "trusted-IP policy changed"})
-                remaining = db.execute("""SELECT 1 FROM operation_links l JOIN operation_requests r
-                    ON r.id=l.request_id WHERE l.job_id=? AND r.state='ACTIVE' AND r.expires_at>?""",
-                    (job["id"], stamp(self._now())),
-                ).fetchone()
-                if not remaining:
-                    db.execute("UPDATE operation_jobs SET state='CANCELLED',completed_at=? WHERE id=?",
-                               (stamp(self._now()), job["id"]))
-                self._bump(db)
+            self._cancel_obsolete_policy(db)
+
+    def _cancel_obsolete_policy(self, db) -> None:
+        rows = db.execute("""SELECT r.*,j.id AS job_id,j.device_id,j.ip
+            FROM operation_requests r JOIN operation_links l ON l.request_id=r.id
+            JOIN operation_jobs j ON j.id=l.job_id
+            WHERE r.source='trusted_policy' AND r.state='ACTIVE' AND j.state='QUEUED'
+              AND NOT EXISTS (SELECT 1 FROM protected_ips p WHERE p.ip=j.ip AND p.enabled=1)""").fetchall()
+        for request in rows:
+            job = {"id": request["job_id"], "device_id": request["device_id"], "ip": request["ip"]}
+            db.execute("UPDATE operation_requests SET state='CANCELLED' WHERE id=?", (request["id"],))
+            self._event(db, "SHUN_OPERATION_CANCELLED", request, job, {"reason": "trusted-IP policy changed"})
+            remaining = db.execute("""SELECT 1 FROM operation_links l JOIN operation_requests r
+                ON r.id=l.request_id WHERE l.job_id=? AND r.state='ACTIVE' AND r.expires_at>?""",
+                (job["id"], stamp(self._now())),
+            ).fetchone()
+            if not remaining:
+                db.execute("UPDATE operation_jobs SET state='CANCELLED',completed_at=? WHERE id=?",
+                           (stamp(self._now()), job["id"]))
+            self._bump(db)
 
     def delay(self) -> float:
         with self.store._connection() as db:
@@ -278,6 +280,7 @@ class OperationQueue:
     def claim_removal(self, device_id: int, owner: str, cutoff: int) -> dict | None:
         with self.store._connection() as db:
             db.execute("BEGIN IMMEDIATE")
+            self._cancel_obsolete_policy(db)
             executor = db.execute("SELECT * FROM operation_executor WHERE id=1").fetchone()
             if executor["owner"] != owner or not executor["lease_until"] or executor["lease_until"] < stamp(self._now()):
                 raise QueueConflict("executor lease lost")

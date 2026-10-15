@@ -18,7 +18,7 @@ def test_bff_refresh_authentication_csrf_and_read_only_status(tmp_path, monkeypa
         api_socket="/unused/api.sock", agent_mode="disabled", agent_timeout_seconds=45,
         poll_interval_seconds=300, interactive_refresh_min_interval_seconds=60,
         history_retention_days=366, sensitive_action_max_age_seconds=86400,
-        development_auth=False, trusted_auto_remove_ips=frozenset(),
+        development_auth=False,
     )
     store = Store(settings.database_path)
     store.initialize()
@@ -71,7 +71,7 @@ def test_bff_queue_submission_uses_trusted_identity_and_preserves_operation_key(
         api_socket="/unused/api.sock", agent_mode="disabled", agent_timeout_seconds=45,
         poll_interval_seconds=300, interactive_refresh_min_interval_seconds=60,
         history_retention_days=366, sensitive_action_max_age_seconds=86400,
-        development_auth=False, trusted_auto_remove_ips=frozenset(),
+        development_auth=False,
     )
     store = Store(settings.database_path)
     store.initialize()

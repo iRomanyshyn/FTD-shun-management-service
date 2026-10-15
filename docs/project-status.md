@@ -4,6 +4,57 @@ Last updated: 2026-10-15
 
 ## Current increment
 
+**Shared Protected IP management (2026-10-15).** Every authenticated user may
+add/edit/enable/disable/delete protected addresses, including Viewer/Operator
+and users without a mapped application group. Only service admission through
+Authelia is required, not an Administrator group. CSRF, typed deletion,
+optimistic revisions, actual actor/role audit and queued policy execution remain.
+Blank identities are rejected. Manual shun-removal roles and cross-user queue
+cancellation are intentionally unchanged. 131 Python tests and eleven Chromium
+scenarios passed (12 reported browser tests). Following explicit approval,
+API/Web were rebuilt/recreated; SQLite quick_check is ok, both protected
+addresses/policy revision 1 and all four prior VERIFIED results remain, and a
+cycle succeeded without error. Anonymous pages/status return 401 and HTTPS
+redirects to Authelia with TLS verification. No schema, agent, group-file or
+environment change was made. Reload tabs; authenticated live retest is pending.
+
+**Expanded paginated history and stable refresh layout (2026-10-15).**
+History now displays 100 events per page with totals, Previous/Next, Page/Go and
+Latest events controls. Event-ID anchors keep new arrivals from displacing older
+pages; retention expiry is explicit. Routine refresh text stays inside Status,
+the toolbar keeps a stable height, and critical alerts remain visible in an
+out-of-flow tray. 123 Python tests and eleven Chromium scenarios passed (12
+reported browser tests). No schema, configuration or agent change is needed.
+Following explicit approval, API/Web were rebuilt/recreated while the agent,
+Caddy and Authelia stayed unchanged. The deployed endpoint returns 51 retained
+events on page 1 of 1, size 100; invalid pages return 422 and expired anchors 410.
+SQLite quick_check is ok, both protected addresses and two original import
+events remain, all four prior VERIFIED outcomes are retained, and a cycle
+succeeded without error. Anonymous routes return 401; HTTPS History redirects
+to Authelia with TLS verification. Reload existing tabs for the new assets;
+authenticated live UI retest remains pending.
+
+**Compact work surface and SQLite-managed Protected IPs (2026-10-15).**
+Status and Queue disclosures replace the always-expanded operational panels;
+critical stale/error/unknown warnings remain visible. Protected IPs and History
+have separate pages. All authenticated users can add/edit/enable/disable/delete exact
+addresses with names/comments, observed shun counts and last verified automatic
+removal. Policy changes use optimistic revisions and append-only actor audit.
+SQLite owns policy; a durable once-only legacy import replaces environment
+management and prevents deleted/disabled entries returning on restart. Changes
+cancel unstarted policy work atomically, preserve independent manual intentions,
+and are rechecked before every claim. RUNNING commands are not interrupted.
+See the [policy manual](manual/protected-ips.md) for migration and rollback.
+115 Python tests and ten real Chromium scenarios passed (11 reported browser
+tests including the parent). Following explicit approval, API/Web were upgraded
+after an offline SQLite-safe backup and old-image tagging. Both prior protected
+addresses match the imported SQLite entries, two import events and the durable
+marker exist, quick_check is ok, all four previously VERIFIED results remain,
+and a post-upgrade cycle succeeded. The obsolete setting was removed from the
+ignored `.env`; agent/Authelia/Caddy were not recreated. Anonymous page/status
+routes return 401 and HTTPS redirects to Authelia with TLS verification. No new
+device operation was submitted; authenticated live UI retest remains pending.
+
 **Agent-enabled polling, reconciliation, and trusted-IP policy lab implementation.** The repository provides the secured management-plane skeleton, local state, UI workflows, deployment layout, manuals, and an isolated privileged agent. V1 deliberately uses one shared FTD service identity inside that isolated agent; reader/writer separation and one-time key bootstrap are deferred hardening options. The service remains unsuitable for production until it completes the expanded FTD lab validation.
 
 The [Development Plan](development-plan.md) records the approved next direction:
@@ -57,6 +108,7 @@ with their total count. No creation/import capability or device work was added.
 | Workstation browser lab | Authenticated UI and manual removal live validated | A separate Compose overlay provides Caddy Internal CA for local `.test` names and preserves Authelia ForwardAuth without requiring internal DNS. The authenticated browser path reached the API and completed an agent-verified removal; the new search and freshness copy require a browser retest after deployment. |
 | Container layout | Complete for first increment | Only Caddy TCP/443 is published; Web and API use private Unix sockets. The one-shot socket-volume initializer is capability-minimal and prepares ownership/mode for socket and SQLite state volumes before handing them to their service identities. |
 | Manuals | Complete for first increment | Development, deployment, and operations manuals are present. |
+| Protected IP administration | Shared authenticated access implemented, tested and deployed to approved lab | SQLite policy, all-authenticated-user CSRF-protected editor, bounded fields/count, revision conflicts, one-time legacy import, actual actor/role audit and atomic unstarted-policy cancellation. No new agent operation or ongoing environment policy control. Authenticated live retest pending. |
 
 ## Explicit limitations
 
@@ -71,11 +123,38 @@ with their total count. No creation/import capability or device work was added.
 - FTD supplies broad `Basic` and `Config` CLI roles rather than a per-command authorization model. The FPR1010 / FTD 7.6.6 lab fixture confirms that `Basic` permits the product's `show shun` and interface-qualified removal; no `Config` account is needed for that supported profile.
 - The agent's bounded Docker log is the required local operational channel. Host collection/forwarding to a chosen external JSON log platform, metrics, alerting integration, and production backup automation remain environment-specific and are not implemented by this stack.
 - The full local Caddy/Authelia/Web/API path has exercised an agent-verified removal against the live FTD lab. It does not replace a direct post-operation FTD observation, recurring-baseline validation, production TLS, or LDAP(S) validation.
-- The trusted-IP automatic-removal policy is disabled by default and must be tested with a dedicated non-production address before it is enabled for any office or other trusted egress address. The current local lab configuration contains two configured exact addresses; a startup snapshot recorded one agent-verified policy removal. Direct FTD confirmation and a live fail-closed policy test remain required. The policy applies to every enabled device by design.
+- The trusted-IP automatic-removal policy is disabled by default and must be tested with a dedicated non-production address before it is enabled for any office or other trusted egress address. The current local lab SQLite policy contains the two exact addresses migrated from the former environment configuration; an earlier startup snapshot recorded one agent-verified policy removal. Direct FTD confirmation and a live fail-closed policy test remain required. The policy applies to every enabled device by design.
 
 ## Recent validation
 
-Latest display increment: 104 Python tests passed; real Chromium passed seven
+Latest shared-policy increment: 131 Python tests passed; eleven Chromium
+scenarios passed (12 reported tests). BFF/API tests cover Viewer, Operator,
+Administrator and unmapped authenticated users; blank/anonymous identities,
+forged form identity, missing/invalid CSRF, stale edits and unconfirmed deletion
+remain rejected. Audit preserves actual roles. Browser CRUD now uses Operator,
+not Administrator. Existing manual-removal/cancellation authorization checks
+still pass. Compileall, Ruff, Node syntax and diff checks passed; Rust unchanged.
+
+Previous history/layout increment: 123 Python tests passed; eleven Chromium
+scenarios passed (12 reported tests). New checks cover page bounds, tie ordering,
+anchored insertion/retention behavior, consistent count/row snapshots, auth and
+the unchanged legacy history API. Real browser assertions check 100/100/51 rows,
+newest events, stable older-page URLs, no disclosure, and unchanged content
+coordinates across refreshing/error/ready/network-failure states at desktop and
+mobile widths. Compileall, Ruff, Node syntax and diff checks passed; Rust is
+unchanged and was not rebuilt/retested for this increment.
+
+Previous policy/UI increment: 115 Python tests passed; ten real Chromium scenarios
+passed (11 reported tests). Coverage includes once-only/empty/invalid migration,
+restart after deletion, concurrent administrators, admin/CSRF enforcement,
+audit/log correlation, policy-only search, transactional policy cancellation,
+and disabling the next item while a fake session command is running. Browser
+checks cover native keyboard/mobile menus, visible closed-menu warnings,
+progress spacing, per-IP drafts retaining original revisions, CRUD/escaping,
+and separate History updates. Compileall, Ruff, Node syntax and diff checks
+passed. Rust and the fixed agent protocol are unchanged.
+
+Previous display increment: 104 Python tests passed; real Chromium passed seven
 scenarios (eight reported tests including the parent). Rust is unchanged from
 the prior 20-test pass. Queue tests cover bounded groups and consistent status
 during concurrent completion; browser tests cover collapsed results, visible
@@ -108,6 +187,9 @@ The foundation increment was checked with:
 
 ## Next work, in order
 
+0. Retest compact menus, separate History and shared authenticated Protected IP CRUD
+   in an authenticated lab browser. Use only a dedicated non-production address
+   for policy execution checks; configuration changes apply fleet-wide.
 1. Retest the newly deployed UI in an authenticated browser, including a real baseline interval and per-device failures. Automated Python/Chromium scenarios pass; HTTPS redirects and private unauthenticated rejection were rechecked after deployment.
 2. Complete live queued-removal validation: 202 admission, duplicate users, cancellation, persisted cooldown, lease loss, expired authorization, queue bounds, audit attribution, and recovery without replay. The additive migration is deployed; SQLite integrity and empty-queue status passed. The operator waived a backup for this dev migration only, not future shared/production updates.
 3. Lab validate the implemented opt-in session-cycle protocol: one SSH login per device cycle, multiple verified removals, priority checkpoints, budgets, disconnects, and no legacy fallback. Only then consider default enablement. Separately design/lab validate narrow addition before paste/preview/import; preserve manual provenance and never automatically re-add removed imports. Follow the [Development Plan](development-plan.md).

@@ -32,9 +32,15 @@ imports remain future work in the [Development Plan](../development-plan.md).
 
 | Group | Application role | Capability |
 | --- | --- | --- |
-| `ftd-shun-viewers` | Viewer | Read active state and history. |
-| `ftd-shun-operators` | Operator | Read and request removal. |
-| `ftd-shun-administrators` | Administrator | Same write capability; identity-system administration remains separate. |
+| `ftd-shun-viewers` | Viewer | Read active state/history and manage Protected IPs. |
+| `ftd-shun-operators` | Operator | Read, request removal, and manage Protected IPs. |
+| `ftd-shun-administrators` | Administrator | Removal plus Protected IP policy management; identity-system administration remains separate. |
+| No mapped group | Authenticated user | Read active state/history and manage Protected IPs; no manual shun removal or cross-user queue cancellation. |
+
+Protected IPs intentionally has one shared management permission for every user
+admitted by Authelia. Restrict service admission to trusted staff accordingly;
+this exception does not grant a synthetic Administrator role or change queue
+ownership checks. Real roles remain in every audit event.
 
 ## Removal workflow
 
@@ -124,10 +130,39 @@ snapshot finished. If status becomes unavailable, the page retains the last
 displayed observations and shows an error. Authentication failures require a
 normal page reload/sign-in; there is no authentication bypass.
 
-Use the collapsed **Last events log** on the primary page for the latest 100
-local audit events. It is a convenient recent view, not an external log
-replacement; use an IP detail page for that address's history and the container
-log collector for diagnostics and long-term forwarding.
+### History pages
+
+**History → Audit events** is always expanded and shows **100 events per page**,
+newest first. Use Previous/Next or the Page/Go control; the summary shows the
+page, available total and displayed range. Tied timestamps use reverse insertion
+order. The first `/history` page updates dynamically as new events arrive.
+
+Navigation carries an event-ID anchor: new events cannot move records between
+the older pages being read. **Latest events** returns to the live first page.
+Retention can shorten this browsing window and clamp its last page. If its
+anchor has expired or is absent after a database restore, the page explicitly
+asks you to open Latest events instead of silently changing windows. This is a
+temporary browsing boundary, not an archived database snapshot. Page reads and
+background metadata polls never issue FTD commands or refresh hints.
+
+The private `GET /api/v1/history-page?page=…&anchor=…` response contains at most
+100 events plus page/pages/total/page_size/anchor metadata, from one SQLite read
+transaction. Invalid page/UUID input returns 422; a missing retained anchor
+returns 410. Existing list and per-IP history API contracts are unchanged.
+Use an IP detail page for that address's history and the container log collector
+for external diagnostics and long-term forwarding.
+
+Routine update messages are inside **Status**, with one stable-height summary
+on the working page. Important stale/device/queue/submission errors remain
+visible in a bottom-right alert tray without shifting search, forms or tables.
+Open Status/Queue for the full context. Notices clear when the condition clears;
+they are not automatically dismissed as if the operation had succeeded.
+
+This display/API increment needs no schema migration or new setting. Upgrade
+API/Web together, then reload existing tabs for the new script and styles.
+Rolling back to the preceding paired API/Web images leaves all history/policy/
+queue data intact; older releases predating policy/queue still require their
+documented safety procedures.
 
 The database and internal API use UTC timestamps. The Web UI displays those
 times in the viewer's browser timezone and includes the timezone abbreviation
@@ -136,8 +171,9 @@ fallback.
 
 ## Trusted-IP automatic-removal policy
 
-`FTD_SHUN_TRUSTED_AUTO_REMOVE_IPS` is disabled when empty. When configured, it
-contains only comma-separated, exact IPv4 addresses. Do not use CIDRs,
+The SQLite-owned **Protected IPs** policy is disabled when no addresses are
+enabled. All authenticated users manage exact IPv4 addresses through the UI; `.env`
+does not control the policy. Do not use CIDRs,
 hostnames, ranges, or a broad office subnet. Add only a verified egress address
 for which automatic removal is explicitly acceptable on every enabled device.
 
@@ -147,7 +183,7 @@ operation as a manual removal. This is deliberately a background policy, not
 a browser action: an unavailable or malformed snapshot runs no policy action.
 The shared one-removal-per-device cycle budget also applies to this policy;
 extra matches stay queued. Removing an address from the configured policy
-cancels its unstarted policy request on the next worker cycle, while preserving
+cancels its unstarted policy request atomically, while preserving
 an independent manual request for the same target.
 The history records `SHUN_TRUSTED_AUTO_REMOVE_REQUESTED` and then either
 `SHUN_TRUSTED_AUTO_REMOVED`, `SHUN_TRUSTED_AUTO_REMOVE_NOOP`, or
@@ -155,11 +191,12 @@ The history records `SHUN_TRUSTED_AUTO_REMOVE_REQUESTED` and then either
 On failure the active record remains visible; investigate the agent log before
 retrying or changing the policy.
 
-The primary page exposes the configured list as a read-only table for all
-authenticated application roles. For each allowed address it shows **Last
+The separate Protected IPs page exposes the list to all
+authenticated application roles. For each address it shows **Last
 auto-removed**, the latest verified policy-removal timestamp across all enabled
-devices, or **Never**. The table is status only: update the ignored `.env` and
-recreate the API service to change the policy. Treat the displayed addresses as
+devices, or **Never recorded**. Every authenticated user can edit it; stale edits
+are rejected rather than overwrite another user. See [Protected IPs](protected-ips.md)
+for workflow, one-time migration, cancellation semantics and rollback. Treat the displayed addresses as
 internal operational information; access to the application already requires
 Authelia authentication.
 

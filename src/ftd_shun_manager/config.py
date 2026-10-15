@@ -19,6 +19,7 @@ def _duration(value: str) -> int:
 
 
 def _ipv4_csv(value: str) -> frozenset[IPv4Address]:
+    """Legacy import parser only; runtime policy is owned by SQLite."""
     if not value.strip():
         return frozenset()
     values = [entry.strip() for entry in value.split(",")]
@@ -54,7 +55,6 @@ class Settings:
     history_retention_days: int
     sensitive_action_max_age_seconds: int
     development_auth: bool
-    trusted_auto_remove_ips: frozenset[IPv4Address]
     agent_cycles_enabled: bool = False
 
     @classmethod
@@ -98,6 +98,5 @@ class Settings:
             ),
             development_auth=environ.get("FTD_SHUN_DEVELOPMENT_AUTH", "false").lower()
             == "true",
-            trusted_auto_remove_ips=_ipv4_csv(environ.get("FTD_SHUN_TRUSTED_AUTO_REMOVE_IPS", "")),
             agent_cycles_enabled=cycles == "true",
         )

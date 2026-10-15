@@ -8,13 +8,13 @@ import secrets
 from dataclasses import dataclass
 from ipaddress import IPv4Address
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal
 from urllib.parse import urlencode
 from uuid import UUID, uuid4
 
 import httpx
 import uvicorn
-from fastapi import FastAPI, Form, HTTPException, Request
+from fastapi import FastAPI, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -47,7 +47,7 @@ def identity_from_request(request: Request, development_auth: bool) -> Identity:
     if development_auth and not username:
         username = request.headers.get("x-dev-user", "developer")
         groups = request.headers.get("x-dev-groups", "ftd-shun-administrators")
-    if not username:
+    if not username or not username.strip():
         raise HTTPException(status_code=401, detail="authentication required")
     roles = tuple(sorted({GROUP_TO_ROLE[group.strip()] for group in groups.split(",") if group.strip() in GROUP_TO_ROLE}))
     return Identity(subject=username, display_name=request.headers.get("remote-name", username), roles=roles)
@@ -110,6 +110,7 @@ def refresh_metadata(refresh: object) -> dict[str, object]:
         "session_cycles_enabled",
         "device_cycle",
         "priority_refresh_available",
+        "policy_revision",
         "last_successful_refresh",
         "last_attempt",
         "last_error",
@@ -175,13 +176,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             # during rendering, the next poll will fetch the newer revision.
             refresh_status = client.get("/api/v1/status")
             response = client.get("/api/v1/shuns")
-            recent_events = client.get("/api/v1/history", params={"limit": 100})
             search_response = (
                 client.get("/api/v1/search", params={"ip": search_query})
                 if search_query
                 else None
             )
-        if response.status_code != 200 or recent_events.status_code != 200:
+        if response.status_code != 200:
             return render(request, "error.html", {"message": "State API is unavailable."}, 503)
         if search_response is not None and search_response.status_code != 200:
             return render(request, "error.html", {"message": "IP search is invalid or unavailable."}, 422)
@@ -196,7 +196,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "trusted_policy_ips": trusted_policy_ips(refresh),
                 "search_query": search_query,
                 "search_results": search_response.json() if search_response is not None else None,
-                "recent_events": recent_events.json(),
             },
         )
 
@@ -214,6 +213,68 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             return JSONResponse(refresh_metadata(response.json()))
         except (TypeError, ValueError) as error:
             raise HTTPException(status_code=503, detail="State API returned invalid status.") from error
+
+    @app.get("/protected-ips", response_class=HTMLResponse)
+    def protected_ips(request: Request) -> HTMLResponse:
+        identity = identity_from_request(request, settings.development_auth)
+        try:
+            with api_client(settings) as client:
+                refresh = client.get("/api/v1/status")
+                policy = client.get("/api/v1/protected-ips")
+        except httpx.HTTPError as error:
+            raise HTTPException(503, "State API is unavailable.") from error
+        if refresh.status_code != 200 or policy.status_code != 200:
+            return render(request, "error.html", {"message": "State API is unavailable."}, 503)
+        return render(request, "protected-ips.html", {
+            "identity": identity, "refresh": refresh.json(), "policy": policy.json(),
+            "active_page": "protected", "auto_request": False,
+        })
+
+    @app.post("/protected-ips/{action}")
+    def change_policy(request: Request, action: Literal["add", "edit", "delete"],
+                      ip: Annotated[IPv4Address, Form()], revision: Annotated[int, Form(ge=0)],
+                      csrf: str = Form(...), name: str = Form("", max_length=100),
+                      comment: str = Form("", max_length=500), enabled: str = Form("false"),
+                      confirm_ip: str = Form("")) -> Response:
+        require_csrf(request, csrf)
+        identity = identity_from_request(request, settings.development_auth)
+        if enabled not in {"true", "false"}:
+            raise HTTPException(422, "invalid enabled state")
+        try:
+            with api_client(settings) as client:
+                response = client.post(f"/api/v1/protected-ips/{ip}/{action}", json={
+                    "actor": identity.__dict__, "revision": revision, "name": name,
+                    "comment": comment, "enabled": enabled == "true", "confirm_ip": confirm_ip,
+                })
+        except httpx.HTTPError as error:
+            raise HTTPException(503, "Policy save was not confirmed. Check the current list before retrying.") from error
+        return queued_result(request, response, "/protected-ips")
+
+    @app.get("/history", response_class=HTMLResponse)
+    def events_page(request: Request, page: Annotated[int, Query(ge=1, le=2**31 - 1)] = 1,
+                    anchor: UUID | None = None) -> Response:
+        identity = identity_from_request(request, settings.development_auth)
+        parameters: dict[str, str | int] = {"page": page}
+        if anchor is not None:
+            parameters["anchor"] = str(anchor)
+        try:
+            with api_client(settings) as client:
+                refresh = client.get("/api/v1/status")
+                events = client.get("/api/v1/history-page", params=parameters)
+        except httpx.HTTPError as error:
+            raise HTTPException(503, "State API is unavailable.") from error
+        if refresh.status_code != 200 or events.status_code not in {200, 410}:
+            return render(request, "error.html", {"message": "State API is unavailable."}, 503)
+        pagination = events.json() if events.status_code == 200 else {
+            "events": [], "page": 1, "pages": 1, "total": 0, "page_size": 100,
+            "anchor": None, "expired": True,
+        }
+        if page > 1 and anchor is None and pagination["anchor"]:
+            return RedirectResponse("/history?" + urlencode({"page": pagination["page"], "anchor": pagination["anchor"]}), 303)
+        return render(request, "history.html", {"identity": identity, "refresh": refresh.json(),
+            "recent_events": pagination["events"], "pagination": pagination,
+            "anchored_history": anchor is not None,
+            "active_page": "history", "auto_request": False})
 
     @app.post("/refresh")
     def request_refresh(

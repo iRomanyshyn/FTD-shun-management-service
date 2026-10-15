@@ -226,7 +226,8 @@ def test_new_policy_discovery_uses_same_session_budget(tmp_path):
     store, agent, sync, _ = setup(tmp_path, 0)
     agent.entries = [ObservedShun(IPv4Address("203.0.113.8"), "outside"),
                      ObservedShun(IPv4Address("203.0.113.9"), "outside")]
-    sync.trusted_auto_remove_ips = frozenset(entry.ip for entry in agent.entries)
+    for entry in agent.entries:
+        sync.policy.change("add", entry.ip, sync.policy.snapshot()["revision"], "admin", "Admin", ("Administrator",))
     asyncio.run(sync._sweep())
     assert agent.calls == [("open", 1), ("remove", "203.0.113.8"),
                            ("remove", "203.0.113.9"), ("final",)]
@@ -235,6 +236,34 @@ def test_new_policy_discovery_uses_same_session_budget(tmp_path):
     events = [event for event in store.list_events() if event["event_type"] == "SHUN_TRUSTED_AUTO_REMOVED"]
     assert len(events) == 2
     assert all(event["actor_subject"] == "system:trusted-ip-policy" for event in events)
+
+
+def test_policy_disable_during_running_command_cancels_next_item_not_current_write(tmp_path):
+    store, agent, sync, _ = setup(tmp_path, 0)
+    agent.entries = [ObservedShun(IPv4Address("203.0.113.8"), "outside"),
+                     ObservedShun(IPv4Address("203.0.113.9"), "outside")]
+    targets = [entry.ip for entry in agent.entries]
+    for ip in targets:
+        sync.policy.change("add", ip, sync.policy.revision(), "admin", "Admin", ("Administrator",))
+    started, release = Event(), Event()
+    agent.gates = {1: (started, release)}
+
+    async def scenario():
+        task = asyncio.create_task(sync._sweep())
+        try:
+            assert await asyncio.to_thread(started.wait, 5)
+            for ip in targets:
+                sync.policy.change("edit", ip, sync.policy.revision(), "admin", "Admin", ("Administrator",), enabled=False)
+            release.set()
+            await task
+        finally:
+            release.set()
+            await task
+
+    asyncio.run(scenario())
+    assert agent.calls == [("open", 1), ("remove", "203.0.113.8"), ("final",)]
+    assert sync.queue.status()["counts"] == {"VERIFIED": 1, "CANCELLED": 1}
+    assert [shun.ip for shun in store.list_active_shuns()] == [targets[1]]
 
 
 def test_shutdown_keeps_lease_and_restart_reconciles_without_replay(tmp_path, monkeypatch):

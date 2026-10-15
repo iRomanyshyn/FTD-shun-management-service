@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>History</h1>
+{% include "refresh-panel.html" %}
+<section id="recent-events" data-live-region class="recent-events" aria-labelledby="recent-events-heading">
+<h2 id="recent-events-heading">Audit events</h2>
+<p class="history-retention">History retention: {{ refresh.history_retention_days }} days. Expired inactive history is purged daily. Events are shown newest first, 100 per page.</p>
+{% if pagination.expired %}
+<p role="status">This history window is no longer retained. <a href="/history">Open Latest events</a> to browse the current history.</p>
+{% else %}
+<nav class="history-pagination" aria-label="History pagination">
+<p data-history-page-summary>Page {{ pagination.page }} of {{ pagination.pages }} · {{ pagination.total }} retained events · Showing {% if pagination.total %}{{ (pagination.page - 1) * 100 + 1 }}–{{ (pagination.page - 1) * 100 + recent_events|length }}{% else %}0{% endif %}</p>
+<div class="pagination-controls">
+{% if pagination.page > 1 %}<a rel="prev" href="/history?page={{ pagination.page - 1 }}&amp;anchor={{ pagination.anchor }}">Previous</a>{% else %}<span aria-disabled="true">Previous</span>{% endif %}
+{% if pagination.page < pagination.pages %}<a rel="next" href="/history?page={{ pagination.page + 1 }}&amp;anchor={{ pagination.anchor }}">Next</a>{% else %}<span aria-disabled="true">Next</span>{% endif %}
+{% if pagination.pages > 1 %}<form method="get" action="/history" class="history-page-form"><input type="hidden" name="anchor" value="{{ pagination.anchor }}"><label for="history-page">Page</label><input id="history-page" name="page" type="number" min="1" max="{{ pagination.pages }}" value="{{ pagination.page }}" required><button type="submit">Go</button></form>{% endif %}
+<a href="/history" data-history-latest>Latest events</a>
+</div>
+{% if anchored_history %}<p class="history-window-note">New events do not move this browsing window. Open Latest events for live updates. Retention may shorten older pages.</p>{% endif %}
+</nav>
+{% if recent_events %}
+<div class="table-scroll"><table><thead><tr><th>Time</th><th>Event</th><th>IP address</th><th>Device</th><th>Actor</th></tr></thead><tbody>
+{% for event in recent_events %}<tr data-event-id="{{ event.id }}"><td><time class="local-timestamp" datetime="{{ event.timestamp }}">{{ event.timestamp }}</time></td><td>{{ event.event_type }}</td><td>{% if event.ip %}<a href="/shuns/{{ event.ip }}">{{ event.ip }}</a>{% else %}—{% endif %}</td><td>{{ event.device_hostname or "—" }}</td><td>{{ event.actor_display_name or event.actor_subject or "System" }}</td></tr>{% endfor %}
+</tbody></table></div>
+{% else %}<p>No audit events are retained yet.</p>{% endif %}
+{% endif %}
+</section>
+<script src="/static/freshness.js" defer></script>
+{% endblock %}

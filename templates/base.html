@@ -8,6 +8,11 @@
   </head>
   <body>
     <header><a href="/">FTD Shun Manager</a>{% if identity %}<span>{{ identity.display_name }} · {{ identity.roles | join(', ') or 'No role' }}</span>{% endif %}</header>
+    {% if identity %}<nav class="primary-nav" aria-label="Primary">
+      <a href="/"{% if active_page | default('shuns') == 'shuns' %} aria-current="page"{% endif %}>Shuns</a>
+      <a href="/protected-ips"{% if active_page == 'protected' %} aria-current="page"{% endif %}>Protected IPs</a>
+      <a href="/history"{% if active_page == 'history' %} aria-current="page"{% endif %}>History</a>
+    </nav>{% endif %}
     <main>{% block content %}{% endblock %}</main>
   </body>
 </html>

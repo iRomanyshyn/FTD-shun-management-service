@@ -1,0 +1,13 @@
+.git
+.local
+.venv
+.pytest_cache
+.ruff_cache
+**/__pycache__
+**/*.pyc
+agent/target
+.env
+.env.*
+deploy/secrets
+deploy/authelia/users.yml
+deploy/devices.json

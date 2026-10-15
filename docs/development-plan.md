@@ -10,6 +10,15 @@ for the approved scope extension and unchanged security boundaries.
 
 ## Implementation checkpoint — 2026-10-15
 
+The compact UI/managed-policy increment adds Status and Queue disclosures,
+separate History and Protected IPs pages, progress spacing and persistent safety
+warnings. Protected IP policy is now SQLite-owned and editable by every authenticated user,
+with names/comments, enabled state, revision conflicts, audit and atomic
+unstarted-policy cancellation. The obsolete environment list is migrated once
+with a durable marker; it is not a runtime configuration source. This does not
+implement manual shun addition/import. See [Protected IPs](manual/protected-ips.md)
+for the upgrade and restore/rollback contract.
+
 The refresh reliability increment now provides process/cycle/data/status
 revisions, coalesced active-sweep requests, per-device status, and serialized
 browser requests with dynamic state updates preserving input. Python and real

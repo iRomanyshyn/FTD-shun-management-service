@@ -36,7 +36,7 @@ def settings(tmp_path):
         api_socket="/unused/api.sock", agent_mode="mock", agent_timeout_seconds=45,
         poll_interval_seconds=300, interactive_refresh_min_interval_seconds=60,
         history_retention_days=366, sensitive_action_max_age_seconds=86400,
-        development_auth=False, trusted_auto_remove_ips=frozenset(),
+        development_auth=False,
     )
 
 

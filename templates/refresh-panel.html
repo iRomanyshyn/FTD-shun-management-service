@@ -1,5 +1,10 @@
-<section class="refresh-panel" aria-labelledby="refresh-heading" data-refresh-controller data-status-url="/refresh-status" data-auto-request="true" data-subject="{{ identity.subject }}" data-operator="{{ 'true' if 'Operator' in identity.roles or 'Administrator' in identity.roles else 'false' }}" data-administrator="{{ 'true' if 'Administrator' in identity.roles else 'false' }}">
+<section class="refresh-panel" aria-label="Service controls" data-refresh-controller data-status-url="/refresh-status" data-auto-request="{{ 'true' if auto_request | default(true) else 'false' }}" data-subject="{{ identity.subject }}" data-operator="{{ 'true' if 'Operator' in identity.roles or 'Administrator' in identity.roles else 'false' }}" data-administrator="{{ 'true' if 'Administrator' in identity.roles else 'false' }}">
 <script type="application/json" data-refresh-initial>{{ refresh | tojson }}</script>
+<div class="utility-toolbar">
+<span class="service-summary" data-status-summary>Device status</span>
+<details id="status-menu" class="utility-menu" data-utility-menu>
+<summary>Status <span data-status-indicator></span></summary>
+<div class="utility-panel">
 <h2 id="refresh-heading">Refresh status</h2>
 <p class="refresh-status">Data last confirmed: <time class="last-successful-refresh" datetime="{{ refresh.last_successful_refresh or '' }}">{{ refresh.last_successful_refresh or "not yet available" }}</time>. Next scheduled check: <span class="baseline-countdown">{{ refresh.next_baseline_refresh or "not scheduled" }}</span>.</p>
 <form method="post" action="/refresh" class="request-refresh-form" data-refresh-form>
@@ -8,13 +13,15 @@
 <button type="submit" data-refresh-request>Request refresh</button>
 </form>
 <p data-refresh-message role="status" aria-live="polite"></p>
-<p class="refresh-error" data-refresh-warning{% if not refresh.last_error %} hidden{% endif %}>{{ refresh.last_error or '' }}</p>
 <table class="device-status"><thead><tr><th>Device</th><th>State</th><th>Last confirmed</th><th>Details</th></tr></thead><tbody data-device-status>
 {% for device_id, device in refresh.devices.items() %}
 <tr><td>{{ device.hostname or device_id }}</td><td>{{ device.state or 'pending' }}</td><td>{{ device.last_successful_refresh or 'Not yet available' }}</td><td>{{ device.last_error or '—' }}</td></tr>
 {% endfor %}
 </tbody></table>
-<section aria-labelledby="operation-queue-heading">
+</div></details>
+<details id="queue-menu" class="utility-menu" data-utility-menu>
+<summary>Queue · <span data-queue-indicator>0</span></summary>
+<div class="utility-panel queue-panel" aria-labelledby="operation-queue-heading">
 <h2 id="operation-queue-heading">Operation queue</h2>
 <p data-queue-summary>Loading queue status…</p>
 <p>Removal requests are queued. A verified result is shown after execution. {% if refresh.session_cycles_enabled %}Experimental session cycles handle up to 16 removals per device within command/time limits.{% else %}Each cycle handles at most one removal per device.{% endif %}</p>
@@ -37,5 +44,11 @@
 <p>These are retained results, not pending work. Full audit history is available on each IP's detail page.</p>
 <table class="operation-queue"><thead><tr><th>Device / IP</th><th>Outcome</th><th>Requested by</th><th>Details</th></tr></thead><tbody data-queue-completed></tbody></table>
 </details>
-</section>
+</div></details>
+</div>
+<div class="service-notices" aria-label="Service alerts">
+<p class="refresh-error" data-action-warning hidden role="alert"></p>
+<p class="refresh-error" data-refresh-warning{% if not refresh.last_error %} hidden{% endif %} role="status">{{ refresh.last_error or '' }}</p>
+<p class="refresh-error" data-queue-warning hidden role="status"></p>
+</div>
 </section>

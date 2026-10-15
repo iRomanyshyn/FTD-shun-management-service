@@ -107,3 +107,26 @@ coalesced requesters, bounded 20-request summaries, and consistent snapshots.
 Chromium checks determinate request bars, indeterminate running commands,
 warning outcomes, phase changes without false advancement, stable indicator
 nodes across differently ordered JSON, and removal of settled progress cards.
+
+Protected-policy tests cover SQLite-only runtime settings, atomic once-only
+legacy import (including empty/invalid input), deletion across restart, parallel
+revision conflicts, authentication/CSRF boundaries, actor attribution, protected-only
+search, and policy revalidation before each claim. Chromium also checks menu
+keyboard/Escape/outside-click behavior, narrow viewport bounds, persistent
+warnings, progress spacing, separate history updates, per-IP drafts with original
+revisions, escaped labels and the protected-IP add/edit/disable/delete flow.
+
+Protected-IP authorization now intentionally permits every authenticated user:
+Viewer, Operator, Administrator and users without a mapped group. Parameterized
+BFF/API cases verify those paths, unchanged actual-role audit, denial of blank/
+anonymous identities, CSRF and spoofed form identities. The real Chromium CRUD
+scenario uses Operator. Manual shun-removal/queue ownership tests remain strict;
+shared policy access does not promote roles or grant cross-user cancellation.
+
+History tests cover fixed 100-row pages, stable timestamp ties, no overlap,
+new inserts outside an anchored browsing window, retention/clamping/expired
+anchors, empty state, restored hex UUID IDs, concurrent count/row consistency,
+bounded query validation and BFF authentication/canonical links. Chromium
+navigates a 251-event fixture, observes the live 252nd event without moving an
+older page, and measures unchanged search coordinates during refresh, device/
+queue errors and network failure at 1100px and 375px viewport widths.

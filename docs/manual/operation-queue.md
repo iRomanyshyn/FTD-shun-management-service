@@ -21,7 +21,9 @@ The fleet-wide cooldown, idempotency, cancellation, and audit rules are unchange
 
 ## Admission and authorization
 
-- Operator/Administrator permission and CSRF are required for browser writes.
+- Operator/Administrator permission and CSRF are required for queued manual
+  removals/cancellation. Protected IP editing is a separate shared permission
+  for all authenticated users; queue ownership/role checks remain unchanged.
   Identity/roles come from Caddy/Authelia through the BFF.
 - The API returns `202 Accepted`, a parent `operation_id`, and a replay flag.
   Acceptance is not verified removal. The parent identifies the user's request;
@@ -71,6 +73,14 @@ recent full snapshots satisfy demand without another CLI read. A priority
 snapshot updates observed state without claiming the whole cycle is complete.
 
 ### Request progress bars
+
+Open **Queue · N** in the compact service toolbar for current execution,
+progress, cancellation, attention results and collapsed completed history.
+Failure/unverified counts remain visible outside the closed menu. **Status**
+holds refresh controls and per-device freshness; stale/error warnings also stay
+visible outside it. Menus support keyboard activation, Escape (restoring trigger
+focus) and outside-click dismissal. History and Protected IPs have separate
+navigation pages. Progress bars have explicit spacing from labels/outcomes.
 
 Active requests show a native progress bar with **processed / total jobs** and
 a whole-job percentage. The denominator is the actual jobs linked to that

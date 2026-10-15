@@ -222,7 +222,8 @@ def test_synchronizer_automatically_removes_exact_trusted_ip_after_snapshot(tmp_
     target = IPv4Address("198.51.100.250")
     store = _store(tmp_path)
     agent = AutoRemovingAgent([ObservedShun(target, "management")])
-    synchronizer = Synchronizer(store, agent, 300, 60, frozenset({target}))
+    synchronizer = Synchronizer(store, agent, 300, 60)
+    synchronizer.policy.change("add", target, 0, "admin", "Admin", ("Administrator",))
 
     asyncio.run(synchronizer._sweep())
 
@@ -238,7 +239,8 @@ def test_synchronizer_records_trusted_auto_removal_failure_without_claiming_succ
     target = IPv4Address("198.51.100.250")
     store = _store(tmp_path)
     agent = AutoRemovingAgent([ObservedShun(target, "management")], fail=True)
-    synchronizer = Synchronizer(store, agent, 300, 60, frozenset({target}))
+    synchronizer = Synchronizer(store, agent, 300, 60)
+    synchronizer.policy.change("add", target, 0, "admin", "Admin", ("Administrator",))
 
     asyncio.run(synchronizer._sweep())
 

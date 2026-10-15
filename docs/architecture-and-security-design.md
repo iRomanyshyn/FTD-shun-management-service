@@ -874,10 +874,19 @@ the visible freshness state and browser countdown.
 
 ## Trusted-IP automatic removal
 
-The optional `FTD_SHUN_TRUSTED_AUTO_REMOVE_IPS` policy is an exact IPv4
-allowlist. It is empty by default. It accepts a comma-separated list of
-individual IPv4 addresses only; CIDRs, hostnames, ranges, and IPv6 addresses
-are rejected at startup.
+Protected IPs are an exact IPv4 allowlist stored authoritatively in SQLite,
+empty by default. All authenticated users manage addresses, names, comments and enabled
+state in the authenticated UI. CIDRs, hostnames, ranges and IPv6 are rejected.
+Policy writes require CSRF protection, a non-empty authenticated subject, a matching
+policy revision (409 on concurrent edits), and an atomic append-only audit event.
+The policy is bounded to 1,000 entries and applies across the enabled fleet.
+
+An additive migration imports the legacy `FTD_SHUN_TRUSTED_AUTO_REMOVE_IPS`
+value once, atomically with a durable import marker, even for an empty list.
+After that marker exists, the environment variable is never read for policy:
+disabled/deleted entries cannot reappear on restart. Remove the obsolete value
+after verifying migration. Back up SQLite before upgrade; restoring an older
+database also restores its policy and migration marker.
 
 After the agent returns a complete, successfully parsed snapshot for a device,
 the synchronizer compares each observed address with this policy. For every
@@ -895,12 +904,20 @@ as an append-only event. A failure leaves the locally observed shun active and
 visible. Operators must use this policy only for carefully verified addresses
 whose automatic removal is intended on every enabled FTD device.
 
-`GET /api/v1/status` exposes the sorted configured trusted-IP list and, for
-each address, the timestamp of its latest verified automatic removal across
-the fleet. The authenticated primary page renders this read-only policy
-summary, including `Never` where no verified automatic removal exists. It is
-operational status, not a policy editor: changing the list remains an ignored
-environment-file change followed by API recreation.
+`GET /api/v1/status` exposes enabled addresses and a durable policy revision.
+The separate Protected IPs page shows enabled and disabled entries, names,
+comments, observed active-shun counts, and latest retained verified automatic
+removal (`Never recorded` if absent). Every user admitted by Authelia may
+add/edit/enable/disable/delete, including users without mapped application groups.
+Directory roles are retained unchanged in audit, not promoted to Administrator.
+Admission to this service must therefore be restricted to people trusted to
+change the fleet-wide protection policy. Deletion requires typing the
+IP. These local changes do not execute device commands. Disabled/deleted policy
+requests are cancelled before the next claim in the same SQLite write
+transaction; independent manual requests survive. RUNNING work is not interrupted.
+The executor revalidates live SQLite policy before every claim, including within
+a multi-item session. Newly enabled protection takes effect at a successful
+snapshot through the existing queue and budgets, not a new out-of-band writer.
 
 The application compares:
 
@@ -1201,6 +1218,10 @@ Administrator
 ```
 
 Only Operator and Administrator may remove shuns.
+Every authenticated user may change Protected IP policy, regardless of mapped
+roles. This explicit policy-management exception does not change manual shun
+removal roles or ownership/Administrator checks for queue cancellation. Policy
+changes use the same Authelia sensitive-action session age as other browser writes.
 
 Suggested Authelia group mappings:
 
@@ -1361,14 +1382,20 @@ Return at most 20 active request summaries with the total request count, using
 the same consistent SQLite status snapshot. Idle historical results remain in
 the collapsed completed view. This presentation does not enable addition/import.
 
-The primary page must expose a collapsed **Last events log** containing the
-latest 100 local audit events. It is read-only, uses the same timestamp rules,
-and is not a substitute for the fuller IP-detail history or external log
-collection.
-
-When the trusted-IP policy is configured, the primary page must also show each
-allowed IP and its last verified automatic-removal timestamp; when no policy is
-configured, it must clearly say that automatic removal is disabled.
+The main working page prioritizes search and active shuns. Compact Status and
+Queue disclosures hold device details, refresh controls, progress and retained
+outcomes. Critical failures, stale data and attention counts remain visible
+outside closed menus. Disclosures support keyboard, Escape and outside-click
+dismissal. History and Protected IPs have separate navigation pages. History
+is always expanded, newest-first, with 100 events per page, totals and page
+navigation. The live first page includes new events; older-page links carry an
+event-ID anchor so newly appended events cannot shift the browsing window.
+Counts and rows use one SQLite read transaction. Retention may remove events
+and shorten the available window; an expired anchor requires opening Latest
+events. This anchor is a browsing aid, not a durable snapshot or authorization.
+Routine refresh messages stay inside Status. Toolbar summary height is stable;
+critical notices use an out-of-flow alert tray rather than shifting the content.
+All timestamps retain timezone labels.
 
 If an active shun exactly matches a configured trusted IP, the list row and IP
 detail page must display a visually distinct **Protected IP** marker. This is

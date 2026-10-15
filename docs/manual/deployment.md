@@ -58,13 +58,15 @@ controlled `503` and never claims removal success.
 
 `FTD_SHUN_POLL_INTERVAL` controls complete snapshot collection and defaults to `5m`; valid values range from `60s` through `24h`. `FTD_SHUN_INTERACTIVE_REFRESH_MIN_INTERVAL` defaults to `60s` and cannot be lower. An authenticated state page can only queue a non-blocking, globally rate-limited refresh hint; it never directly waits for FTD SSH output.
 
-`FTD_SHUN_TRUSTED_AUTO_REMOVE_IPS` is optional and empty by default. It accepts
-only a comma-separated list of exact IPv4 addresses, for example
-`198.51.100.10,203.0.113.11`. CIDRs, hostnames, ranges, and IPv6 make API
-startup fail rather than widen the policy. This policy automatically requests
-verified removal of a matching observed shun on every enabled device after a
-successful complete snapshot. Enable it only after a lab validation with a
-non-production address; changing it requires recreating the API service.
+Manage **Protected IPs** through the authenticated UI, not `.env`. Every user
+admitted by Authelia can manage this fleet-wide policy, without an Administrator
+group requirement; restrict service admission to trusted staff. SQLite owns
+this exact-address policy and its enabled state. It automatically queues
+verified removal after a successful snapshot on every enabled device. For
+upgrades, the old `FTD_SHUN_TRUSTED_AUTO_REMOVE_IPS` list is imported once with
+a durable marker, then ignored; remove that obsolete variable after verification.
+Follow the [Protected IP migration/backup procedure](protected-ips.md) before
+the first upgrade. New deployments omit the variable and start with no policy.
 
 `FTD_SHUN_HISTORY_RETENTION_DAYS` defaults to `366` and accepts whole days
 from `1` through `3653`. The API purges expired history and inactive state once
@@ -136,6 +138,10 @@ The application image keeps its server-rendered templates and static files in
 `/app`; its image-only `FTD_SHUN_ASSET_ROOT=/app` setting makes the installed
 Web/BFF package locate those resources. Do not set this variable for a
 source-tree development run, where the built-in source-tree path is used.
+The Docker build context excludes `.env`, actual identity/device/secret files,
+`.local` state/backups and local build caches. Keep operational backups outside
+version control and out of image build contexts; the application reads policy
+only from the runtime SQLite volume after its one-time migration.
 
 The stack also explicitly enables Authelia's configuration template filter for
 the non-secret public names in `configuration.yml`. Its session and storage

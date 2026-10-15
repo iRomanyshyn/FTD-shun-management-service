@@ -36,6 +36,10 @@ class Shun:
     active: bool
 
 
+class HistoryWindowExpired(ValueError):
+    """The event anchoring a retained-history window is no longer available."""
+
+
 class Store:
     def __init__(self, path: Path) -> None:
         self.path = path
@@ -60,6 +64,19 @@ class Store:
         with self._connection() as db:
             db.executescript(
                 """
+                CREATE TABLE IF NOT EXISTS protected_ips (
+                    ip BLOB PRIMARY KEY CHECK(length(ip)=4),
+                    name TEXT NOT NULL,
+                    comment TEXT NOT NULL,
+                    enabled INTEGER NOT NULL CHECK(enabled IN (0,1)),
+                    updated_at TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS protected_policy (
+                    id INTEGER PRIMARY KEY CHECK(id=1),
+                    revision INTEGER NOT NULL DEFAULT 0,
+                    legacy_imported INTEGER NOT NULL DEFAULT 0
+                );
+                INSERT OR IGNORE INTO protected_policy(id) VALUES (1);
                 CREATE TABLE IF NOT EXISTS devices (
                   id INTEGER PRIMARY KEY CHECK(id BETWEEN 1 AND 65535),
                   hostname TEXT NOT NULL UNIQUE,
@@ -156,23 +173,51 @@ class Store:
         query += " ORDER BY e.timestamp DESC LIMIT ?"
         with self._connection() as db:
             rows = db.execute(query, parameters).fetchall()
-        return [
-            {
-                "id": row["id"],
-                "timestamp": row["timestamp"],
-                "event_type": row["event_type"],
-                "device_id": row["device_id"],
-                "device_hostname": row["device_hostname"],
-                "ip": str(IPv4Address(row["ip"])) if row["ip"] else None,
-                "interface": row["interface"],
-                "actor_subject": row["actor_subject"],
-                "actor_display_name": row["actor_display_name"],
-                "actor_roles": json.loads(row["actor_roles_json"] or "[]"),
-                "request_id": row["request_id"],
-                "details": json.loads(row["details_json"]),
-            }
-            for row in rows
-        ]
+        return [self._event_dict(row) for row in rows]
+
+    @staticmethod
+    def _event_dict(row: sqlite3.Row) -> dict:
+        return {
+            "id": row["id"],
+            "timestamp": row["timestamp"],
+            "event_type": row["event_type"],
+            "device_id": row["device_id"],
+            "device_hostname": row["device_hostname"],
+            "ip": str(IPv4Address(row["ip"])) if row["ip"] else None,
+            "interface": row["interface"],
+            "actor_subject": row["actor_subject"],
+            "actor_display_name": row["actor_display_name"],
+            "actor_roles": json.loads(row["actor_roles_json"] or "[]"),
+            "request_id": row["request_id"],
+            "details": json.loads(row["details_json"]),
+        }
+
+    def history_page(self, page: int = 1, anchor: str | None = None) -> dict:
+        """Bounded retained-history browsing; no new row can enter an anchored window."""
+        if not 1 <= page <= 2**31 - 1:
+            raise ValueError("page must be between 1 and 2147483647")
+        with self._connection() as db:
+            db.execute("BEGIN")
+            if anchor is None:
+                boundary = db.execute("SELECT rowid, id FROM shun_events ORDER BY rowid DESC LIMIT 1").fetchone()
+            else:
+                # Offline restore audit IDs may use UUID hex without hyphens.
+                boundary = db.execute("SELECT rowid, id FROM shun_events WHERE id IN (?,?)",
+                                      (anchor, anchor.replace("-", ""))).fetchone()
+                if boundary is None:
+                    raise HistoryWindowExpired("History window expired. Open Latest events.")
+            ceiling = boundary["rowid"] if boundary else 0
+            total = db.execute("SELECT COUNT(*) FROM shun_events WHERE rowid<=?", (ceiling,)).fetchone()[0]
+            pages = max(1, (total + 99) // 100)
+            current = min(page, pages)
+            rows = db.execute("""SELECT e.*, d.hostname AS device_hostname
+                FROM shun_events e LEFT JOIN devices d ON d.id=e.device_id
+                WHERE e.rowid<=? ORDER BY e.timestamp DESC, e.rowid DESC LIMIT 100 OFFSET ?""",
+                (ceiling, (current - 1) * 100),
+            ).fetchall()
+            return {"events": [self._event_dict(row) for row in rows], "page": current,
+                    "pages": pages, "total": total, "page_size": 100,
+                    "anchor": boundary["id"] if boundary else None}
 
     def search_ip_history(self, query: str, limit: int = 100) -> list[dict[str, str | int | bool | None]]:
         """Search local active and historical state by a validated IPv4 prefix."""
@@ -183,7 +228,8 @@ class Store:
             rows = db.execute(
                 """SELECT ip FROM shun_state
                    UNION
-                   SELECT ip FROM shun_events WHERE ip IS NOT NULL"""
+                   SELECT ip FROM shun_events WHERE ip IS NOT NULL
+                   UNION SELECT ip FROM protected_ips WHERE enabled=1"""
             ).fetchall()
             matches = sorted(
                 (IPv4Address(row["ip"]) for row in rows if str(IPv4Address(row["ip"])).startswith(normalized)),

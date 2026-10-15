@@ -1117,6 +1117,183 @@ multi-job scenarios use Chromium fixtures. Addition/import, direct independent
 FTD write checks, and live concurrency/priority failure cases remain separate
 planned work. Displayed processing percentages are not success percentages.
 
+## 2026-10-15 — Compact service menus and SQLite-owned Protected IP administration
+
+**Status:** Implemented, tested and deployed to the explicitly approved lab
+
+Moved device/refresh details into a compact Status disclosure and queue/progress/
+cancellation/results into Queue. The primary page now concentrates on search
+and active observations; separate Protected IPs and History pages provide policy
+management and the latest 100 audit events with retention information. Native
+keyboard activation, Escape/focus return, outside-click dismissal, responsive
+panels and spaced progress labels are covered in Chromium. Stale/error warnings
+and failed/unverified counts stay visible outside closed menus. The browser
+fixture initially omitted native Enter keypress text; supplying the real CDP
+key event fixed that test harness issue without adding custom keyboard emulation
+to the product's native details/summary controls.
+
+Added authoritative `protected_ips` and singleton `protected_policy` tables.
+Administrator-only, CSRF-protected semantic CRUD accepts exact IPv4 addresses,
+bounded name/comment fields and enabled state; deletion requires typed IP
+confirmation. A global durable revision rejects stale concurrent edits. Dirty
+forms preserve their original revision and per-IP values during dynamic updates,
+so background rendering cannot silently authorize overwriting another user's
+change. A save does not issue SSH or request an extra snapshot; normal successful
+snapshot discovery queues automatic removal with the existing budgets.
+
+Policy mutation, revision and before/after actor audit are one SQLite transaction.
+Unstarted obsolete policy requests are cancelled under that same lock, retaining
+independent manual requests. Every worker claim independently rechecks current
+database policy, including within a multi-item session; RUNNING work completes
+normally. JSON events correlate the actor/request ID without emitting comments.
+Search includes protected-only addresses without inventing an observation.
+
+The former environment list is now only a one-time additive migration input.
+Import and a durable marker are atomic, including an empty import; invalid
+input fails startup without marking success. Normal settings no longer parse
+the value, and later edits/deletes cannot be reverted by environment changes or
+restart. Removed the variable from `.env.example`. Added local-backup ignores
+and a Docker context exclusion file so operational backups, actual configuration,
+credentials and build caches are not sent as build context.
+
+**Validation:** 115 Python tests passed; all ten Chromium scenarios passed
+(11 reported tests including the parent). New tests cover atomic/empty/invalid
+legacy migration, deletion/restart, concurrent administrator conflicts, live
+policy reads, coalesced manual cancellation behavior, a disable during an
+in-progress fake session, exact-IP validation, roles/CSRF, audit correlation,
+safe HTML, preserved drafts/revisions and policy CRUD without refresh hints.
+Compileall, Ruff, Node syntax and diff checks passed. Tests use temporary data,
+fake agents and synthetic browser transports; Rust/protocol are unchanged.
+
+**Operational impact:** API/Web must be upgraded together after a SQLite-safe
+backup. The [Protected IP manual](manual/protected-ips.md) documents migration,
+restore suspension, rollback and removal of the obsolete environment value.
+No shun addition/import, agent capability, authentication bypass, or production
+write approval is introduced. Authenticated live browser retesting and the
+existing FTD lab backlog remain necessary.
+
+**Deployment:** Preserved previous API/Web images as
+`before-protected-policy-20261015t1705z`, built the replacements, stopped Web
+before API, and created a mode-0600 SQLite backup with quick_check=ok. A second
+copy is outside the state volume at the ignored
+`.local/backups/state-before-protected-policy-20261015T1705Z.sqlite3` (directory
+mode 0700). Recreated API then Web only. Live read-only checks confirmed both
+prior addresses imported exactly, two import audit events, marker=1, revision=1,
+quick_check=ok, all four previous VERIFIED outcomes retained, and a successful
+cycle with no error. Removed the obsolete variable from the ignored `.env` only
+after verifying migration. Caddy/Authelia/agent were unchanged. Anonymous Shuns,
+Protected IPs, History and refresh-status requests return 401; static assets
+return 200 and HTTPS Protected IPs returns the normal Authelia 302 with TLS
+verification. No new mutation was queued or policy entry changed for validation.
+Reload browser tabs once; authenticated live UI testing remains an operator task.
+
+## 2026-10-15 — Expanded paginated history and non-shifting refresh feedback
+
+**Status:** Implemented, tested and deployed to the explicitly approved lab
+
+Removed History's obsolete details/summary disclosure. Its always-visible table
+now pages through retained audit at 100 events per page, with page/total/range,
+Previous/Next, numeric Page/Go and Latest events controls. The live first page
+continues to update. Navigation carries an event-ID anchor resolved inside a
+single SQLite read transaction, so newly appended rows do not shift older-page
+boundaries. Timestamp ties use descending insertion order. Counts and rows are
+consistent, out-of-range pages clamp after retention, and a missing anchor gives
+an explicit expired-window message/Latest link. Hex UUIDs from the existing
+offline restore procedure are supported. No database column/table/index changed.
+
+Added a bounded semantic read endpoint `/api/v1/history-page`; existing list and
+per-IP history contracts are unchanged. Invalid page/UUID parameters return 422
+and expired anchors return 410. Web navigation, pagination and status polling
+remain authenticated, no-store and read-only with respect to FTD. The BFF
+canonicalizes direct older-page URLs to preserve their anchor during polling.
+
+Moved routine refresh progress inside Status, eliminating the duplicate main-
+page line whose visibility changed layout. A single-line grid toolbar remains
+stable across status/count text changes, including mobile layout. Critical
+device/stale/queue/submission failures remain visible in a fixed alert tray;
+they do not push search/forms/tables down or disappear into closed menus.
+
+**Validation:** 123 Python tests passed. All eleven Chromium scenarios passed
+(12 reported tests including the parent). New Python coverage exercises a
+251-event window, 100/100/51 slices, tied timestamps, no overlaps, inserts after
+an anchor, retention and expired windows, empty history, query limits, normalized
+restore UUIDs, concurrent snapshot consistency, authentication and BFF links.
+Chromium navigates real templates, checks a new live 252nd record without
+shifting an older page, and measures unchanged search coordinates across
+refresh/device-error/queue-error/network-failure transitions at 1100px and 375px.
+Compileall, Ruff, Node syntax and diff checks passed. Fixtures use temporary
+SQLite/fake data only; Rust and the agent protocol are unchanged.
+
+**Operational impact:** No migration, setting, data cleanup or device capability
+was added. Upgrade paired API/Web and reload browser tabs. The preceding policy-
+aware pair can be restored without changing SQLite; older pre-policy/pre-queue
+versions remain subject to their documented rollback restrictions. Anchors are
+temporary browsing windows, not immutable archives: retention/restore may remove
+their boundary and require Latest events. External log retention remains an
+operator responsibility.
+
+**Deployment:** Preserved the preceding policy-aware API/Web images under
+`before-history-pagination-20261015t172141z`, built replacements, stopped Web
+then API gracefully, and recreated only API/Web. Live read-only probes show
+51 retained events (one 100-row-capacity page), invalid-page 422, expired-anchor
+410 and the unchanged legacy list response. SQLite quick_check is ok; two
+protected addresses, policy revision 1, two migration audit events and all four
+prior VERIFIED results are intact. The obsolete policy environment value is
+absent from the new container. A post-upgrade cycle succeeded without error.
+Anonymous Shuns/History/paged-History/Protected-IPs/status routes return 401;
+assets return 200 and HTTPS History returns the expected Authelia 302 with TLS
+verification. No device operation or policy edit was submitted for validation.
+No schema/data migration or configuration change was performed. Reload browser
+tabs once; the operator still needs to inspect the authenticated live UI.
+
+## 2026-10-15 — Shared Protected IP management for authenticated users
+
+**Status:** Implemented, tested and deployed to the explicitly approved lab
+
+At the operator's request, removed the Administrator-only gate from Protected
+IP forms, BFF, internal API and SQLite policy mutations. Every user admitted
+through Authelia may add/edit/enable/disable/delete, including Viewer, Operator
+and users with no mapped application group. Non-empty authenticated identity
+remains mandatory; whitespace-only identity is rejected at the BFF and policy
+boundaries. Actual directory roles remain unchanged in audit rather than being
+replaced with a synthetic Administrator role. Service admission must therefore
+be restricted to people trusted to manage the fleet-wide protection policy.
+
+CSRF, IP validation, typed deletion confirmation, optimistic conflict handling,
+append-only before/after audit, SQLite ownership, queue budgets and live policy
+revalidation are unchanged. This is a scoped Protected IP permission change:
+manual shun-removal roles and cancellation ownership/Administrator rules are
+not broadened. Updated architecture, operations/deployment/policy manuals,
+README, status and current plan to state that distinction explicitly.
+
+**Validation:** 131 Python tests passed. All eleven Chromium scenarios passed
+(12 reported browser tests). BFF/API tests exercise all three mapped roles and
+the unmapped-user case, retained actual-role audit, blank/anonymous denial,
+CSRF, forged form identity, revision conflicts and unconfirmed deletion.
+Direct store calls cannot bypass the non-empty-identity requirement. Chromium
+policy CRUD uses Operator, not Administrator. Existing manual-removal/queue
+authorization regressions remain passing. Compileall, Ruff, Node syntax and
+diff checks passed. Tests use temporary/fake state, not live policy changes.
+Rust and the fixed agent protocol are unchanged.
+
+**Operational impact:** Upgrade API/Web together and reload browser tabs.
+No schema/data migration, group-file edit, new setting, secret change or agent
+upgrade is needed. Reverting to the preceding paired images restores the old
+Administrator requirement without changing policy data. Authentication and
+existing sensitive-session expiration still apply; LDAP/directory admission
+must not unintentionally admit an untrusted population to shared policy editing.
+
+**Deployment:** Tagged the preceding API/Web images
+`before-shared-policy-20261015t172819z`, built replacements, stopped Web before
+API, and recreated only API/Web after explicit operator approval. Read-only
+checks confirmed quick_check=ok, both protected addresses, unchanged policy
+revision 1/two import events, all four previous VERIFIED outcomes, and a
+successful cycle without error. Anonymous page/status requests still return
+401; HTTPS Protected IPs returns the expected Authelia 302 with TLS verification.
+Agent, Caddy, Authelia, user/group files, `.env` and schema were unchanged. No
+policy edit or new device operation was submitted for validation. Reload tabs
+once; authenticated live policy-editor testing remains an operator task.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

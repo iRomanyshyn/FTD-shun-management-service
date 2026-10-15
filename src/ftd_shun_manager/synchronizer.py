@@ -13,7 +13,8 @@ from uuid import uuid4
 
 from .agent_client import AgentClient, AgentUnavailable
 from .agent_protocol import MAX_CYCLE_REMOVALS
-from .operation_queue import OperationQueue, QueueConflict, QueueFull
+from .operation_queue import QueueConflict, QueueFull
+from .protected_policy import ProtectedPolicy
 from .store import Store
 
 
@@ -36,7 +37,6 @@ class Synchronizer:
         agent: AgentClient,
         poll_interval_seconds: int,
         interactive_min_interval_seconds: int,
-        trusted_auto_remove_ips: frozenset[IPv4Address] = frozenset(),
         history_retention_days: int = 366,
         enabled: bool = True,
         operation_timeout_seconds: int = 45,
@@ -46,7 +46,7 @@ class Synchronizer:
         self.agent = agent
         self.poll_interval_seconds = poll_interval_seconds
         self.interactive_min_interval_seconds = interactive_min_interval_seconds
-        self.trusted_auto_remove_ips = trusted_auto_remove_ips
+        self.policy = ProtectedPolicy(store)
         self.history_retention_days = history_retention_days
         self.enabled = enabled
         self.session_cycles_enabled = session_cycles_enabled
@@ -54,8 +54,7 @@ class Synchronizer:
         self._active_device_id: int | None = None
         self._priority_pending = False
         self._priority_used = False
-        self.queue = OperationQueue(store)
-        self.queue.initialize()
+        self.queue = self.policy.queue
         self._lease_seconds = operation_timeout_seconds + interactive_min_interval_seconds + 30
         self._cycle_cutoff: int | None = None
         self.instance_id = str(uuid4())
@@ -163,7 +162,8 @@ class Synchronizer:
             "baseline_interval_seconds": self.poll_interval_seconds,
             "interactive_min_interval_seconds": self.interactive_min_interval_seconds,
             "interactive_refresh_state": self._interactive_state,
-            "trusted_auto_remove_ip_count": len(self.trusted_auto_remove_ips),
+            "trusted_auto_remove_ip_count": len(self.policy.enabled_ips()),
+            "policy_revision": self.policy.revision(),
             "history_retention_days": self.history_retention_days,
             "last_retention_purge": self._last_retention_purge,
             "history_retention_error": self._last_retention_error,
@@ -268,7 +268,7 @@ class Synchronizer:
             self._next_interactive_refresh = _timestamp_after(int(self.queue.delay()) + 1)
             return
         self.queue.expire_requests()
-        self.queue.cancel_obsolete_policy(self.trusted_auto_remove_ips)
+        self.queue.cancel_obsolete_policy()
         self._activity.clear()
         self._refresh_in_progress = True
         self._cycle_id += 1
@@ -364,8 +364,9 @@ class Synchronizer:
                 )
                 continue
 
+            allowed = self.policy.enabled_ips()
             trusted_ips = sorted(
-                {entry.ip for entry in snapshot if entry.ip in self.trusted_auto_remove_ips},
+                {entry.ip for entry in snapshot if entry.ip in allowed},
                 key=int,
             )
             if cycle is None:
@@ -418,8 +419,9 @@ class Synchronizer:
 
     async def _session_removals(self, device_id: int, cycle, snapshot) -> str | None:
         try:
+            allowed = self.policy.enabled_ips()
             self._admit_trusted(device_id, sorted({entry.ip for entry in snapshot
-                               if entry.ip in self.trusted_auto_remove_ips}, key=int))
+                               if entry.ip in allowed}, key=int))
             for _ in range(MAX_CYCLE_REMOVALS):
                 if self._priority_pending and not self._priority_used:
                     self._priority_pending = False
@@ -436,8 +438,9 @@ class Synchronizer:
                                               "device_id": device_id, "joining_final_snapshot": True}), flush=True)
                             break
                         self._publish_snapshot(device_id, snapshot)
+                        allowed = self.policy.enabled_ips()
                         self._admit_trusted(device_id, sorted({entry.ip for entry in snapshot
-                                           if entry.ip in self.trusted_auto_remove_ips}, key=int))
+                                           if entry.ip in allowed}, key=int))
                     self._device_cycle["priority_state"] = "satisfied"
                     self._set_interactive_state("running")
                 cutoff = self._cycle_cutoff if self._cycle_cutoff is not None else self.queue.cutoff()

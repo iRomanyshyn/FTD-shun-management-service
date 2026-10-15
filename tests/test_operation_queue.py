@@ -268,7 +268,7 @@ def test_policy_changes_cancel_only_policy_authorization(queue):
     queue.enqueue(str(uuid4()), [(1, IPv4Address("198.51.100.10"))], "system:trusted-ip-policy",
                   "Policy", (), source="trusted_policy")
     enqueue(queue, "alice")
-    queue.cancel_obsolete_policy(frozenset())
+    queue.cancel_obsolete_policy()
     assert queue.status()["counts"] == {"QUEUED": 1}
     assert {r["state"] for r in queue.status()["items"][0]["requests"]} == {"ACTIVE", "CANCELLED"}
 

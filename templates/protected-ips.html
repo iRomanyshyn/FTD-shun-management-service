@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Protected IPs</h1>
+{% include "refresh-panel.html" %}
+<p>Exact IPv4 addresses automatically removed from shun on every enabled device after a successful snapshot. Changes do not run device commands immediately.</p>
+<p class="policy-warning">Disabling or deleting cancels unstarted policy requests. Already running commands and independent manual requests are not cancelled.</p>
+<p>All signed-in users can manage this policy. Edits are checked against the saved revision. If someone else changes the policy, <a href="/protected-ips">reload saved values</a> before retrying (unsaved drafts will be discarded).</p>
+<section id="protected-policy" data-live-region>
+<p>{{ policy.entries | selectattr('enabled') | list | length }} enabled · {{ policy.entries | length }} / {{ policy.limit }} addresses.</p>
+<details id="add-protected-ip" class="policy-editor">
+<summary>Add protected IP</summary>
+<form id="add-policy-form" method="post" action="/protected-ips/add" class="policy-form" data-policy-form>
+<input type="hidden" name="csrf" value="{{ csrf_token }}"><input type="hidden" name="revision" value="{{ policy.revision }}">
+<label>IPv4 address <input name="ip" inputmode="decimal" placeholder="198.51.100.10" required maxlength="15"></label>
+<label>Name <input name="name" maxlength="100" placeholder="Office egress"></label>
+<label>Comment <textarea name="comment" maxlength="500" rows="2"></textarea></label>
+<label class="checkbox-label"><input type="checkbox" name="enabled" value="true" checked> Enable automatic removal fleet-wide</label>
+<button type="submit">Add protected IP</button>
+</form></details>
+{% for entry in policy.entries %}
+<article class="policy-card{% if entry.active_devices and entry.enabled %} policy-warning{% endif %}">
+<div class="policy-card-heading"><h2><a href="/shuns/{{ entry.ip }}">{{ entry.ip }}</a>{% if entry.name %} · {{ entry.name }}{% endif %}</h2><span class="state-badge">{{ 'Enabled' if entry.enabled else 'Disabled' }}</span></div>
+{% if entry.comment %}<p class="policy-comment">{{ entry.comment }}</p>{% endif %}
+<p>Observed shun: {% if entry.active_devices %}{{ entry.active_devices }} device(s){% else %}not currently observed{% endif %} · Last auto-removed: {% if entry.last_auto_removed_at %}<time class="local-timestamp" datetime="{{ entry.last_auto_removed_at }}">{{ entry.last_auto_removed_at }}</time>{% else %}Never recorded{% endif %}</p>
+<details id="edit-policy-{{ entry.ip }}" class="policy-editor"><summary>Edit / enable / disable</summary>
+<form id="edit-policy-form-{{ entry.ip }}" method="post" action="/protected-ips/edit" class="policy-form" data-policy-form data-policy-ip="{{ entry.ip }}">
+<input type="hidden" name="csrf" value="{{ csrf_token }}"><input type="hidden" name="revision" value="{{ policy.revision }}"><input type="hidden" name="ip" value="{{ entry.ip }}">
+<label>Name <input name="name" value="{{ entry.name }}" maxlength="100"></label>
+<label>Comment <textarea name="comment" maxlength="500" rows="2">{{ entry.comment }}</textarea></label>
+<label class="checkbox-label"><input type="checkbox" name="enabled" value="true"{% if entry.enabled %} checked{% endif %}> Enable automatic removal fleet-wide</label>
+<button type="submit">Save changes</button>
+</form></details>
+<details id="delete-policy-{{ entry.ip }}" class="policy-editor"><summary>Delete address</summary>
+<form id="delete-policy-form-{{ entry.ip }}" method="post" action="/protected-ips/delete" class="remove-all-form" data-policy-form data-policy-ip="{{ entry.ip }}">
+<input type="hidden" name="csrf" value="{{ csrf_token }}"><input type="hidden" name="revision" value="{{ policy.revision }}"><input type="hidden" name="ip" value="{{ entry.ip }}">
+<label>Type {{ entry.ip }} to confirm <input name="confirm_ip" required autocomplete="off"></label><button type="submit">Delete protected IP</button>
+</form></details>
+</article>
+{% else %}<p>No protected IPs. Automatic removal is disabled.</p>{% endfor %}
+</section>
+<script src="/static/freshness.js" defer></script>
+{% endblock %}

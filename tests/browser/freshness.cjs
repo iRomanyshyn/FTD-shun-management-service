@@ -15,14 +15,17 @@ const renderScript = `
 import json, sys
 from ftd_shun_manager.web import Identity, templates
 p = json.load(sys.stdin)
-shun = dict(ip="198.51.100.10", device_id=1, device_hostname="lab-ftd", interface="outside",
+shun = dict(ip="198.51.100.10", device_id=1, device_hostname="lab-ftd FIXTURE_EVENT_" + str(p["generation"]), interface="outside",
             first_seen_at="2026-10-15T10:00:00Z", last_seen_at="2026-10-15T10:00:00Z")
 event = dict(timestamp="2026-10-15T10:00:00Z", event_type="FIXTURE_EVENT_" + str(p["generation"]),
              device_hostname="lab-ftd", actor_display_name="Test Operator", actor_subject="test", ip=shun["ip"])
 print(templates.get_template(p["template"]).render(identity=Identity("test", "Test Operator", ("Operator",)),
     csrf_token="fixture-token", shuns=[shun], refresh=p["refresh"], search_query=p["query"],
-    search_results=None, trusted_policy_ips=frozenset(), recent_events=[event],
-    ip=shun["ip"], events=[event], is_trusted_policy_ip=False))
+    search_results=None, trusted_policy_ips=frozenset(), recent_events=p.get("history", {}).get("events", [event]),
+    pagination=p.get("history", {}), anchored_history=bool(p.get("anchor")),
+    ip=shun["ip"], events=[event], is_trusted_policy_ip=False, policy=p.get("policy"),
+    active_page="protected" if p["template"] == "protected-ips.html" else "history" if p["template"] == "history.html" else "shuns",
+    auto_request=p["template"] not in ("protected-ips.html", "history.html")))
 `;
 
 const initial = () => ({
@@ -84,7 +87,7 @@ async function connectPage(debugOrigin, url) {
   } };
 }
 
-test("refresh interaction in real Chromium", { timeout: 60000 }, async (t) => {
+test("refresh interaction in real Chromium", { timeout: 90000 }, async (t) => {
   let status = initial();
   let generation = 1;
   let failStatus = false;
@@ -95,6 +98,15 @@ test("refresh interaction in real Chromium", { timeout: 60000 }, async (t) => {
   let pageReads = 0;
   let failQueueReply = false;
   const removalKeys = [];
+  let policy = { revision: 1, limit: 1000, entries: [] };
+  let policyPosts = 0;
+  let historyRows = [];
+  const appendHistory = () => {
+    const sequence = historyRows.length + 1;
+    historyRows.push({ id: `00000000-0000-4000-8000-${sequence.toString(16).padStart(12, "0")}`,
+      timestamp: "2026-10-15T10:00:00Z", event_type: `HISTORY_EVENT_${sequence}`,
+      device_hostname: "lab-ftd", actor_display_name: "Test Operator", ip: "198.51.100.10" });
+  };
   const stamp = () => ({ ...status, server_time: new Date().toISOString() });
   const complete = (outcome = "success") => {
     status.status_revision += 1;
@@ -111,7 +123,10 @@ test("refresh interaction in real Chromium", { timeout: 60000 }, async (t) => {
   const server = http.createServer(async (request, response) => {
     const url = new URL(request.url, "http://fixture");
     response.setHeader("Cache-Control", "no-store");
-    if (url.pathname === "/static/freshness.js") {
+    if (url.pathname === "/static/app.css") {
+      response.setHeader("Content-Type", "text/css");
+      response.end(fs.readFileSync(path.join(root, "static/app.css")));
+    } else if (url.pathname === "/static/freshness.js") {
       response.setHeader("Content-Type", "text/javascript");
       response.end(fs.readFileSync(path.join(root, "static/freshness.js")));
     } else if (url.pathname === "/refresh-status") {
@@ -164,10 +179,48 @@ test("refresh interaction in real Chromium", { timeout: 60000 }, async (t) => {
       status.status_revision += 1;
       response.setHeader("Content-Type", "application/json");
       response.end(JSON.stringify(stamp()));
-    } else if (url.pathname === "/" || url.pathname.startsWith("/shuns/")) {
+    } else if (url.pathname.startsWith("/protected-ips/") && request.method === "POST") {
+      let body = "";
+      for await (const chunk of request) body += chunk;
+      const field = (name) => body.match(new RegExp(`name="${name}"\\r\\n\\r\\n([^\\r\\n]*)`))?.[1] || "";
+      assert.equal(field("csrf"), "fixture-token");
+      policyPosts += 1;
+      response.setHeader("Content-Type", "application/json");
+      if (Number(field("revision")) !== policy.revision) {
+        response.statusCode = 409;
+        response.end(JSON.stringify({ detail: "Protected IPs changed. Reload saved values before retrying." }));
+        return;
+      }
+      const ip = field("ip");
+      if (url.pathname.endsWith("/delete")) {
+        assert.equal(field("confirm_ip"), ip);
+        policy.entries = policy.entries.filter((entry) => entry.ip !== ip);
+      } else {
+        const entry = { ip, name: field("name"), comment: field("comment"), enabled: field("enabled") === "true",
+          active_devices: 0, last_auto_removed_at: null };
+        const index = policy.entries.findIndex((item) => item.ip === ip);
+        if (index === -1) policy.entries.push(entry); else policy.entries[index] = entry;
+      }
+      policy.revision += 1;
+      status.policy_revision = policy.revision;
+      status.status_revision += 1;
+      response.end(JSON.stringify(stamp()));
+    } else if (["/", "/history", "/protected-ips"].includes(url.pathname) || url.pathname.startsWith("/shuns/")) {
       pageReads += 1;
+      let history;
+      if (url.pathname === "/history") {
+        const anchor = url.searchParams.get("anchor");
+        const last = anchor ? historyRows.findIndex((row) => row.id === anchor) : historyRows.length - 1;
+        const rows = historyRows.slice(0, last + 1).reverse();
+        const pages = Math.max(1, Math.ceil(rows.length / 100));
+        const current = Math.min(Number(url.searchParams.get("page") || 1), pages);
+        history = { page: current, pages, total: rows.length, page_size: 100,
+          anchor: rows[0]?.id || null, events: rows.slice((current - 1) * 100, current * 100) };
+      }
       const payload = { refresh: stamp(), generation, query: url.searchParams.get("q") || "",
-        template: url.pathname === "/" ? "index.html" : "detail.html" };
+        history, anchor: url.searchParams.get("anchor"),
+        policy, template: url.pathname === "/" ? "index.html" : url.pathname === "/history" ? "history.html"
+          : url.pathname === "/protected-ips" ? "protected-ips.html" : "detail.html" };
       response.setHeader("Content-Type", "text/html; charset=utf-8");
       response.end(execFileSync("python3", ["-c", renderScript], {
         cwd: root, input: JSON.stringify(payload), encoding: "utf8",
@@ -200,12 +253,12 @@ test("refresh interaction in real Chromium", { timeout: 60000 }, async (t) => {
     const debugOrigin = websocket.replace(/^ws:/, "http:").split("/devtools/")[0];
     const wake = (page) => page.evaluate("document.dispatchEvent(new Event('visibilitychange'))");
 
-    await t.test("one click; slow status; partial updates preserve fields and expanded history", async () => {
+    await t.test("one click; slow status; partial updates preserve fields and open status menu", async () => {
       const page = await connectPage(debugOrigin, `${origin}/?q=198.51.100`);
       try {
         await page.until("document.querySelector('[data-refresh-request]').textContent.includes('Request refresh (')");
         assert.equal(postCount, 0);
-        await page.evaluate("document.querySelector('#ip-search').value='203.0.113'; document.querySelector('#recent-events-details').open=true");
+        await page.evaluate("document.querySelector('#ip-search').value='203.0.113'; document.querySelector('#status-menu').open=true");
         status.next_interactive_refresh = null;
         status.status_revision += 1;
         await wake(page);
@@ -224,9 +277,9 @@ test("refresh interaction in real Chromium", { timeout: 60000 }, async (t) => {
         const scrollBefore = await page.evaluate("window.scrollTo(0,180); window.scrollY");
         complete();
         await wake(page);
-        await page.until("document.querySelector('#recent-events').textContent.includes('FIXTURE_EVENT_2')");
+        await page.until("document.querySelector('#active-shuns').textContent.includes('FIXTURE_EVENT_2')");
         assert.equal(await page.evaluate("document.querySelector('#ip-search').value"), "203.0.113");
-        assert.equal(await page.evaluate("document.querySelector('#recent-events-details').open"), true);
+        assert.equal(await page.evaluate("document.querySelector('#status-menu').open"), true);
         assert.equal(await page.evaluate("location.search"), "?q=198.51.100");
         assert.equal(await page.evaluate("window.scrollY"), scrollBefore);
       } finally { await page.close(); }
@@ -282,7 +335,7 @@ test("refresh interaction in real Chromium", { timeout: 60000 }, async (t) => {
         complete();
         await Promise.all([wake(first), wake(second)]);
         for (const page of [first, second]) {
-          await page.until(`document.querySelector('#recent-events').textContent.includes('FIXTURE_EVENT_${generation}')`);
+          await page.until(`document.querySelector('#active-shuns').textContent.includes('FIXTURE_EVENT_${generation}')`);
         }
         status.next_interactive_refresh = null;
         status.status_revision += 1;
@@ -333,7 +386,7 @@ test("refresh interaction in real Chromium", { timeout: 60000 }, async (t) => {
       try {
         await page.until("document.querySelector('[data-cycle-progress]').textContent.includes('4 items completed')");
         assert.equal(await page.evaluate("document.querySelector('[data-refresh-request]').disabled"), true);
-        await page.evaluate("document.querySelector('#ip-search').value='203.0.113'; document.querySelector('#recent-events-details').open=true");
+        await page.evaluate("document.querySelector('#ip-search').value='203.0.113'; document.querySelector('#status-menu').open=true");
         status.priority_refresh_available = true;
         status.next_interactive_refresh = null;
         status.status_revision += 1;
@@ -353,9 +406,9 @@ test("refresh interaction in real Chromium", { timeout: 60000 }, async (t) => {
         status.status_revision += 1;
         generation += 1;
         await wake(page);
-        await page.until(`document.querySelector('#recent-events').textContent.includes('FIXTURE_EVENT_${generation}')`);
+        await page.until(`document.querySelector('#active-shuns').textContent.includes('FIXTURE_EVENT_${generation}')`);
         assert.equal(await page.evaluate("document.querySelector('#ip-search').value"), "203.0.113");
-        assert.equal(await page.evaluate("document.querySelector('#recent-events-details').open"), true);
+        assert.equal(await page.evaluate("document.querySelector('#status-menu').open"), true);
         assert.equal(status.refresh_in_progress, true);
         assert.equal(status.cycle_revision, 1, "Snapshot publication does not complete the batch");
         assert.equal(await page.evaluate("document.querySelector('[data-refresh-request]').disabled"), true);
@@ -415,6 +468,9 @@ test("refresh interaction in real Chromium", { timeout: 60000 }, async (t) => {
       try {
         await page.until("document.querySelector('[data-request-progress] progress')?.max===3");
         assert.equal(await page.evaluate("document.querySelector('[data-request-progress] progress').value"), 0);
+        await page.evaluate("document.querySelector('#queue-menu > summary').click()");
+        await page.until("document.querySelector('#queue-menu').open");
+        assert.ok(await page.evaluate("(() => { const bar=document.querySelector('.request-progress progress'); return bar.getBoundingClientRect().top-bar.previousElementSibling.getBoundingClientRect().bottom>=12; })()"), "Progress has visible spacing from text");
         assert.ok(await page.evaluate("document.querySelector('[data-request-progress]').textContent.includes('0 / 3 jobs processed')"));
         request.processed = 2;
         request.counts = { VERIFIED: 1, UNVERIFIED: 1, RUNNING: 1 };
@@ -448,6 +504,142 @@ test("refresh interaction in real Chromium", { timeout: 60000 }, async (t) => {
         assert.equal(await page.evaluate("document.querySelectorAll('[data-request-progress] progress').length"), 0);
         assert.equal(await page.evaluate("document.querySelector('[data-queue-attention-section]').hidden"), false);
       } finally { await page.close(); }
+    });
+    await t.test("compact menus dismiss accessibly and failures remain visible while closed", async () => {
+      status = initial();
+      status.last_error = "Synthetic failure requiring attention";
+      status.devices["1"].stale = true;
+      status.devices["1"].state = "error";
+      status.queue.counts = { UNVERIFIED: 1 };
+      const page = await connectPage(debugOrigin, origin);
+      try {
+        assert.equal(await page.evaluate("document.querySelector('#status-menu').open || document.querySelector('#queue-menu').open"), false);
+        assert.ok(await page.evaluate("document.querySelector('[data-refresh-warning]').getBoundingClientRect().height>0"));
+        assert.ok(await page.evaluate("document.querySelector('[data-queue-warning]').getBoundingClientRect().height>0"));
+        await page.call("Page.bringToFront");
+        await page.evaluate("document.querySelector('#status-menu > summary').focus()");
+        assert.equal(await page.evaluate("document.activeElement===document.querySelector('#status-menu > summary')"), true);
+        await page.call("Input.dispatchKeyEvent", { type: "keyDown", key: "Enter", code: "Enter", windowsVirtualKeyCode: 13, text: "\r" });
+        await page.call("Input.dispatchKeyEvent", { type: "keyUp", key: "Enter", code: "Enter", windowsVirtualKeyCode: 13 });
+        await page.until("document.querySelector('#status-menu').open");
+        await page.evaluate("document.querySelector('#queue-menu > summary').click()");
+        await page.until("document.querySelector('#queue-menu').open && !document.querySelector('#status-menu').open");
+        await page.call("Emulation.setDeviceMetricsOverride", { width: 375, height: 800, deviceScaleFactor: 1, mobile: false });
+        assert.ok(await page.evaluate("(() => { const box=document.querySelector('#queue-menu .utility-panel').getBoundingClientRect(); return box.left>=0 && box.right<=innerWidth; })()"), "Panel fits narrow viewport");
+        await page.call("Input.dispatchKeyEvent", { type: "keyDown", key: "Escape", code: "Escape" });
+        await page.until("!document.querySelector('#queue-menu').open");
+        assert.equal(await page.evaluate("document.activeElement===document.querySelector('#queue-menu > summary')"), true);
+        await page.evaluate("document.querySelector('#status-menu > summary').click()");
+        await page.until("document.querySelector('#status-menu').open");
+        await page.evaluate("document.querySelector('h1').click()");
+        assert.equal(await page.evaluate("document.querySelector('#status-menu').open"), false);
+      } finally { await page.close(); }
+    });
+    await t.test("policy drafts retain original revision and per-IP values; CRUD updates without Cisco hints", async () => {
+      status = initial();
+      status.policy_revision = 1;
+      policy = { revision: 1, limit: 1000, entries: [10, 11].map((last) => ({ ip: `198.51.100.${last}`,
+        name: `Office ${last}`, comment: "Existing", enabled: true, active_devices: 0, last_auto_removed_at: null })) };
+      const hints = postCount;
+      const page = await connectPage(debugOrigin, `${origin}/protected-ips`);
+      try {
+        await page.evaluate(`(() => { const form=document.getElementById('edit-policy-form-198.51.100.10'); form.closest('details').open=true;
+          form.elements.name.value='Unsaved office'; form.elements.name.dispatchEvent(new Event('input',{bubbles:true})); })()`);
+        policy.entries[1].name = "Other administrator edit";
+        policy.revision = status.policy_revision = 2;
+        status.status_revision += 1;
+        await wake(page);
+        await page.until("document.querySelector('#protected-policy').textContent.includes('Other administrator edit')");
+        assert.equal(await page.evaluate("document.getElementById('edit-policy-form-198.51.100.10').elements.name.value"), "Unsaved office");
+        assert.equal(await page.evaluate("document.getElementById('edit-policy-form-198.51.100.10').elements.revision.value"), "1");
+        assert.equal(await page.evaluate("document.getElementById('edit-policy-form-198.51.100.11').elements.name.value"), "Other administrator edit");
+        await page.evaluate("document.getElementById('edit-policy-form-198.51.100.10').requestSubmit()");
+        await page.until("document.querySelector('[data-refresh-message]').textContent.includes('Protected IPs changed')");
+        assert.equal(policy.entries[0].name, "Office 10", "Stale draft did not overwrite the stored policy");
+        await page.call("Page.navigate", { url: `${origin}/protected-ips` });
+        await page.until("document.getElementById('edit-policy-form-198.51.100.10')?.elements.revision.value==='2'");
+        await page.evaluate(`(() => { const form=document.getElementById('edit-policy-form-198.51.100.10'); form.closest('details').open=true;
+          form.elements.name.value='Saved office'; form.elements.enabled.checked=false;
+          form.elements.name.dispatchEvent(new Event('input',{bubbles:true})); form.requestSubmit(); })()`);
+        await page.until("document.querySelector('#protected-policy').textContent.includes('Saved office')");
+        assert.equal(policy.entries[0].enabled, false);
+        await page.evaluate(`(() => { const form=document.getElementById('add-policy-form'); form.closest('details').open=true;
+          form.elements.ip.value='203.0.113.20'; form.elements.name.value='<img src=x onerror=alert(1)>';
+          form.elements.name.dispatchEvent(new Event('input',{bubbles:true})); form.requestSubmit(); })()`);
+        await page.until("document.querySelector('#protected-policy').textContent.includes('203.0.113.20')");
+        assert.equal(await page.evaluate("document.querySelectorAll('#protected-policy img').length"), 0, "Untrusted label remains escaped");
+        await page.evaluate(`(() => { const form=document.getElementById('delete-policy-form-203.0.113.20'); form.closest('details').open=true;
+          form.elements.confirm_ip.value='203.0.113.20'; form.requestSubmit(); })()`);
+        await page.until("!document.getElementById('delete-policy-form-203.0.113.20')");
+        assert.equal(policyPosts, 4);
+        assert.equal(postCount, hints, "Policy page background polling and CRUD do not request FTD refresh");
+      } finally { await page.close(); }
+    });
+    await t.test("history is expanded and paginates 100 records without shifting older windows", async () => {
+      status = initial();
+      historyRows = [];
+      for (let index = 0; index < 251; index += 1) appendHistory();
+      const hints = postCount;
+      const page = await connectPage(debugOrigin, `${origin}/history`);
+      try {
+        assert.equal(await page.evaluate("Boolean(document.querySelector('#recent-events-details'))"), false);
+        assert.equal(await page.evaluate("document.querySelectorAll('#recent-events tbody tr').length"), 100);
+        assert.ok(await page.evaluate("document.querySelector('[data-history-page-summary]').textContent.includes('Page 1 of 3')"));
+        let next = await page.evaluate("document.querySelector('[rel=next]').href");
+        await page.call("Page.navigate", { url: next });
+        await page.until("document.querySelector('[data-history-page-summary]')?.textContent.includes('Page 2 of 3')");
+        const ids = await page.evaluate("Array.from(document.querySelectorAll('#recent-events tbody tr'),row=>row.dataset.eventId)");
+        assert.equal(ids.length, 100);
+        assert.equal(await page.evaluate("document.querySelector('#recent-events table').getBoundingClientRect().height>0"), true);
+        appendHistory();
+        complete();
+        await wake(page);
+        await page.until("document.querySelector('[data-refresh-message]').textContent==='Refresh completed.'");
+        assert.deepEqual(await page.evaluate("Array.from(document.querySelectorAll('#recent-events tbody tr'),row=>row.dataset.eventId)"), ids);
+        assert.equal(await page.evaluate("location.href"), next);
+        next = await page.evaluate("document.querySelector('[rel=next]').href");
+        await page.call("Page.navigate", { url: next });
+        await page.until("document.querySelector('[data-history-page-summary]')?.textContent.includes('Page 3 of 3')");
+        assert.equal(await page.evaluate("document.querySelectorAll('#recent-events tbody tr').length"), 51);
+        assert.equal(await page.evaluate("Boolean(document.querySelector('[rel=next]'))"), false);
+        await page.call("Page.navigate", { url: `${origin}/history` });
+        await page.until("document.querySelector('#recent-events')?.textContent.includes('HISTORY_EVENT_252')");
+        assert.ok(await page.evaluate("document.querySelector('.history-retention').textContent.includes('366 days')"));
+        assert.equal(postCount, hints);
+      } finally { await page.close(); }
+    });
+    await t.test("refresh, queue notices and request failures never shift the working content", async () => {
+      status = initial();
+      failStatus = false;
+      const page = await connectPage(debugOrigin, origin);
+      try {
+        assert.equal(await page.evaluate("Boolean(document.querySelector('[data-refresh-message]').closest('#status-menu'))"), true);
+        const position = () => page.evaluate("document.querySelector('.universal-search').getBoundingClientRect().top+scrollY");
+        for (const width of [1100, 375]) {
+          await page.call("Emulation.setDeviceMetricsOverride", { width, height: 800, deviceScaleFactor: 1, mobile: false });
+          const baseline = await position();
+          for (const phase of ["refreshing", "error", "ready"]) {
+            status.refresh_in_progress = phase === "refreshing";
+            status.devices["1"].state = phase;
+            status.devices["1"].stale = phase === "error";
+            status.last_error = phase === "error" ? "A long device failure. ".repeat(12) : null;
+            status.queue.counts = phase === "error" ? { UNVERIFIED: 12345 } : {};
+            status.status_revision += 1;
+            await wake(page);
+            const label = { refreshing: "Refreshing", error: "Error", ready: "Current" }[phase];
+            await page.until(`document.querySelector('[data-device-status]').textContent.includes('${label}')`);
+            assert.equal(await position(), baseline, `${width}px viewport / ${phase} leaves search in place`);
+          }
+          failStatus = true;
+          await wake(page);
+          await page.until("!document.querySelector('[data-action-warning]').hidden");
+          assert.ok(await page.evaluate("document.querySelector('[data-action-warning]').getBoundingClientRect().height>0"));
+          assert.equal(await position(), baseline, "Network error is visible without moving content");
+          failStatus = false;
+          await wake(page);
+          await page.until("document.querySelector('[data-action-warning]').hidden");
+        }
+      } finally { failStatus = false; await page.close(); }
     });
   } finally {
     browser.kill("SIGTERM");

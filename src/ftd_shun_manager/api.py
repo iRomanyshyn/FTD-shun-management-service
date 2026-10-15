@@ -2,11 +2,12 @@
 
 from contextlib import asynccontextmanager
 from ipaddress import IPv4Address
+from typing import Annotated, Literal
 from uuid import UUID, uuid4
 
 import uvicorn
-from fastapi import FastAPI, HTTPException, Request, status
-from pydantic import BaseModel
+from fastapi import FastAPI, HTTPException, Query, Request, status
+from pydantic import BaseModel, Field, StrictBool
 
 from .agent_client import (
     AgentClient,
@@ -17,7 +18,7 @@ from .agent_client import (
 from .config import Settings
 from .inventory import load_devices
 from .operation_queue import QueueConflict, QueueFull
-from .store import Shun, Store
+from .store import HistoryWindowExpired, Shun, Store
 from .synchronizer import Synchronizer
 
 
@@ -25,6 +26,15 @@ class Actor(BaseModel):
     subject: str
     display_name: str
     roles: list[str]
+
+
+class PolicyChange(BaseModel):
+    actor: Actor
+    revision: int = Field(ge=0)
+    name: str = Field(default="", max_length=100)
+    comment: str = Field(default="", max_length=500)
+    enabled: StrictBool = True
+    confirm_ip: str = ""
 
 
 def _serialize(shun: Shun) -> dict[str, str | int | bool]:
@@ -66,12 +76,13 @@ def create_app(
         agent,
         settings.poll_interval_seconds,
         settings.interactive_refresh_min_interval_seconds,
-        settings.trusted_auto_remove_ips,
         settings.history_retention_days,
         enabled=settings.agent_mode != "disabled",
         operation_timeout_seconds=settings.agent_timeout_seconds,
         session_cycles_enabled=settings.agent_cycles_enabled,
     )
+    policy = synchronizer.policy
+    policy.migrate_legacy_environment()
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -100,14 +111,38 @@ def create_app(
 
     @app.get("/api/v1/status")
     async def service_status() -> dict[str, object]:
+        policy_state = policy.snapshot()
         return {
             "status": "ready",
             "agent_mode": settings.agent_mode,
             **synchronizer.status(),
-            "trusted_auto_remove_ips": store.list_trusted_auto_removal_status(
-                settings.trusted_auto_remove_ips
-            ),
+            "policy_revision": policy_state["revision"],
+            "trusted_auto_remove_ips": [entry for entry in policy_state["entries"] if entry["enabled"]],
         }
+
+    @app.get("/api/v1/protected-ips")
+    def protected_ips() -> dict:
+        return policy.snapshot()
+
+    @app.post("/api/v1/protected-ips/{ip}/{action}")
+    async def change_protected_ip(ip: IPv4Address, action: Literal["add", "edit", "delete"],
+                                  change: PolicyChange) -> dict:
+        # The private BFF supplies the authenticated subject. Policy management
+        # is intentionally shared by every admitted user; keep real audit roles.
+        if not change.actor.subject.strip():
+            raise HTTPException(403, "authenticated user required")
+        if action == "delete" and change.confirm_ip != str(ip):
+            raise HTTPException(422, "confirmation must match the IP address")
+        try:
+            policy.change(action, ip, change.revision, change.actor.subject,
+                          change.actor.display_name, tuple(change.actor.roles),
+                          change.name, change.comment, change.enabled)
+        except QueueConflict as error:
+            raise HTTPException(409, str(error)) from error
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from error
+        synchronizer.note_state_change()
+        return {"status": "saved", "policy": policy.snapshot()}
 
     @app.post("/api/v1/refresh-hint", status_code=status.HTTP_202_ACCEPTED)
     async def refresh_hint() -> dict[str, object]:
@@ -129,6 +164,14 @@ def create_app(
     def history(limit: int = 200) -> list[dict]:
         return store.list_events(limit=limit)
 
+    @app.get("/api/v1/history-page")
+    def history_page(page: Annotated[int, Query(ge=1, le=2**31 - 1)] = 1,
+                     anchor: UUID | None = None) -> dict:
+        try:
+            return store.history_page(page, str(anchor) if anchor else None)
+        except HistoryWindowExpired as error:
+            raise HTTPException(410, str(error)) from error
+
     @app.get("/api/v1/history/{ip}")
     def history_for_ip(ip: IPv4Address, limit: int = 200) -> list[dict]:
         return store.list_events(ip=ip, limit=limit)
@@ -139,7 +182,7 @@ def create_app(
             results = store.search_ip_history(ip)
         except ValueError as error:
             raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error)) from error
-        protected_ips = {str(item) for item in settings.trusted_auto_remove_ips}
+        protected_ips = {str(item) for item in policy.enabled_ips()}
         return [{**result, "protected": result["ip"] in protected_ips} for result in results]
 
     def require_operator(actor: Actor) -> None:

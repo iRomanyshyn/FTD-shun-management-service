@@ -25,7 +25,7 @@
   const readInitial = (root) => parseStatus(JSON.parse(
     root.querySelector("[data-refresh-initial]").textContent,
   ));
-  const version = (status) => `${status.instance_id}:${status.data_revision}:${status.cycle_revision}:${status.queue?.revision || 0}`;
+  const version = (status) => `${status.instance_id}:${status.data_revision}:${status.cycle_revision}:${status.queue?.revision || 0}:${status.policy_revision || 0}`;
   // Template JSON and BFF JSON may order object keys differently. Equivalent
   // metadata must not restart native progress animations or replace controls.
   const stableSignature = (value) => JSON.stringify(value, (_key, entry) =>
@@ -82,8 +82,11 @@
   // Hidden security fields always come from the fresh server-rendered form.
   const replaceRegion = (oldRegion, nextRegion) => {
     const values = new Map();
-    const fieldKey = (field) => `${field.form?.getAttribute("action") || ""}:${field.name}:${field.type}`;
-    oldRegion.querySelectorAll("input:not([type=hidden]), textarea, select").forEach((field) => {
+    const fieldKey = (field) => `${field.form?.getAttribute("action") || ""}:${field.form?.dataset.policyIp || ""}:${field.name}:${field.type}`;
+    oldRegion.querySelectorAll("input, textarea, select").forEach((field) => {
+      if (field.form?.matches("[data-policy-form]")) {
+        if (!field.form.dataset.dirty || (field.type === "hidden" && field.name !== "revision")) return;
+      } else if (field.type === "hidden") return;
       values.set(fieldKey(field), {
         value: field.value, checked: field.checked, focused: document.activeElement === field,
         start: field.selectionStart, end: field.selectionEnd,
@@ -94,10 +97,11 @@
     ));
     const replacement = document.importNode(nextRegion, true);
     oldRegion.replaceWith(replacement);
-    replacement.querySelectorAll("input:not([type=hidden]), textarea, select").forEach((field) => {
+    replacement.querySelectorAll("input, textarea, select").forEach((field) => {
       const saved = values.get(fieldKey(field));
       if (!saved) return;
       field.value = saved.value;
+      if (field.form?.matches("[data-policy-form]")) field.form.dataset.dirty = "true";
       if (typeof saved.checked === "boolean") field.checked = saved.checked;
       if (saved.focused) {
         field.focus({ preventScroll: true });
@@ -178,8 +182,17 @@
       const last = panel.querySelector(".last-successful-refresh");
       last.dateTime = status.last_successful_refresh || "";
       last.textContent = formatTime(status.last_successful_refresh);
-      warning.hidden = !status.last_error;
-      warning.textContent = status.last_error ? `Refresh warning: ${status.last_error}` : "";
+      const devices = Object.values(status.devices || {});
+      const unsafe = devices.filter((device) => device.state !== "disabled"
+        && (device.stale || ["error", "stale", "pending"].includes(device.state)));
+      warning.hidden = !status.last_error && !unsafe.length;
+      warning.textContent = status.last_error ? `Refresh warning: ${status.last_error}`
+        : unsafe.length ? `Unconfirmed or stale data: ${unsafe.map((device) => device.hostname).join(", ")}. Check Status before acting.` : "";
+      const summary = panel.querySelector("[data-status-summary]");
+      if (summary) summary.textContent = status.refresh_in_progress ? "Updating devices…"
+        : `${devices.length} device(s) · ${unsafe.length ? `${unsafe.length} need attention` : "Observations current"}`;
+      const indicator = panel.querySelector("[data-status-indicator]");
+      if (indicator) indicator.textContent = unsafe.length || status.last_error ? "· !" : "";
       message.textContent = errorMessage || actionError || (actionPending ? "Submitting operation…" : status.refresh_in_progress
         ? "Refreshing device information…"
         : status.cycle_revision > 0
@@ -188,6 +201,13 @@
               interrupted: "Refresh interrupted. Check device details." }[status.cycle_outcome] || "")
           : "Waiting for the first refresh.");
       message.classList.toggle("refresh-error", Boolean(errorMessage || actionError));
+      const actionWarning = panel.querySelector("[data-action-warning]");
+      if (actionWarning) {
+        actionWarning.hidden = !errorMessage && !actionError;
+        actionWarning.textContent = errorMessage || actionError;
+      }
+      message.hidden = !errorMessage && !actionError && !actionPending && !status.refresh_in_progress
+        && !["failed", "partial", "interrupted", "not_started"].includes(status.cycle_outcome);
       deviceRows.replaceChildren();
       Object.values(status.devices || {}).forEach((device) => {
         const row = document.createElement("tr");
@@ -238,6 +258,13 @@
       const activeTotal = totalFor(activeStates);
       const attentionTotal = totalFor(attentionStates);
       const completedTotal = totalFor(completedStates);
+      const indicator = panel.querySelector("[data-queue-indicator]");
+      if (indicator) indicator.textContent = `${activeTotal}${attentionTotal ? ` · ${attentionTotal} need attention` : ""}`;
+      const queueWarning = panel.querySelector("[data-queue-warning]");
+      if (queueWarning) {
+        queueWarning.hidden = !attentionTotal;
+        queueWarning.textContent = `${attentionTotal} failed or unverified operation(s). Open Queue → Needs attention. Unverified writes are not automatically retried.`;
+      }
       const next = activeTotal && queue.next_eligible_at
         ? ` Next eligible cycle: ${formatTime(queue.next_eligible_at)}.` : "";
       panel.querySelector("[data-queue-summary]").textContent =
@@ -378,6 +405,12 @@
             }, "application/json");
             failedAction = null;
             actionError = "";
+            if (action.sourceForm?.matches("[data-policy-form]")) {
+              const currentForm = document.getElementById(action.sourceForm.id) || action.sourceForm;
+              delete currentForm.dataset.dirty;
+              currentForm.reset();
+              currentForm.closest("details")?.removeAttribute("open");
+            }
           } catch (error) {
             failedAction = action;
             actionError = error.message;
@@ -424,7 +457,7 @@
       renderButton();
       if (!busy) schedule(0);
     });
-    const submitAction = (url, body, sourceButton) => {
+    const submitAction = (url, body, sourceButton, sourceForm = null) => {
       if (actionPending) {
         errorMessage = "An operation submission is in progress. Please wait for its result.";
         render();
@@ -433,7 +466,7 @@
       if (failedAction?.url === url && failedAction.body.has("request_id")) {
         body.set("request_id", failedAction.body.get("request_id"));
       }
-      actionPending = { url, body, button: sourceButton };
+      actionPending = { url, body, button: sourceButton, sourceForm };
       if (sourceButton) sourceButton.disabled = true;
       errorMessage = "";
       actionError = "";
@@ -441,9 +474,13 @@
       if (!busy) schedule(0);
     };
     document.addEventListener("submit", (event) => {
-      if (!event.target.matches("[data-queue-form]")) return;
+      if (!event.target.matches("[data-queue-form], [data-policy-form]")) return;
       event.preventDefault();
-      submitAction(event.target.action, new FormData(event.target), event.submitter);
+      submitAction(event.target.action, new FormData(event.target), event.submitter, event.target);
+    });
+    document.addEventListener("input", (event) => {
+      const policyForm = event.target.closest("[data-policy-form]");
+      if (policyForm) policyForm.dataset.dirty = "true";
     });
     panel.addEventListener("click", (event) => {
       const cancel = event.target.closest("[data-operation-cancel]");
@@ -466,5 +503,17 @@
   };
 
   localize();
+  const menus = [...document.querySelectorAll("[data-utility-menu]")];
+  menus.forEach((menu) => menu.addEventListener("toggle", () => {
+    if (menu.open) menus.filter((other) => other !== menu).forEach((other) => { other.open = false; });
+  }));
+  document.addEventListener("click", (event) => {
+    menus.filter((menu) => !menu.contains(event.target)).forEach((menu) => { menu.open = false; });
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    const open = menus.find((menu) => menu.open);
+    if (open) { open.open = false; open.querySelector("summary").focus(); }
+  });
   document.querySelectorAll("[data-refresh-controller]").forEach(createController);
 })();
