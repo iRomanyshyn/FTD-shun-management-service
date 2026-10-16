@@ -3,7 +3,13 @@
 ## Release boundary
 
 This is a staged operator-run laboratory procedure, not an executable import
-or permission to apply a pasted list. The service still has no ADD operation.
+or permission to apply a pasted list. Default-off typed ADD, private admission,
+provenance and shared-worker integration now exist; the deployed lab keeps
+execution disabled. The
+[one-address service procedure](single-address-service-validation.md#recorded-service-result--2026-10-16)
+was separately approved and completed for the single TEST-NET fixture, with
+gates restored off. Earlier direct-CLI evidence below remains distinct; general
+traffic/load/production enablement is not authorized by that result.
 Use only an isolated non-production FTD under the normal change process.
 Do not upgrade the dedicated account from Basic to Config to pass a test.
 
@@ -147,8 +153,9 @@ The direct CLI experiment has no service manual-import provenance.
 The [Addition Contract](addition-contract.md) now implements the next default-off
 agent/transport step: exact v3 ADD frames, explicit creation profile and shared
 cycle budgets. Its evidence model exercises the gated production parsers. The
-normal API remains on v1/v2 without ADD admission/dispatch/provenance. This
-implementation does not satisfy the live gates below or permit import admission.
+default API remains on v1/v2 with ADD gates off. Private admission/provenance
+and separately gated worker integration are implemented. This does not satisfy
+the live gates below or authorize enabling imports.
 
 Stage 4 below now records the separately approved direct-CLI duplicate test.
 Representative lab data-plane tests still need separate approval. Verify real
@@ -159,8 +166,9 @@ Finish the existing [cycle checklist](agent-cycle-protocol.md#migration-and-labo
 
 The typed encoding/profile contract has been promoted for disabled-by-default
 agent/transport implementation after the operator requested that increment.
-Live enablement still needs the remaining evidence, followed by reviewed
-durable admission/provenance and worker integration. The operation
+Live enablement still needs the remaining evidence and scoped approval;
+durable admission/provenance and worker integration are now implemented
+default-off and synthetically tested. The operation
 must reserve verification budget, fail closed on unknown output, retain uncertain
 writes without automatic replay, and exclude enabled Protected IPs at admission
 and dispatch. Existing short authorization expiry and shared cycle limits remain.

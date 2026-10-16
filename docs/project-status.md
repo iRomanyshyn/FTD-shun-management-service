@@ -4,6 +4,52 @@ Last updated: 2026-10-16
 
 ## Current increment
 
+**One-address service experiment completed (2026-10-16).** Under separate scoped
+approval, TEST-NET 198.51.100.251 on device 1/fpr1010-lab completed queued v3
+creation VERIFIED (17:05:24.909Z), already-present NOOP (17:07:06.477Z) and scoped
+removal VERIFIED (17:08:25.948Z). The operator independently observed absence,
+the exact source-only management row, then absence. Same-key replay before and
+after cleanup returned the original parent without new jobs/re-add; origin
+count stayed one through NOOP and its inactive history survives cleanup/restart.
+Creation cycle: five commands/15490 ms; NOOP: three commands/11276 ms. Exact
+removal cycle metrics were not captured before agent recreation; DB/agent result
+and final/operator observations confirm cleanup without inventing those metrics.
+
+All requests used the declared approved private maintenance actor, not direct
+agent RPC or forged Web identity. .env stayed untouched; only device 1's profile
+was temporary. Both API gates and agent ADD are restored off, eligible count
+zero, original inventory/.env bytes match pre-test checksums, private override
+disarmed and ordinary base configuration restored. The first normal v2 cycle
+succeeded at 17:11:13Z (two reads, zero mutations, 8997 ms). Original 61 active
+rows, all unrelated state/old jobs and three policy entries/revision 3 are
+unchanged; total queue eight VERIFIED/one NOOP, unfinished zero. SQLite integrity
+and private anonymous/TLS auth checks pass. Backup and previous image tags are
+retained. Web/Caddy/Authelia and binaries are unchanged; no application code or
+schema changed during validation. See [recorded evidence](manual/single-address-service-validation.md#recorded-service-result--2026-10-16).
+
+This closes only the approved one-fixture CLI lifecycle and small-read v3 check.
+Its authorization is consumed; general ADD, 7,307-address import, traffic/fleet
+scope/large-load/live-failure/priority and production remain unapproved. Fresh
+model/version/role were not queried; the account matches the earlier reported
+Basic profile. Authenticated browser visuals/submission are not established by
+private API testing. Follow-up: eligible QUEUED ADD still carries the historical
+staging wait reason until claimed; fix that misleading presentation before
+exposing executable import UI. Capture/export operating logs before recreation.
+
+**One-address service-test preparation (2026-10-16).** Added a structured
+[proposed runbook](manual/single-address-service-validation.md) covering fresh
+Basic-account preflight and separate scoped approval, temporary gates/profile,
+one queued creation, same-key retry, distinct already-present no-op, authenticated
+device-scoped cleanup, no-readd check and restoration. No code, live configuration,
+deployment, queue admission, refresh hint, independent agent request or device
+write changed. Corrected stale readiness-manual statements about unimplemented
+ADD/admission/worker; older direct-CLI/log observations remain historical.
+Read-only preflight at 16:54:07Z found device 1/fpr1010-lab enabled, TEST-NET
+198.51.100.251 locally absent/not protected, zero unfinished work, both API
+gates off and SQLite quick_check ok. Device ready/no error; last normal success
+16:52:34Z. Fresh SSH absence, address-unused/model/role confirmation and explicit
+scoped enablement/mutation approval remain pending. No live ADD evidence yet.
+
 **Independently gated queued ADD execution (2026-10-16).** Integrated ADD into
 the existing leased scheduler behind `FTD_SHUN_IMPORT_EXECUTION_ENABLED=false`.
 True requires socket agent mode, cycles and large reads, plus explicit enabled
@@ -481,12 +527,12 @@ The foundation increment was checked with:
 
 ## Next work, in order
 
-Current import-specific next step: validate the default-off scheduler integration
-under a separately approved laboratory procedure, without bypassing existing
-scope/traffic/read validation or silently extending the authorization window. Perform
-one explicitly approved service-executed TEST-NET lifecycle through the leased
-worker before any executable BFF submission or bulk import. The staged admission
-flag is not that execution gate. Real 7,307-entry imports remain blocked by
+The separately approved one-fixture service lifecycle is complete. Next fix the
+eligible-ADD wait reason and design/implement authenticated BFF confirmation
+without enabling writes or extending the short authorization window. Additional
+live mutations require fresh scoped authority; traffic/fleet/load/failure/priority
+checks remain before general imports. The staged admission flag is not the
+execution gate. Real 7,307-entry imports remain blocked by
 1000 pending-job capacity and bounded authorization as well as live read evidence.
 
 Before enabling any large import, resolve and lab validate the independent

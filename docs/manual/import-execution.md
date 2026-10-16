@@ -4,16 +4,22 @@
 
 ADD is wired into the existing leased scheduler, not a separate writer. This
 increment is implemented and synthetically tested, but the deployed laboratory
-keeps it disabled. There is still no executable browser import action. The
-existing preview cannot enqueue work. Production, live automated ADD, traffic
-blocking, fleet creation scope and large-load capacity are not validated by
-these tests or by a gated-off deployment.
+keeps it disabled. The separately approved
+[one-address lifecycle](single-address-service-validation.md#recorded-service-result--2026-10-16)
+now has live VERIFIED creation, NOOP and VERIFIED cleanup evidence, with independent
+operator target reads and gates restored off. There is still no executable
+browser import action. Production, traffic blocking, fleet creation scope,
+real large-load capacity and live failure/priority behavior remain unvalidated.
 
 Do not enable execution merely to try a pasted list. Follow
 [Addition Readiness](addition-lab-validation.md) and the
 [exact ADD contract](addition-contract.md). A scoped service-executed fixture
 requires explicit device-change authorization and review of those gates;
 standing permission for code deployment does not authorize a test write.
+The [one-address runbook](single-address-service-validation.md) separates
+read-only preparation from explicit target/window approval and controlled
+execution/cleanup. It is not evidence that the test has happened or permission
+to turn on gates before the operator approves the scoped experiment.
 
 ## Independent gates and device eligibility
 

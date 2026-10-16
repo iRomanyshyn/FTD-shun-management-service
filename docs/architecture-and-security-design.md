@@ -2708,6 +2708,31 @@ Publish ADD/remove/priority phases, combined progress, per-job held eligibility
 and completion revisions without a new device-read path. Default-off rollout
 is not scoped live ADD, traffic, creation-scope or large-population validation.
 
+The [proposed one-address service validation](manual/single-address-service-validation.md)
+separates fresh read-only preflight, explicit target/window/temporary-configuration
+approval, creation/idempotent retry/no-op, verified cleanup and restoration.
+Preparing that runbook or checking cached state is not approval to enable ADD
+or mutate FTD. Any limited validation experiment before broader traffic/load
+evidence must be explicitly scoped/reviewed, not inferred from deployment
+permission or treated as general import readiness.
+
+On 2026-10-16 the operator explicitly approved one such bounded experiment:
+device 1/fpr1010-lab, unused TEST-NET 198.51.100.251, temporary per-device profile/
+gate enablement, one queued creation, same-key replay/already-present no-op and
+device-scoped cleanup, followed by restoring defaults. Fresh Basic-session
+target absence was supplied. A clearly named trusted-host maintenance actor may
+use the private semantic API for admission/cleanup; no Web identity/session is
+fabricated and browser authorization is not validated by that route. This
+exception establishes only small CLI lifecycle evidence if it succeeds. It
+does not waive general traffic/creation-scope/load/production gates or authorize
+other addresses, broad imports, a second writer or retaining ADD enablement.
+That approved experiment completed with VERIFIED creation, NOOP, VERIFIED scoped
+cleanup, operator before/present/after reads and no re-add on original-key replay.
+ADD gates/profile were restored off and ordinary v2 observation succeeded. The
+[recorded result](manual/single-address-service-validation.md#recorded-service-result--2026-10-16)
+is one-profile CLI evidence only; the authorization is consumed and does not
+extend to new test writes, traffic/fleet/load acceptance or general enablement.
+
 ### Remaining product requirements
 
 - A pasted blocklist creates one-time manual additions. Successful removal,

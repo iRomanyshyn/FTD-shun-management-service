@@ -28,7 +28,11 @@ are held/cancellable unless the independent
 profile permit v3 dispatch. The gated worker now shares FIFO, the 16-operation
 budget, priority snapshots and verified provenance with removals; no new writer
 or executable BFF import exists. The deployed lab keeps all ADD gates off.
-Scoped live validation and browser submission remain next. Existing 1000-job capacity and
+The separately approved one-address service lifecycle has now passed VERIFIED
+creation, NOOP, VERIFIED cleanup and original-key replay without re-add, with
+operator before/present/after reads and all gates restored off. Broader live
+traffic/scope/load/failure/priority validation and browser submission remain
+next; no further write is authorized by that result. Existing 1000-job capacity and
 at-most-15-minute authorization do not support a 7,307-address import by one
 confirmation; design explicit bounded execution/reauthorization before claiming
 that support. Actual ADD/traffic validation and

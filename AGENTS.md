@@ -63,5 +63,18 @@ Do not rewrite historical log entries except to correct an objective error; add 
   ```
 
 - Validate Compose changes with `docker compose --env-file .env -f deploy/compose.yml config` using temporary, non-secret local configuration. Do not commit that configuration.
-- Only device-scoped removal has live agent lab-validation evidence. ADD/cycle v3, private import admission and queued ADD execution are experimental and default-off. The operator authorized default-off scheduler integration on 2026-10-16; this does not authorize enabling it or new live mutations. Enablement still requires the documented profile/traffic/read-capacity and scoped validation gates. Do not present either write path, mock mode or socket transport as production-ready until live FTD validation is documented.
+- Live evidence covers device-scoped removal and the separately approved one-address ADD/v3 creation/no-op/cleanup recorded on 2026-10-16. All ADD gates remain default-off and were restored off after that experiment. Traffic, fleet creation scope, large-load and production acceptance remain pending. Default-off implementation/deployment does not authorize new device mutations or general enablement. Do not present either write path, mock mode or socket transport as production-ready.
+- On 2026-10-16 the operator separately approved the one-address service
+  experiment on lab device 1/fpr1010-lab: unused TEST-NET 198.51.100.251,
+  temporary gate/profile enablement for that device only, one queued creation,
+  already-present/no-op verification and device-scoped cleanup, then restore
+  ADD-disabled operation. Fresh Basic-session absence was supplied. Use an
+  explicitly labelled trusted-host maintenance actor, not spoofed Web identity;
+  cleanup may use the same private queued API. This is a bounded CLI-lifecycle
+  validation exception, not approval for a long list, unrelated IPs, production,
+  data-plane changes, arbitrary CLI or leaving ADD enabled. Stop on unexpected
+  pre-existing/scope state; retain uncertainty without automatic replay.
+  The experiment is now complete: VERIFIED creation, NOOP, VERIFIED cleanup,
+  original-key replay without re-add and restored disabled-mode observation.
+  Its one-fixture authorization is consumed, not reusable for new writes.
 

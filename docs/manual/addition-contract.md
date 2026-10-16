@@ -16,6 +16,13 @@ under `cfg(test)`. It now exercises the strict production helpers in
 model is excluded from release builds; gated typed sender/parsers are included.
 Local tests do not establish live ADD readiness.
 
+The separately approved [one-address service lifecycle](single-address-service-validation.md#recorded-service-result--2026-10-16)
+now records VERIFIED creation, Already-present/NOOP without another write or
+origin, VERIFIED cleanup and original-key replay without re-add. All gates were
+restored off. This is one small FPR1010 profile experiment, not permission for
+more writes or acceptance of traffic, fleet, load, live failure/priority or
+production behavior. Model/version/role use the earlier operator profile.
+
 Before enablement, complete the remaining
 [addition lab gates](addition-lab-validation.md), including
 the Basic-account, duplicate, creation-scope, real traffic and bounded-read

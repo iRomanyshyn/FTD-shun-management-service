@@ -2067,6 +2067,149 @@ verification. No refresh hint, independent agent read, new job/policy or test
 device mutation was used for deployment checks. This is disabled-mode
 compatibility evidence, not live v3/ADD/traffic/large-load validation.
 
+## 2026-10-16 — Prepare, but do not execute, one-address service validation
+
+**Status:** Runbook prepared; fresh device evidence and scoped approval pending
+
+Following the operator's request to prepare and separately agree a service test,
+added One-Address Service Validation: explicit target/window/temporary-config
+authority, fresh Basic-account absence, private maintenance identity, canonical
+one-target admission, same-key replay versus new-key already-present no-op,
+expected verified occurrence provenance/audit, authenticated scoped cleanup,
+no automatic re-add and safe gate/profile restoration. It is a proposed runbook,
+not an executable helper or authorization. Any limited validation experiment
+before general traffic/load acceptance still needs explicit review/approval.
+No profile, privilege, raw CLI route, writer or application capability is added.
+
+Read-only cached preflight at 2026-10-16T16:54:07Z confirmed device 1 enabled as
+fpr1010-lab, fixture 198.51.100.251 locally absent, no enabled protection, zero
+unfinished target/all jobs, API admission/execution false, eligible count zero,
+cycles/large reads true and quick_check ok. Device ready/no error with last
+ordinary observation 16:52:34Z. No independent agent read or refresh hint was
+issued; cached absence is not fresh SSH evidence or address-unused assurance.
+
+Updated status, normative Section 74 references and manual index/worker links.
+Corrected readiness-manual present-tense claims that ADD/admission/provenance/
+worker did not exist; retained direct-CLI transcripts and historical log entries.
+Fresh Basic/model/version confirmation, device target absence and explicit
+approval of one creation/no-op/cleanup plus temporary enablement remain needed.
+No runtime/source code, schema, settings, inventory, deployment, admitted work
+or FTD mutation changed. No rollout/restore is required; existing private backups
+remain untouched. Documentation diff/link checks are performed before handoff;
+Python/Rust/browser suites need no rerun for this documentation-only increment.
+
+## 2026-10-16 — Approved one-fixture service experiment: scope and preflight
+
+**Status:** Explicitly approved; execution/results pending
+
+The operator separately approved the proposed one-IP experiment and supplied
+fresh Basic-session `show shun 198.51.100.251` returning only the normal prompt.
+Scope is device 1/fpr1010-lab, unused TEST-NET fixture only, temporary gate/profile
+enablement, one queued creation, same-key replay/already-present no-op and scoped
+cleanup, then restore ADD-disabled operation. This is a limited CLI-lifecycle
+validation exception, not a waiver of traffic/scope/load/production readiness,
+permission for the long list or general ADD enablement. Recorded the explicit
+exception in the working agreement, normative design and runbook before setup.
+
+Read-only recheck at 16:59:31Z confirms 61 active records, six existing VERIFIED
+jobs, policy revision 3, no fixture presence/protection or unfinished work,
+both API gates off, ready/no-error device, quick_check ok and no foreign-key
+errors. Only selected non-secret inventory fields were inspected for the
+authorized target edit: one device, management allowlist, no existing profile.
+Service username is ftd-shun-lab, matching the prior validated Basic account;
+actual model/version/role are operator-reported, not freshly probed via CLI.
+
+Use maintenance:single-address-validation / Operator-approved lab validation
+with the explicitly granted Operator role for trusted-host private API requests,
+including device-specific queued cleanup if assistant-run. This is not an
+Authelia user/session and does not validate BFF authorization. No authentication
+headers are forged. The test uses only the leased worker; a fresh normal v3
+snapshot must succeed with no mutation before admission. Keep .env unchanged
+using a private local Compose override; add only the approved device profile
+and remove that field after the test. Preserve a fresh SQLite-safe backup and
+current API/agent/Web images before enabling anything. Retain evidence/unknown
+outcomes; do not reset a database, replay an uncertain ADD or clean a pre-existing
+row. Results will be appended only after observation.
+
+## 2026-10-16 — Live one-address v3 creation/no-op/cleanup completed; gates restored
+
+**Status:** Approved fixture passed; authorization consumed, general ADD off
+
+Preserved exact current API/agent/Web image tags
+`before-single-address-20261016t170037z` and a checked SQLite-safe backup on the
+state volume plus ignored host file
+`.local/backups/state-before-single-address-20261016T170037Z.sqlite3` (0600,
+private directory 0700). The operator supplied fresh Basic target absence.
+Added only device 1's recognized management profile and enabled temporary gates
+using a private local Compose override, without editing .env. Stopped the sole
+API before agent recreation; no overlapping writer, direct RPC or raw CLI write.
+Account is ftd-shun-lab, matching the earlier operator-reported FPR1010/7.6.6/
+Basic profile; no fresh model/version/role command was added or claimed.
+
+A normal v3 zero-mutation initial/final read succeeded at 17:03:14Z (two
+commands, 8972 ms), confirming fresh complete small state with fixture absent.
+Private requests used the explicitly declared maintenance actor, not spoofed
+Authelia/Web identity. Exact canonical body/key was saved privately before each
+submission; target was only device 1 / 198.51.100.251 under policy revision 3.
+
+Observed sequence:
+
+- Creation request `cf13f6de-9eb8-4461-9713-497bd820606a`, job
+  `ed1effdf-8e3d-467f-9e68-98cb57081641`: accepted 17:05:10.944Z, claimed
+  17:05:17.657Z, VERIFIED 17:05:24.909Z. Agent emitted add_shun.verified;
+  cycle five commands/15490 ms, successful final snapshot. One current
+  management occurrence/origin and SHUN_ADDED_BY_IMPORT for maintenance actor.
+  Operator independently observed the exact source-only row.
+- Exact original-key replay returned replayed=true, same parent, one linked
+  job/origin, without new work.
+- Already-present request `8aa0f424-0ece-4f2c-a904-9ae5ff4f0437`, job
+  `60efa008-f1d1-4004-b425-576be53bfcd1`: accepted 17:06:56.703Z, claimed
+  17:07:03.531Z, NOOP 17:07:06.477Z. Agent add_shun.noop; three commands/
+  11276 ms, no second creation command or new origin; original count remains one.
+- Scoped removal request `d42bb709-f9a2-471a-bd5c-0843d50867ac`, job
+  `bf6716af-c8cd-4909-8c84-57acabd780b9`: accepted 17:08:03.393Z, claimed
+  17:08:14.810Z after persisted eligibility, VERIFIED 17:08:25.948Z. Exact
+  verified response, successful final absence and independent operator empty
+  target read confirm cleanup. The event uses the existing SHUN_REMOVED_BY_UI
+  name, but actual caller was the declared private maintenance actor, not a
+  browser login. Removal agent cycle counts/timing were not captured before
+  recreation and are not inferred from expected command sequences.
+- Original creation-key replay after cleanup returned the same completed
+  reference. Total jobs stayed nine, unfinished zero, fixture absent: no re-add.
+
+After terminal cleanup/replay, stopped API then agent, removed the temporary
+profile and verified inventory/.env contents match pre-test checksums exactly.
+Removed only the patch-added trailing LF to restore original inventory bytes;
+no device address/key or unrelated configuration changed. Disarmed the retained
+private override and recreated API/agent using ordinary base lab files. No image,
+application/agent code, schema, secret, policy or database restore changed.
+Web/Caddy/Authelia IDs are unchanged; audit was retained, not erased.
+
+The restored normal v2 cycle completed successfully at 17:11:13Z with two reads,
+zero mutations and 8997 ms; next baseline 17:16:13Z. At 17:11:48Z, admission/
+execution false, eligible devices zero, agent ADD absent/default false,
+fixture absent, unfinished jobs zero, original 61 active rows and policy three
+entries/revision 3. Queue has eight VERIFIED/one NOOP: six old plus exactly
+ADD VERIFIED, ADD NOOP and REMOVE VERIFIED test jobs. Backup comparisons prove
+unrelated state/stable timestamps/occurrence IDs, old jobs and policy unchanged.
+One inactive fixture origin and all request/audit records survive restart.
+quick_check ok, foreign_key_check empty; anonymous pages/status 401 and normal
+TLS-verified HTTPS Authelia redirect 302. No broad list/other target was touched.
+
+Updated current status, working agreement, normative scope, plan, README and
+structured manual with observed evidence. Validation is live one-fixture
+service/CLI evidence plus read-only integrity/auth/restore checks and Compose
+quiet/diff/link checks. Python/Rust/browser suites were not rerun: no program
+code changed; their previous synthetic evidence is not a new live test claim.
+
+Remaining limits: not data-plane blocking, fleet creation scope, large-load,
+live failure/priority, actual browser submission/visuals or production acceptance.
+Further live writes need new scoped approval. Record before future container
+recreation or export logs externally: Docker local logs are container-scoped.
+Follow-up UI issue found: eligible queued ADD retains the staging-disabled wait
+reason until claim; fix that misleading reason before executable browser import.
+No runtime fix or extra test mutation was made during this scoped experiment.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.
