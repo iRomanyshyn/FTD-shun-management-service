@@ -1,5 +1,10 @@
 # Agent Cycle Protocol v1
 
+This document remains the exact legacy v1 contract. The independently gated
+[large-snapshot extension](large-snapshots.md) defines cycle v2 with unchanged
+mutation semantics and bounded multi-frame full observations. Neither version
+supports ADD/import. Keep both feature flags false unless explicitly lab-approved.
+
 ## Release gate
 
 This document defines the implementation contract for experimental removal cycles,

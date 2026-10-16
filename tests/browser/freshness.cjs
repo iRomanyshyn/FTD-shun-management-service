@@ -25,7 +25,7 @@ if p.get("submitted"):
     preview = paginate_preview(summarize_preview(parsed, dict(policy_revision=1, devices=[dict(id=1,hostname="lab-ftd")],
         addresses=[dict(ip=ip,protected=ip=="198.51.100.10",devices=[dict(id=1,hostname="lab-ftd",already_shunned=ip=="203.0.113.20")]) for ip in parsed["ips"]])), p.get("page", 1))
 shun = dict(ip="198.51.100.10", device_id=1, device_hostname="lab-ftd FIXTURE_EVENT_" + str(p["generation"]), interface="outside",
-            first_seen_at="2026-10-15T10:00:00Z", last_seen_at="2026-10-15T10:00:00Z")
+            first_seen_at="2026-10-14T10:00:00Z", active_since_at="2026-10-15T10:00:00Z", last_seen_at="2026-10-15T10:00:00Z")
 event = dict(timestamp="2026-10-15T10:00:00Z", event_type="FIXTURE_EVENT_" + str(p["generation"]),
              device_hostname="lab-ftd", actor_display_name="Test Operator", actor_subject="test", ip=shun["ip"])
 print(templates.get_template(p["template"]).render(identity=Identity("test", "Test Operator", ("Operator",)),
@@ -624,6 +624,8 @@ test("refresh interaction in real Chromium", { timeout: 90000 }, async (t) => {
         await page.call("Page.navigate", { url: `${origin}/` });
         await page.until("Boolean(document.querySelector('#active-shuns .disabled-protection-shun'))");
         assert.equal(await page.evaluate("document.querySelector('#active-shuns .policy-disabled').textContent"), "Protection disabled");
+        assert.equal(await page.evaluate("document.querySelector('#active-shuns td time').dateTime"), "2026-10-15T10:00:00Z", "Current appearance is displayed, not lifetime first detection");
+        assert.ok(await page.evaluate("document.querySelector('#active-shuns td time').textContent !== '2026-10-15T10:00:00Z'"), "Current appearance is localized");
         await page.call("Page.navigate", { url: `${origin}/shuns/198.51.100.10` });
         await page.until("Boolean(document.querySelector('.disabled-protection-notice'))");
         assert.ok(await page.evaluate("document.querySelector('#protection-notice').textContent.includes('currently shunned')"));

@@ -24,19 +24,20 @@ enum Step {
     End,
 }
 
-fn decode_begin(packet: &[u8]) -> Result<u16> {
-    if packet.len() != 4 || packet[..2] != [BEGIN, VERSION] {
+fn decode_begin(packet: &[u8]) -> Result<(u16, u8)> {
+    if packet.len() != 4 || packet[0] != BEGIN || !matches!(packet[1], VERSION | snapshot::VERSION)
+    {
         bail!("invalid cycle begin frame");
     }
     let device = u16::from_be_bytes([packet[2], packet[3]]);
     if device == 0 {
         bail!("invalid cycle device");
     }
-    Ok(device)
+    Ok((device, packet[1]))
 }
 
-fn decode_step(packet: &[u8], expected: u8) -> Result<Step> {
-    if packet.len() < 3 || packet[1] != VERSION || packet[2] != expected {
+fn decode_step(packet: &[u8], expected: u8, version: u8) -> Result<Step> {
+    if packet.len() < 3 || packet[1] != version || packet[2] != expected {
         bail!("invalid cycle version or sequence");
     }
     match (packet[0], packet.len()) {
@@ -86,6 +87,7 @@ struct Cycle<C> {
     removals: u8,
     priority_used: bool,
     sequence: u8,
+    version: u8,
 }
 
 impl<C: Console> Cycle<C> {
@@ -93,22 +95,25 @@ impl<C: Console> Cycle<C> {
         MAX_DURATION.saturating_sub(self.started.elapsed())
     }
 
-    async fn snapshot(&mut self, opcode: u8, sequence: u8) -> Result<Vec<u8>> {
+    async fn snapshot(&mut self, opcode: u8, sequence: u8) -> Result<Vec<Vec<u8>>> {
         if self.commands >= MAX_COMMANDS {
             bail!("cycle snapshot command budget exhausted");
         }
         self.commands += 1;
         let entries = self.console.snapshot(&self.allowed).await?;
+        if self.version == snapshot::VERSION {
+            return snapshot::encode(entries, opcode, sequence);
+        }
         let mut response = vec![0, VERSION, opcode, sequence];
         response.extend(encode_list_shuns_response(entries)?);
         if response.len() > MAX_AGENT_RESPONSE_BYTES {
             bail!("cycle snapshot response exceeds maximum size");
         }
-        Ok(response)
+        Ok(vec![response])
     }
 
-    async fn execute(&mut self, packet: &[u8]) -> Result<(Vec<u8>, bool)> {
-        let step = decode_step(packet, self.sequence)?;
+    async fn execute(&mut self, packet: &[u8]) -> Result<(Vec<Vec<u8>>, bool)> {
+        let step = decode_step(packet, self.sequence, self.version)?;
         let seq = self.sequence;
         self.sequence += 1;
         match step {
@@ -120,7 +125,7 @@ impl<C: Console> Cycle<C> {
                 if self.commands + 2 > MAX_COMMANDS
                     || self.remaining() < FTD_INTERACTION_TIMEOUT * 2
                 {
-                    return Ok((vec![2, VERSION, SNAPSHOT, seq], false));
+                    return Ok((vec![vec![2, self.version, SNAPSHOT, seq]], false));
                 }
                 Ok((self.snapshot(SNAPSHOT, seq).await?, false))
             }
@@ -130,7 +135,7 @@ impl<C: Console> Cycle<C> {
                     bail!("cycle removal count exceeded");
                 }
                 self.removals += 1;
-                let deferred = vec![2, VERSION, REMOVE, seq];
+                let deferred = vec![vec![2, self.version, REMOVE, seq]];
                 // Reserve a complete operation plus the final full observation.
                 if self.remaining() < self.timeout + FTD_INTERACTION_TIMEOUT
                     || self.commands + 4 > MAX_COMMANDS
@@ -140,7 +145,7 @@ impl<C: Console> Cycle<C> {
                 self.commands += 1;
                 let interfaces = self.console.target(ip, &self.allowed).await?;
                 if interfaces.is_empty() {
-                    return Ok((vec![0, VERSION, REMOVE, seq, 0], false));
+                    return Ok((vec![vec![0, self.version, REMOVE, seq, 0]], false));
                 }
                 // Reserve ALL interface writes, target verification, and END.
                 if self.commands + interfaces.len() + 2 > MAX_COMMANDS {
@@ -159,7 +164,7 @@ impl<C: Console> Cycle<C> {
                 if !self.console.target(ip, &self.allowed).await?.is_empty() {
                     bail!("cycle removal could not verify absence");
                 }
-                Ok((vec![0, VERSION, REMOVE, seq, 1], false))
+                Ok((vec![vec![0, self.version, REMOVE, seq, 1]], false))
             }
         }
     }
@@ -174,13 +179,6 @@ pub(super) fn set_ipc_timeout(connection: &OwnedFd, duration: Duration) -> Resul
     Ok(())
 }
 
-fn send_packet(connection: &OwnedFd, response: &[u8]) -> Result<()> {
-    if send(connection.as_raw_fd(), response, MsgFlags::MSG_NOSIGNAL)? != response.len() {
-        bail!("incomplete cycle response send");
-    }
-    Ok(())
-}
-
 pub(super) fn handle(
     agent: &Agent,
     connection: &OwnedFd,
@@ -188,9 +186,12 @@ pub(super) fn handle(
     packet: &[u8],
 ) -> Result<Vec<u8>> {
     let started = Instant::now();
-    let device_id = decode_begin(packet)?;
+    let (device_id, version) = decode_begin(packet)?;
     if !agent.cycles_enabled {
         bail!("session cycles are disabled pending laboratory validation");
+    }
+    if version == snapshot::VERSION && !agent.large_snapshots_enabled {
+        bail!("large snapshots are disabled pending laboratory validation");
     }
     let device = agent
         .devices
@@ -198,10 +199,11 @@ pub(super) fn handle(
         .filter(|device| device.enabled)
         .context("unknown or disabled cycle device")?;
     let step_timeout = agent.operation_timeout.min(MAX_STEP_DURATION);
-    let session = runtime.block_on(timeout(step_timeout, async {
+    let mut session = runtime.block_on(timeout(step_timeout, async {
         let password = load_ssh_password(&agent.password_file)?;
         SshSession::connect(device, &agent.username, password.as_str()).await
     }))??;
+    session.large_snapshots = version == snapshot::VERSION;
     let mut cycle = Cycle {
         console: session,
         allowed: device.allowed_interfaces.clone(),
@@ -211,6 +213,7 @@ pub(super) fn handle(
         removals: 0,
         priority_used: false,
         sequence: 1,
+        version,
     };
     let result = (|| -> Result<Vec<u8>> {
         let initial = runtime.block_on(timeout(
@@ -219,8 +222,7 @@ pub(super) fn handle(
                 .min(step_timeout.saturating_sub(started.elapsed())),
             cycle.snapshot(BEGIN, 0),
         ))??;
-        set_ipc_timeout(connection, cycle.remaining())?;
-        send_packet(connection, &initial)?;
+        snapshot::send_frames(connection, &initial, started + step_timeout)?;
         loop {
             if cycle.remaining().is_zero() {
                 bail!("cycle session deadline exceeded");
@@ -231,15 +233,15 @@ pub(super) fn handle(
             if size == 0 || size > packet.len() {
                 bail!("cycle request closed or oversized");
             }
+            let deadline = Instant::now() + cycle.remaining().min(step_timeout);
             let (response, done) = runtime.block_on(timeout(
                 cycle.remaining().min(step_timeout),
                 cycle.execute(&packet[..size]),
             ))??;
+            snapshot::send_frames(connection, &response, deadline)?;
             if done {
-                return Ok(response);
+                return Ok(Vec::new());
             }
-            set_ipc_timeout(connection, cycle.remaining())?;
-            send_packet(connection, &response)?;
         }
     })();
     // No uncertain CLI exit command: disconnect the transport on failure.
@@ -257,6 +259,7 @@ pub(super) fn handle(
         "{}",
         serde_json::json!({
             "event": if result.is_ok() { "agent.cycle.completed" } else { "agent.cycle.failed" },
+            "protocol_version": version,
             "device_id": device_id, "commands": cycle.commands, "removal_steps": cycle.removals,
             "elapsed_ms": started.elapsed().as_millis(),
             "reason": result.as_ref().err().map(|error| error.to_string()),
@@ -309,16 +312,17 @@ mod tests {
             removals: 0,
             priority_used: false,
             sequence: 1,
+            version: VERSION,
         }
     }
 
     #[test]
     fn frames_are_exact_versioned_and_ordered() -> Result<()> {
-        assert_eq!(decode_begin(&[BEGIN, VERSION, 0, 7])?, 7);
+        assert_eq!(decode_begin(&[BEGIN, VERSION, 0, 7])?, (7, VERSION));
         for packet in [
             vec![],
             vec![BEGIN, VERSION, 0, 0],
-            vec![BEGIN, 2, 0, 1],
+            vec![BEGIN, 3, 0, 1],
             vec![BEGIN, VERSION, 0, 1, 0],
         ] {
             assert!(decode_begin(&packet).is_err());
@@ -331,7 +335,7 @@ mod tests {
             vec![SNAPSHOT, 2, 1],
             vec![0xff, VERSION, 1],
         ] {
-            assert!(decode_step(&packet, 1).is_err());
+            assert!(decode_step(&packet, 1, VERSION).is_err());
         }
         Ok(())
     }
@@ -342,12 +346,13 @@ mod tests {
         let runtime = tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()?;
-        let agent = Agent {
+        let mut agent = Agent {
             devices: BTreeMap::new(),
             username: "unused".into(),
             password_file: PathBuf::from("/unused/test-secret"),
             operation_timeout: Duration::from_secs(45),
             cycles_enabled: false,
+            large_snapshots_enabled: false,
         };
         let (sender, receiver) = socketpair(
             AddressFamily::Unix,
@@ -372,6 +377,34 @@ mod tests {
             handle_connection(&agent, &receiver, runtime.handle()),
             RESPONSE_REJECTED
         );
+        agent.cycles_enabled = true;
+        let error = handle(&agent, &receiver, runtime.handle(), &[BEGIN, 2, 0, 7])
+            .err()
+            .context("v2 must be disabled")?;
+        assert!(error.to_string().contains("large snapshots are disabled"));
+        send(sender.as_raw_fd(), &[7, 0, 7], MsgFlags::MSG_NOSIGNAL)?;
+        assert_eq!(
+            handle_connection(&agent, &receiver, runtime.handle()),
+            RESPONSE_REJECTED
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn v2_changes_snapshot_frames_not_removal_semantics() -> Result<()> {
+        let mut cycle = fixture();
+        cycle.version = 2;
+        assert_eq!(decode_begin(&[BEGIN, 2, 0, 7])?, (7, 2));
+        let initial = cycle.snapshot(BEGIN, 0).await?;
+        assert_eq!(initial.len(), 2);
+        assert_eq!(&initial[0][..5], &[0, 2, BEGIN, 0, 0]);
+        let reply = cycle.execute(&[REMOVE, 2, 1, 203, 0, 113, 17]).await?.0;
+        assert_eq!(reply, vec![vec![0, 2, REMOVE, 1, 1]]);
+        assert_eq!(cycle.console.writes, 1);
+        assert!(cycle.execute(&[END, 1, 2]).await.is_err());
+        let (final_frames, done) = cycle.execute(&[END, 2, 2]).await?;
+        assert!(done);
+        assert_eq!(final_frames.len(), 2);
         Ok(())
     }
 
@@ -396,7 +429,7 @@ mod tests {
             let mut cycle = fixture();
             cycle.sequence = request[2];
             let response = if request[0] == BEGIN {
-                assert_eq!(decode_begin(&request)?, 7);
+                assert_eq!(decode_begin(&request)?, (7, VERSION));
                 cycle.snapshot(BEGIN, 0).await?
             } else {
                 if expected[0] == 2 {
@@ -404,7 +437,7 @@ mod tests {
                 }
                 cycle.execute(&request).await?.0
             };
-            assert_eq!(response, expected);
+            assert_eq!(response, vec![expected]);
         }
         Ok(())
     }
@@ -419,7 +452,7 @@ mod tests {
                 .execute(&[REMOVE, VERSION, 1, 203, 0, 113, 17])
                 .await?
                 .0,
-            [2, VERSION, REMOVE, 1]
+            vec![vec![2, VERSION, REMOVE, 1]]
         );
         assert_eq!(cycle.console.writes, 0);
         assert_eq!(cycle.commands, 2); // Initial snapshot and target read only.
@@ -439,7 +472,7 @@ mod tests {
             let before = cycle.commands;
             assert_eq!(
                 cycle.execute(&[SNAPSHOT, VERSION, 1]).await?.0,
-                [2, VERSION, SNAPSHOT, 1]
+                vec![vec![2, VERSION, SNAPSHOT, 1]]
             );
             assert_eq!(cycle.commands, before);
             assert_eq!(cycle.console.writes, 0);
@@ -458,7 +491,7 @@ mod tests {
                     .execute(&[REMOVE, VERSION, seq, 203, 0, 113, 17])
                     .await?
                     .0,
-                [0, VERSION, REMOVE, seq, 0]
+                vec![vec![0, VERSION, REMOVE, seq, 0]]
             );
         }
         assert!(
@@ -490,10 +523,10 @@ mod tests {
         let (reply, _) = cycle
             .execute(&[REMOVE, VERSION, 1, 203, 0, 113, 17])
             .await?;
-        assert_eq!(reply, [0, VERSION, REMOVE, 1, 1]);
+        assert_eq!(reply, vec![vec![0, VERSION, REMOVE, 1, 1]]);
         assert_eq!(cycle.console.writes, 1);
         let (reply, _) = cycle.execute(&[SNAPSHOT, VERSION, 2]).await?;
-        assert_eq!(reply, [0, VERSION, SNAPSHOT, 2, 0, 0, 0]);
+        assert_eq!(reply, vec![vec![0, VERSION, SNAPSHOT, 2, 0, 0, 0]]);
         assert!(cycle.execute(&[SNAPSHOT, VERSION, 3]).await.is_err());
         assert_eq!(cycle.console.writes, 1);
         Ok(())
@@ -508,7 +541,7 @@ mod tests {
                 .execute(&[REMOVE, VERSION, 1, 203, 0, 113, 17])
                 .await?
                 .0,
-            [2, VERSION, REMOVE, 1]
+            vec![vec![2, VERSION, REMOVE, 1]]
         );
         assert_eq!(cycle.console.writes, 0);
         assert!(cycle.execute(&[END, VERSION, 2]).await?.1);
@@ -519,7 +552,7 @@ mod tests {
                 .execute(&[REMOVE, VERSION, 1, 203, 0, 113, 17])
                 .await?
                 .0,
-            [2, VERSION, REMOVE, 1]
+            vec![vec![2, VERSION, REMOVE, 1]]
         );
         assert_eq!(cycle.console.writes, 0);
         Ok(())

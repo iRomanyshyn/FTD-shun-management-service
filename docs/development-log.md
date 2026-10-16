@@ -1515,6 +1515,201 @@ No policy mutation, queue admission, refresh hint or device write was submitted
 for validation. Reload tabs; authenticated visual inspection remains an
 operator task. Database, environment, credentials and agent were not changed.
 
+## 2026-10-16 — Addition readiness and large-snapshot capacity blocker
+
+**Status:** Read-only diagnosis and staged laboratory procedure completed and tested
+
+Before adding an ADD capability, inspection found separate 64 KiB limits in the
+Rust SSH output reader and fixed snapshot response protocol. 7,307 entries with
+the ten-byte `management` interface need 109608 legacy response bytes/109612
+cycle bytes. A generated benchmark-range CRLF CLI sample is 337679 bytes before
+echo/prompt. These are synthetic calculations, not live FTD load evidence.
+The 4,368-entry binary boundary is not an operational capacity claim: raw CLI
+output can exceed its cap earlier. Preview's increased local input budget never
+changed either agent limit. Current rejection behavior is retained.
+
+Recorded the prerequisite for bounded complete-snapshot scaling, frame/byte/
+entry/time budgets and atomic validation before reconciliation. Added a staged
+operator manual for Basic-account preflight, one separately approved unused
+TEST-NET creation and scoped cleanup, with stop conditions for pre-existing
+state, policy races, failed prompts and unexpected interfaces. No new opcode,
+arbitrary CLI path or actual write is introduced. Large-list application,
+duplicate behavior and representative traffic-blocking proof remain gated.
+
+Also corrected an objectively stale operating procedure: the main FTD lab
+manual still instructed edits to the legacy policy environment variable even
+though SQLite now owns policy. The current procedure uses Protected IPs, records
+the baseline count/revision, deletes only the fixture and preserves unrelated
+entries; no API restart is required. Historical engineering entries are intact.
+
+**Validation:** All 189 Python tests passed; compileall, Ruff and diff checks
+passed. Added synthetic management-snapshot regressions at
+4,368/4,369/7,307 entries for both legacy and cycle decoding. They demonstrate
+the exact fixed-packet capacity boundary and fail-closed rejection rather than
+truncation or implicit support for preview-sized device populations.
+Rust/runtime/UI source is unchanged in this increment; no new live FTD evidence
+or browser result is claimed.
+
+**Operational impact:** Documentation and local regression tests only. No
+deployment, schema, environment, credentials, running services or device state
+changed. The optional direct-CLI fixture requires separate operator approval;
+the assistant has not executed it. The next read-path extension and ADD design
+must be reviewed and tested before import admission/provenance implementation.
+
+## 2026-10-16 — Operator-observed Basic single-address creation
+
+**Status:** Direct CLI addition observed; scoped cleanup confirmation pending
+
+Following an empty `show shun 198.51.100.251`, the operator ran the single
+approved test addition as the reported Basic `ftd-shun-lab` account. FTD returned
+`Shun 198.51.100.251 added in context: single_vf` and
+`Shun 198.51.100.251 successful`; the next target read showed
+`shun (management) 198.51.100.251 0.0.0.0 0 0 0`. The exact transcript is
+recorded in the addition lab manual. The FPR1010/FTD 7.6.6 profile and account
+role are operator-reported context, not an independent version/role recheck.
+
+Requested cleanup only for this newly created target using its observed
+`management` interface, followed by a target read. No cleanup result has yet
+been supplied; absence is not assumed. No additional add, duplicate test or
+bulk-list application was requested. This confirms a single Basic creation and
+CLI observation only, not data-plane blocking, fleet-wide creation scope,
+agent/protocol verification, timing bounds or large-snapshot capacity.
+
+**Validation/impact:** Evidence-only documentation update; diff checks run.
+The assistant did not execute an SSH command, mutate service policy/queue or
+deploy/restart anything. The operator changed one lab fixture; its cleanup
+remains the immediate next step. Historical entries and existing limits remain
+unchanged. No imported provenance or production capability is claimed.
+
+## 2026-10-16 — Operator-confirmed cleanup of the Basic addition fixture
+
+**Status:** Single-fixture direct CLI lifecycle completed
+
+The operator returned the exact follow-up transcript:
+
+```text
+> no shun 198.51.100.251 interface management
+> show shun 198.51.100.251
+>
+```
+
+This supplies the cleanup evidence missing from the preceding entry. Together
+with the earlier absent preflight, successful Basic addition and `management`
+observation, it completes absent → added → observed → removed → absent for
+this one TEST-NET fixture. Updated the current status, plan and lab manual;
+the prior pending-cleanup log entry remains unchanged as chronological history.
+
+**Validation/impact:** Documentation-only evidence update; diff checks passed.
+No assistant-issued device command, deployment, setting, schema or code change.
+The operator removed the newly created lab fixture; its preflight absent state
+is restored in the supplied CLI observation. This does not establish data-plane
+blocking, duplicate behavior, agent ADD/provenance or large-snapshot capacity.
+The next implementation prerequisite remains bounded complete-snapshot scaling;
+the existing 64 KiB limits and fail-closed behavior have not changed.
+
+## 2026-10-16 — Default-off bounded large snapshots and cycle v2
+
+**Status:** Implemented, tested and deployed to the explicitly approved dev lab
+
+Added a separate strict false-by-default API/agent flag selecting read-only
+LIST_SHUNS_LARGE (07) and cycle version 2 snapshots. Request sizes and existing
+mutation meanings/budgets remain fixed; no ADD/import or generic CLI primitive.
+Agent rejects disabled new reads/v2 before SSH. v1 and legacy retain 64 KiB
+limits and shared wire-vector regressions. No fallback or automatic negotiation.
+
+Snapshots use an exact manifest, ordered indexed 32 KiB data chunks and mandatory
+SHA-256 end. Bounds are 20,000 entries, 2 MiB data/64 chunks and 66 total frames;
+every packet remains within the existing 64 KiB receive buffer. Typed interface
+grammar, total count, size, binding, ordering, digest and exact entry decoding
+all precede any reconciliation. Empty requires manifest plus end; EOF/rejection
+is never empty. Partial/corrupt snapshots discard buffered data and retain prior
+observations. SHA-256 is completeness, not a substitute for UID authentication.
+
+Only opted-in full reads collect up to 4 MiB console output; login/target/write
+reads retain 64 KiB. Prompt waits remain 15 seconds. All stream packets share
+one <=10-second send/receive deadline within the existing operation/step/session
+deadlines, preventing per-chunk timeout resets. No pager commands or guessed
+output parsing. Added direct sha2 0.11 use of the already locked dependency,
+without upgrading unrelated packages. Agent cycle logs include protocol version.
+
+**Validation:** 230 Python tests and 26 Rust tests passed. Includes shared v2
+vectors, real local SeqPacket streams, synthetic 7,307 and 20,000 entries (also
+64-byte interfaces), legacy boundary/vector retention, malformed counts/lengths/
+fields, missing/reordered/duplicate/corrupt frames, wrong bindings, truncated
+packets, flag rejection, stalled peer and absolute deadlines. An interrupted
+empty stream preserves the existing active SQLite record/events/revision and
+queues nothing. v2 fake-console removals retain verified/no-op/deferral meaning.
+Release build, Clippy -D warnings, compileall, Ruff and diff checks passed.
+Initial un-escalated Rust socket tests hit sandbox EPERM; running the synthetic
+socket tests outside that sandbox passed. Synthetic coverage is not live FTD
+load evidence; the separate small-read deployment check is recorded below.
+
+**Operational impact:** No schema/data migration. Preserve paired API/agent
+images and a SQLite-safe backup; stop the API executor before agent replacement.
+The operator explicitly approved deployment and flag opt-in in the dev lab,
+acknowledging existing queue/policy execution on restart. Web needs no rebuild.
+Never run old/new executors together. Rollback disables both flags and restores
+paired images; it restores legacy capacity, not a large-population solution.
+No new mutation/refresh hint will be submitted for validation. ADD, real large-
+load FTD timing/paging and live v2 mutation/priority cases remain separate work.
+
+**Deployment:** Preserved preceding API/agent images as
+`before-large-snapshots-20261016t100451z` and built the new pair. Created a
+SQLite-backup-API copy with quick_check=ok and mode 0600. Docker archive copy
+could not see the first backup on container tmpfs despite exec confirming it;
+a second verified backup on the state volume copied successfully to the ignored
+mode-0700 `.local/backups/state-before-large-snapshots-20261016T100451Z.sqlite3`.
+The retained host copy is mode 0600 and quick_check is ok. No database restore
+or schema/data migration was performed.
+
+Gracefully stopped API before agent, added only the approved true flag to
+the ignored `.env`, and recreated API/agent only. No old/new executors overlap.
+The first live cycle logged protocol_version=2, two full snapshot commands,
+zero removals and 8282 ms, with successful API outcome and no error. Both new
+flags report true; six existing VERIFIED outcomes and all three policy entries/
+revision 3 remain. Live SQLite quick_check is ok. Web, Caddy and Authelia container
+IDs are unchanged. Anonymous Shuns/Imports/Protected-IPs/status requests return
+401 and HTTPS Import preview returns the normal TLS-verified Authelia 302.
+No new queue admission, policy edit, refresh hint or device write was submitted.
+This validates small live BEGIN/END framed snapshots only; large-population
+FTD reads, paging/timing, v2 mutations/priority and ADD remain unvalidated.
+
+## 2026-10-16 — Protected-first, newest-current-appearance active shuns
+
+**Status:** Implemented and tested; paired API/Web rollout awaits approval
+
+Active-list SQL now joins exact Protected IP membership (enabled or disabled)
+and orders those warnings before other current rows, then current-appearance
+time descending and numeric IP/hostname/interface ties. Existing `last_changed_at`
+becomes additive `active_since_at` in list/detail JSON. Web labels it Observed
+since, using the existing browser-local timezone formatter; lifetime first-seen
+history is unchanged. Reappearance moves up; ordinary polling does not. No
+FTD creation-time/order claim is made for rows discovered in the same snapshot.
+Disabled matches remain ineligible for policy removal. Search/history ordering,
+queue, agent protocol and SQLite schema are unchanged. Paired API/Web upgrade
+and tab reload suffice; a field fallback supports older API responses during
+rollback. API restart can execute existing queue/policy work as usual.
+
+**Validation:** All 237 Python tests passed, covering both snapshot/single-row
+observation paths, lifetime-vs-current timestamps, stable numeric/multi-device/
+interface ties, enabled/disabled policy edits, inactive exclusion, complete
+20,000-row sorted snapshots and API/BFF rendering. Fourteen real Chromium
+scenarios passed (15 reported tests), including localized current-appearance
+time instead of lifetime first detection. Compileall, Ruff and diff checks
+passed. No new queued mutation,
+policy edit, refresh hint or direct agent read was submitted to the lab.
+
+Read-only deployed API inspection after operator-created additions returned
+61 active records, no device error and last successful refresh at
+2026-10-16T10:12:52Z. Agent cycle v2 logged two full snapshots, zero removals and
+8072 ms. This is small-population read compatibility only: independent full
+CLI-count agreement, real multi-chunk load/paging, v2 write/priority cases,
+duplicate/creation-scope/data-plane validation and automated ADD remain pending.
+
+No sorting rollout has been performed. Requested explicit paired API/Web
+deployment approval, noting possible execution of existing queue/policy work
+on API restart. Agent/Caddy/Authelia need no change for this increment.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

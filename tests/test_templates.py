@@ -3,7 +3,8 @@ import pytest
 from ftd_shun_manager.web import Identity, templates
 
 
-def test_active_shun_with_trusted_ip_is_visibly_marked() -> None:
+@pytest.mark.parametrize("current_appearance", [None, "2026-10-16T11:00:00Z"])
+def test_active_shun_with_trusted_ip_is_visibly_marked(current_appearance) -> None:
     html = templates.get_template("index.html").render(
         identity=Identity("viewer", "Viewer", ("Viewer",)),
         csrf_token="token",
@@ -15,6 +16,7 @@ def test_active_shun_with_trusted_ip_is_visibly_marked() -> None:
                 "first_seen_at": "2026-10-14T10:00:00Z",
                 "last_seen_at": "2026-10-14T10:00:00Z",
                 "device_id": 1,
+                **({"active_since_at": current_appearance} if current_appearance else {}),
             }
         ],
         refresh=None,
@@ -27,6 +29,9 @@ def test_active_shun_with_trusted_ip_is_visibly_marked() -> None:
     assert 'class="protected-shun"' in html
     assert "Protected IP" in html
     assert 'class="local-timestamp" datetime="2026-10-14T10:00:00Z"' in html
+    assert "Observed since" in html
+    observed_since = current_appearance or "2026-10-14T10:00:00Z"
+    assert f'<td><time class="local-timestamp" datetime="{observed_since}">{observed_since}</time></td>' in html
 
 
 def test_search_results_distinguish_historical_protected_records() -> None:

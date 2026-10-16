@@ -1,6 +1,6 @@
 # Development Plan
 
-Last updated: 2026-10-15
+Last updated: 2026-10-16
 
 **Status: refresh/queue implemented; bounded removal sessions and priority reads experimental; parse-only import preview implemented, addition pending.** This document records
 the next product increments. It describes target behavior, not capabilities
@@ -9,6 +9,43 @@ and [Architecture and Security Design](architecture-and-security-design.md#74-ap
 for the approved scope extension and unchanged security boundaries.
 
 ## Implementation checkpoint — 2026-10-15
+
+### Addition readiness checkpoint — 2026-10-16
+
+The bounded [large-snapshot extension](manual/large-snapshots.md) is implemented
+with a default-off API/agent flag: opcode 07 and cycle v2 provide complete
+manifest/chunk/digest reads while retaining legacy/v1 behavior and all write/
+session budgets. Synthetic capacity/transport/atomicity tests pass. After
+explicitly approved API/agent rollout and lab opt-in, a live v2 cycle completed
+two full reads in one session in 8282 ms without removals or errors. Real
+large-load timing/paging and v2 mutation/priority evidence remain separate gates.
+Subsequent read-only inspection observed 61 active records without errors and
+an 8072 ms v2 read-only cycle. This still does not exercise large multi-chunk
+FTD output or establish independent CLI-count agreement. Active UI sorting now
+prioritizes all Protected IP matches, then current appearance newest first;
+it does not change this release boundary.
+Addition/import remains unavailable. The capacity diagnosis below describes
+the unchanged legacy/default path, not a completed large-load acceptance test.
+
+The large preview exposed a prerequisite for actual imports: current SSH
+command output and binary snapshots are independently capped at 64 KiB.
+7,307 `management` entries require 109608 legacy packet bytes (109612 in a
+cycle), plus a much larger CLI read. The preview budget is not device capacity.
+Implement/review bounded complete-snapshot scaling before any large add load;
+keep current rejection behavior until a versioned design is approved/tested.
+No partial read may be reconciled as disappearance. A global buffer increase
+alone is not sufficient. Keep one agent/worker and the existing isolated layout.
+
+Use [Addition Readiness](manual/addition-lab-validation.md) for staged Basic
+permission/scope observation with one explicitly approved TEST-NET fixture.
+On 2026-10-16, the operator reported Basic creation of the initially absent
+`198.51.100.251` and observed it on `management`, then confirmed its removal
+with `no shun ... interface management` and an empty target read. This is
+new direct-CLI evidence, not agent ADD or data-plane proof. Duplicate semantics,
+fleet creation scope and traffic blocking remain unproven. Existing
+removal-cycle validation remains required. No new opcode or write is enabled.
+
+### Previously delivered checkpoint
 
 The independent preparatory [Import Preview](manual/import-preview.md) is
 implemented: bounded pasted-text parsing in Web, typed local-state classification
@@ -346,7 +383,9 @@ unfinished work must not be purged with expired audit history.
 
 ## 5. Security and implementation gates
 
-Addition is currently unavailable. Before enabling imports, define and review
+Addition is currently unavailable. First resolve the documented full-snapshot
+capacity blocker without weakening atomic reconciliation or fixed-frame bounds.
+Before enabling imports, define and review
 the narrow `ADD_SHUN` operation and its fixed binary encoding. Resolve and lab
 validate the creation interface scope, preexisting-entry/no-op handling,
 Basic-account permission, strict response parsing, actual blocking behavior,

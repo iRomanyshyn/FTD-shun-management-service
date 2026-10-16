@@ -1926,6 +1926,19 @@ last_event_id
 
 IPv4 should preferably be stored numerically/binary rather than free-form text.
 
+Active-list reads prioritize exact Protected IP membership, including disabled
+policy entries whose active shuns still need a visible warning. Within each
+group, sort by the current appearance's observation time descending, then
+numeric IPv4, device hostname and interface for deterministic ties. For active
+rows, the existing `last_changed_at` is exposed as `active_since_at`; detection
+or reappearance sets it, while ordinary successful polling changes only
+`last_seen_at`. Preserve lifetime `first_seen_at` across reappearance/restart.
+The UI labels the current-appearance time **Observed since** and localizes it
+with timezone; it is not an FTD creation timestamp. Entries first discovered in
+one snapshot have equal observation times, not an inferred device order.
+Disabled membership affects display priority only, never automatic-removal
+eligibility. Search/history retain their independent ordering contracts.
+
 ---
 
 # 52. Example shun_events
@@ -2541,6 +2554,25 @@ retain the escaped form and explicit error rather than a JSON-only page.
 Preview is available to authenticated
 users; future admission still requires its separate write authorization and
 fresh policy/state checks. No source text becomes a Cisco command.
+The preview budget is not a supported active-device population. Current agent
+command output and complete binary snapshot responses each remain bounded to
+64 KiB; 7,307 `management` entries exceed both. Large additions must remain
+blocked until a separately reviewed bounded snapshot-transport/console-reader
+extension provides complete observations, including at the intended existing
+plus imported load. Preserve fail-closed behavior and previous state on any
+incomplete snapshot. Do not silently raise packet/output limits, reconcile a
+partial result, or infer readiness from preview counts. See the
+[addition readiness gate](manual/addition-lab-validation.md).
+An explicitly versioned, default-off read extension is specified in
+[Large Snapshots](manual/large-snapshots.md): typed `LIST_SHUNS_LARGE` and cycle
+v2 snapshots use bounded manifest/data/end frames, 32 KiB chunks, an explicit
+count/size and SHA-256 completion check before decoding/reconciliation. Bounds
+are 20,000 entries, 2 MiB binary data and 4 MiB console output for full reads
+only. Legacy/v1 limits and all command/session time budgets remain unchanged.
+New reads require `FTD_SHUN_LARGE_SNAPSHOTS_ENABLED=true` in API and agent;
+requesting new mode from a disabled/old agent fails closed without retry or
+fallback. Explicit legacy API selection remains supported by a newer agent.
+This extends reads, not addition or import.
 Preview outcome badges and full-list counts use consistent colour cues with
 visible text labels in both themes; invalid/unsupported and ambiguous rows
 also have distinct background/border cues. Green Ready means candidate only,

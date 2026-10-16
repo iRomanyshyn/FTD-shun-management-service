@@ -3,8 +3,11 @@ from ipaddress import IPv4Address
 import pytest
 
 from ftd_shun_manager.agent_protocol import (
+    MAX_AGENT_RESPONSE_BYTES,
+    CycleOperation,
     ObservedShun,
     Operation,
+    decode_cycle_response,
     decode_list_shuns_response,
     decode_request,
     encode_request,
@@ -50,3 +53,21 @@ def test_list_shuns_response_is_fixed_binary_and_complete() -> None:
 def test_bad_list_shuns_responses_fail_closed(packet: bytes) -> None:
     with pytest.raises(ValueError):
         decode_list_shuns_response(packet)
+
+
+@pytest.mark.parametrize("count", [4368, 4369, 7307])
+def test_management_snapshot_capacity_is_not_the_preview_capacity(count: int) -> None:
+    entries = b"".join(IPv4Address(0xC6120000 + index).packed + b"\x0amanagement" for index in range(count))
+    packet = b"\x00" + count.to_bytes(2, "big") + entries
+    cycle_packet = bytes([0, 1, CycleOperation.BEGIN, 0]) + packet
+    assert len(packet) == 3 + count * 15
+    assert len(cycle_packet) == 7 + count * 15
+    if count <= 4368:
+        assert len(decode_list_shuns_response(packet)) == count
+        assert len(decode_cycle_response(cycle_packet, CycleOperation.BEGIN, 0)) == count
+    else:
+        assert len(packet) > MAX_AGENT_RESPONSE_BYTES
+        with pytest.raises(ValueError, match="maximum size"):
+            decode_list_shuns_response(packet)
+        with pytest.raises(ValueError, match="response size"):
+            decode_cycle_response(cycle_packet, CycleOperation.BEGIN, 0)

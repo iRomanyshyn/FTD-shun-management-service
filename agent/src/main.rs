@@ -5,6 +5,7 @@
 //! can cross the Web/API-to-agent boundary.
 
 mod cycle;
+mod snapshot;
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::env;
@@ -47,6 +48,7 @@ struct Agent {
     password_file: PathBuf,
     operation_timeout: Duration,
     cycles_enabled: bool,
+    large_snapshots_enabled: bool,
 }
 
 #[derive(Clone)]
@@ -144,6 +146,12 @@ impl Agent {
             Ok("false") | Err(env::VarError::NotPresent) => false,
             _ => bail!("FTD_SHUN_AGENT_CYCLES_ENABLED must be true or false"),
         };
+        let large_snapshots_enabled = match env::var("FTD_SHUN_LARGE_SNAPSHOTS_ENABLED").as_deref()
+        {
+            Ok("true") => true,
+            Ok("false") | Err(env::VarError::NotPresent) => false,
+            _ => bail!("FTD_SHUN_LARGE_SNAPSHOTS_ENABLED must be true or false"),
+        };
 
         Ok((
             Self {
@@ -152,6 +160,7 @@ impl Agent {
                 password_file: required_env_path("FTD_SHUN_SSH_PASSWORD_FILE")?,
                 operation_timeout,
                 cycles_enabled,
+                large_snapshots_enabled,
             },
             socket_file,
             peer_uid,
@@ -183,7 +192,7 @@ impl Agent {
         Ok(())
     }
 
-    async fn list_shuns(&self, device_id: u16) -> Result<BTreeSet<ObservedShun>> {
+    async fn list_shuns(&self, device_id: u16, large: bool) -> Result<BTreeSet<ObservedShun>> {
         let device = self
             .devices
             .get(&device_id)
@@ -193,6 +202,7 @@ impl Agent {
             let password = load_ssh_password(&self.password_file)?;
             SshSession::connect(device, &self.username, password.as_str()).await?
         };
+        session.large_snapshots = large;
         let entries = session.list_shuns(&device.allowed_interfaces).await?;
         session.close().await;
         Ok(entries)
@@ -217,6 +227,7 @@ impl client::Handler for HostKeyVerifier {
 struct SshSession {
     handle: client::Handle<HostKeyVerifier>,
     channel: Channel<client::Msg>,
+    large_snapshots: bool,
 }
 
 enum CiscoOperation {
@@ -275,7 +286,11 @@ impl SshSession {
             .await
             .context("FTD initial shell prompt timed out")??;
 
-        Ok(Self { handle, channel })
+        Ok(Self {
+            handle,
+            channel,
+            large_snapshots: false,
+        })
     }
 
     async fn show_shun(&mut self, target: Ipv4Addr) -> Result<String> {
@@ -307,6 +322,12 @@ impl SshSession {
     }
 
     async fn run(&mut self, operation: CiscoOperation) -> Result<String> {
+        let output_limit = if self.large_snapshots && matches!(operation, CiscoOperation::ListShuns)
+        {
+            snapshot::MAX_OUTPUT_BYTES
+        } else {
+            MAX_CISCO_OUTPUT_BYTES
+        };
         let command = match operation {
             CiscoOperation::ListShuns => "show shun".to_owned(),
             CiscoOperation::ShowShun(target) => format!("{SHOW_SHUN_PREFIX}{target}"),
@@ -320,7 +341,7 @@ impl SshSession {
             .context("could not send fixed Cisco command to FTD shell")?;
         let output = timeout(
             FTD_INTERACTION_TIMEOUT,
-            read_until_ftd_prompt(&mut self.channel),
+            read_until_ftd_prompt_bounded(&mut self.channel, output_limit),
         )
         .await
         .context("FTD command prompt timed out")??;
@@ -337,14 +358,26 @@ impl SshSession {
 }
 
 async fn read_until_ftd_prompt(channel: &mut Channel<client::Msg>) -> Result<Vec<u8>> {
+    read_until_ftd_prompt_bounded(channel, MAX_CISCO_OUTPUT_BYTES).await
+}
+
+fn append_ftd_output(output: &mut Vec<u8>, data: &[u8], limit: usize) -> Result<()> {
+    if output.len().saturating_add(data.len()) > limit {
+        bail!("FTD shell response exceeded the maximum size");
+    }
+    output.extend_from_slice(data);
+    Ok(())
+}
+
+async fn read_until_ftd_prompt_bounded(
+    channel: &mut Channel<client::Msg>,
+    limit: usize,
+) -> Result<Vec<u8>> {
     let mut output = Vec::new();
     while let Some(message) = channel.wait().await {
         match message {
             ChannelMsg::Data { data } => {
-                if output.len().saturating_add(data.len()) > MAX_CISCO_OUTPUT_BYTES {
-                    bail!("FTD shell response exceeded the maximum size");
-                }
-                output.extend_from_slice(&data);
+                append_ftd_output(&mut output, &data, limit)?;
                 if output.ends_with(FTD_PROMPT) || output.ends_with(b">") {
                     return Ok(output);
                 }
@@ -402,6 +435,7 @@ enum Operation {
     GetRaAuthStatus = 0x04,
     GetRaInitStatus = 0x05,
     Health = 0x06,
+    ListShunsLarge = 0x07,
 }
 
 fn decode_request(packet: &[u8]) -> Result<(Operation, u16, Option<Ipv4Addr>)> {
@@ -415,6 +449,7 @@ fn decode_request(packet: &[u8]) -> Result<(Operation, u16, Option<Ipv4Addr>)> {
         0x04 => Operation::GetRaAuthStatus,
         0x05 => Operation::GetRaInitStatus,
         0x06 => Operation::Health,
+        0x07 => Operation::ListShunsLarge,
         _ => bail!("unknown operation"),
     };
     let accepts_ip = matches!(operation, Operation::GetShun | Operation::RemoveShun);
@@ -485,6 +520,9 @@ fn parse_show_shun_entries(
         }) {
             bail!("FTD show shun output contained a duplicate entry");
         }
+        if entries.len() > snapshot::MAX_ENTRIES {
+            bail!("FTD shun snapshot has too many entries");
+        }
     }
     Ok(entries)
 }
@@ -523,7 +561,9 @@ fn serve(agent: Agent, socket_file: PathBuf, peer_uid: u32, runtime: Handle) -> 
             Ok(_) => RESPONSE_REJECTED.to_vec(),
             Err(_) => RESPONSE_REJECTED.to_vec(),
         };
-        let _ = send(connection.as_raw_fd(), &response, MsgFlags::MSG_NOSIGNAL);
+        if !response.is_empty() {
+            let _ = send(connection.as_raw_fd(), &response, MsgFlags::MSG_NOSIGNAL);
+        }
     }
 }
 
@@ -566,9 +606,31 @@ fn handle_connection(agent: &Agent, connection: &OwnedFd, runtime: &Handle) -> V
         {
             RESPONSE_OK.to_vec()
         }
+        Operation::ListShunsLarge => {
+            if !agent.large_snapshots_enabled {
+                return RESPONSE_REJECTED.to_vec();
+            }
+            let deadline = std::time::Instant::now() + agent.operation_timeout;
+            let result = runtime
+                .block_on(timeout(
+                    agent.operation_timeout,
+                    agent.list_shuns(device_id, true),
+                ))
+                .context("large snapshot operation timed out")
+                .and_then(|result| result)
+                .and_then(|entries| snapshot::encode(entries, 7, 0))
+                .and_then(|frames| snapshot::send_frames(connection, &frames, deadline));
+            match result {
+                Ok(()) => Vec::new(),
+                Err(error) => {
+                    log_list_failure(device_id, error.to_string());
+                    RESPONSE_REJECTED.to_vec()
+                }
+            }
+        }
         Operation::ListShuns => match runtime.block_on(timeout(
             agent.operation_timeout,
-            agent.list_shuns(device_id),
+            agent.list_shuns(device_id, false),
         )) {
             Ok(Ok(entries)) => match encode_list_shuns_response(entries) {
                 Ok(response) => response,

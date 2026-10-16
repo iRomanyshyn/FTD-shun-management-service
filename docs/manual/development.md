@@ -47,6 +47,14 @@ docker compose -f deploy/compose.yml config
 
 ## Agent checks
 
+[Large snapshot](large-snapshots.md) tests share fixed v2 wire vectors across
+Python/Rust, collect 7,307/20,000 synthetic entries over real temporary
+SOCK_SEQPACKET sockets, and test exact bounds, chunk splits, digest/order/
+binding/EOF/truncation rejection, absolute transfer deadlines and preservation
+of prior SQLite state on an incomplete empty stream. Legacy vectors and v1
+mutations remain covered. Both new production selectors default to false.
+The tests do not create shuns, contact FTD or establish live large-load behavior.
+
 ```bash
 cargo test --manifest-path agent/Cargo.toml
 ```

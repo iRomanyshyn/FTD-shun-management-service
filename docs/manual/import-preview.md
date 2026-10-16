@@ -13,6 +13,15 @@ separate implementation/review and laboratory validation. The removal-interface
 allowlist is not proof of a valid creation scope. Do not infer write readiness
 from a Ready preview row, mock tests or the number of candidates.
 
+**Large-import blocker:** the default/legacy agent's command output and snapshot
+packets remain capped at 64 KiB. A 7,307-entry `management` snapshot exceeds
+both caps. The larger preview limit did not raise agent capacity. Do not apply
+that list until complete snapshot scaling and ADD are separately validated;
+see [Addition Readiness](addition-lab-validation.md).
+The opt-in [large-snapshot extension](large-snapshots.md) provides a separately
+bounded read path; it still requires live large-load validation and does not
+enable addition/import.
+
 ## Workflow
 
 1. Sign in normally through Authelia. Preview is available to every authenticated

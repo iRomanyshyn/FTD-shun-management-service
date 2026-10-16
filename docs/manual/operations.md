@@ -28,6 +28,13 @@ budgets and safe priority refresh checkpoints. It requires new agent/API
 versions and live laboratory validation before enablement. Addition and manual
 imports remain future work in the [Development Plan](../development-plan.md).
 
+A separate default-off [Large Snapshots](large-snapshots.md) extension uses
+typed multi-frame reads (cycle v2 when sessions are enabled). It keeps complete
+validation before reconciliation, 32 KiB chunks, 20,000-entry/2 MiB payload
+budgets, and bounded full CLI collection. It adds no write operation or new
+queue budget. Both flags must be true for new reads; a newer agent still
+supports explicit legacy API selection. Errors never downgrade/replay.
+
 ## Roles
 
 | Group | Application role | Capability |
@@ -59,6 +66,23 @@ candidate data only; additions remain unavailable for all roles.
 **Queue removal from all devices** is separate. It requires typing the target IP and freezes the matched devices at admission, with one execution/result per device. An idempotent retry uses the original target set even if the current list has changed. Check the queue for completion or partial results.
 
 ## Snapshot collection and freshness
+
+The active list puts Protected IP matches first, including disabled entries
+with their red warnings. Within that group and the remaining addresses, newest
+current appearances come first. **Observed since** is when the service detected
+the current shun, not when FTD created it. A reappearance moves the address up;
+ordinary polling does not. Lifetime first detection remains in retained history.
+Rows detected together use numeric IP, hostname and interface as stable ties;
+their true creation order cannot be recovered from `show shun`. Search and
+history ordering are unchanged. Disabled protection still never permits
+automatic removal just because its row is pinned near the top.
+
+The private shun-list/detail API adds `active_since_at` from the existing active
+row's `last_changed_at`; no migration or device command is needed for ordering.
+Deploy API/Web together and reload existing tabs. Web tolerates the preceding
+API's absent field using lifetime `first_seen_at` during rollback, but that old
+pair does not provide current-appearance sorting. Queue/policy state is unchanged;
+an API restart may execute existing work under the normal worker limits.
 
 The API schedules a complete typed `show shun` snapshot at startup and then at
 `FTD_SHUN_POLL_INTERVAL` (default `5m`). An authenticated list or detail page may
@@ -205,8 +229,10 @@ for workflow, one-time migration, cancellation semantics and rollback. Treat the
 internal operational information; access to the application already requires
 Authelia authentication.
 
-An active shun whose address exactly matches that table is highlighted with a
+An active shun whose address exactly matches an enabled entry is highlighted with a
 **Protected IP** badge and an amber row. Its detail page repeats the warning.
+Disabled entries use a red **Protection disabled** badge/warning instead.
+Both kinds of match are prioritized at the top of the active list.
 The marker indicates policy membership only: review the audit history to learn
 whether an automatic removal was requested, verified, or failed.
 

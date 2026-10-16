@@ -4,6 +4,63 @@ Last updated: 2026-10-16
 
 ## Current increment
 
+**Active shun ordering (2026-10-16).** Active list/detail reads prioritize exact
+Protected IP membership (enabled or disabled), then newest current-appearance
+observation, with numeric IP/hostname/interface ties. The API adds
+`active_since_at` from existing `last_changed_at`; Web shows **Observed since**
+in browser local time with timezone. Reappearance moves up without changing
+lifetime first detection; ordinary polling does not reorder rows. Search/history
+ordering and automatic-removal eligibility are unchanged. No schema, agent,
+protocol or environment change. All 237 Python tests pass, covering policy edits, tie
+ordering, both observation paths, reappearance, complete 20,000-row ordering
+and API/BFF rendering. Fourteen Chromium scenarios pass (15 reported browser
+tests), including local-time rendering of current appearance rather than
+lifetime first detection. Compileall, Ruff and diff checks pass.
+Live read-only inspection found 61 active records and successful cycle v2 reads
+with no error (8072 ms, two commands, zero removals). This is small-population
+evidence only, not multi-chunk FTD capacity or an ADD release gate.
+Sorting is not deployed yet; paired API/Web rollout awaits operator approval.
+The agent does not need rebuilding/restarting for this UI/API increment.
+
+**Bounded large-snapshot extension (2026-10-16).** Implemented default-off
+`FTD_SHUN_LARGE_SNAPSHOTS_ENABLED` in API/agent, read opcode 07 and cycle v2
+snapshots. Validated manifest, ordered 32 KiB chunks and mandatory SHA-256 end
+precede strict typed decoding and reconciliation. Bounds are 20,000 entries,
+2 MiB binary data and 4 MiB full-snapshot CLI output; login/target/write reads,
+legacy/v1 limits, prompt/step/session/cooldown budgets and no-replay behavior
+remain. A new-mode request to an old/disabled agent fails without fallback;
+explicit legacy API selection remains supported. No ADD/import or schema
+change. All 230 Python and 26 Rust tests pass, including real local socket
+streams and incomplete-snapshot state retention; release/static checks passed.
+After explicit approval, API/agent were upgraded and the new flag enabled in
+the ignored lab `.env`. A live v2 cycle completed two full reads in one session
+in 8282 ms with zero removal steps and no error. Six existing VERIFIED results,
+three policy entries/revision 3 and SQLite integrity were preserved. A private
+SQLite-safe backup and prior paired images are retained. Web/Caddy/Authelia were
+not recreated; anonymous rejection and TLS redirect remain intact. This is
+small-read compatibility evidence only. Large FTD load/paging, removal/priority
+v2 live checks and production readiness remain pending.
+
+**Addition readiness and large-snapshot blocker (2026-10-16).** A 7,307-entry
+`management` snapshot needs 109608 legacy binary bytes/109612 cycle bytes,
+exceeding the 64 KiB packet cap; matching CLI output also exceeds its separate
+64 KiB cap. Local preview capacity does not establish writable/observable fleet
+capacity. Legacy fail-closed limits are unchanged; the gated extension above
+is a separate read path, not live large-population acceptance. A staged lab manual
+prepares one explicitly approved Basic-account fixture before ADD design.
+The operator subsequently confirmed an initially absent `198.51.100.251` was
+successfully added under the reported Basic login and observed on `management`;
+scoped removal then returned the target to an observed absent state. This
+completes the one-address direct CLI lifecycle. Duplicate semantics, data-plane blocking,
+fleet creation scope and automated ADD remain unverified.
+Large-snapshot scaling is a prerequisite to large additions, not a
+new opcode. All 189 Python tests passed, including synthetic legacy/cycle
+packet boundaries; compileall, Ruff and diff checks passed.
+Corrected the old lab policy procedure to use Protected IPs, not the obsolete
+environment list. No runtime deployment or assistant-executed device mutation
+is part of this readiness increment; the single direct CLI fixture was created
+by the operator and is not an application import.
+
 **Colour-coded preview outcomes (2026-10-16).** Row and full-list count badges
 now distinguish Ready (green), Invalid/Unsupported (red), Ambiguous/Protected
 (amber), Already shunned (blue) and Duplicate (grey). Refused rows also have
@@ -260,6 +317,12 @@ The foundation increment was checked with:
 - Rebuilt/recreated local API and Web/BFF after the explicit operator approval. The private API reported a successful refresh, 366-day retention with no error, and a trusted-policy request followed by one verified removal; active local state was empty afterward.
 
 ## Next work, in order
+
+Before enabling any large import, resolve and lab validate the independent
+64 KiB CLI-output/snapshot-packet capacity blocker. Follow the staged
+[addition readiness procedure](manual/addition-lab-validation.md) to collect
+Basic creation/scope evidence without applying the pasted list. This does not
+replace the removal/session checks below or authorize an automatic FTD write.
 
 0. Retest compact menus, separate History and shared authenticated Protected IP CRUD
    in an authenticated lab browser. Use only a dedicated non-production address

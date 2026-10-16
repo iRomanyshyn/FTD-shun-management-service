@@ -26,6 +26,7 @@ class Operation(IntEnum):
     GET_RA_AUTH_STATUS = 0x04
     GET_RA_INIT_STATUS = 0x05
     HEALTH = 0x06
+    LIST_SHUNS_LARGE = 0x07
 
 
 class CycleOperation(IntEnum):
@@ -36,26 +37,31 @@ class CycleOperation(IntEnum):
 
 
 def encode_cycle_request(operation: CycleOperation, sequence: int, *,
-                         device_id: int | None = None, ip: IPv4Address | None = None) -> bytes:
+                         device_id: int | None = None, ip: IPv4Address | None = None,
+                         version: int = CYCLE_VERSION) -> bytes:
+    if version not in (1, 2):
+        raise ValueError("invalid cycle version")
     operation = CycleOperation(operation)
     if operation == CycleOperation.BEGIN:
         if sequence != 0 or device_id is None or not 1 <= device_id <= 65535 or ip is not None:
             raise ValueError("invalid cycle begin fields")
-        return bytes([operation, CYCLE_VERSION]) + device_id.to_bytes(2, "big")
+        return bytes([operation, version]) + device_id.to_bytes(2, "big")
     if not 1 <= sequence <= MAX_CYCLE_REMOVALS + 2 or device_id is not None:
         raise ValueError("invalid cycle sequence or device")
     if (operation == CycleOperation.REMOVE) != (ip is not None):
         raise ValueError("invalid cycle target")
-    return bytes([operation, CYCLE_VERSION, sequence]) + (ip.packed if ip else b"")
+    return bytes([operation, version, sequence]) + (ip.packed if ip else b"")
 
 
-def decode_cycle_response(packet: bytes, operation: CycleOperation, sequence: int):
+def decode_cycle_response(packet: bytes, operation: CycleOperation, sequence: int, *, version: int = CYCLE_VERSION):
+    if version not in (1, 2):
+        raise ValueError("invalid cycle version")
     if len(packet) > MAX_AGENT_RESPONSE_BYTES or len(packet) < 4:
         raise ValueError("invalid cycle response size")
-    if packet[1:4] != bytes([CYCLE_VERSION, operation, sequence]):
+    if packet[1:4] != bytes([version, operation, sequence]):
         raise ValueError("cycle response version, operation, or sequence mismatch")
     if operation in {CycleOperation.REMOVE, CycleOperation.SNAPSHOT} and packet == bytes(
-        [2, CYCLE_VERSION, operation, sequence]
+        [2, version, operation, sequence]
     ):
         return None  # Explicit deferral, never an observed snapshot or successful write.
     if operation == CycleOperation.REMOVE:
@@ -64,6 +70,8 @@ def decode_cycle_response(packet: bytes, operation: CycleOperation, sequence: in
         return bool(packet[4])
     if packet[0] != 0:
         raise ValueError("cycle request rejected")
+    if version == 2:
+        raise ValueError("v2 snapshots require the complete stream decoder")
     return decode_list_shuns_response(packet[4:])
 
 
@@ -105,8 +113,12 @@ def decode_list_shuns_response(packet: bytes) -> list[ObservedShun]:
         raise ValueError("agent list-shuns response exceeds the maximum size")
     if len(packet) < 3 or packet[0] != _SUCCESS:
         raise ValueError("agent did not return a list-shuns success response")
-    expected_count = int.from_bytes(packet[1:3], "big")
-    offset = 3
+    return _decode_shun_entries(packet[3:], int.from_bytes(packet[1:3], "big"))
+
+
+def _decode_shun_entries(packet: bytes, expected_count: int) -> list[ObservedShun]:
+    """Shared strict entry decoder; outer legacy/stream layers enforce budgets."""
+    offset = 0
     entries: list[ObservedShun] = []
     for _ in range(expected_count):
         if offset + 5 > len(packet):

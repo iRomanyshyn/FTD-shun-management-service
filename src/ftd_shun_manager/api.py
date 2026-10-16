@@ -51,6 +51,7 @@ def _serialize(shun: Shun) -> dict[str, str | int | bool]:
         "interface": shun.interface,
         "first_seen_at": shun.first_seen_at,
         "last_seen_at": shun.last_seen_at,
+        "active_since_at": shun.active_since_at,
         "active": shun.active,
     }
 
@@ -61,7 +62,8 @@ def _agent(settings: Settings) -> AgentClient:
     if settings.agent_mode == "socket":
         # Leave a small local-IPC margin after the agent's configured end-to-end
         # operation timeout. The API must never abandon a still-running removal first.
-        return UnixAgentClient(settings.agent_socket, settings.agent_timeout_seconds + 5)
+        return UnixAgentClient(settings.agent_socket, settings.agent_timeout_seconds + 5,
+                               large_snapshots=settings.large_snapshots_enabled)
     return DisabledAgentClient()
 
 
@@ -121,6 +123,7 @@ def create_app(
         return {
             "status": "ready",
             "agent_mode": settings.agent_mode,
+            "large_snapshots_enabled": settings.large_snapshots_enabled,
             **synchronizer.status(),
             "policy_revision": policy_state["revision"],
             "trusted_auto_remove_ips": [entry for entry in policy_state["entries"] if entry["enabled"]],

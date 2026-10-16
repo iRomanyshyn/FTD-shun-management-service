@@ -34,6 +34,7 @@ class Shun:
     first_seen_at: str
     last_seen_at: str
     active: bool
+    active_since_at: str
 
 
 class HistoryWindowExpired(ValueError):
@@ -135,21 +136,26 @@ class Store:
     def list_active_shuns(self, ip: IPv4Address | None = None) -> list[Shun]:
         query = """
           SELECT s.device_id, d.hostname AS device_hostname, s.ip, s.interface,
-                 s.first_seen_at, s.last_seen_at, s.active
+                 s.first_seen_at, s.last_seen_at, s.active,
+                 s.last_changed_at AS active_since_at
           FROM shun_state AS s JOIN devices AS d ON d.id = s.device_id
+          LEFT JOIN protected_ips AS p ON p.ip = s.ip
           WHERE s.active = 1
         """
         parameters: tuple[bytes, ...] = ()
         if ip:
             query += " AND s.ip = ?"
             parameters = (ip.packed,)
-        query += " ORDER BY s.ip, d.hostname, s.interface"
+        # Both enabled and disabled policy matches need attention while shunned.
+        # last_changed_at is the current appearance, not each polling timestamp.
+        query += " ORDER BY (p.ip IS NOT NULL) DESC, s.last_changed_at DESC, s.ip, d.hostname, s.interface"
         with self._connection() as db:
             rows = db.execute(query, parameters).fetchall()
         return [
             Shun(
                 row["device_id"], row["device_hostname"], IPv4Address(row["ip"]),
-                row["interface"], row["first_seen_at"], row["last_seen_at"], bool(row["active"])
+                row["interface"], row["first_seen_at"], row["last_seen_at"], bool(row["active"]),
+                row["active_since_at"],
             )
             for row in rows
         ]

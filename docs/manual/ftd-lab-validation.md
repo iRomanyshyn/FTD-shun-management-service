@@ -11,6 +11,9 @@ This procedure validates the typed snapshot and removal agent and collects safe 
 5. Confirm that expected security failures are fail-closed.
 
 Do not use this procedure to create shuns, alter FTD configuration, or test against a production device. The product has no shun-creation operation.
+The separate [addition readiness procedure](addition-lab-validation.md) defines
+an explicitly approved, one-address direct-CLI experiment and the snapshot
+capacity blocker. It does not enable imports or bypass this removal checklist.
 
 ## Prepare the lab configuration
 
@@ -141,14 +144,16 @@ Choose an existing, approved lab shun whose target IPv4 and affected interfaces 
 
 ## Validate the trusted-IP automatic-removal policy
 
-This is a write test. Use one dedicated non-production TEST-NET fixture and
-ensure no unrelated address is present in `FTD_SHUN_TRUSTED_AUTO_REMOVE_IPS`.
+This is a write test. Use an isolated non-production deployment and one dedicated
+TEST-NET fixture. Policy is managed through SQLite-backed **Protected IPs**,
+not `FTD_SHUN_TRUSTED_AUTO_REMOVE_IPS`; that obsolete environment input has no
+effect after the one-time migration marker. Do not alter unrelated policy.
 
-1. Add only the fixture IPv4 to `FTD_SHUN_TRUSTED_AUTO_REMOVE_IPS` in the ignored `.env`, then recreate the API service.
+1. Record the current policy/revision and enabled-address count. Add the fixture IPv4 through **Protected IPs**, enabled with a clear laboratory name. No API restart is required. Review the fleet scope before saving.
 2. Create the approved fixture shun through the normal lab change process and record direct `show shun <IPv4>` output.
 3. Wait for the next successful snapshot, or use one authenticated state-page view and wait for its permitted background sweep. Do not use a direct agent command to trigger the policy.
 4. Confirm the agent performs a verified removal, direct FTD output no longer lists the fixture, and history contains `SHUN_TRUSTED_AUTO_REMOVE_REQUESTED` followed by `SHUN_TRUSTED_AUTO_REMOVED` under `system:trusted-ip-policy`.
-5. Remove the fixture from `.env`, recreate the API service, and verify the policy count returns to zero. Record the outcome before adding any real trusted address.
+5. Delete only the fixture through **Protected IPs**, using typed confirmation. Verify the enabled-address count returns to its recorded baseline, unrelated entries remain unchanged and no fixture request remains running. Record the outcome before adding any real trusted address. Deletion cancels unstarted policy work, not an already running command.
 
 Also test one agent-unavailable failure in a lab. The history must contain
 `SHUN_TRUSTED_AUTO_REMOVE_FAILED`, must not contain a corresponding success,
