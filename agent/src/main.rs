@@ -4,6 +4,7 @@
 //! strings are source-code constants; neither a command nor an interface name
 //! can cross the Web/API-to-agent boundary.
 
+mod addition;
 mod cycle;
 mod snapshot;
 
@@ -53,6 +54,7 @@ struct Agent {
     operation_timeout: Duration,
     cycles_enabled: bool,
     large_snapshots_enabled: bool,
+    additions_enabled: bool,
 }
 
 #[derive(Clone)]
@@ -61,6 +63,7 @@ struct Device {
     pinned_host_key: PublicKey,
     allowed_interfaces: BTreeSet<String>,
     enabled: bool,
+    addition_profile: Option<addition::Profile>,
 }
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -79,6 +82,8 @@ struct InventoryDevice {
     #[serde(default = "enabled_by_default")]
     enabled: bool,
     allowed_interfaces: Vec<String>,
+    #[serde(default)]
+    addition_profile: Option<addition::Profile>,
 }
 
 fn enabled_by_default() -> bool {
@@ -128,6 +133,7 @@ impl Agent {
                         pinned_host_key: host_key,
                         allowed_interfaces,
                         enabled: entry.enabled,
+                        addition_profile: entry.addition_profile,
                     },
                 )
                 .is_some()
@@ -157,6 +163,20 @@ impl Agent {
             _ => bail!("FTD_SHUN_LARGE_SNAPSHOTS_ENABLED must be true or false"),
         };
 
+        let additions_enabled = match env::var("FTD_SHUN_AGENT_ADDITIONS_ENABLED").as_deref() {
+            Ok("true") => true,
+            Ok("false") | Err(env::VarError::NotPresent) => false,
+            _ => bail!("FTD_SHUN_AGENT_ADDITIONS_ENABLED must be true or false"),
+        };
+        if additions_enabled && (!cycles_enabled || !large_snapshots_enabled) {
+            bail!("additions require both session cycles and large snapshots");
+        }
+        for device in devices.values() {
+            if let Some(profile) = device.addition_profile {
+                profile.validate(&device.allowed_interfaces)?;
+            }
+        }
+
         Ok((
             Self {
                 devices,
@@ -165,6 +185,7 @@ impl Agent {
                 operation_timeout,
                 cycles_enabled,
                 large_snapshots_enabled,
+                additions_enabled,
             },
             socket_file,
             peer_uid,
@@ -238,6 +259,7 @@ enum CiscoOperation {
     ListShuns,
     ShowShun(Ipv4Addr),
     RemoveShun { target: Ipv4Addr, interface: String },
+    AddShun(Ipv4Addr),
 }
 
 impl SshSession {
@@ -335,6 +357,7 @@ impl SshSession {
         let command = match operation {
             CiscoOperation::ListShuns => "show shun".to_owned(),
             CiscoOperation::ShowShun(target) => format!("{SHOW_SHUN_PREFIX}{target}"),
+            CiscoOperation::AddShun(target) => format!("shun {target}"),
             CiscoOperation::RemoveShun { target, interface } => {
                 format!("{REMOVE_SHUN_PREFIX}{target} interface {interface}")
             }

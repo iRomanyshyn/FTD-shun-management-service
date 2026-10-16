@@ -12,18 +12,19 @@ for the approved scope extension and unchanged security boundaries.
 
 ### Addition readiness checkpoint — 2026-10-16
 
-An [offline ADD contract draft](manual/addition-contract.md) now defines a
-review candidate for explicit agent-owned creation scope, source-only before/
-acknowledgement/after evidence, cycle v3 ADD encoding and combined budgets.
-Its Rust evidence model is test-only and excluded from release agents. It
-cannot send a command, create queue work or establish device capability.
-242 Python/33 Rust regressions pass, including production rejection of the
-proposed ADD/v3 frames. Operator-run one-fixture duplicate testing subsequently
-returned identical success text and visible state on repeated add, then scoped
-cleanup/absence; the fixture/regression preserves why fresh preflight/no-op is
-required. Hidden state and actual traffic behavior are not established. Runtime
-protocol/SSH,
-admission, provenance and executable imports are not implemented by this step.
+The [ADD/cycle v3 contract](manual/addition-contract.md) is implemented in the
+agent and explicit Python transport behind the new false-by-default agent flag
+and per-device creation profile. It promotes the preceding offline draft after
+the operator requested gated runtime implementation, not live enablement.
+Shared Python/Rust vectors, local transports and fake consoles cover exact
+before/ack/after semantics, combined 16-attempt limits, command/time/final-read
+reserves, profile/capacity failures and no fallback/replay on uncertainty.
+Normal API construction remains on v1/v2: admission, provenance and executable
+imports are the next separate increment. Actual ADD/traffic validation and
+real large-population read evidence remain required before enablement.
+The operator-run duplicate fixture returns identical success text and visible
+state on repeated add, then cleanup/absence. It reinforces fresh preflight/no-op;
+hidden state and actual traffic behavior are not established.
 
 The bounded [large-snapshot extension](manual/large-snapshots.md) is implemented
 with a default-off API/agent flag: opcode 07 and cycle v2 provide complete

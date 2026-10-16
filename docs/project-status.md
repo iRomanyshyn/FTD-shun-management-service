@@ -4,6 +4,36 @@ Last updated: 2026-10-16
 
 ## Current increment
 
+**Gated agent/transport ADD (2026-10-16).** Implemented typed cycle v3 ADD
+behind `FTD_SHUN_AGENT_ADDITIONS_ENABLED=false`, both existing cycle/large-read
+gates and explicit per-device `addition_profile`. Missing gate/profile rejects
+before secret access/SSH. Only the reviewed laboratory profile is recognized;
+there is no client-supplied CLI/context/interface, standalone ADD RPC or silent
+v1/v2 upgrade. Fresh preflight yields no-op for existing targets, otherwise
+exact acknowledgement plus fresh source-only post-read is required. ADD/REMOVE
+share 16 attempts, 64 commands, time/final-snapshot reserves and no-replay rules;
+entry capacity is checked before an absent-target write. v3 uses complete
+manifest/chunk/end snapshots with version binding. Agent logs add sanitized
+per-ADD results and combined counts. No schema, queue admission, provenance,
+API write route or UI change: ordinary scheduler clients remain v1/v2, even if
+the new agent environment flag is true. No live ADD was submitted/enabled.
+Deployment/validation evidence is recorded below and in the development log.
+All 275 Python and 38 Rust tests pass, including shared v3 vectors, real local
+SeqPacket conversations, lost/malformed responses, full 20,000-entry v3 streams,
+gate-before-SSH and fake-console budget/verification cases. Release build,
+Clippy, fmt, compileall, Ruff and diff checks pass. Paired API/agent images were
+built and deployed under standing lab authorization, with ADD false/absent and
+no real inventory profile. The API's explicit addition selector is false;
+61 active records/correct sorting, three policy entries/revision 3 and six
+VERIFIED results remain; quick_check is ok. A private SQLite-safe backup and
+preceding paired images are retained. Web/Caddy/Authelia IDs are unchanged.
+No new queue admission, policy edit, refresh hint, direct agent read or test
+device write was submitted; no real `.env`/inventory edit or schema migration.
+The first post-upgrade v2 cycle succeeded at 2026-10-16T12:14:44Z with two full
+reads, zero mutations and 8156 ms; next baseline is five minutes later. Anonymous
+pages/status remain 401 and HTTPS Import preview redirects to Authelia (302)
+with TLS verification. This confirms old-mode compatibility only, not live ADD.
+
 **Recorded direct-CLI duplicate behavior (2026-10-16).** Operator transcript
 shows initially absent `198.51.100.251`, creation, one repeated add with identical
 `single_vf`/successful acknowledgement, one identical source-only `management`
@@ -18,7 +48,7 @@ All 242 Python and 34 Rust tests pass; locked release build, Clippy, fmt,
 compileall, Ruff and diff checks pass. No rollout is needed for the fixture
 and test-only regression.
 
-**Offline ADD contract preparation (2026-10-16).** Added an explicitly review-
+**Preceding offline ADD contract preparation (2026-10-16).** Added an explicitly review-
 draft [addition contract](manual/addition-contract.md) and a Rust `cfg(test)`-
 only evidence model. It requires exact target/context-bound acknowledgement
 plus fresh source-only post-read; pre-existing shuns are no-op without writes
@@ -26,7 +56,8 @@ or import ownership. Missing/unknown/oversized/control-bearing evidence,
 unexpected scope/target and more-specific fields cannot establish creation.
 The draft proposes cycle v3/typed ADD, combined mutation budgets and explicit
 agent-owned creation profiles; it does not implement or enable that protocol.
-Python/Rust boundary regressions keep ADD/v3 rejected. All 242 Python and 33
+At that checkpoint Python/Rust boundary regressions kept ADD/v3 rejected; the
+new gated implementation above supersedes that restriction. All 242 Python and 33
 Rust tests pass; release build, Clippy, fmt, compileall, Ruff and diff checks
 pass. No runtime path, schema, queue admission or settings changed, and no
 rollout is needed. The operator approved running one direct-CLI duplicate test

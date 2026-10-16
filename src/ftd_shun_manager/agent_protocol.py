@@ -19,6 +19,14 @@ class ObservedShun:
     interface: str
 
 
+@dataclass(frozen=True)
+class AdditionResult:
+    """No-op has no creation scope/provenance; only a verified add has one."""
+
+    created: bool
+    interface: str | None = None
+
+
 class Operation(IntEnum):
     LIST_SHUNS = 0x01
     GET_SHUN = 0x02
@@ -34,44 +42,68 @@ class CycleOperation(IntEnum):
     SNAPSHOT = 0x11
     REMOVE = 0x12
     END = 0x13
+    ADD = 0x14
 
 
 def encode_cycle_request(operation: CycleOperation, sequence: int, *,
                          device_id: int | None = None, ip: IPv4Address | None = None,
                          version: int = CYCLE_VERSION) -> bytes:
-    if version not in (1, 2):
+    if version not in (1, 2, 3):
         raise ValueError("invalid cycle version")
     operation = CycleOperation(operation)
+    if operation == CycleOperation.ADD and version != 3:
+        raise ValueError("ADD requires cycle version 3")
     if operation == CycleOperation.BEGIN:
         if sequence != 0 or device_id is None or not 1 <= device_id <= 65535 or ip is not None:
             raise ValueError("invalid cycle begin fields")
         return bytes([operation, version]) + device_id.to_bytes(2, "big")
     if not 1 <= sequence <= MAX_CYCLE_REMOVALS + 2 or device_id is not None:
         raise ValueError("invalid cycle sequence or device")
-    if (operation == CycleOperation.REMOVE) != (ip is not None):
+    if (operation in {CycleOperation.REMOVE, CycleOperation.ADD}) != (ip is not None):
         raise ValueError("invalid cycle target")
+    if ip is not None and not isinstance(ip, IPv4Address):
+        raise ValueError("cycle target must be an IPv4 address")
     return bytes([operation, version, sequence]) + (ip.packed if ip else b"")
 
 
 def decode_cycle_response(packet: bytes, operation: CycleOperation, sequence: int, *, version: int = CYCLE_VERSION):
-    if version not in (1, 2):
+    if version not in (1, 2, 3):
         raise ValueError("invalid cycle version")
+    operation = CycleOperation(operation)
+    if operation == CycleOperation.ADD and version != 3:
+        raise ValueError("ADD requires cycle version 3")
+    if (operation == CycleOperation.BEGIN and sequence != 0) or (
+        operation != CycleOperation.BEGIN and not 1 <= sequence <= MAX_CYCLE_REMOVALS + 2
+    ):
+        raise ValueError("invalid cycle response sequence")
     if len(packet) > MAX_AGENT_RESPONSE_BYTES or len(packet) < 4:
         raise ValueError("invalid cycle response size")
     if packet[1:4] != bytes([version, operation, sequence]):
         raise ValueError("cycle response version, operation, or sequence mismatch")
-    if operation in {CycleOperation.REMOVE, CycleOperation.SNAPSHOT} and packet == bytes(
+    if operation in {CycleOperation.REMOVE, CycleOperation.ADD, CycleOperation.SNAPSHOT} and packet == bytes(
         [2, version, operation, sequence]
     ):
         return None  # Explicit deferral, never an observed snapshot or successful write.
+    if operation == CycleOperation.ADD:
+        if packet == bytes([0, version, operation, sequence, 0]):
+            return AdditionResult(False)
+        if len(packet) < 7 or packet[0] != 0 or packet[4] != 1 or len(packet) != 6 + packet[5]:
+            raise ValueError("invalid cycle addition result")
+        try:
+            interface = packet[6:].decode("ascii")
+        except UnicodeDecodeError as error:
+            raise ValueError("addition interface must be ASCII") from error
+        if not _valid_interface(interface):
+            raise ValueError("invalid addition interface")
+        return AdditionResult(True, interface)
     if operation == CycleOperation.REMOVE:
         if len(packet) != 5 or packet[0] != 0 or packet[4] not in (0, 1):
             raise ValueError("invalid cycle removal result")
         return bool(packet[4])
     if packet[0] != 0:
         raise ValueError("cycle request rejected")
-    if version == 2:
-        raise ValueError("v2 snapshots require the complete stream decoder")
+    if version >= 2:
+        raise ValueError("versioned snapshots require the complete stream decoder")
     return decode_list_shuns_response(packet[4:])
 
 

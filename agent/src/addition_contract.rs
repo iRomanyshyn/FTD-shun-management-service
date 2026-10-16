@@ -1,11 +1,10 @@
 //! Offline ADD evidence model. No RPC, SSH implementation or command sender.
 //!
-//! Compiled under cfg(test) only until the addition-specific review/lab gates.
+//! The evidence model is test-only; strict parsers are shared with gated ADD.
 //! Acknowledgement alone must never establish a verified creation.
 
 use super::*;
 
-const EXPECTED_CONTEXT: &str = "single_vf";
 const EXPECTED_INTERFACE: &str = "management";
 
 #[derive(Debug, Eq, PartialEq)]
@@ -15,48 +14,20 @@ enum Assessment {
 }
 
 fn validate_text(output: &str) -> Result<()> {
-    if output.len() > MAX_CISCO_OUTPUT_BYTES
-        || !output
-            .bytes()
-            .all(|byte| byte.is_ascii_graphic() || matches!(byte, b' ' | b'\t' | b'\r' | b'\n'))
-    {
-        bail!("addition evidence is oversized or contains unsupported characters");
-    }
-    Ok(())
+    addition::validate_text(output)
 }
 
 fn acknowledgement(output: &str, target: Ipv4Addr) -> Result<()> {
-    validate_text(output)?;
-    let lines: Vec<_> = output
-        .lines()
-        .map(str::trim)
-        .filter(|line| !line.is_empty())
-        .collect();
-    let expected = [
-        format!("Shun {target} added in context: {EXPECTED_CONTEXT}"),
-        format!("Shun {target} successful"),
-    ];
-    if lines != expected {
-        bail!("addition acknowledgement does not match the recorded lab profile");
-    }
-    Ok(())
+    addition::acknowledgement(output, target, addition::Profile::Fpr1010Management)
 }
 
 fn verify_creation(output: &str, target: Ipv4Addr, allowed: &BTreeSet<String>) -> Result<()> {
-    validate_text(output)?;
-    let interfaces = parse_show_shun(output, target, allowed)?;
-    if interfaces != BTreeSet::from([EXPECTED_INTERFACE.to_owned()]) {
-        bail!("addition verification did not observe exactly the expected scope");
-    }
-    // The current read DTO intentionally omits destination/port fields. ADD
-    // verification must not mistake a more-specific shun for source-only state.
-    let expected = format!("shun ({EXPECTED_INTERFACE}) {target} 0.0.0.0 0 0 0");
-    if output.split_ascii_whitespace().collect::<Vec<_>>()
-        != expected.split_ascii_whitespace().collect::<Vec<_>>()
-    {
-        bail!("addition verification did not match source-only shun fields");
-    }
-    Ok(())
+    addition::verify_creation(
+        output,
+        target,
+        allowed,
+        addition::Profile::Fpr1010Management,
+    )
 }
 
 fn assess(

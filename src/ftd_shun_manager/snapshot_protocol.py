@@ -13,19 +13,20 @@ SNAPSHOT_TRANSFER_SECONDS = 10
 
 
 class SnapshotDecoder:
-    def __init__(self, manifest: bytes, opcode: int, sequence: int):
-        if (opcode not in (7, 0x10, 0x11, 0x13)
+    def __init__(self, manifest: bytes, opcode: int, sequence: int, *, version: int = 2):
+        if (version not in (2, 3) or (opcode == 7 and version != 2)
+                or opcode not in (7, 0x10, 0x11, 0x13)
                 or (opcode in (7, 0x10) and sequence != 0)
                 or (opcode in (0x11, 0x13) and not 1 <= sequence <= 18)):
             raise ValueError("invalid snapshot request binding")
-        if len(manifest) != 15 or manifest[:5] != bytes([0, 2, opcode, sequence, 0]):
+        if len(manifest) != 15 or manifest[:5] != bytes([0, version, opcode, sequence, 0]):
             raise ValueError("invalid snapshot manifest")
         self.count, self.size, self.chunks = unpack(">IIH", manifest[5:])
         if (self.count > MAX_SNAPSHOT_ENTRIES or self.size > MAX_SNAPSHOT_BYTES
                 or self.chunks != (self.size + SNAPSHOT_CHUNK_BYTES - 1) // SNAPSHOT_CHUNK_BYTES
                 or not 6 * self.count <= self.size <= 69 * self.count):
             raise ValueError("invalid snapshot manifest bounds")
-        self.binding = bytes([0, 2, opcode, sequence])
+        self.binding = bytes([0, version, opcode, sequence])
         self.data = bytearray()
         self.index = 0
         self.finished = False

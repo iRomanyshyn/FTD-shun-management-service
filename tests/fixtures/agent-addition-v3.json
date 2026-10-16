@@ -1,0 +1,15 @@
+{
+  "snapshot": {
+    "request": "10030007",
+    "frames": [
+      "0003100000000000010000000f0001",
+      "00031000010000c63364fb0a6d616e6167656d656e74",
+      "0003100002da905bfecb01a49fd523a4f9fa41b2f56958cb0bdee45b2ea61a340029d99e4d"
+    ]
+  },
+  "add": [
+    {"sequence": 1, "ip": "198.51.100.251", "request": "140301c63364fb", "response": "00031401010a6d616e6167656d656e74", "result": "created"},
+    {"sequence": 2, "ip": "198.51.100.251", "request": "140302c63364fb", "response": "0003140200", "result": "noop"},
+    {"sequence": 3, "ip": "198.51.100.251", "request": "140303c63364fb", "response": "02031403", "result": "deferred"}
+  ]
+}

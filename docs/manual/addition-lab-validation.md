@@ -144,11 +144,11 @@ The direct CLI experiment has no service manual-import provenance.
 
 ## Remaining gates and next implementation
 
-The [Addition Contract draft](addition-contract.md) and its test-only evidence
-model prepare review of acknowledgement/post-read semantics without adding an
-RPC or command sender. The proposed cycle v3/ADD frames are still rejected by
-the deployed protocols. This local preparation does not satisfy the live gates
-below or permit import admission.
+The [Addition Contract](addition-contract.md) now implements the next default-off
+agent/transport step: exact v3 ADD frames, explicit creation profile and shared
+cycle budgets. Its evidence model exercises the gated production parsers. The
+normal API remains on v1/v2 without ADD admission/dispatch/provenance. This
+implementation does not satisfy the live gates below or permit import admission.
 
 Stage 4 below now records the separately approved direct-CLI duplicate test.
 Representative lab data-plane tests still need separate approval. Verify real
@@ -157,8 +157,10 @@ never by blocking an operator/VPN/management address or the long pasted list.
 Confirm initial/final full snapshots remain complete at the intended load.
 Finish the existing [cycle checklist](agent-cycle-protocol.md#migration-and-laboratory-validation).
 
-Then review typed ADD encoding and configured creation scope before agent code,
-followed by durable admission/provenance and worker integration. The operation
+The typed encoding/profile contract has been promoted for disabled-by-default
+agent/transport implementation after the operator requested that increment.
+Live enablement still needs the remaining evidence, followed by reviewed
+durable admission/provenance and worker integration. The operation
 must reserve verification budget, fail closed on unknown output, retain uncertain
 writes without automatic replay, and exclude enabled Protected IPs at admission
 and dispatch. Existing short authorization expiry and shared cycle limits remain.

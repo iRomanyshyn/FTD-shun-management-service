@@ -30,6 +30,7 @@ def load_devices(path: Path) -> list[tuple[Device, str]]:
         management_ip = entry.get("management_ip")
         host_key = entry.get("ssh_host_key")
         allowed_interfaces = entry.get("allowed_interfaces")
+        addition_profile = entry.get("addition_profile")
         if not isinstance(device_id, int) or not 1 <= device_id <= 65535:
             raise ValueError("device id must be an integer between 1 and 65535")
         if not isinstance(hostname, str) or not hostname or len(hostname) > 255:
@@ -43,6 +44,10 @@ def load_devices(path: Path) -> list[tuple[Device, str]]:
             or len(set(allowed_interfaces)) != len(allowed_interfaces)
         ):
             raise ValueError("device allowed_interfaces must be a unique, non-empty safe-name list")
+        if addition_profile is not None and (
+            addition_profile != "fpr1010-766-single-vf-management-v1" or "management" not in allowed_interfaces
+        ):
+            raise ValueError("device addition_profile is unknown or its interface is not allowlisted")
         if device_id in ids or hostname in hostnames:
             raise ValueError("device IDs and hostnames must be unique")
         ids.add(device_id)

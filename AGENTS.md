@@ -63,5 +63,5 @@ Do not rewrite historical log entries except to correct an objective error; add 
   ```
 
 - Validate Compose changes with `docker compose --env-file .env -f deploy/compose.yml config` using temporary, non-secret local configuration. Do not commit that configuration.
-- The FTD SSH agent currently supports only lab-validated, device-scoped removal. Do not present it, mock mode, or the socket transport as production-ready write capability until live FTD validation is documented.
+- Only device-scoped removal has live agent lab-validation evidence. ADD/cycle v3 is experimental, default-off and not wired to admission; do not enable it without its documented profile/traffic/read-capacity and scoped validation gates. Do not present either write path, mock mode or socket transport as production-ready until live FTD validation is documented.
 

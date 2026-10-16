@@ -47,14 +47,21 @@ docker compose -f deploy/compose.yml config
 
 ## Agent checks
 
-The [addition contract draft](addition-contract.md) has an offline evidence model
+The [addition contract](addition-contract.md) has an offline evidence model
 in `agent/src/addition_contract.rs`, compiled only with `cfg(test)` and excluded
-from release agents. It has no SSH sender/socket or queue linkage. Regressions
+from release agents. Its parsers are now shared with gated production ADD;
+the model itself has no sender/socket or queue linkage. Regressions
 check exact recorded acknowledgement, fresh source-only verification, no-op
 without ownership for pre-existing targets, wrong scopes/fields/targets, partial
 success, controls/Unicode, duplicate output and bounded evidence. Python/Rust
-boundary checks keep proposed ADD/cycle v3 rejected by production decoders.
-These tests are not live addition, duplicate, timing or data-plane validation.
+boundary checks keep ADD outside legacy RPC/v1/v2 and require explicit v3,
+agent flags and per-device scope before SSH. Shared v3 vectors and real local
+SeqPacket tests cover mixed requests, exact responses, no fallback/replay,
+lost/malformed results and complete 20,000-entry streams. Fake consoles verify
+combined mutation limits, command/time/END reserves, pre-existing no-op,
+capacity/profile rejection and uncertain post-write outcomes. The API still
+constructs v1/v2 clients even if the new agent flag is present. These tests are
+not live addition, timing or data-plane validation.
 
 [Large snapshot](large-snapshots.md) tests share fixed v2 wire vectors across
 Python/Rust, collect 7,307/20,000 synthetic entries over real temporary

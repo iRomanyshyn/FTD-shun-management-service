@@ -19,6 +19,13 @@ not success; a currently running command has an indeterminate indicator. The
 actual request total spans devices/cycles and is not the 16-job cycle cap.
 Addition/import remains unavailable.
 
+The agent and low-level transport now contain a separately gated
+[ADD/cycle v3](addition-contract.md) implementation, default off and requiring
+an explicit creation profile. The ordinary API scheduler still chooses v1/v2;
+there is no executable import/ADD route, queue admission or provenance yet.
+Do not enable the agent flag or use an independent RPC writer to bypass that
+boundary. Existing removal operations and role/policy behavior are unchanged.
+
 This increment retains the current agent RPC: each read/removal opens its own
 short-lived session. It processes at most one queued removal per device per
 fleet cycle, with a persisted minimum of 60 seconds after cycle completion.

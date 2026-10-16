@@ -1817,6 +1817,79 @@ reads or service-executed ADD. Fresh preflight and no automatic replay remain
 required. Runtime ADD and durable admission/provenance remain future increments
 behind their documented review and enablement gates.
 
+## 2026-10-16 — Default-off ADD/cycle v3 agent and transport
+
+**Status:** Implemented/tested; disabled-gate lab deployment recorded below
+
+Following the operator's request to continue with gated runtime ADD, promoted
+the offline draft to the experimental contract without waiving enablement gates.
+Added an agent-only strict false-by-default `FTD_SHUN_AGENT_ADDITIONS_ENABLED`
+gate; v3 also requires cycle/large-read flags and an explicit recognized enabled
+device profile. Missing gate/profile fails before secret access/SSH. Unknown
+profile/type or profile outside the allowlist fails startup. Existing real
+inventory/settings are not changed; tracked example profile is null.
+
+The private typed sender constructs only source-only shun for a typed IPv4.
+The cycle reuses strict production helpers now shared with the evidence model:
+fresh target preflight, no write/ownership on existing targets, exact profile-
+bound acknowledgement and fresh full-field source-only verification. No generic
+CLI/interface/context enters the request. ADD is opcode 14 in version 3 only,
+with exact no-op/verified-interface/pre-write-deferral results. No standalone
+ADD or v1/v2 wire extension, fallback, reconnect, replay or automatic undo.
+Snapshots retain bounded manifest/chunks/end and bind version 3 explicitly;
+independent large reads stay v2. ADD/REMOVE share 16 attempts, including no-ops/
+deferrals, 64 commands and existing absolute time/final-read/priority reserves.
+The observed-entry budget prevents an absent-target add at 20,000; external
+writers can still race it, and later failed snapshots do not replay writes.
+JSON logs add sanitized per-ADD events and addition/combined attempt counts.
+
+Python selection is explicit at the low-level client and requires large reads.
+The ordinary API factory still selects v1/v2 even if the agent flag is true;
+no route, queue admission/dispatch, provenance/schema or Web change is included.
+Future integration must enforce roles, policy, idempotency, expiry and conflicts
+before dispatch. A transport success is not a queued import or database origin.
+
+**Validation:** All 275 Python and 38 Rust tests passed: shared exact v3 wire
+vectors, complete 20,000-entry v3 streams with version binding, one real local
+SeqPacket mixed add/no-op/priority/remove/final conversation, malformed/wrong/
+lost responses, timeout close/no replay, no old-mode fallback, explicit selector,
+profile validation, disabled/missing gates before SSH, combined budgets and
+verification/capacity failures. Existing v1/v2 vectors, removal, scheduler and
+state-retention regressions remain green. Locked/offline release build, Clippy
+-D warnings, fmt, compileall, Ruff and diff checks passed. Browser tests were
+not rerun because no Web assets/templates or browser-facing routes changed.
+These synthetic results are not live ADD/timing/traffic or large FTD evidence.
+
+**Operational plan:** Under standing lab deployment authorization, preserve
+paired images and a SQLite-safe backup, stop API before replacing agent and
+restart only API/agent. No schema migration/restore or real inventory/.env edit.
+Preflight found 61 active records, six VERIFIED outcomes, three policy entries/
+revision 3, no configured addition profiles and ADD false/absent; quick_check
+is ok and no device error. Web/Caddy/Authelia must remain unchanged. This rollout
+keeps ADD off and submits no new mutation, refresh hint or independent writer.
+Admission/provenance, scoped live ADD, traffic/creation scope and real large-load
+read checks remain next work before any actual import enablement.
+
+**Deployment:** Preserved old paired images with the
+`before-addition-v3-20261016t121152z` tag. SQLite backup API produced a checked
+copy on the state volume, copied to the ignored mode-0700 host directory as
+`.local/backups/state-before-addition-v3-20261016T121152Z.sqlite3`; host file is
+0600 and quick_check is ok. Built API/agent, stopped API before agent and
+recreated only that pair, with no overlapping executors. No real inventory/
+`.env` edit, schema migration or restore. Web/Caddy/Authelia IDs are unchanged.
+Deployed checks confirm ADD gate false/absent, no configured profiles, ordinary
+API additions_enabled=false/large reads=true, all 61 active records with correct
+ordering, three policy entries/revision 3, six VERIFIED outcomes and SQLite
+quick_check=ok. No direct agent read, new queue admission, policy edit, browser
+refresh hint or test device write was submitted during validation.
+
+The first post-upgrade cycle completed at 2026-10-16T12:14:44Z with version 2,
+two full reads, zero addition/removal/mutation steps and 8156 ms. API reports
+success/no error and a next baseline five minutes later. Anonymous Shuns,
+Imports, Protected IPs, History and freshness requests remain 401; HTTPS Import
+preview redirects to Authelia (302) with TLS verification. This validates v2
+compatibility with ADD disabled, not live ADD or authenticated visual behavior.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

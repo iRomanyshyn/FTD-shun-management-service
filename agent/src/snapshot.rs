@@ -15,7 +15,18 @@ pub(super) fn encode(
     opcode: u8,
     sequence: u8,
 ) -> Result<Vec<Vec<u8>>> {
-    if !matches!(opcode, 7 | 0x10 | 0x11 | 0x13)
+    encode_versioned(entries, opcode, sequence, VERSION)
+}
+
+pub(super) fn encode_versioned(
+    entries: BTreeSet<ObservedShun>,
+    opcode: u8,
+    sequence: u8,
+    version: u8,
+) -> Result<Vec<Vec<u8>>> {
+    if !matches!(version, VERSION | addition::VERSION)
+        || (opcode == 7 && version != VERSION)
+        || !matches!(opcode, 7 | 0x10 | 0x11 | 0x13)
         || entries.len() > MAX_ENTRIES
         || (matches!(opcode, 7 | 0x10) && sequence != 0)
         || (matches!(opcode, 0x11 | 0x13) && !(1..=18).contains(&sequence))
@@ -34,7 +45,7 @@ pub(super) fn encode(
         data.push(entry.interface.len() as u8);
         data.extend(entry.interface.as_bytes());
     }
-    let prefix = [0, VERSION, opcode, sequence];
+    let prefix = [0, version, opcode, sequence];
     let mut manifest = prefix.to_vec();
     manifest.push(0);
     manifest.extend(count.to_be_bytes());

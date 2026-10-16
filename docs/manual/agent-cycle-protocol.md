@@ -5,6 +5,11 @@ This document remains the exact legacy v1 contract. The independently gated
 mutation semantics and bounded multi-frame full observations. Neither version
 supports ADD/import. Keep both feature flags false unless explicitly lab-approved.
 
+The separate [addition contract](addition-contract.md) implements cycle v3
+behind another default-off agent gate and explicit per-device creation profile.
+It does not change v1/v2 packets or ordinary API scheduling. Its 16-step budget
+combines ADD/REMOVE attempts; import admission/provenance remain unavailable.
+
 ## Release gate
 
 This document defines the implementation contract for experimental removal cycles,

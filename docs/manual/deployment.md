@@ -192,6 +192,16 @@ bounded multi-frame reads and cycle v2, not an ADD/import capability. Preserve
 paired images and a SQLite-safe backup; the legacy rollback restores its old
 size limits and cannot safely monitor an already oversized device population.
 
+The separately gated [ADD/cycle v3](addition-contract.md) implementation uses
+`FTD_SHUN_AGENT_ADDITIONS_ENABLED=false` by default. Keep it false for this
+upgrade and do not edit actual inventory to opt in. A future approved device
+needs an explicit known `addition_profile` and matching interface allowlist;
+v3 also requires both other cycle/large-read flags. The API does not select v3
+or dispatch additions in this increment, even when the environment flag is
+true. Upgrade paired API/agent images with backup/rollback retained and stop
+the old API before replacing the agent. Web, schema and real policy/inventory
+need no change; this rollout does not authorize a device test write/import.
+
 ```bash
 docker compose -f deploy/compose.yml --env-file .env config
 docker compose -f deploy/compose.yml --env-file .env up -d --build

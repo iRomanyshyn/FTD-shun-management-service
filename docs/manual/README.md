@@ -14,7 +14,7 @@ These manuals describe the first implementation increment. The service is safe t
 | [Large Snapshots](large-snapshots.md) | Default-off versioned multi-frame reads, complete-snapshot checks, console/transfer budgets and lab rollout/rollback. |
 | [FTD Laboratory Validation](ftd-lab-validation.md) | Controlled agent, snapshot, and parser-fixture validation. |
 | [Addition Readiness](addition-lab-validation.md) | Current snapshot-capacity blocker and staged Basic-account, one-address direct-CLI validation before ADD design. |
-| [Addition Contract Draft](addition-contract.md) | Offline exact-acknowledgement/post-read model, proposed versioned ADD wire and outstanding implementation/lab gates; no live addition capability. |
+| [Addition Contract](addition-contract.md) | Default-off agent/transport cycle v3, explicit creation profile, exact ADD verification, shared budgets and remaining admission/lab gates; no executable import. |
 | [Local Browser Laboratory](local-lab-web.md) | Workstation-only Caddy Internal CA and local Authelia setup without DNS. |
 | [Project Status](../project-status.md) | Implemented scope, explicit limitations, and next work. |
 | [Development Log](../development-log.md) | Chronological record of material engineering changes. |

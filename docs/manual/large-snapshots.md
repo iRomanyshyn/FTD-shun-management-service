@@ -18,6 +18,11 @@ from a disabled/old agent fails closed. An explicitly legacy-configured API
 still uses legacy/v1 with a newer agent; that is selection, not a fallback
 after failure. v2 supports existing removals only, not ADD.
 
+The separately gated [cycle v3](addition-contract.md) reuses this complete
+manifest/chunk/end framing with version 03 on cycle snapshots only. Explicit
+decoder selection binds every frame to that version. Independent opcode 07
+remains version 02, and v1/v2 selectors never enable ADD.
+
 ## Exact response frames
 
 AF_UNIX/SOCK_SEQPACKET with the existing peer UID check; unsigned big-endian

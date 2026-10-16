@@ -6,6 +6,7 @@ from time import monotonic
 
 from .agent_protocol import (
     MAX_AGENT_RESPONSE_BYTES,
+    AdditionResult,
     CycleOperation,
     ObservedShun,
     Operation,
@@ -41,10 +42,14 @@ class DisabledAgentClient(AgentClient):
 
 
 class UnixAgentClient(AgentClient):
-    def __init__(self, socket_path: str, timeout_seconds: int = 125, *, large_snapshots: bool = False) -> None:
+    def __init__(self, socket_path: str, timeout_seconds: int = 125, *, large_snapshots: bool = False,
+                 additions_enabled: bool = False) -> None:
+        if additions_enabled and not large_snapshots:
+            raise ValueError("addition cycles require large snapshots")
         self.socket_path = socket_path
         self.timeout_seconds = timeout_seconds
         self.large_snapshots = large_snapshots
+        self.additions_enabled = additions_enabled
 
     def remove_shun(self, device_id: int, ip: IPv4Address) -> None:
         request = encode_request(Operation.REMOVE_SHUN, device_id, ip)
@@ -84,7 +89,7 @@ class UnixAgentClient(AgentClient):
 
     def open_cycle(self, device_id: int) -> "UnixAgentCycle":
         return UnixAgentCycle(self.socket_path, self.timeout_seconds, device_id,
-                              version=2 if self.large_snapshots else 1)
+                              version=3 if self.additions_enabled else 2 if self.large_snapshots else 1)
 
 
 def _receive_packet(connection: socket) -> bytes:
@@ -102,11 +107,11 @@ def _receive_before(connection: socket, deadline: float) -> bytes:
     return _receive_packet(connection)
 
 
-def _receive_snapshot(connection: socket, operation: int, sequence: int, deadline: float):
+def _receive_snapshot(connection: socket, operation: int, sequence: int, deadline: float, *, version: int = 2):
     manifest = _receive_before(connection, deadline)
-    if operation == CycleOperation.SNAPSHOT and manifest == bytes([2, 2, operation, sequence]):
+    if operation == CycleOperation.SNAPSHOT and manifest == bytes([2, version, operation, sequence]):
         return None
-    decoder = SnapshotDecoder(manifest, operation, sequence)
+    decoder = SnapshotDecoder(manifest, operation, sequence, version=version)
     deadline = min(deadline, monotonic() + SNAPSHOT_TRANSFER_SECONDS)
     for _ in range(decoder.chunks + 1):
         result = decoder.accept(_receive_before(connection, deadline))
@@ -142,8 +147,8 @@ class UnixAgentCycle:
             if self.connection.send(request) != len(request):
                 raise AgentUnavailable("agent cycle send was incomplete")
             result = (
-                _receive_snapshot(self.connection, operation, self.sequence, deadline)
-                if self.version == 2 and operation != CycleOperation.REMOVE else
+                _receive_snapshot(self.connection, operation, self.sequence, deadline, version=self.version)
+                if self.version >= 2 and operation not in {CycleOperation.REMOVE, CycleOperation.ADD} else
                 decode_cycle_response(_receive_before(self.connection, deadline), operation,
                                       self.sequence, version=self.version)
             )
@@ -158,6 +163,9 @@ class UnixAgentCycle:
 
     def remove_shun(self, ip: IPv4Address) -> bool | None:
         return self._exchange(CycleOperation.REMOVE, ip=ip)
+
+    def add_shun(self, ip: IPv4Address) -> AdditionResult | None:
+        return self._exchange(CycleOperation.ADD, ip=ip)
 
     def finish(self) -> list[ObservedShun]:
         try:
