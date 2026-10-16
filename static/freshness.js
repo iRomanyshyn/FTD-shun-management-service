@@ -235,6 +235,7 @@
         progress.hidden = !status.refresh_in_progress;
         const cycle = status.device_cycle;
         const actions = { opening_session: "Opening session", remove_and_verify: "Removing and verifying",
+          add_and_verify: "Adding and verifying",
           priority_snapshot: "Reading priority snapshot", final_snapshot: "Reading final snapshot",
           completed: "Cycle completed", failed: "Cycle failed" };
         progress.textContent = status.session_cycles_enabled && cycle?.device_id
@@ -302,7 +303,9 @@
         const row = document.createElement("tr");
         row.dataset.operationId = item.id;
         const requests = item.requests || [];
-        [ `${item.hostname} / ${item.ip}`, item.state,
+        [ `${item.hostname} / ${item.ip}`,
+          item.action === "ADD" && item.state === "QUEUED" && item.execution_enabled !== true
+            ? "Held — ADD execution disabled for this device" : item.state,
           requests.map((request) => `${request.actor_display_name} (${request.source}`
             + `${activeStates.has(item.state) && request.state !== "ACTIVE" ? `, ${request.state}` : ""})`).join(", "),
           item.reason || (item.completed_at ? `Completed: ${formatTime(item.completed_at)}`
@@ -314,7 +317,7 @@
         });
         const targetLink = document.createElement("a");
         targetLink.href = `/shuns/${encodeURIComponent(item.ip)}`;
-        targetLink.textContent = `${item.hostname} / ${item.ip}`;
+        targetLink.textContent = `${item.action === "ADD" ? "Add · " : ""}${item.hostname} / ${item.ip}`;
         row.firstElementChild.replaceChildren(targetLink);
         if (item.state === "RUNNING") {
           const running = document.createElement("progress");
@@ -323,7 +326,7 @@
           row.children[1].append(running);
         }
         if (item.state === "QUEUED" && panel.dataset.operator === "true") {
-          requests.filter((request) => request.state === "ACTIVE" && request.source === "manual"
+          requests.filter((request) => request.state === "ACTIVE" && ["manual", "manual_import"].includes(request.source)
             && (request.actor_subject === panel.dataset.subject || panel.dataset.administrator === "true"))
             .forEach((request) => {
               const cancel = document.createElement("button");

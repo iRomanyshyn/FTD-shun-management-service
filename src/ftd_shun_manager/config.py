@@ -57,6 +57,14 @@ class Settings:
     development_auth: bool
     agent_cycles_enabled: bool = False
     large_snapshots_enabled: bool = False
+    import_admission_enabled: bool = False
+    import_execution_enabled: bool = False
+
+    def __post_init__(self) -> None:
+        if self.import_execution_enabled and (
+            self.agent_mode != "socket" or not self.agent_cycles_enabled or not self.large_snapshots_enabled
+        ):
+            raise ValueError("import execution requires socket agent mode, session cycles and large snapshots")
 
     @classmethod
     def from_environment(cls) -> "Settings":
@@ -66,9 +74,15 @@ class Settings:
         large_snapshots = environ.get("FTD_SHUN_LARGE_SNAPSHOTS_ENABLED", "false")
         if large_snapshots not in {"true", "false"}:
             raise ValueError("FTD_SHUN_LARGE_SNAPSHOTS_ENABLED must be true or false")
+        import_admission = environ.get("FTD_SHUN_IMPORT_ADMISSION_ENABLED", "false")
+        if import_admission not in {"true", "false"}:
+            raise ValueError("FTD_SHUN_IMPORT_ADMISSION_ENABLED must be true or false")
         agent_mode = environ.get("FTD_SHUN_AGENT_MODE", "disabled")
         if agent_mode not in {"disabled", "mock", "socket"}:
             raise ValueError("FTD_SHUN_AGENT_MODE must be disabled, mock, or socket")
+        import_execution = environ.get("FTD_SHUN_IMPORT_EXECUTION_ENABLED", "false")
+        if import_execution not in {"true", "false"}:
+            raise ValueError("FTD_SHUN_IMPORT_EXECUTION_ENABLED must be true or false")
         agent_timeout_seconds = int(environ.get("FTD_SHUN_AGENT_TIMEOUT_SECONDS", "45"))
         if not 5 <= agent_timeout_seconds <= 120:
             raise ValueError("FTD_SHUN_AGENT_TIMEOUT_SECONDS must be between 5 and 120")
@@ -104,4 +118,6 @@ class Settings:
             == "true",
             agent_cycles_enabled=cycles == "true",
             large_snapshots_enabled=large_snapshots == "true",
+            import_admission_enabled=import_admission == "true",
+            import_execution_enabled=import_execution == "true",
         )

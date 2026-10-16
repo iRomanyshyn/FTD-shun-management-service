@@ -7,7 +7,7 @@ from uuid import UUID, uuid4
 
 import uvicorn
 from fastapi import FastAPI, HTTPException, Query, Request, status
-from pydantic import BaseModel, Field, StrictBool
+from pydantic import BaseModel, ConfigDict, Field, StrictBool
 
 from .agent_client import (
     AgentClient,
@@ -43,7 +43,23 @@ class ImportPreviewRequest(BaseModel):
     device_ids: list[Annotated[int, Field(ge=1, le=65535)]] = Field(min_length=1, max_length=MAX_DEVICES)
 
 
-def _serialize(shun: Shun) -> dict[str, str | int | bool]:
+class ImportTarget(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    device_id: int = Field(strict=True, ge=1, le=65535)
+    ip: IPv4Address
+
+
+class ImportAdmissionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    actor: Actor
+    targets: list[ImportTarget] = Field(min_length=1, max_length=1000)
+    policy_revision: int = Field(strict=True, ge=0)
+    confirmation_digest: str = Field(pattern=r"^[0-9a-f]{64}$")
+    label: str = Field(default="", max_length=100)
+    reason: str = Field(default="", max_length=500)
+
+
+def _serialize(shun: Shun) -> dict[str, object]:
     return {
         "device_id": shun.device_id,
         "device_hostname": shun.device_hostname,
@@ -53,17 +69,21 @@ def _serialize(shun: Shun) -> dict[str, str | int | bool]:
         "last_seen_at": shun.last_seen_at,
         "active_since_at": shun.active_since_at,
         "active": shun.active,
+        "manual_imports": list(shun.manual_imports),
+        "manual_import_count": shun.manual_import_count,
     }
 
 
-def _agent(settings: Settings) -> AgentClient:
+def _agent(settings: Settings, *, addition_device_ids: frozenset[int] = frozenset()) -> AgentClient:
     if settings.agent_mode == "mock":
         return MockAgentClient()
     if settings.agent_mode == "socket":
         # Leave a small local-IPC margin after the agent's configured end-to-end
         # operation timeout. The API must never abandon a still-running removal first.
         return UnixAgentClient(settings.agent_socket, settings.agent_timeout_seconds + 5,
-                               large_snapshots=settings.large_snapshots_enabled)
+                               large_snapshots=settings.large_snapshots_enabled,
+                               additions_enabled=settings.import_execution_enabled,
+                               addition_device_ids=addition_device_ids)
     return DisabledAgentClient()
 
 
@@ -75,10 +95,14 @@ def create_app(
     settings = settings or Settings.from_environment()
     store = store or Store(settings.database_path)
     store.initialize()
+    addition_device_ids = set()
     if settings.device_inventory_path:
         for device, host_key in load_devices(settings.device_inventory_path):
             store.upsert_device(device, host_key)
-    agent = agent_client or _agent(settings)
+            if device.enabled and device.addition_profile is not None:
+                addition_device_ids.add(device.id)
+    addition_device_ids = frozenset(addition_device_ids)
+    agent = agent_client or _agent(settings, addition_device_ids=addition_device_ids)
     synchronizer = Synchronizer(
         store,
         agent,
@@ -88,6 +112,8 @@ def create_app(
         enabled=settings.agent_mode != "disabled",
         operation_timeout_seconds=settings.agent_timeout_seconds,
         session_cycles_enabled=settings.agent_cycles_enabled,
+        import_execution_enabled=settings.import_execution_enabled,
+        addition_device_ids=addition_device_ids,
     )
     policy = synchronizer.policy
     policy.migrate_legacy_environment()
@@ -124,6 +150,7 @@ def create_app(
             "status": "ready",
             "agent_mode": settings.agent_mode,
             "large_snapshots_enabled": settings.large_snapshots_enabled,
+            "import_admission_enabled": settings.import_admission_enabled,
             **synchronizer.status(),
             "policy_revision": policy_state["revision"],
             "trusted_auto_remove_ips": [entry for entry in policy_state["entries"] if entry["enabled"]],
@@ -163,7 +190,7 @@ def create_app(
         }
 
     @app.get("/api/v1/shuns")
-    def list_shuns() -> list[dict[str, str | int | bool]]:
+    def list_shuns() -> list[dict[str, object]]:
         return [_serialize(shun) for shun in store.list_active_shuns()]
 
     @app.get("/api/v1/import-devices")
@@ -179,7 +206,7 @@ def create_app(
             raise HTTPException(422, str(error)) from error
 
     @app.get("/api/v1/shuns/{ip}")
-    def shun_detail(ip: IPv4Address) -> list[dict[str, str | int | bool]]:
+    def shun_detail(ip: IPv4Address) -> list[dict[str, object]]:
         return [_serialize(shun) for shun in store.list_active_shuns(ip)]
 
     @app.get("/api/v1/history")
@@ -246,6 +273,41 @@ def create_app(
             raise HTTPException(422, str(error)) from error
         synchronizer.signal_work()
         return result
+
+    @app.post("/api/v1/imports", status_code=202)
+    def admit_import(request: Request, batch: ImportAdmissionRequest) -> dict:
+        require_operator(batch.actor)
+        if not settings.import_admission_enabled or settings.agent_mode == "disabled":
+            raise HTTPException(503, "Import admission is disabled; no targets were queued.")
+        if not request.headers.get("idempotency-key"):
+            raise HTTPException(422, "Import admission requires an explicit UUID idempotency key.")
+        # Admission cannot execute a command. Only the leased worker may select
+        # eligible ADD when its independent gate/device profile are configured.
+        try:
+            result = synchronizer.queue.enqueue(
+                request_key(request), [(target.device_id, target.ip) for target in batch.targets],
+                batch.actor.subject, batch.actor.display_name, tuple(batch.actor.roles),
+                ttl_seconds=min(900, settings.sensitive_action_max_age_seconds),
+                source="manual_import", scope="import", batch_label=batch.label, batch_reason=batch.reason,
+                policy_revision=batch.policy_revision, confirmation_digest=batch.confirmation_digest,
+            )
+        except PermissionError as error:
+            raise HTTPException(403, str(error)) from error
+        except QueueConflict as error:
+            raise HTTPException(409, str(error)) from error
+        except QueueFull as error:
+            raise HTTPException(429, str(error)) from error
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from error
+        execution_enabled = settings.import_execution_enabled and any(
+            target.device_id in addition_device_ids for target in batch.targets
+        )
+        if execution_enabled and not result["replayed"]:
+            synchronizer.signal_work()
+        else:
+            synchronizer.note_state_change()
+        return {**result, "source": "manual_import", "action": "ADD",
+                "execution_enabled": execution_enabled}
 
     @app.delete("/api/v1/devices/{device_id}/shuns/{ip}", status_code=202)
     async def remove_device_shun(device_id: int, ip: IPv4Address, request: Request, actor: Actor) -> dict:

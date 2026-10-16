@@ -22,7 +22,9 @@ Addition/import remains unavailable.
 The agent and low-level transport now contain a separately gated
 [ADD/cycle v3](addition-contract.md) implementation, default off and requiring
 an explicit creation profile. The ordinary API scheduler still chooses v1/v2;
-there is no executable import/ADD route, queue admission or provenance yet.
+private typed admission/provenance and independently gated
+[queued execution](import-execution.md) are implemented. All ADD gates remain
+off in the lab and there is no executable browser import action.
 Do not enable the agent flag or use an independent RPC writer to bypass that
 boundary. Existing removal operations and role/policy behavior are unchanged.
 
@@ -245,12 +247,23 @@ whether an automatic removal was requested, verified, or failed.
 
 ## History retention
 
+Verified manual-import occurrences, when gated execution is enabled, show a
+blue **Manually imported** badge with bounded batch details. An external
+reappearance does not inherit it; no-op/uncertain jobs never acquire it. Current
+delivery keeps private admission and execution default-off, without browser submission;
+see [Import Admission](import-admission.md). Held ADD jobs do not request extra
+device cycles and can be cancelled under the existing ownership/role rules.
+
 The service retains historical events and inactive shun state for
 `FTD_SHUN_HISTORY_RETENTION_DAYS`, which defaults to **366 days**. Once daily,
 the synchronizer purges records older than that UTC cutoff. Active shun state
 is never purged. A non-empty run adds a `HISTORY_RETENTION_PURGED` event with
 the cutoff and deletion counts; the status endpoint also reports the most
 recent retention run and any retention error.
+
+Active import-origin rows and their immutable batch metadata survive queue-job
+pruning. Inactive origins and unreferenced batches follow the same retention
+cutoff; retaining an active badge does not retain all expired audit events.
 
 This is irreversible for the live SQLite database. Take a SQLite-safe backup
 before reducing the period, and retain backups under the organization’s own

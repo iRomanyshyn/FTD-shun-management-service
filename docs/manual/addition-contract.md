@@ -4,9 +4,11 @@
 
 The narrow ADD contract is implemented in the Rust agent and explicit Python
 transport, disabled by default. This is not production write support or
-permission to enable imports. API routes/scheduler still select v1/v2 and cannot
-enqueue/dispatch ADD; no schema, admission or provenance migration is part of
-this increment. Mock mode does not implement addition.
+permission to enable imports. The scheduler selects v1/v2 by default. The separate
+[queued execution](import-execution.md) gate permits explicit per-device v3 and
+common FIFO dispatch; it remains off in the lab. [Private admission](import-admission.md)
+and provenance are implemented, but no executable BFF import exists. Mock mode
+does not implement addition.
 
 `agent/src/addition_contract.rs` is an executable evidence model compiled only
 under `cfg(test)`. It now exercises the strict production helpers in
@@ -32,8 +34,9 @@ examples use null and the new flag remains false.
 
 Python `UnixAgentClient(..., large_snapshots=True, additions_enabled=True)`
 explicitly selects v3. It is a low-level transport, not an application write
-route: normal API construction does not pass this option, even if the new
-agent flag is set in the environment. Do not run an independent writer beside
+route: API construction passes this option only under its independent execution
+gate and exact validated device set; the agent flag alone cannot activate it.
+Do not run an independent writer beside
 the leased worker. Future scoped validation must coordinate exclusive execution
 and authorization; this manual does not authorize an ad-hoc RPC/device write.
 
@@ -65,8 +68,8 @@ fixed source-only command form; it must not offer a generic execution method.
 ## Per-target evidence and outcomes
 
 1. The agent independently validates profile, cycle limits and reserve before
-   the target read. Future admission/worker integration must revalidate live
-   authorization/policy before dispatch; that path is not implemented yet.
+   the target read. The gated worker revalidates captured authorization and live
+   policy before each claim; it shares the original lease/cutoff/cooldown.
    Read and strictly parse `show shun <target>` in the existing
    session. Unknown text/interface, a different target or duplicate row is an
    error, never an empty preflight.
@@ -146,7 +149,8 @@ snapshot still fails closed without replaying/undoing an earlier verified add.
 At most one ADD command is issued for a step. Any step failure aborts the session;
 only exact pre-write deferral returns a reusable non-success result.
 
-Future admission must be atomic, idempotent and role/CSRF protected; bind explicit
+Staged private admission is atomic, idempotent and role protected. Future BFF
+submission must also enforce CSRF and fresh confirmation; bind explicit
 canonical targets, selected devices, actor, label/reason and policy revision to
 confirmation. A local preview is never write authority. Recheck enabled Protected
 IPs at admission and claim, current snapshot capacity, cancellation and short
@@ -154,9 +158,11 @@ authorization expiry. Respect existing pending-work limits without silently
 accepting a truncated batch. Opposite add/remove intentions require explicit
 serialization/conflict semantics; do not coalesce them as the same operation.
 
-Schema/provenance and that conflict policy require a separate reviewed increment
-before admission: operation kind, immutable batch/request linkage, per-occurrence
-verified-add attribution, Already-present/no-op distinction and bounded progress.
+The [staged admission increment](import-admission.md) supplies operation kind,
+immutable batch/request linkage, per-occurrence verified-add attribution,
+Already-present/no-op distinction, opposite-action rejection and bounded progress.
+Its default-off admission flag does not enable the independent execution gate
+or select v3. See [Import Execution](import-execution.md) for the worker path.
 Never recreate completed imports after removal, disappearance or restart.
 SQLite events and sanitized structured logs must distinguish accepted, no-op,
 verified, refused and uncertain outcomes without logging pasted source.
@@ -187,11 +193,17 @@ the client, and must not cause replay or inferred database provenance.
 
 ## Deployment and rollback
 
-Preserve paired API/agent images and a SQLite-safe backup. No schema/data reset
-is needed. Stop the API executor before agent replacement, upgrade the pair
+For the agent/transport-only rollout, preserve paired API/agent images and a
+SQLite-safe backup. No schema/data reset is needed. Stop the API executor before agent replacement, upgrade the pair
 with ADD disabled and actual inventory unchanged, then restart without another
 writer. Web needs no rebuild. v1/v2 traffic remains compatible; normal API
 selection cannot activate v3. Keep all existing lab/production release gates.
+With queued execution configured, explicit eligible devices select v3 only;
+keep that independent API flag false in a disabled-mode rollout. Follow
+[Import Execution](import-execution.md#deployment-and-rollback) for this update.
+For the subsequent API/Web provenance migration, follow
+[Import Admission](import-admission.md#migration-deployment-and-rollback)
+instead; preserve its additive schema and suspend pending ADD before downgrade.
 
 Rollback stops API before agent replacement and restores the paired images;
 keep the new flag false/absent and profiles absent for older agents. An old

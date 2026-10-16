@@ -3,7 +3,11 @@
 ## Scope
 
 The SQLite queue supports device-scoped and confirmed fleet-wide removals.
-It does not add shun creation, import, or a new agent opcode. Submissions
+It does not execute shun creation/import. A separate default-off
+[private admission](import-admission.md) can stage held ADD jobs; the ordinary
+worker selects REMOVE only by default and the browser preview cannot submit them.
+The separate [execution gate](import-execution.md) permits eligible ADD in the
+same FIFO/session with a combined 16-operation budget, not another writer. Submissions
 record intentions; only the leased background executor sends device operations.
 
 This transitional lab increment retains separate SSH sessions for `LIST_SHUNS`
@@ -101,8 +105,9 @@ from job progress and do not advance its bar.
 Settled requests leave the active-progress panel; retained outcomes remain in
 Needs attention or the collapsed Completed operations view. Unchanged metadata
 does not recreate indicators while status polling or page-region updates run.
-Progress is rendered generically for queued jobs, but the product still only
-implements removals; addition/import is not enabled by this UI change.
+Progress is rendered generically for queued jobs. Staged ADD rows explicitly
+say execution is disabled, do not schedule extra device cycles and can be
+cancelled by their owner/Administrator; the product executes removals only.
 
 Operators can cancel their own unstarted manual requests; Administrators can
 cancel another user's. Cancelling one of several coalesced requests preserves
@@ -116,7 +121,7 @@ cancellation button.
 | QUEUED | Awaiting a cycle and fresh complete snapshot. |
 | RUNNING | Claimed; no success is implied. |
 | VERIFIED | Exact verified-success response received from the existing agent. |
-| NOOP | Snapshot already confirms absence; no write was sent. |
+| NOOP | Removal: snapshot confirms absence; ADD hook: already present without creation attribution. No write was sent. |
 | FAILED | Pre-dispatch checks failed, such as expiry or a disabled device. |
 | UNVERIFIED | Write response/worker was lost or rejected; effect unknown. |
 | RECONCILED_ABSENT | Later snapshot confirms absence without attributing it to the uncertain write. |
@@ -134,7 +139,9 @@ Initialization adds `operation_requests`, `operation_jobs`, `operation_links`,
 and `operation_executor` plus indexes. It preserves existing device/state/event
 data and is safe to repeat. There is no new environment setting or agent
 protocol for the transitional mode. The separately gated session extension
-uses the new binary conversation without changing these tables.
+uses the new binary conversation. The later staged-admission migration adds
+job action/dispatch marker, immutable batches and occurrence origins; see its
+[migration and rollback procedure](import-admission.md#migration-deployment-and-rollback).
 Admission/audit and verified completion/state/audit are atomic.
 
 Only the exact session-protocol deferred-before-write response can return a
@@ -196,7 +203,8 @@ reconcile actual FTD state and submit still-required manual work as new
 requests. The configured trusted-IP policy may independently generate new
 policy removals after a successful snapshot.
 
-For rollback, stop the new API/Web, suspend pending work as above, then restore
+For rollback, stop the new API/Web, suspend pending work as above (including
+all staged ADD), then restore
 the previous paired images. Keep the additive tables for audit/re-upgrade;
 do not drop them or restore older device state just to revert code. The older
 API returns immediate results, so clients/Web must be rolled back together.

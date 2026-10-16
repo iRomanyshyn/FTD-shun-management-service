@@ -127,6 +127,27 @@ partial fleet success, detached revisions, and BFF authentication/CSRF/no-store
 boundaries. The browser fixture is not evidence of live FTD or Authelia
 compatibility; that remains an integration/laboratory check.
 
+Staged admission tests use only synthetic SQLite/ASGI state: parallel actors,
+atomic opposite-action rejection/overflow, canonical confirmation and immutable
+replay, policy edits, expiry/lease loss, legacy schema/claim/state-writer guards,
+per-occurrence provenance, retention and bounded 1000-target metadata. A normal
+scheduler observation cannot execute a held ADD or assign origin. API responses
+cover nested provenance; Chromium covers held/cancellable rows, escaped details,
+blue badges and their disappearance after a new external occurrence. Future
+completion hooks are invoked with synthetic typed results, never actual ADD.
+See [Import Admission](import-admission.md); do not use private API requests as
+an independent live writer or turn on gates just to run tests.
+
+[Queued execution](import-execution.md) tests cover profile-bound v3 selection,
+common ADD/REMOVE FIFO and 16-step/cooldown bounds, held jobs on ordinary devices,
+policy changes, per-claim expiry including coalesced actors, priority reads,
+cancellation and cutoff, exact deferral versus unknown results, later final-read
+failure, restart/shutdown/lease recovery without replay, and actual local
+SeqPacket worker success/lost-response conversations. Synthetic admission tests
+check eligible new work versus held/replayed requests and metadata. Chromium
+checks held/running transitions, indeterminate ADD progress and readable phase
+text. These tests do not read `.env`/lab inventory, SSH credentials or actual FTD.
+
 Queue coverage also exercises simultaneous SQLite admissions, atomic overflow,
 idempotent replay after completion, scope binding, cancellation ownership,
 expiry, one executor/cycle gate, abandoned-write recovery, policy changes,

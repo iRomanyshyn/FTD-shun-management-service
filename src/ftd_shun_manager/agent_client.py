@@ -43,13 +43,16 @@ class DisabledAgentClient(AgentClient):
 
 class UnixAgentClient(AgentClient):
     def __init__(self, socket_path: str, timeout_seconds: int = 125, *, large_snapshots: bool = False,
-                 additions_enabled: bool = False) -> None:
+                 additions_enabled: bool = False, addition_device_ids: frozenset[int] | None = None) -> None:
         if additions_enabled and not large_snapshots:
             raise ValueError("addition cycles require large snapshots")
         self.socket_path = socket_path
         self.timeout_seconds = timeout_seconds
         self.large_snapshots = large_snapshots
         self.additions_enabled = additions_enabled
+        # None preserves explicit low-level v3 callers. The API always supplies
+        # an exact validated set, including empty: no implicit fleet capability.
+        self.addition_device_ids = addition_device_ids
 
     def remove_shun(self, device_id: int, ip: IPv4Address) -> None:
         request = encode_request(Operation.REMOVE_SHUN, device_id, ip)
@@ -88,8 +91,11 @@ class UnixAgentClient(AgentClient):
             raise AgentUnavailable("agent socket request failed") from error
 
     def open_cycle(self, device_id: int) -> "UnixAgentCycle":
+        addition_cycle = self.additions_enabled and (
+            self.addition_device_ids is None or device_id in self.addition_device_ids
+        )
         return UnixAgentCycle(self.socket_path, self.timeout_seconds, device_id,
-                              version=3 if self.additions_enabled else 2 if self.large_snapshots else 1)
+                              version=3 if addition_cycle else 2 if self.large_snapshots else 1)
 
 
 def _receive_packet(connection: socket) -> bytes:

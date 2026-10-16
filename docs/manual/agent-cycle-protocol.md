@@ -7,8 +7,10 @@ supports ADD/import. Keep both feature flags false unless explicitly lab-approve
 
 The separate [addition contract](addition-contract.md) implements cycle v3
 behind another default-off agent gate and explicit per-device creation profile.
-It does not change v1/v2 packets or ordinary API scheduling. Its 16-step budget
-combines ADD/REMOVE attempts; import admission/provenance remain unavailable.
+It does not change v1/v2 packets or default API scheduling. Its 16-step budget
+combines ADD/REMOVE attempts. Private admission/provenance and independently
+gated [worker integration](import-execution.md) are now implemented; all ADD
+gates remain off in the lab and there is no executable browser import.
 
 ## Release gate
 

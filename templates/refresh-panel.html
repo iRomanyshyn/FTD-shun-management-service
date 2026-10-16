@@ -24,7 +24,7 @@
 <div class="utility-panel queue-panel" aria-labelledby="operation-queue-heading">
 <h2 id="operation-queue-heading">Operation queue</h2>
 <p data-queue-summary>Loading queue status…</p>
-<p>Removal requests are queued. A verified result is shown after execution. {% if refresh.session_cycles_enabled %}Experimental session cycles handle up to 16 removals per device within command/time limits.{% else %}Each cycle handles at most one removal per device.{% endif %}</p>
+<p>Requests are queued; acceptance is not verified success. {% if refresh.import_execution_enabled %}Experimental cycles share a limit of 16 additions/removals per device within command/time limits. Additions require an explicitly configured device profile.{% elif refresh.session_cycles_enabled %}Experimental session cycles handle up to 16 removals per device within command/time limits. ADD execution is disabled.{% else %}Each cycle handles at most one removal per device. ADD execution is disabled.{% endif %}</p>
 <p data-cycle-progress role="status" aria-live="polite"></p>
 <section data-request-progress-section hidden aria-labelledby="request-progress-heading">
 <h3 id="request-progress-heading">Request progress</h3>

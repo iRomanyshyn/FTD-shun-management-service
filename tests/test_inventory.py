@@ -56,7 +56,9 @@ def test_optional_addition_profile_never_uses_implicit_scope(tmp_path, profile, 
     inventory.write_text(json.dumps([{"id":1,"hostname":"lab","management_ip":"192.0.2.1",
         "ssh_host_key":"ssh-ed25519 AAAA","allowed_interfaces":interfaces,"addition_profile":profile}]))
     if accepted:
-        assert len(load_devices(inventory)) == 1
+        devices = load_devices(inventory)
+        assert len(devices) == 1
+        assert devices[0][0].addition_profile == profile
     else:
         with pytest.raises(ValueError, match="addition_profile"):
             load_devices(inventory)

@@ -30,7 +30,8 @@ increment in [Section 74](#74-approved-next-increment-queued-device-cycles-and-m
 and the [Development Plan](development-plan.md) extends that scope with queued
 device cycles and one-time manual shun imports. The durable removal queue is
 implemented; a bounded-session protocol is experimental and opt-in pending lab
-validation. Additions/imports remain planned. Default legacy protocol and
+validation. ADD transport and private staged-only admission are default-off;
+executable imports remain planned. Default legacy protocol and
 operating procedures remain in effect until the documented gates are completed.
 
 ---
@@ -2611,12 +2612,104 @@ never queued, added or agent-verified execution success.
   v3 also requires cycle/large-read flags and an explicit agent-owned device
   `addition_profile` matching the reviewed laboratory profile. Missing/unknown
   profile cannot imply permission from the removal allowlist. Python selection
-  is explicit; the API scheduler/import routes do not select v3 or enqueue ADD
-  in this increment. Exact acknowledgement plus fresh source-only post-read,
+  is explicit; the default API scheduler does not select v3 or dispatch ADD.
+  The staged-only admission increment below may enqueue held ADD intentions,
+  but cannot execute them. Exact acknowledgement plus fresh source-only post-read,
   no write for pre-existing targets, shared ADD/REMOVE budgets and no automatic
   replay/provenance inference remain required. Implementation/deployment with
   gates off is not live validation or permission to enable ADD/import. Existing
   creation-scope, traffic and full-population read gates remain in force.
+
+### Staged-only import admission — 2026-10-16
+
+The private API may implement `POST /api/v1/imports`, guarded by the strict,
+false-by-default `FTD_SHUN_IMPORT_ADMISSION_ENABLED`. This switch permits only
+durable staging, not execution. No BFF submit route/button or executable
+preview token is introduced. The browser preview remains non-executable.
+Identity must come from the trusted BFF boundary in any future browser workflow;
+caller-supplied API actor fields are trusted only on the private API socket,
+not accepted directly from a public browser. Future BFF submission requires
+CSRF and fresh, explicit confirmation; a digest is not authorization.
+
+Admission freezes 1–1000 distinct typed device/IPv4 pairs, policy revision,
+label/reason and captured actor under an explicit UUID idempotency key.
+A SHA-256 digest binds canonical targets/metadata, not permission. Atomically
+recheck enabled devices, enabled Protected IP exclusion, policy revision,
+roles, rate/capacity limits and opposite intentions. Coalesce same-action
+device/IP requests with separate actor audit; reject any queued/running
+opposite ADD/REMOVE target for the whole request. Retain the existing limits
+of 1000 unfinished jobs, 2000 active requests, 10 submissions/user/minute and
+at most 15 minutes of captured authorization. Preview limits do not expand
+admission or promise completion of a 7,307-address list within that window.
+
+Additive SQLite migration marks existing jobs REMOVE, introduces immutable
+job action and an explicit dispatch-kind marker, immutable manual-import batch
+metadata and per-occurrence origin rows, and backfills opaque occurrence IDs
+without changing existing dates. Preserve the nine-column request layout for
+older removal writers; effective `manual_import` source is explicit in batch
+metadata/events, while the compatible base request source remains `manual`.
+Triggers reject a legacy claimant trying to run ADD as removal and rotate an
+occurrence on reappearance even under older state writers. They are safety
+nets, not permission to downgrade with active ADD work: suspend pending work
+and retain additive tables under the documented rollback procedure.
+
+In staged-only mode the scheduler must select REMOVE only. Held ADD jobs must not cause extra
+minute-spaced device cycles. They remain visible/cancellable and expire under
+the normal authorization rules. Enabling protection fails matching unstarted
+ADD jobs transactionally before policy removals may be generated. No new
+refresh hint, SSH read or write is caused by staged admission. Domain-level
+claim/completion hooks are default-disabled; the independently gated worker
+extension below may use them, never the HTTP admission handler.
+
+Only an exact typed verified-add response may atomically create the current
+observed occurrence and its batch/actor origins. No-op, failure, uncertainty,
+later snapshots, restart or idempotent replay cannot assign/reassign origin or
+regenerate work. A conflicting local active occurrence fails attribution closed.
+Later externally observed reappearance receives a new occurrence with no
+inherited badge. Keep all coalesced actor audit/origin rows, but expose only
+one representative batch and the full origin count per active row to bound
+API/UI metadata. Active occurrence attribution outlives pruned queue jobs;
+inactive attribution/batches follow configured history retention. See
+[Import Admission](manual/import-admission.md) for migration and rollback.
+
+### Gated queued ADD execution — 2026-10-16
+
+The operator approved integrating ADD with the existing leased scheduler while
+keeping execution disabled. `FTD_SHUN_IMPORT_EXECUTION_ENABLED=false` is an
+independent, strict API gate. True requires socket agent mode, session cycles
+and large reads; it does not enable the agent's own ADD gate or supply a device
+profile. Admission may be disabled independently to stop intake while draining
+previously authorized work. No new public/BFF submit route is introduced.
+
+At startup derive the allowed addition device IDs only from validated enabled
+inventory records with an explicit recognized `addition_profile`. Keep that
+capability in process configuration, not user input or a new database policy.
+Only these devices select exact cycle v3; other devices keep their existing
+v1/v2 read/removal mode. Missing profile holds ADD rather than breaking fleet
+monitoring. Neither gate alone authorizes a write or implies lab compatibility.
+
+Under the explicit API gate and device capability, atomically claim eligible
+ADD/REMOVE in common FIFO sequence with the existing cycle cutoff and trusted
+policy discovery exception. Otherwise select REMOVE only. Held ADD does not
+schedule extra cycles. Eligible ADD shares the persisted cooldown, one leased
+executor/session, 16 combined processed attempts, command/time reserves and
+safe priority checkpoints. Recheck device, captured role/expiry, cancellation
+and current enabled protection on every claim. RUNNING work is not cancellable;
+an external policy change cannot atomically revoke an already dispatched CLI
+command. Never open a second writer to resolve that unavoidable race.
+
+Use exact typed `AdditionResult` and version-3 transport; never infer creation
+from the scheduler's interface-less snapshot or fall back to another version.
+Only explicit pre-write deferral can requeue. Missing/malformed/lost responses
+settle UNVERIFIED and abort the session without replay. Commit verified creation
+and provenance before publishing later snapshots; a failed final read must not
+replay/erase an earlier verified result. No-op must retain existing provenance.
+Publish ADD/remove/priority phases, combined progress, per-job held eligibility
+and completion revisions without a new device-read path. Default-off rollout
+is not scoped live ADD, traffic, creation-scope or large-population validation.
+
+### Remaining product requirements
+
 - A pasted blocklist creates one-time manual additions. Successful removal,
   external disappearance, reconciliation, and restart never regenerate those
   completed add requests. It is not a continuously enforced blocklist or feed.
@@ -2638,5 +2731,5 @@ never queued, added or agent-verified execution success.
 The topology, credential isolation, pinned host keys, exact binary validation,
 verified-success requirement, and prohibition on arbitrary Cisco commands are
 unchanged. The queue and experimental removal-cycle extension are implemented
-as recorded above; addition/import remains unavailable. Live validation of the
+as recorded above; executable addition/import remains unavailable. Live validation of the
 new protocol is required before default enablement.

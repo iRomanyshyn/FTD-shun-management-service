@@ -2,9 +2,20 @@
 
 ## Scope and current boundary
 
+The [queued ADD execution](import-execution.md) update rebuilds only API/Web
+with a fresh SQLite-safe backup and prior paired images. No new schema/agent
+format is introduced beyond the admission increment. Keep both API import gates
+and agent ADD false/absent; do not edit real inventory or submit test work.
+
 The Compose stack deploys Caddy, Authelia, Web/BFF, the internal API, and the isolated Rust FTD SSH agent. The agent implements typed complete `show shun` snapshots, five-minute polling by default, SQLite reconciliation, and device-scoped removal with immediate post-write verification. Keep the deployment in a non-production FTD lab until the validation checklist below is complete.
 
 ## Network and socket layout
+
+The [staged import admission](import-admission.md) increment requires a checked
+SQLite-safe backup and an additive startup migration before paired API/Web
+rollout. Keep `FTD_SHUN_IMPORT_ADMISSION_ENABLED=false` and agent ADD disabled;
+this is not an executable import release. Follow its pending-work suspension
+procedure before rollback to an older worker. Agent/Caddy/Authelia are unchanged.
 
 ```text
 host TCP/443 -> Caddy -> Authelia (ForwardAuth)

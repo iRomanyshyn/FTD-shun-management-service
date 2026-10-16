@@ -19,8 +19,19 @@ the operator requested gated runtime implementation, not live enablement.
 Shared Python/Rust vectors, local transports and fake consoles cover exact
 before/ack/after semantics, combined 16-attempt limits, command/time/final-read
 reserves, profile/capacity failures and no fallback/replay on uncertainty.
-Normal API construction remains on v1/v2: admission, provenance and executable
-imports are the next separate increment. Actual ADD/traffic validation and
+Default API construction remains on v1/v2. The subsequent
+[staged admission/provenance](manual/import-admission.md) increment now provides
+a default-off private route, immutable batches/current-occurrence attribution,
+same-action coalescing and whole-batch opposite-intention rejection. Its jobs
+are held/cancellable unless the independent
+[queued execution](manual/import-execution.md) gate and explicit per-device
+profile permit v3 dispatch. The gated worker now shares FIFO, the 16-operation
+budget, priority snapshots and verified provenance with removals; no new writer
+or executable BFF import exists. The deployed lab keeps all ADD gates off.
+Scoped live validation and browser submission remain next. Existing 1000-job capacity and
+at-most-15-minute authorization do not support a 7,307-address import by one
+confirmation; design explicit bounded execution/reauthorization before claiming
+that support. Actual ADD/traffic validation and
 real large-population read evidence remain required before enablement.
 The operator-run duplicate fixture returns identical success text and visible
 state on repeated add, then cleanup/absence. It reinforces fresh preflight/no-op;
@@ -413,8 +424,9 @@ must not execute indefinitely. Specify execution-time authorization and request
 expiry behavior before implementing the worker, without persisting session
 cookies, passwords, or bearer credentials in queue records.
 
-The future schema migration must include queue claims, idempotency, batch
-provenance, cycle metadata, backup instructions, and a rollback procedure.
+The implemented additive admission migration includes queue claims, idempotency,
+batch provenance, backup instructions and a rollback procedure. Gated worker
+integration adds no further schema and keeps cycle metadata in the existing path.
 Restoring a backup must suspend pending mutations until device reconciliation
 and operator review prevent replay of previously completed work.
 
@@ -449,13 +461,15 @@ manually supplied, removable one-time shun additions.
    then lets background work continue. Test refresh cooldowns, exhausted
    session budgets, prompt timeout, preserved input, and absence of starvation
    or additional SSH sessions.
-6. Complete the existing production-readiness work: failure-path integration
+6. Complete the existing production-readiness work: reproducible Python dependency
+   locking/container builds, failure-path integration
    tests, source/egress restrictions, external structured-log collection,
    metrics/alerts, SQLite-safe backup and restore, TLS/authentication checks,
    and the outstanding FTD laboratory procedure. These remain tracked in
    [Project Status](project-status.md).
 
 Removal-cycle limits, wire format, and captured-authorization expiry are now
-specified and implemented behind the laboratory gate. Addition/import schema,
-protocol, and validation remain detailed-design tasks. Target requirements
+specified and implemented behind laboratory gates. Addition/import schema,
+protocol and worker integration are implemented and default-off; scoped live
+validation, executable BFF submission and large-list scheduling remain. Target requirements
 above do not imply deployed or lab-validated batch/import capability.

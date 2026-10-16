@@ -145,6 +145,8 @@ def refresh_metadata(refresh: object) -> dict[str, object]:
         "devices",
         "queue",
         "session_cycles_enabled",
+        "import_execution_enabled",
+        "addition_device_count",
         "device_cycle",
         "priority_refresh_available",
         "policy_revision",

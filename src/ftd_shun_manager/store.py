@@ -23,6 +23,8 @@ class Device:
     hostname: str
     management_ip: IPv4Address
     enabled: bool
+    # Startup-only capability from validated inventory; never persisted as policy.
+    addition_profile: str | None = None
 
 
 @dataclass(frozen=True)
@@ -35,6 +37,8 @@ class Shun:
     last_seen_at: str
     active: bool
     active_since_at: str
+    manual_imports: tuple[dict, ...] = ()
+    manual_import_count: int = 0
 
 
 class HistoryWindowExpired(ValueError):
@@ -110,8 +114,48 @@ class Store:
                 );
                 CREATE INDEX IF NOT EXISTS idx_shun_events_request_id
                   ON shun_events(request_id);
+                CREATE TABLE IF NOT EXISTS manual_import_batches (
+                  id TEXT PRIMARY KEY,
+                  source TEXT NOT NULL CHECK(source='manual_import'),
+                  actor_subject TEXT NOT NULL,
+                  actor_display_name TEXT NOT NULL,
+                  actor_roles_json TEXT NOT NULL,
+                  payload_json TEXT NOT NULL,
+                  requested_at TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS shun_import_origins (
+                  batch_id TEXT NOT NULL REFERENCES manual_import_batches(id),
+                  job_id TEXT NOT NULL,
+                  device_id INTEGER NOT NULL REFERENCES devices(id),
+                  ip BLOB NOT NULL CHECK(length(ip)=4),
+                  interface TEXT NOT NULL,
+                  occurrence_id TEXT NOT NULL,
+                  verified_at TEXT NOT NULL,
+                  PRIMARY KEY(batch_id,job_id,occurrence_id)
+                );
+                CREATE INDEX IF NOT EXISTS idx_import_origin_occurrence
+                  ON shun_import_origins(occurrence_id);
                 """
             )
+            db.execute("BEGIN IMMEDIATE")
+            if "occurrence_id" not in {row["name"] for row in db.execute("PRAGMA table_info(shun_state)")}:
+                db.execute("ALTER TABLE shun_state ADD COLUMN occurrence_id TEXT")
+            db.execute("UPDATE shun_state SET occurrence_id=lower(hex(randomblob(16))) WHERE occurrence_id IS NULL")
+            db.execute("CREATE INDEX IF NOT EXISTS idx_shun_state_occurrence ON shun_state(occurrence_id)")
+            # Preserve occurrence semantics even during a rollback to writers
+            # unaware of this new column. Reappearance must never inherit origin.
+            db.execute("""CREATE TRIGGER IF NOT EXISTS shun_occurrence_on_reappearance
+                AFTER UPDATE OF active ON shun_state
+                WHEN OLD.active=0 AND NEW.active=1 AND NEW.occurrence_id IS OLD.occurrence_id
+                BEGIN UPDATE shun_state SET occurrence_id=lower(hex(randomblob(16)))
+                WHERE device_id=NEW.device_id AND ip=NEW.ip AND interface=NEW.interface; END""")
+            db.execute("""CREATE TRIGGER IF NOT EXISTS shun_occurrence_on_insert AFTER INSERT ON shun_state
+                WHEN NEW.occurrence_id IS NULL BEGIN UPDATE shun_state SET occurrence_id=lower(hex(randomblob(16)))
+                WHERE device_id=NEW.device_id AND ip=NEW.ip AND interface=NEW.interface; END""")
+            db.execute("""CREATE TRIGGER IF NOT EXISTS immutable_import_batch BEFORE UPDATE ON manual_import_batches
+                BEGIN SELECT RAISE(ABORT,'accepted import metadata is immutable'); END""")
+            db.execute("""CREATE TRIGGER IF NOT EXISTS immutable_import_origin BEFORE UPDATE ON shun_import_origins
+                BEGIN SELECT RAISE(ABORT,'verified import origin is immutable'); END""")
 
     def list_devices(self) -> list[Device]:
         with self._connection() as db:
@@ -137,7 +181,7 @@ class Store:
         query = """
           SELECT s.device_id, d.hostname AS device_hostname, s.ip, s.interface,
                  s.first_seen_at, s.last_seen_at, s.active,
-                 s.last_changed_at AS active_since_at
+                 s.last_changed_at AS active_since_at, s.occurrence_id
           FROM shun_state AS s JOIN devices AS d ON d.id = s.device_id
           LEFT JOIN protected_ips AS p ON p.ip = s.ip
           WHERE s.active = 1
@@ -150,12 +194,44 @@ class Store:
         # last_changed_at is the current appearance, not each polling timestamp.
         query += " ORDER BY (p.ip IS NOT NULL) DESC, s.last_changed_at DESC, s.ip, d.hostname, s.interface"
         with self._connection() as db:
+            db.execute("BEGIN")
             rows = db.execute(query, parameters).fetchall()
+            origins: dict[str, list[dict]] = {}
+            origin_counts: dict[str, int] = {}
+            # One representative plus exact total per occurrence: coalesced
+            # actors remain fully audited without multiplying large API bodies.
+            origin_query = """SELECT o.occurrence_id,MIN(o.rowid) AS representative,COUNT(*) AS n
+                FROM shun_import_origins o
+                JOIN shun_state s ON s.occurrence_id=o.occurrence_id AND s.active=1
+                WHERE s.device_id=o.device_id AND s.ip=o.ip AND s.interface=o.interface"""
+            if ip:
+                origin_query += " AND s.ip=?"
+            selected = db.execute("""SELECT o.*,live.n FROM (""" + origin_query + """
+                GROUP BY o.occurrence_id) AS live JOIN shun_import_origins o ON o.rowid=live.representative""",
+                parameters).fetchall()
+            batches = {}
+            batch_ids = sorted({row["batch_id"] for row in selected})
+            # Decode each canonical batch once, not its potentially 1000-target
+            # payload once per origin/active row. Bound SQL variable/body peaks.
+            for offset in range(0,len(batch_ids),500):
+                group = batch_ids[offset:offset+500]
+                for batch in db.execute("SELECT * FROM manual_import_batches WHERE id IN (" + ",".join("?" for _ in group) + ")",group):
+                    payload = json.loads(batch["payload_json"])
+                    batches[batch["id"]] = {"actor_subject":batch["actor_subject"],
+                        "actor_display_name":batch["actor_display_name"],"label":payload["label"],"reason":payload["reason"]}
+            for origin in selected:
+                origin_counts[origin["occurrence_id"]] = origin["n"]
+                origins.setdefault(origin["occurrence_id"], []).append({
+                    "source": "manual_import", "batch_id": origin["batch_id"], "operation_id": origin["job_id"],
+                    **batches[origin["batch_id"]], "verified_at": origin["verified_at"],
+                })
         return [
             Shun(
                 row["device_id"], row["device_hostname"], IPv4Address(row["ip"]),
                 row["interface"], row["first_seen_at"], row["last_seen_at"], bool(row["active"]),
                 row["active_since_at"],
+                tuple(origins.get(row["occurrence_id"], [])),
+                origin_counts.get(row["occurrence_id"], 0),
             )
             for row in rows
         ]
@@ -281,18 +357,18 @@ class Store:
             if previous is None:
                 db.execute(
                     """INSERT INTO shun_state
-                       (device_id, ip, interface, active, first_seen_at, last_seen_at, last_changed_at)
-                       VALUES (?, ?, ?, 1, ?, ?, ?)""",
-                    (device_id, ip.packed, interface, timestamp, timestamp, timestamp),
+                       (device_id, ip, interface, active, first_seen_at, last_seen_at, last_changed_at,occurrence_id)
+                       VALUES (?, ?, ?, 1, ?, ?, ?,?)""",
+                    (device_id, ip.packed, interface, timestamp, timestamp, timestamp,str(uuid4())),
                 )
                 event = "SHUN_DETECTED"
             else:
                 event = "SHUN_REAPPEARED" if not previous["active"] else None
                 if event:
                     db.execute(
-                        """UPDATE shun_state SET active = 1, last_seen_at = ?, last_changed_at = ?
+                        """UPDATE shun_state SET active = 1, last_seen_at = ?, last_changed_at = ?,occurrence_id=?
                            WHERE device_id = ? AND ip = ? AND interface = ?""",
-                        (timestamp, timestamp, device_id, ip.packed, interface),
+                        (timestamp, timestamp,str(uuid4()), device_id, ip.packed, interface),
                     )
                 else:
                     db.execute(
@@ -327,18 +403,18 @@ class Store:
                 if active is None:
                     db.execute(
                         """INSERT INTO shun_state
-                           (device_id, ip, interface, active, first_seen_at, last_seen_at, last_changed_at)
-                           VALUES (?, ?, ?, 1, ?, ?, ?)""",
-                        (device_id, packed_ip, interface, timestamp, timestamp, timestamp),
+                           (device_id, ip, interface, active, first_seen_at, last_seen_at, last_changed_at,occurrence_id)
+                           VALUES (?, ?, ?, 1, ?, ?, ?,?)""",
+                        (device_id, packed_ip, interface, timestamp, timestamp, timestamp,str(uuid4())),
                     )
                     self._insert_event(
                         db, "SHUN_DETECTED", device_id, ip, interface, None, None, (), None, {}, timestamp
                     )
                 elif not active:
                     db.execute(
-                        """UPDATE shun_state SET active = 1, last_seen_at = ?, last_changed_at = ?
+                        """UPDATE shun_state SET active = 1, last_seen_at = ?, last_changed_at = ?,occurrence_id=?
                            WHERE device_id = ? AND ip = ? AND interface = ?""",
-                        (timestamp, timestamp, device_id, packed_ip, interface),
+                        (timestamp, timestamp,str(uuid4()), device_id, packed_ip, interface),
                     )
                     self._insert_event(
                         db, "SHUN_REAPPEARED", device_id, ip, interface, None, None, (), None, {}, timestamp
@@ -516,6 +592,9 @@ class Store:
             timespec="milliseconds"
         ).replace("+00:00", "Z")
         with self._connection() as db:
+            origins_deleted = db.execute("""DELETE FROM shun_import_origins WHERE verified_at<?
+                AND NOT EXISTS (SELECT 1 FROM shun_state s WHERE s.occurrence_id=shun_import_origins.occurrence_id
+                  AND s.active=1)""", (cutoff,)).rowcount
             events_deleted = db.execute(
                 "DELETE FROM shun_events WHERE timestamp < ?", (cutoff,)
             ).rowcount
@@ -524,7 +603,7 @@ class Store:
                    WHERE active = 0 AND last_changed_at < ?""",
                 (cutoff,),
             ).rowcount
-            if events_deleted or inactive_state_deleted:
+            if events_deleted or inactive_state_deleted or origins_deleted:
                 self._insert_event(
                     db,
                     "HISTORY_RETENTION_PURGED",
@@ -540,12 +619,14 @@ class Store:
                         "events_deleted": events_deleted,
                         "inactive_state_deleted": inactive_state_deleted,
                         "retention_days": retention_days,
+                        "import_origins_deleted": origins_deleted,
                     },
                 )
         return {
             "cutoff": cutoff,
             "events_deleted": events_deleted,
             "inactive_state_deleted": inactive_state_deleted,
+            "import_origins_deleted": origins_deleted,
         }
 
     def create_removal_requested(

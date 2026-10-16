@@ -33,12 +33,12 @@ def empty_snapshot(opcode, sequence):
     return [prefix + b"\0" + pack(">IIH", 0, 0, 0), prefix + b"\2" + hashlib.sha256(b"").digest()]
 
 
-def test_no_standalone_addition_exists_and_api_does_not_select_v3(monkeypatch):
+def test_no_standalone_addition_exists_and_agent_flag_alone_cannot_select_v3(monkeypatch):
     assert all("ADD" not in operation.name for operation in Operation)
     assert CycleOperation.ADD == 0x14
     monkeypatch.setenv("FTD_SHUN_AGENT_ADDITIONS_ENABLED", "true")
     client = _agent(replace(Settings.from_environment(), agent_mode="socket", large_snapshots_enabled=True))
-    assert not client.additions_enabled, "API scheduler cannot opt into ADD before admission is implemented"
+    assert not client.additions_enabled, "The agent flag alone cannot enable the API execution gate"
     with pytest.raises(ValueError, match="require large snapshots"):
         UnixAgentClient("/never-connect", additions_enabled=True)
     monkeypatch.setattr(agent_client, "UnixAgentCycle", lambda *args, **kwargs: kwargs["version"])

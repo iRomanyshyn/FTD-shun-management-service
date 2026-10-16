@@ -3,8 +3,10 @@
 ## Release boundary
 
 Open **Import preview**. This is a **non-executable preview**, not an import:
-there is no Queue import button, addition opcode, admission token, persistence,
-provenance migration or worker dispatch. Nothing is written to FTD or queued.
+there is no Queue import button, executable preview token, paste persistence
+or worker dispatch. Nothing is written to FTD or queued by this page. Separate
+[private staging](import-admission.md) and agent ADD gates are default-off and
+do not change preview semantics.
 Existing removal/policy execution remains independent and unchanged.
 
 The creation interface, Basic-account addition permission, strict ADD response

@@ -4,6 +4,88 @@ Last updated: 2026-10-16
 
 ## Current increment
 
+**Independently gated queued ADD execution (2026-10-16).** Integrated ADD into
+the existing leased scheduler behind `FTD_SHUN_IMPORT_EXECUTION_ENABLED=false`.
+True requires socket agent mode, cycles and large reads, plus explicit enabled
+inventory profiles per eligible device. The agent's own gate remains separate.
+The API always supplies an exact device set: eligible devices select v3 only,
+others keep ordinary v1/v2 reads/removals and hold ADD. Missing gate/profile does
+not accelerate cycles or dispatch ADD. No executable BFF import or default
+enablement, new schema, agent binary or wire format is introduced.
+
+Eligible jobs share FIFO/cutoff, one fleet lease and cooldown, a combined
+16-operation budget, priority checkpoints and final-read reserves. Recheck
+policy/device/captured authorization on every claim. Expire unstarted actors
+within long cycles before another valid coalesced request can create origin on
+their behalf. Typed verified creation commits origin immediately; no-op does
+not assign it, unknown replies/shutdown do not replay, and a failed final read
+does not revoke a preceding verified result. UI metadata distinguishes held
+versus eligible jobs and displays **Adding and verifying** with common progress.
+Private intake wakes the worker only for new eligible work; replay/held-only
+admission does not request extra cycles. Intake can be stopped independently.
+
+All 320 Python tests and 15 Chromium scenarios (16 reported tests) pass,
+covering real local socket worker conversations, mixed budgets/cutoff, priority,
+expiry/coalesced actors, shutdown/recovery and unknown/no-replay behavior.
+Compileall, Ruff and diff checks pass. API/Web were rebuilt/deployed with a fresh
+checked SQLite-safe backup and prior paired images retained. Agent/Caddy/
+Authelia are unchanged; no schema, real inventory/.env edit or test work.
+Both API gates/client ADD selector are false and eligible device count is zero.
+All 61 active rows, one protected match, six VERIFIED jobs, three policy entries/
+revision 3, ordering and stable dates/occurrences are preserved; quick_check is
+ok and foreign_key_check has no errors. The ordinary post-start v2 cycle finished
+at 16:42:18Z with two reads, zero mutations and 8003 ms; no device error and
+next baseline 16:47:18Z. Private anonymous pages/status remain 401; TLS-verified
+HTTPS preview redirects to Authelia (302). Packaged Python 3.12 ASGI/schema
+safe-default smoke also passed offline without lab mounts/network/secrets.
+See [Import Execution](manual/import-execution.md) for gates, bounds,
+failure/recovery, deployment and rollback. Live automated ADD, traffic/creation
+scope and full-population reads remain unvalidated; real lab flags/inventory
+remain unchanged and no new test mutation/import is authorized by deployment.
+
+**Staged import admission/provenance (2026-10-16).** Added default-off private
+`POST /api/v1/imports`, strict typed/canonical confirmation, explicit UUID
+idempotency, enabled-device/policy/role/capacity checks and atomic opposite
+ADD/REMOVE rejection. Concurrent same-action intentions share a job without
+losing actor attribution. Existing 1000-job/2000-request/10-per-minute limits
+and at-most-15-minute authorization remain; preview capacity does not expand
+them. No executable BFF submission, ADD worker dispatch, v3 scheduler selection,
+new refresh hint or live addition is introduced. Held ADD does not accelerate
+background cycles; it is visible/cancellable and expires normally.
+
+Additive schema adds immutable action/dispatch markers, manual-import batches,
+per-occurrence origins and backfilled occurrence IDs without changing existing
+dates. Legacy-safe triggers prevent ADD-as-REMOVE claims and origin inheritance
+on external reappearance; nine-column old removal request inserts remain valid.
+Verified-add completion hooks atomically attribute only a new occurrence;
+no-op, uncertainty, later snapshots and retries cannot claim creation or replay
+work. Queue retention does not erase active provenance. API/UI exposes a blue
+badge, one representative batch plus exact count, escaped details and local
+verified time; all coalesced origins remain stored. Full canonical lists are
+not multiplied per displayed job/actor/row.
+
+All 297 Python tests pass, including migration/restart/rollback guards, concurrent
+admission, whole-batch conflicts/limits, policy edits, expiry/lease loss, ordinary
+REMOVE-only scheduling, nested API serialization, 1000-target metadata reads,
+retention and escaped attribution. Fifteen Chromium scenarios pass (16 reported
+tests), including held/cancellable ADD and provenance clearing on reappearance.
+Compileall, Ruff and diff checks pass. Agent/Rust/protocol files are unchanged;
+live ADD, traffic/creation-scope and real large-load evidence remain pending.
+See [Import Admission](manual/import-admission.md) for structured migration,
+backup, rollback and remaining execution gates. API/Web were built/deployed to
+the lab with both new capabilities off. A checked SQLite-safe private backup
+and prior paired images are retained; agent/Caddy/Authelia IDs are unchanged.
+Migration preserves all six legacy jobs and stable first-seen/appearance dates;
+61 active records, one protected match, three policy entries/revision 3 and
+correct ordering remain. All occurrences are backfilled, batch/origin tables
+are empty, quick_check is ok and foreign_key_check has no errors. A normal v2
+cycle completed at 12:55:30Z with two reads, zero mutations and 8254 ms; next
+baseline is five minutes later, no device error. Anonymous Web/status returns
+401; HTTPS preview redirects to Authelia (302) with TLS verification. No real
+inventory/.env edit, new job/policy, direct agent read or refresh hint was made.
+Inventory contents were not re-read during deployment checks; false admission,
+execution and ordinary-client ADD selectors were verified independently.
+
 **Gated agent/transport ADD (2026-10-16).** Implemented typed cycle v3 ADD
 behind `FTD_SHUN_AGENT_ADDITIONS_ENABLED=false`, both existing cycle/large-read
 gates and explicit per-device `addition_profile`. Missing gate/profile rejects
@@ -398,6 +480,14 @@ The foundation increment was checked with:
 - Rebuilt/recreated local API and Web/BFF after the explicit operator approval. The private API reported a successful refresh, 366-day retention with no error, and a trusted-policy request followed by one verified removal; active local state was empty afterward.
 
 ## Next work, in order
+
+Current import-specific next step: validate the default-off scheduler integration
+under a separately approved laboratory procedure, without bypassing existing
+scope/traffic/read validation or silently extending the authorization window. Perform
+one explicitly approved service-executed TEST-NET lifecycle through the leased
+worker before any executable BFF submission or bulk import. The staged admission
+flag is not that execution gate. Real 7,307-entry imports remain blocked by
+1000 pending-job capacity and bounded authorization as well as live read evidence.
 
 Before enabling any large import, resolve and lab validate the independent
 64 KiB CLI-output/snapshot-packet capacity blocker. Follow the staged

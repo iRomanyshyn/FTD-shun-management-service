@@ -63,5 +63,5 @@ Do not rewrite historical log entries except to correct an objective error; add 
   ```
 
 - Validate Compose changes with `docker compose --env-file .env -f deploy/compose.yml config` using temporary, non-secret local configuration. Do not commit that configuration.
-- Only device-scoped removal has live agent lab-validation evidence. ADD/cycle v3 is experimental, default-off and not wired to admission; do not enable it without its documented profile/traffic/read-capacity and scoped validation gates. Do not present either write path, mock mode or socket transport as production-ready until live FTD validation is documented.
+- Only device-scoped removal has live agent lab-validation evidence. ADD/cycle v3, private import admission and queued ADD execution are experimental and default-off. The operator authorized default-off scheduler integration on 2026-10-16; this does not authorize enabling it or new live mutations. Enablement still requires the documented profile/traffic/read-capacity and scoped validation gates. Do not present either write path, mock mode or socket transport as production-ready until live FTD validation is documented.
 

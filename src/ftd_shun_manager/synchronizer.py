@@ -12,7 +12,8 @@ from time import monotonic
 from uuid import uuid4
 
 from .agent_client import AgentClient, AgentUnavailable
-from .agent_protocol import MAX_CYCLE_REMOVALS
+from .agent_protocol import MAX_CYCLE_REMOVALS as MAX_CYCLE_MUTATIONS
+from .agent_protocol import AdditionResult
 from .operation_queue import QueueConflict, QueueFull
 from .protected_policy import ProtectedPolicy
 from .store import Store
@@ -41,7 +42,11 @@ class Synchronizer:
         enabled: bool = True,
         operation_timeout_seconds: int = 45,
         session_cycles_enabled: bool = False,
+        import_execution_enabled: bool = False,
+        addition_device_ids: frozenset[int] = frozenset(),
     ) -> None:
+        if import_execution_enabled and not session_cycles_enabled:
+            raise ValueError("import execution requires session cycles")
         self.store = store
         self.agent = agent
         self.poll_interval_seconds = poll_interval_seconds
@@ -50,6 +55,8 @@ class Synchronizer:
         self.history_retention_days = history_retention_days
         self.enabled = enabled
         self.session_cycles_enabled = session_cycles_enabled
+        self.import_execution_enabled = import_execution_enabled
+        self.addition_device_ids = frozenset(addition_device_ids) if import_execution_enabled else frozenset()
         self._device_cycle: dict[str, object] = {}
         self._active_device_id: int | None = None
         self._priority_pending = False
@@ -168,7 +175,9 @@ class Synchronizer:
             "last_retention_purge": self._last_retention_purge,
             "history_retention_error": self._last_retention_error,
             "devices": devices,
-            "queue": self.queue.status(),
+            "queue": self.queue.status(addition_device_ids=self.addition_device_ids),
+            "import_execution_enabled": self.import_execution_enabled,
+            "addition_device_count": len(self.addition_device_ids),
             "session_cycles_enabled": self.session_cycles_enabled,
             "device_cycle": deepcopy(self._device_cycle),
             "priority_refresh_available": priority_available,
@@ -235,7 +244,7 @@ class Synchronizer:
         self._next_baseline_refresh = _timestamp_after(int(self.queue.delay()) + 1)
         while True:
             self.queue.expire_requests()
-            if self.queue.has_pending():
+            if self._has_pending():
                 due = min(next_baseline, monotonic() + self.queue.delay())
             else:
                 due = next_baseline
@@ -304,6 +313,9 @@ class Synchronizer:
         self.queue.renew(self.instance_id, self._lease_seconds)
         return await asyncio.to_thread(function, *args)
 
+    def _has_pending(self, device_id: int | None = None) -> bool:
+        return self.queue.has_pending(device_id, addition_device_ids=self.addition_device_ids)
+
     async def _collect(self) -> None:
         await self._prune_expired_history_if_due()
         self._last_attempt = _timestamp()
@@ -325,9 +337,11 @@ class Synchronizer:
                     self._active_device_id = device.id
                     self._priority_pending = self._priority_used = False
                     self._device_cycle = {"device_id": device.id, "action": "opening_session",
-                                          "completed": 0, "limit": MAX_CYCLE_REMOVALS,
+                                          "completed": 0, "limit": MAX_CYCLE_MUTATIONS,
                                           "priority_state": "none", "budget_deferred": False}
                     cycle = await self._agent_call(self.agent.open_cycle, device.id)
+                    if device.id in self.addition_device_ids and getattr(cycle, "version", None) != 3:
+                        raise AgentUnavailable("addition-capable device requires exact cycle version 3; no fallback")
                     snapshot = cycle.initial_snapshot
                 else:
                     snapshot = await self._agent_call(self.agent.list_shuns, device.id)
@@ -373,7 +387,7 @@ class Synchronizer:
                 removal_error = await self._queued_removal(device.id, snapshot, trusted_ips)
             else:
                 try:
-                    removal_error = await self._session_removals(device.id, cycle, snapshot)
+                    removal_error = await self._session_mutations(device.id, cycle, snapshot)
                 finally:
                     cycle.abort()
                     self._active_device_id = None
@@ -417,12 +431,12 @@ class Synchronizer:
                 except QueueFull:
                     break
 
-    async def _session_removals(self, device_id: int, cycle, snapshot) -> str | None:
+    async def _session_mutations(self, device_id: int, cycle, snapshot) -> str | None:
         try:
             allowed = self.policy.enabled_ips()
             self._admit_trusted(device_id, sorted({entry.ip for entry in snapshot
                                if entry.ip in allowed}, key=int))
-            for _ in range(MAX_CYCLE_REMOVALS):
+            for _ in range(MAX_CYCLE_MUTATIONS):
                 if self._priority_pending and not self._priority_used:
                     self._priority_pending = False
                     last = self._device_success_at.get(device_id)
@@ -433,7 +447,7 @@ class Synchronizer:
                         snapshot = await self._agent_call(cycle.snapshot)
                         if snapshot is None:
                             self._device_cycle.update(priority_state="joining_final_snapshot",
-                                                      budget_deferred=self.queue.has_pending(device_id))
+                                                      budget_deferred=self._has_pending(device_id))
                             print(json.dumps({"event": "queue.priority_refresh.deferred",
                                               "device_id": device_id, "joining_final_snapshot": True}), flush=True)
                             break
@@ -444,10 +458,19 @@ class Synchronizer:
                     self._device_cycle["priority_state"] = "satisfied"
                     self._set_interactive_state("running")
                 cutoff = self._cycle_cutoff if self._cycle_cutoff is not None else self.queue.cutoff()
-                job = self.queue.claim_removal(device_id, self.instance_id, cutoff)
+                job = self.queue.claim_next_mutation(device_id, self.instance_id, cutoff,
+                                                    additions_enabled=device_id in self.addition_device_ids)
                 if job is None:
                     break
                 target = IPv4Address(job["ip"])
+                if job["action"] == "ADD":
+                    self._device_cycle.update(action="add_and_verify", ip=str(target))
+                    self._status_revision += 1
+                    if not await self._session_addition(device_id, cycle, job, target):
+                        self._device_cycle["budget_deferred"] = True
+                        break
+                    self._device_cycle["completed"] += 1
+                    continue
                 self._device_cycle.update(action="remove_and_verify", ip=str(target))
                 self._status_revision += 1
                 if not any(entry.ip == target for entry in snapshot):
@@ -473,7 +496,7 @@ class Synchronizer:
                                   "ip": str(target), "operation_id": job["id"],
                                   "result": "VERIFIED" if result else "NOOP"}), flush=True)
             self._device_cycle.update(action="final_snapshot", ip=None)
-            if self._device_cycle["completed"] >= MAX_CYCLE_REMOVALS and self.queue.has_pending(device_id):
+            if self._device_cycle["completed"] >= MAX_CYCLE_MUTATIONS and self._has_pending(device_id):
                 self._device_cycle["budget_deferred"] = True
             self._status_revision += 1
             snapshot = await self._agent_call(cycle.finish)
@@ -486,6 +509,29 @@ class Synchronizer:
             print(json.dumps({"event": "queue.cycle.failed", "device_id": device_id,
                               "reason": str(error)}), flush=True)
             return f"device cycle failed: {error}"
+
+    async def _session_addition(self, device_id: int, cycle, job: dict, target: IPv4Address) -> bool:
+        try:
+            result = await self._agent_call(cycle.add_shun, target)
+            if result is None:
+                self.queue.defer_addition(job["id"], self.instance_id)
+                self.note_state_change()
+                return False
+            if not isinstance(result, AdditionResult):
+                raise AgentUnavailable("agent returned an invalid typed addition result")
+            state = self.queue.finish_addition(job["id"], self.instance_id, result)
+        except (AgentUnavailable, OSError, ValueError, sqlite3.Error) as error:
+            # Even malformed/unavailable results after a possible send must not
+            # be inferred from a later snapshot or automatically replayed.
+            self.queue.finish_addition(job["id"], self.instance_id, "UNVERIFIED", reason=str(error))
+            self.note_state_change()
+            print(json.dumps({"event": "queue.addition.unverified", "device_id": device_id,
+                              "ip": str(target), "operation_id": job["id"], "reason": str(error)}), flush=True)
+            raise
+        self.note_state_change()
+        if state == "UNVERIFIED":
+            raise AgentUnavailable("verified ADD conflicts with local occurrence; attribution refused")
+        return True
 
     async def _queued_removal(self, device_id: int, snapshot, trusted_ips) -> str | None:
         try:

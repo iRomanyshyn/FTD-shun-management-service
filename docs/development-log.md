@@ -1890,6 +1890,183 @@ Imports, Protected IPs, History and freshness requests remain 401; HTTPS Import
 preview redirects to Authelia (302) with TLS verification. This validates v2
 compatibility with ADD disabled, not live ADD or authenticated visual behavior.
 
+## 2026-10-16 — Staged import admission, conflicts and occurrence provenance
+
+**Status:** Implemented/tested; gated-off API/Web lab rollout completed
+
+Added strict false-by-default `FTD_SHUN_IMPORT_ADMISSION_ENABLED` and private
+typed `POST /api/v1/imports`: explicit UUID key, canonical target/metadata digest,
+captured write role, current policy revision, enabled-device/protection checks
+and existing queue capacity/rate/short-expiry limits. The digest is confirmation
+binding, not authority. Opposite ADD/REMOVE jobs reject the whole transaction;
+same-action actors coalesce while retaining distinct batch/audit records.
+Neither preview nor any BFF form submits ADD. Admission does not signal device
+work; the scheduler remains REMOVE-only/v1/v2 and ignores held ADD for cycle
+cadence. There is no automatic chunking/authorization extension for 7,307 IPs.
+
+Additive migration introduces immutable job action/dispatch marker, immutable
+manual-import batches and verified origin rows plus opaque current-occurrence
+IDs. Existing jobs default to REMOVE, old dates/IDs/states remain, and the old
+nine-column request layout stays compatible; effective import source is explicit
+in batch data/events/views rather than a rewritten old CHECK. Legacy-claim and
+occurrence triggers prevent ADD-as-REMOVE and inherited provenance under older
+writers, but downgrade still requires offline pending-work suspension/review.
+
+Future default-disabled domain claim/completion hooks are tested with synthetic
+typed results only: verified creation commits state/origin/audit atomically;
+pre-existing/no-op, failure, lease loss and uncertain replies never assign new
+origin or replay. Later snapshots/retries cannot promote unknown ADD. A new
+external occurrence loses the badge while continuous polling preserves it.
+Active attribution survives queue pruning; inactive origins/unreferenced batches
+age out under retention. API/UI adds one representative origin plus exact total,
+blue badges, escaped batch details and localized verified times. Full batch JSON
+is decoded once per distinct batch and is absent from queue display metadata.
+Held jobs are explicitly labelled execution-disabled and remain cancellable.
+
+**Validation:** All 297 Python tests passed, including concurrent actors,
+conflict rollback without partial logs/audit, policy CAS/change, capacity/rate,
+idempotency/expiry, no-op/unknown/lost-worker behavior, REMOVE-only scheduler,
+old schema migration/positional inserts/claim triggers, restart/reappearance,
+retention, 1000-target metadata bounds, escaping and nested API DTOs. Fifteen
+real Chromium scenarios passed (16 reported tests), including held ADD
+cancellation and badge/detail replacement on a new occurrence. Compileall,
+Ruff and diff checks pass. The first sandboxed full-suite run stalled on local
+ASGI/socket support and was interrupted; the full suite passed with local
+permissions. Rust/agent/protocol are unchanged, so their previous 38-test/
+release evidence was not rerun or claimed as live addition evidence.
+
+Updated normative Section 74, status/plan, contributor rule and structured
+manuals, including new Import Admission migration/backup/rollback procedure.
+Pre-deployment read-only checks: 61 active rows, six VERIFIED jobs, three policy
+entries/revision 3, no error, quick_check ok and no foreign-key errors. Baseline
+completed at 12:47:58Z; cycles/large reads remain enabled. Rollout will preserve
+old API/Web images and a fresh SQLite-safe backup, then recreate only API/Web
+with admission/ADD off and inventory unchanged. No new job/policy edit, direct
+agent read, refresh hint or test device mutation is submitted. Actual scheduler
+integration, scoped live ADD, creation/traffic scope and large-load evidence
+remain before any executable import enablement.
+
+**Deployment:** Preserved preceding API/Web images with tag
+`before-import-staging-20261016t125228z`. SQLite backup API produced an
+integrity-checked private copy on the state volume and the ignored host path
+`.local/backups/state-before-import-staging-20261016T125228Z.sqlite3` (0600;
+directory 0700). Host quick_check is ok and foreign_key_check has no rows.
+Built API/Web; the packaged Python 3.12 image passed isolated offline schema/
+safe-default initialization without lab mounts, secrets or networking. Final
+297-test Python and 15-scenario Chromium runs and static checks passed.
+Stopped the sole API executor cleanly and recreated only API/Web. Agent,
+Caddy and Authelia container IDs are unchanged; no overlapping executor,
+real inventory/.env edit or backup restore.
+
+Deployed read-only checks confirm 61 active rows, one protected match, correct
+ordering, three policy entries/revision 3, six VERIFIED REMOVE jobs, nine-column
+compatible requests and no null occurrence IDs. New batch/origin tables are
+empty and existing shuns have no false manual-import badge. quick_check is ok;
+foreign_key_check has no errors. Comparing the retained backup confirms all
+legacy job fields and stable first-seen/current-appearance dates are unchanged.
+API admission/execution and ordinary-client addition selector remain false.
+One combined diagnostic was rejected by automatic review because it would read
+the full confidential inventory to count profiles; it was not executed. That
+optional count was omitted, not bypassed. Other aggregate/gate checks passed
+without opening inventory; no profile-presence claim is made for this rollout.
+
+The first ordinary post-upgrade v2 cycle completed at 12:55:30Z with two reads,
+zero addition/removal/mutation steps and 8254 ms; no error and the next baseline
+is 13:00:30Z. Anonymous Shuns, Imports, Protected IPs, History and freshness
+requests return 401. HTTPS preview redirects to Authelia (302) with normal TLS
+verification. No new admission, policy edit, refresh hint, independent agent
+read or device test mutation was submitted. This validates disabled-mode
+compatibility/migration only; authenticated visuals and live ADD remain separate.
+
+## 2026-10-16 — Independently gated shared ADD/REMOVE worker
+
+**Status:** Implemented/tested; disabled-mode API/Web lab rollout completed
+
+The operator approved the next default-off integration step. Added independent
+strict `FTD_SHUN_IMPORT_EXECUTION_ENABLED=false`; true requires socket mode,
+session cycles and large reads. The ordinary validated inventory loader carries
+recognized addition profiles as startup-only capabilities, not a schema/policy
+or user-selected scope. API transport always receives an exact enabled-device
+set, including empty: eligible devices explicitly select v3, others keep v1/v2.
+The independent agent gate/profile remains authoritative; no fallback or new
+agent binary/opcode is introduced. Intake can be disabled while authorized
+work drains; no executable BFF import or new live device write is enabled.
+
+The sole leased worker atomically claims common FIFO ADD/REMOVE under its
+cutoff, with the existing trusted-policy exception, shared 16-processed-step/
+command/time bounds, persisted cooldown and priority/final-read reserves.
+Every claim rechecks current policy/device and captured authorization. Long
+cycles now also expire unstarted coalesced actors before the next claim, so an
+expired actor receives no new origin from another actor's still-valid request.
+Already RUNNING work retains its original claim through completion.
+
+ADD consumes only exact typed results: verified creation commits occurrence
+provenance immediately, no-op does not assign origin, and explicit pre-write
+deferral alone requeues/clears dispatch marker. Missing/malformed/lost results
+settle UNVERIFIED and abort, never inferred from later presence or replayed.
+Shutdown retains the lease for bounded in-flight RPC recovery; later/final-read
+failure preserves earlier verified work. No extra SSH session/writer is used.
+Published metadata reports API gate/eligible count and per-job eligibility;
+the UI distinguishes held/running ADD and shows Adding and verifying. Eligible
+new private admission wakes work; replay/held-only requests do not. No BFF submit.
+
+**Validation:** All 320 Python tests passed, including prior compatibility plus
+mixed FIFO/16-step/cooldown, independent gates/profile selection, version refusal,
+per-claim policy/expiry/coalesced actor checks, priority-after-verification,
+cancellation/cutoff, exact deferral, typed malformed/lost results, no-op origin,
+multi-device isolation, final failure/restart, shutdown/lease recovery and actual
+local SeqPacket worker success/lost-result conversations. Fifteen real Chromium
+scenarios passed (16 reported tests), including held/running eligibility,
+readable ADD phase, indeterminate progress and no mutation from metadata updates.
+Compileall, Ruff and diff checks passed. All test state/transport is synthetic;
+no SSH/password/.env/lab inventory is used by tests. Rust/agent/wire definitions
+are unchanged; previous agent evidence is not claimed as new live validation.
+
+Updated normative Section 74, working agreement, status/plan, relevant manuals
+and new structured Import Execution manual (gates, bounds, recovery, capacity,
+deployment/rollback). No schema change beyond the prior staged-admission
+migration and no limit/authorization extension for 7,307 addresses. Scoped live
+ADD/traffic/scope/read validation and executable browser submission remain next.
+
+**Pre-rollout:** Read-only aggregates show 61 active rows, six VERIFIED jobs,
+three policy entries/revision 3, both API gates off, no error, quick_check ok
+and no foreign-key errors; last refresh 16:34:56Z. A narrow non-secret flag-name
+check found no explicit ADD/admission/execution value in the real `.env`, so
+their defaults remain false. No full inventory or other environment values
+were read for diagnostics. Preserve a fresh SQLite-safe backup and preceding
+API/Web pair, stop the API executor cleanly, and recreate only API/Web. Agent,
+Caddy and Authelia remain unchanged. Startup can execute existing removal/policy
+work, but no new jobs, policy edits, refresh hints or test mutations are submitted.
+
+**Deployment:** Preserved preceding API/Web images with tag
+`before-import-worker-20261016t163910z`. SQLite backup API created an
+integrity-checked private volume copy and ignored host backup
+`.local/backups/state-before-import-worker-20261016T163910Z.sqlite3` (0600;
+directory 0700); host quick_check and foreign_key_check passed. Built API/Web
+and ran packaged Python 3.12 ASGI/status/schema safe-default smoke offline with
+no secrets, lab mounts or network. Existing dependency ranges resolved FastAPI
+0.143.3 in this build (prior image 0.143.2); reproducible Python dependency
+locking remains follow-up work, not implemented by this increment.
+
+Stopped the sole API executor cleanly and recreated only API/Web. Agent,
+Caddy and Authelia IDs are unchanged; no overlapping executor, schema change,
+real inventory/.env edit, database restore or new work was submitted. Deployed
+API reports admission/execution/client ADD selector false, eligible count zero,
+61 active records/one protected match, six VERIFIED jobs and three policy
+entries/revision 3. Ordering is correct; comparing the retained backup confirms
+all old job fields and stable first-seen/appearance/occurrence IDs are unchanged.
+Origin count remains zero, quick_check is ok and foreign_key_check has no rows.
+No full inventory was read for diagnostics; capability count came from safe
+runtime metadata and is not a claim about declared profiles while gates are off.
+
+The normal post-restart v2 cycle finished at 16:42:18Z with two reads, zero
+addition/removal/mutation steps and 8003 ms, no error and next baseline 16:47:18Z.
+Anonymous Shuns, Imports, Protected IPs, History and freshness requests return
+401. HTTPS Import preview redirects to Authelia (302) with normal TLS
+verification. No refresh hint, independent agent read, new job/policy or test
+device mutation was used for deployment checks. This is disabled-mode
+compatibility evidence, not live v3/ADD/traffic/large-load validation.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

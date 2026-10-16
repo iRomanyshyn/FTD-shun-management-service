@@ -25,6 +25,7 @@ th, td { border-bottom: 1px solid #8886; text-align: left; padding: .7rem .6rem;
 .protected-shun td:first-child { border-left: .25rem solid #d97706; }
 .protected-ip-badge, .state-badge { background: #92400e; border-radius: .3rem; color: white; display: inline-block; font-size: .75rem; font-weight: 700; margin: .2rem 0 .2rem .4rem; padding: .15rem .4rem; white-space: nowrap; }
 .state-badge { background: #445366; }
+.state-badge.import-origin { background: #1d4ed8; color: white; }
 .state-badge.policy-enabled { background: #166534; color: white; }
 .state-badge.policy-disabled { background: #b42318; color: white; }
 .disabled-protection-shun td, .policy-disabled-warning, .disabled-protection-notice { background: color-mix(in srgb, #ef4444 14%, transparent); }

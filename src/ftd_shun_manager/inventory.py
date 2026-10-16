@@ -52,5 +52,5 @@ def load_devices(path: Path) -> list[tuple[Device, str]]:
             raise ValueError("device IDs and hostnames must be unique")
         ids.add(device_id)
         hostnames.add(hostname)
-        devices.append((Device(device_id, hostname, IPv4Address(management_ip), entry.get("enabled", True)), host_key))
+        devices.append((Device(device_id, hostname, IPv4Address(management_ip), entry.get("enabled", True), addition_profile), host_key))
     return devices

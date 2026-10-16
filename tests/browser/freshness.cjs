@@ -25,7 +25,8 @@ if p.get("submitted"):
     preview = paginate_preview(summarize_preview(parsed, dict(policy_revision=1, devices=[dict(id=1,hostname="lab-ftd")],
         addresses=[dict(ip=ip,protected=ip=="198.51.100.10",devices=[dict(id=1,hostname="lab-ftd",already_shunned=ip=="203.0.113.20")]) for ip in parsed["ips"]])), p.get("page", 1))
 shun = dict(ip="198.51.100.10", device_id=1, device_hostname="lab-ftd FIXTURE_EVENT_" + str(p["generation"]), interface="outside",
-            first_seen_at="2026-10-14T10:00:00Z", active_since_at="2026-10-15T10:00:00Z", last_seen_at="2026-10-15T10:00:00Z")
+            first_seen_at="2026-10-14T10:00:00Z", active_since_at="2026-10-15T10:00:00Z", last_seen_at="2026-10-15T10:00:00Z",
+            manual_imports=p.get("shun_origins", []))
 event = dict(timestamp="2026-10-15T10:00:00Z", event_type="FIXTURE_EVENT_" + str(p["generation"]),
              device_hostname="lab-ftd", actor_display_name="Test Operator", actor_subject="test", ip=shun["ip"])
 print(templates.get_template(p["template"]).render(identity=Identity("test", "Test Operator", ("Operator",)),
@@ -120,6 +121,7 @@ test("refresh interaction in real Chromium", { timeout: 90000 }, async (t) => {
   let policyPosts = 0;
   let previewPosts = 0;
   let historyRows = [];
+  let shunOrigins = [];
   const appendHistory = () => {
     const sequence = historyRows.length + 1;
     historyRows.push({ id: `00000000-0000-4000-8000-${sequence.toString(16).padStart(12, "0")}`,
@@ -249,7 +251,7 @@ test("refresh interaction in real Chromium", { timeout: 90000 }, async (t) => {
         history = { page: current, pages, total: rows.length, page_size: 100,
           anchor: rows[0]?.id || null, events: rows.slice((current - 1) * 100, current * 100) };
       }
-      const payload = { refresh: stamp(), generation, query: url.searchParams.get("q") || "",
+      const payload = { refresh: stamp(), generation, query: url.searchParams.get("q") || "", shun_origins: shunOrigins,
         history, anchor: url.searchParams.get("anchor"),
         ...previewFields,
         policy, template: url.pathname === "/" ? "index.html" : url.pathname === "/history" ? "history.html"
@@ -639,6 +641,60 @@ test("refresh interaction in real Chromium", { timeout: 90000 }, async (t) => {
         await page.until("Boolean(document.querySelector('#active-shuns .protected-shun'))");
         assert.equal(await page.evaluate("Boolean(document.querySelector('#active-shuns .policy-disabled'))"), false);
       } finally { await page.close(); policy = { revision: 0, limit: 1000, entries: [] }; }
+    });
+    await t.test("ADD eligibility, live phase and occurrence provenance render without device mutations", async () => {
+      status = initial();
+      policy = { revision: 0, limit: 1000, entries: [] };
+      shunOrigins = [{ source: "manual_import", batch_id: "fixture-batch", operation_id: "fixture-operation",
+        actor_display_name: "Test Operator", label: "<img src=x onerror=alert(1)>", reason: "<script>fixture</script>",
+        verified_at: "2026-10-15T10:00:00Z" }];
+      status.queue = { revision: 1, counts: { QUEUED: 1 }, add_execution_enabled: false, items: [
+        { id: "held-add", action: "ADD", device_id: 1, hostname: "lab-ftd", ip: "198.51.100.10", state: "QUEUED",
+          requested_at: future(0), reason: "ADD execution is not enabled", requests: [
+            { id: "fixture-request", actor_subject: "test", actor_display_name: "Test Operator", source: "manual_import", state: "ACTIVE" },
+          ] },
+      ] };
+      const writes = removalKeys.length;
+      const page = await connectPage(debugOrigin, `${origin}/`);
+      try {
+        await page.until("Boolean(document.querySelector('#active-shuns .import-origin'))");
+        assert.equal(await page.evaluate("document.querySelector('.import-origin').textContent"), "Manually imported");
+        await page.evaluate("document.querySelector('#queue-menu').open=true");
+        await page.until("document.querySelector('[data-operation-queue]').textContent.includes('Held — ADD execution disabled')");
+        assert.ok(await page.evaluate("document.querySelector('[data-operation-queue]').textContent.includes('Add · lab-ftd')"));
+        status.import_execution_enabled = true;
+        status.session_cycles_enabled = true;
+        status.refresh_in_progress = true;
+        status.device_cycle = { device_id: 1, action: "add_and_verify", ip: "198.51.100.10", completed: 0, limit: 16 };
+        status.queue.items[0].execution_enabled = true;
+        status.queue.items[0].state = "RUNNING";
+        status.queue.items[0].reason = null;
+        status.queue.counts = { RUNNING: 1 };
+        status.status_revision += 1;
+        await wake(page);
+        await page.until("document.querySelector('[data-cycle-progress]').textContent.includes('Adding and verifying')");
+        assert.equal(await page.evaluate("document.querySelector('[data-operation-queue]').textContent.includes('Held')"), false);
+        assert.equal(await page.evaluate("Boolean(document.querySelector('[data-operation-queue] progress:not([value])'))"), true);
+        status.import_execution_enabled = false;
+        status.refresh_in_progress = false;
+        status.queue.items[0].execution_enabled = false;
+        status.queue.items[0].state = "QUEUED";
+        status.queue.counts = { QUEUED: 1 };
+        status.status_revision += 1;
+        await wake(page);
+        await page.until("document.querySelector('[data-operation-queue]').textContent.includes('Held — ADD execution disabled')");
+        await page.evaluate("document.querySelector('[data-operation-cancel]').click()");
+        await page.until("document.querySelector('[data-queue-completed]').textContent.includes('CANCELLED')");
+        await page.call("Page.navigate", { url: `${origin}/shuns/198.51.100.10` });
+        await page.until("document.querySelector('#device-shuns').textContent.includes('Import provenance')");
+        assert.equal(await page.evaluate("document.querySelectorAll('#device-shuns img,#device-shuns script').length"), 0);
+        assert.ok(await page.evaluate("document.querySelector('#device-shuns').textContent.includes('<script>fixture</script>')"));
+        shunOrigins = [];
+        complete();
+        await wake(page);
+        await page.until("!document.querySelector('#device-shuns .import-origin')");
+        assert.equal(removalKeys.length, writes, "Holding/cancelling/provenance refresh does not submit a device mutation");
+      } finally { await page.close(); shunOrigins = []; }
     });
     await t.test("history is expanded and paginates 100 records without shifting older windows", async () => {
       status = initial();
