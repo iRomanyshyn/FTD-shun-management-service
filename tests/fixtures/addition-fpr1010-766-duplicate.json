@@ -1,0 +1,15 @@
+{
+  "evidence_source": "Operator-provided transcript, 2026-10-16; commands executed by the operator, not by the service",
+  "profile": "Previously reported FPR1010 / FTD 7.6.6 and Basic account; model/version/role not re-read in this transcript",
+  "representation": "Command output only; prompts omitted and line endings normalized to LF. Empty output is an observed prompt return, not transport EOF.",
+  "target": "198.51.100.251",
+  "steps": [
+    {"command": "show shun 198.51.100.251", "output": ""},
+    {"command": "shun 198.51.100.251", "output": "Shun 198.51.100.251 added in context: single_vf\nShun 198.51.100.251 successful"},
+    {"command": "show shun 198.51.100.251", "output": "shun (management) 198.51.100.251 0.0.0.0 0 0 0"},
+    {"command": "shun 198.51.100.251", "output": "Shun 198.51.100.251 added in context: single_vf\nShun 198.51.100.251 successful"},
+    {"command": "show shun 198.51.100.251", "output": "shun (management) 198.51.100.251 0.0.0.0 0 0 0"},
+    {"command": "no shun 198.51.100.251 interface management", "output": ""},
+    {"command": "show shun 198.51.100.251", "output": ""}
+  ]
+}

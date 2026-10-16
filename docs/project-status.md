@@ -4,6 +4,37 @@ Last updated: 2026-10-16
 
 ## Current increment
 
+**Recorded direct-CLI duplicate behavior (2026-10-16).** Operator transcript
+shows initially absent `198.51.100.251`, creation, one repeated add with identical
+`single_vf`/successful acknowledgement, one identical source-only `management`
+row after each, and scoped cleanup returning to absence. Stored a normalized
+TEST-NET fixture and a test-only Rust regression: acknowledgement grammar
+cannot distinguish creation, so an already-present target must remain no-op
+without a write/provenance claim. Model/version/role use the previously reported
+profile, not a fresh read. Hidden counter/age behavior, actual traffic blocking,
+large-load reads and service-executed ADD remain unverified. No runtime path,
+protocol, schema, policy/queue or deployment changed.
+All 242 Python and 34 Rust tests pass; locked release build, Clippy, fmt,
+compileall, Ruff and diff checks pass. No rollout is needed for the fixture
+and test-only regression.
+
+**Offline ADD contract preparation (2026-10-16).** Added an explicitly review-
+draft [addition contract](manual/addition-contract.md) and a Rust `cfg(test)`-
+only evidence model. It requires exact target/context-bound acknowledgement
+plus fresh source-only post-read; pre-existing shuns are no-op without writes
+or import ownership. Missing/unknown/oversized/control-bearing evidence,
+unexpected scope/target and more-specific fields cannot establish creation.
+The draft proposes cycle v3/typed ADD, combined mutation budgets and explicit
+agent-owned creation profiles; it does not implement or enable that protocol.
+Python/Rust boundary regressions keep ADD/v3 rejected. All 242 Python and 33
+Rust tests pass; release build, Clippy, fmt, compileall, Ruff and diff checks
+pass. No runtime path, schema, queue admission or settings changed, and no
+rollout is needed. The operator approved running one direct-CLI duplicate test
+and was given preflight/add/read/re-add/read/scoped-cleanup/read steps for the
+previous TEST-NET fixture; the subsequent result is recorded above. No assistant-issued
+device mutation or refresh hint was submitted. Remaining creation-scope/traffic,
+large-population reads and subsequent runtime/admission/provenance work remain.
+
 **Active shun ordering (2026-10-16).** Active list/detail reads prioritize exact
 Protected IP membership (enabled or disabled), then newest current-appearance
 observation, with numeric IP/hostname/interface ties. The API adds
@@ -69,7 +100,8 @@ prepares one explicitly approved Basic-account fixture before ADD design.
 The operator subsequently confirmed an initially absent `198.51.100.251` was
 successfully added under the reported Basic login and observed on `management`;
 scoped removal then returned the target to an observed absent state. This
-completes the one-address direct CLI lifecycle. Duplicate semantics, data-plane blocking,
+completes the one-address direct CLI lifecycle. Subsequent visible duplicate
+behavior is recorded above; hidden-state semantics, data-plane blocking,
 fleet creation scope and automated ADD remain unverified.
 Large-snapshot scaling is a prerequisite to large additions, not a
 new opcode. All 189 Python tests passed, including synthetic legacy/cycle

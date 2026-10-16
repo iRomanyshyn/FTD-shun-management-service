@@ -144,8 +144,15 @@ The direct CLI experiment has no service manual-import provenance.
 
 ## Remaining gates and next implementation
 
-After Stage 1–3 evidence, separately approve duplicate/no-op and representative
-lab data-plane tests. Verify real blocking using dedicated synthetic traffic,
+The [Addition Contract draft](addition-contract.md) and its test-only evidence
+model prepare review of acknowledgement/post-read semantics without adding an
+RPC or command sender. The proposed cycle v3/ADD frames are still rejected by
+the deployed protocols. This local preparation does not satisfy the live gates
+below or permit import admission.
+
+Stage 4 below now records the separately approved direct-CLI duplicate test.
+Representative lab data-plane tests still need separate approval. Verify real
+blocking using dedicated synthetic traffic,
 never by blocking an operator/VPN/management address or the long pasted list.
 Confirm initial/final full snapshots remain complete at the intended load.
 Finish the existing [cycle checklist](agent-cycle-protocol.md#migration-and-laboratory-validation).
@@ -159,6 +166,91 @@ and dispatch. Existing short authorization expiry and shared cycle limits remain
 Imports are one-time actions: a later removal/disappearance/restart must not
 automatically add the address again. Do not claim manual-import provenance for
 an entry already present or for this direct CLI experiment.
+
+## Stage 4 — Separately approved duplicate observation
+
+On 2026-10-16 the operator agreed to run this one-fixture direct-CLI test under
+the previously reported Basic account and subsequently supplied the transcript
+recorded below. A read-only API preflight found the TEST-NET fixture locally absent,
+not enabled in Protected IPs, and no unfinished jobs (six VERIFIED results).
+Those observations do not replace fresh device preflight or the operator's
+confirmation that the address is unused by lab traffic.
+
+1. Repeat `show shun 198.51.100.251` immediately before the test. If present,
+   stop; do not remove a pre-existing shun. Check policy/queue again if they
+   could have changed, and do not race another administrator's fixture work.
+2. Create once and read the target. Continue only after the expected
+   `single_vf` acknowledgement and the one `management` source-only row:
+
+   ```text
+   shun 198.51.100.251
+   show shun 198.51.100.251
+   ```
+
+3. Repeat the add exactly once, then read without guessing its response:
+
+   ```text
+   shun 198.51.100.251
+   show shun 198.51.100.251
+   ```
+
+   Capture all acknowledgement/error text and resulting fields. Do not send
+   a third add. A duplicate refusal can be valid evidence; it is not automatic
+   permission to broaden the command or privilege level. If SSH/prompt is lost,
+   reconnect for a read only; do not replay a write.
+4. If the fixture is still exactly the initially created `management` row,
+   clean up that row and confirm absence:
+
+   ```text
+   no shun 198.51.100.251 interface management
+   show shun 198.51.100.251
+   ```
+
+   Unexpected interfaces/fields or an unrelated administrator changing the
+   fixture require review before cleanup. Never use clear-all or unscoped
+   cleanup against unrelated/pre-existing entries.
+
+Retain the full sanitized transcript and timing/version/role when available.
+This establishes direct CLI duplicate behavior only, not an application import,
+physical exactly-once execution, automated ADD or data-plane/load readiness.
+
+### Recorded duplicate evidence — 2026-10-16
+
+The operator supplied the following output. Model/version/role were not freshly
+read in this transcript; the previously reported laboratory profile applies.
+The normalized command-output fixture is
+[`addition-fpr1010-766-duplicate.json`](../../tests/fixtures/addition-fpr1010-766-duplicate.json).
+Its empty outputs represent observed returns to the prompt, not transport EOF.
+
+```text
+> show shun 198.51.100.251
+> shun 198.51.100.251
+Shun 198.51.100.251 added in context: single_vf
+Shun 198.51.100.251 successful
+> show shun 198.51.100.251
+shun (management) 198.51.100.251 0.0.0.0 0 0 0
+> shun 198.51.100.251
+Shun 198.51.100.251 added in context: single_vf
+Shun 198.51.100.251 successful
+> show shun 198.51.100.251
+shun (management) 198.51.100.251 0.0.0.0 0 0 0
+> no shun 198.51.100.251 interface management
+> show shun 198.51.100.251
+>
+```
+
+Initial creation and repeated add have identical acknowledgement text; target
+reads after each show the same single source-only `management` row. Scoped
+cleanup returns to an empty target read. This establishes visible direct-CLI
+duplicate behavior and cleanup for this fixture only. It does not show whether
+internal counters/age or other hidden state change, nor prove physical
+idempotency, traffic blocking, large-load behavior or automated ADD readiness.
+
+Consequently acknowledgement cannot distinguish creation from a repeated add.
+The service contract remains fresh preflight and **Already present** without
+writing or changing provenance. The test-only Rust regression accepts both
+acknowledgements as grammar but refuses to attribute a duplicate to new creation.
+No new service mutation, import provenance or deployment is part of this test.
 
 ## Deployment and rollback impact
 

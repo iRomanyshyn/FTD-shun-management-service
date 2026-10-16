@@ -341,6 +341,16 @@ mod tests {
     }
 
     #[test]
+    fn draft_addition_is_not_a_live_cycle_capability() {
+        assert!(decode_begin(&[BEGIN, 3, 0, 1]).is_err());
+        for version in [VERSION, snapshot::VERSION, 3] {
+            let packet = [0x14, version, 1, 198, 51, 100, 251];
+            assert!(decode_step(&packet, 1, version).is_err());
+            assert!(decode_request(&packet).is_err());
+        }
+    }
+
+    #[test]
     fn oversize_seqpacket_and_disabled_cycle_are_rejected_before_ssh() -> Result<()> {
         use nix::sys::socket::socketpair;
         let runtime = tokio::runtime::Builder::new_current_thread()

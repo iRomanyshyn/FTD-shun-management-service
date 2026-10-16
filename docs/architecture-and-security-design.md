@@ -2604,6 +2604,12 @@ never queued, added or agent-verified execution success.
 - Addition is a new narrow semantic capability, provisionally `ADD_SHUN`, not
   a generic executor. Its interface scope, Basic-role support, parsers, and
   verification require live laboratory validation before enablement.
+  The [offline addition contract](manual/addition-contract.md) is a review draft
+  with a test-only evidence model, not a normative live protocol or deployment
+  gate waiver. It proposes cycle v3 rather than silently extending v1/v2;
+  current builds must continue rejecting ADD/version 3. The model requires exact
+  acknowledgement plus fresh source-only post-read, no write for pre-existing
+  targets, and no automatic replay or inferred provenance on uncertain output.
 - A pasted blocklist creates one-time manual additions. Successful removal,
   external disappearance, reconciliation, and restart never regenerate those
   completed add requests. It is not a continuously enforced blocklist or feed.

@@ -1743,6 +1743,80 @@ gate and succeeded at 2026-10-16T10:26:58Z. Agent v2 logged two full reads,
 zero removal steps and 8191 ms; API reports success/no error and the next
 baseline at 10:31:58Z. No special validation refresh was submitted.
 
+## 2026-10-16 — Offline ADD evidence model and protocol review draft
+
+**Status:** Implemented/tested as offline preparation; live ADD still unavailable
+
+Added an explicitly non-executable addition contract draft: agent-owned reviewed
+creation profile, target preflight/no-op, exact known acknowledgement and fresh
+source-only post-read, proposed cycle v3/ADD encoding, combined ADD/REMOVE
+budgets, uncertainty/no replay and outstanding admission/provenance decisions.
+It is not a normative live protocol or a waiver of the existing lab gates.
+
+The Rust evidence model is linked only under `cfg(test)`, with no RPC/SSH sender,
+socket or database. It requires both acknowledgement lines in order for the
+same target/context, plus exactly the recorded interface/zero destination and
+port/protocol fields. It uses the existing strict observation parser while
+also checking fields omitted by the normal read DTO. Pre-existing targets on
+any allowed interface are no-op and cannot be written/relabelled as imports.
+Malformed preflight is not absence. Missing/partial/extra/reversed/duplicate
+success, wrong target/context, controls/Unicode, oversize, unexpected interfaces,
+multiple rows and non-source-only verification all refuse creation assessment.
+Acknowledgement or observed presence alone is insufficient. Release agents do
+not contain this model; current Python/Rust decoders still reject ADD/v3.
+
+**Validation:** All 242 Python and 33 Rust tests passed, including synthetic
+local socket suites, six new offline evidence tests and production-boundary
+rejection regressions. Locked/offline release build, Clippy -D warnings, fmt,
+compileall, Ruff and diff checks passed. Browser tests were not rerun: no Web
+template/JavaScript/style changed (the preceding fourteen scenarios passed).
+No runtime/schema/setting/queue contract changed, so no rollout/backup/migration
+or data restore is needed. Existing lab services were not restarted.
+
+The operator approved providing output for one Basic-account duplicate test.
+Read-only API preflight found `198.51.100.251` locally absent, no enabled
+protection and no unfinished queue (six VERIFIED outcomes). Supplied conditional
+fresh device preflight, one creation/read, one duplicate/read and scoped cleanup/
+read steps, with explicit stop conditions and no pre-existing-entry cleanup.
+Recorded the staged procedure; actual duplicate results remain pending. No
+assistant device mutation, direct agent read, policy/queue edit or refresh hint
+was submitted. Live duplicate/scope/traffic, real large-read capacity, v3 runtime,
+durable admission/provenance and executable imports remain separate next steps.
+
+## 2026-10-16 — Operator duplicate-add evidence and no-ownership regression
+
+The operator returned the approved one-fixture direct-CLI transcript: initially
+absent `198.51.100.251`, successful source-only creation, one repeated add,
+an identical single `management` row after each, interface-scoped removal and
+an empty final target read. Both add acknowledgements contain identical
+`single_vf` and successful lines. Model/version/role rely on the previously
+reported FPR1010 / FTD 7.6.6 Basic profile, not a fresh read in this transcript.
+
+Stored the normalized command outputs as a TEST-NET fixture, explicitly marking
+operator origin, prompt omission/LF normalization and the difference between
+observed empty output and transport EOF. Added a test-only Rust regression
+checking the full command sequence, both identical acknowledgements, source-only
+visibility and cleanup. Both acknowledgement grammars are valid; the model
+must still take AlreadyPresent without a write on fresh nonempty preflight
+and refuse to label a repeated write as new creation/import ownership. Updated
+the addition procedure/contract, current status and plan with this evidence.
+Earlier chronological pending-result entries remain historical records.
+
+**Validation:** All 242 Python and 34 Rust tests passed. Locked/offline release
+build, Clippy -D warnings, fmt, compileall, Ruff and diff checks passed. No Web
+code changed, so browser tests were not rerun. No runtime protocol, SSH sender,
+schema, setting, admission or policy behavior changed; no rollout/backup/restore
+is required. No assistant-issued device mutation, agent read, queue/policy edit
+or refresh hint was submitted; the reported fixture was cleaned up by the
+operator, not the service.
+
+This closes the visible direct-CLI duplicate/cleanup observation for one
+fixture only. It does not prove internal counter/age stability, physical
+exactly-once behavior, real traffic blocking, fleet scope, large-population
+reads or service-executed ADD. Fresh preflight and no automatic replay remain
+required. Runtime ADD and durable admission/provenance remain future increments
+behind their documented review and enablement gates.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

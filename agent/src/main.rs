@@ -7,6 +7,10 @@
 mod cycle;
 mod snapshot;
 
+// Offline executable specification only; never linked into the shipped agent.
+#[cfg(test)]
+mod addition_contract;
+
 use std::collections::{BTreeMap, BTreeSet};
 use std::env;
 use std::fs;

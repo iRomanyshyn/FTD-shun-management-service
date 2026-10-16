@@ -12,6 +12,19 @@ for the approved scope extension and unchanged security boundaries.
 
 ### Addition readiness checkpoint — 2026-10-16
 
+An [offline ADD contract draft](manual/addition-contract.md) now defines a
+review candidate for explicit agent-owned creation scope, source-only before/
+acknowledgement/after evidence, cycle v3 ADD encoding and combined budgets.
+Its Rust evidence model is test-only and excluded from release agents. It
+cannot send a command, create queue work or establish device capability.
+242 Python/33 Rust regressions pass, including production rejection of the
+proposed ADD/v3 frames. Operator-run one-fixture duplicate testing subsequently
+returned identical success text and visible state on repeated add, then scoped
+cleanup/absence; the fixture/regression preserves why fresh preflight/no-op is
+required. Hidden state and actual traffic behavior are not established. Runtime
+protocol/SSH,
+admission, provenance and executable imports are not implemented by this step.
+
 The bounded [large-snapshot extension](manual/large-snapshots.md) is implemented
 with a default-off API/agent flag: opcode 07 and cycle v2 provide complete
 manifest/chunk/digest reads while retaining legacy/v1 behavior and all write/
@@ -41,8 +54,9 @@ permission/scope observation with one explicitly approved TEST-NET fixture.
 On 2026-10-16, the operator reported Basic creation of the initially absent
 `198.51.100.251` and observed it on `management`, then confirmed its removal
 with `no shun ... interface management` and an empty target read. This is
-new direct-CLI evidence, not agent ADD or data-plane proof. Duplicate semantics,
-fleet creation scope and traffic blocking remain unproven. Existing
+new direct-CLI evidence, not agent ADD or data-plane proof. The subsequent
+repeat-add transcript above establishes visible duplicate behavior only;
+hidden-state semantics, fleet creation scope and traffic blocking remain unproven. Existing
 removal-cycle validation remains required. No new opcode or write is enabled.
 
 ### Previously delivered checkpoint
