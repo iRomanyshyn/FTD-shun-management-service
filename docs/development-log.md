@@ -1710,6 +1710,39 @@ No sorting rollout has been performed. Requested explicit paired API/Web
 deployment approval, noting possible execution of existing queue/policy work
 on API restart. Agent/Caddy/Authelia need no change for this increment.
 
+## 2026-10-16 — Standing lab deployment authorization and active-order rollout
+
+The operator explicitly authorized deployment while work remains on the current
+non-production lab. Recorded the authorization in AGENTS.md and the deployment
+manual: announce affected services/impact, deploy validated in-scope changes,
+retain rollback options and record results. This includes normal existing
+queue/policy execution on API restart, not new test mutations/imports,
+destructive data operations, production rollout or bypassing feature gates.
+
+Deployed the preceding tested sorting increment (237 Python tests and fourteen
+Chromium scenarios previously passed). Preserved both old images with the
+`before-active-order-20261016t102506z` tag and created a SQLite-backup-API copy
+under the state volume, then copied it to the ignored mode-0700 host directory:
+`.local/backups/state-before-active-order-20261016T102506Z.sqlite3`. Both backup
+integrity checks returned ok and the host file is mode 0600. No restore, schema
+migration, setting or credential change was needed. Built API/Web, gracefully
+stopped the old API executor and started the new pair without dependencies;
+no old/new API workers overlap. Agent/Caddy/Authelia IDs are unchanged.
+
+**Post-deployment checks:** The new API returns `active_since_at` on all 61
+active records and protected-first/newest-current-appearance ordering, with one
+protected-policy match. Three policy entries/revision 3 and all six VERIFIED
+results remain; live SQLite quick_check is ok. Anonymous Shuns/Imports/Protected
+IPs/History/status requests return 401. HTTPS Shuns redirects to Authelia (302)
+with TLS verification. No new queue admission, policy edit, refresh hint or
+direct agent read was submitted. Reload tabs for the updated templates;
+authenticated visual inspection and large-population/ADD lab gates remain.
+
+The first normal post-restart cycle respected the existing persisted eligibility
+gate and succeeded at 2026-10-16T10:26:58Z. Agent v2 logged two full reads,
+zero removal steps and 8191 ms; API reports success/no error and the next
+baseline at 10:31:58Z. No special validation refresh was submitted.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

@@ -160,6 +160,14 @@ production deployment.
 
 ## Start and validate
 
+For the current non-production lab, the operator granted standing authorization
+on 2026-10-16 to deploy validated, in-scope changes without per-release approval.
+Announce the services/impact, retain rollback options and record post-deployment
+checks. This includes the normal possibility of existing queue/policy execution
+on API restart, not permission to submit new device mutations, bulk imports,
+restore/reset data or skip feature-specific validation. Confirm the target if
+it changes; production rollout is not covered by this lab authorization.
+
 The queue increment adds persistent SQLite tables and changes write responses
 to asynchronous `202 Accepted`. Before upgrading, take a SQLite-safe backup,
 review [queue migration/recovery](operation-queue.md#backup-restore-and-rollback),

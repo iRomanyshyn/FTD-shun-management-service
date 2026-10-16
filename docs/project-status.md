@@ -19,8 +19,26 @@ lifetime first detection. Compileall, Ruff and diff checks pass.
 Live read-only inspection found 61 active records and successful cycle v2 reads
 with no error (8072 ms, two commands, zero removals). This is small-population
 evidence only, not multi-chunk FTD capacity or an ADD release gate.
-Sorting is not deployed yet; paired API/Web rollout awaits operator approval.
-The agent does not need rebuilding/restarting for this UI/API increment.
+Following the operator's standing authorization for validated lab deployments,
+API/Web were rebuilt/recreated; agent/Caddy/Authelia IDs are unchanged. The
+deployed API returns all 61 active records, one protected match, the new field
+and correct protected-first/current-appearance order. Three policy entries,
+revision 3 and six VERIFIED results remain; SQLite quick_check is ok. A private
+SQLite-safe backup and preceding API/Web image tags are retained. Anonymous
+pages/status return 401 and HTTPS redirects to Authelia with TLS verification.
+Reload browser tabs for the updated templates; authenticated visual inspection
+remains an operator task. No new queue admission, policy edit or refresh hint
+was submitted.
+The first normal post-restart v2 cycle succeeded at 2026-10-16T10:26:58Z:
+two full reads, zero removals, 8191 ms and no error; the next baseline was
+scheduled five minutes later.
+
+**Lab deployment authorization (2026-10-16).** The operator allows deployment
+of validated, in-scope changes to the current non-production lab without a
+separate release confirmation. Recorded in AGENTS.md and the deployment manual;
+announce impact and retain validation/rollback records. Production rollout,
+new test device writes/imports, destructive data operations and bypassing
+feature-specific security/lab gates are not covered.
 
 **Bounded large-snapshot extension (2026-10-16).** Implemented default-off
 `FTD_SHUN_LARGE_SNAPSHOTS_ENABLED` in API/agent, read opcode 07 and cycle v2

@@ -35,6 +35,14 @@ Do not rewrite historical log entries except to correct an objective error; add 
 
 ## Implementation and validation
 
+- While working on the current non-production lab stack, the operator authorizes
+  deployment of validated, in-scope changes without a separate confirmation for
+  each release (2026-10-16). Announce the affected services and operational impact,
+  preserve rollback options, and record deployment checks. API restarts may
+  execute already admitted queue/policy work. This does not authorize production
+  rollout, new test mutations/bulk imports, destructive data changes or bypassing
+  feature-specific validation/security gates. Reconfirm if the target environment
+  is unclear or changes beyond the current lab.
 - Prefer small, reviewable changes and preserve existing user work in a dirty tree.
 - Use parameterized SQLite access and retain audit events as append-only records.
 - Document migration, backup, rollback, and operational impact when changing schemas or deployment configuration.
