@@ -709,15 +709,41 @@ test("refresh interaction in real Chromium", { timeout: 90000 }, async (t) => {
       const hints = postCount;
       const executions = executionCount;
       const page = await connectPage(debugOrigin, `${origin}/imports`);
-      const source = "# ignore 192.0.2.99\n198.51.100.10 # <img src=x onerror=alert(1)>\n203.0.113.20\n192.0.2.30,192.0.2.30\nsource 192.0.2.40 destination 192.0.2.41\n192.0.2.0/24";
+      const source = "# ignore 192.0.2.99\n198.51.100.10 # <img src=x onerror=alert(1)>\n203.0.113.20\n192.0.2.30,192.0.2.30\nsource 192.0.2.40 destination 192.0.2.41\n192.0.2.0/24\n555.555.555.666";
       try {
         assert.equal(await page.evaluate("document.querySelectorAll('[name=device_ids]:checked').length"), 0);
         assert.equal(await page.evaluate("document.querySelector('[name=device_ids][value=\"2\"]').disabled"), true);
         await page.evaluate(`document.querySelector('#blocklist-text').value=${JSON.stringify(source)}; document.querySelector('[name=device_ids][value="1"]').checked=true; document.querySelector('.import-form').requestSubmit()`);
         await page.until("Boolean(document.querySelector('#import-results'))");
         assert.equal(previewPosts, 1);
-        for (const state of ["Protected", "Already shunned", "Ready", "Duplicate", "Ambiguous", "Unsupported"]) {
+        for (const state of ["Protected", "Already shunned", "Ready", "Duplicate", "Ambiguous", "Unsupported", "Invalid"]) {
           assert.equal(await page.evaluate(`document.querySelectorAll('[data-preview-state="${state}"]').length`), 1);
+        }
+        const colours = { Ready: "rgb(22, 101, 52)", Invalid: "rgb(180, 35, 24)", Unsupported: "rgb(180, 35, 24)",
+          Ambiguous: "rgb(146, 64, 14)", Protected: "rgb(146, 64, 14)", "Already shunned": "rgb(29, 78, 216)", Duplicate: "rgb(68, 83, 102)" };
+        for (const theme of ["light", "dark"]) {
+          await page.call("Emulation.setEmulatedMedia", { features: [{ name: "prefers-color-scheme", value: theme }] });
+          for (const [state, colour] of Object.entries(colours)) {
+            const styles = await page.evaluate(`(() => {
+              const row=document.querySelector('[data-preview-state="${state}"]');
+              const badge=row.querySelector('.preview-state-badge');
+              const total=document.querySelector('.preview-counts [data-preview-status="${state}"]');
+              return {text:badge.textContent, background:getComputedStyle(badge).backgroundColor,
+                foreground:getComputedStyle(badge).color, summary:getComputedStyle(total).backgroundColor,
+                border:getComputedStyle(row.cells[0]).borderLeftColor,
+                borderWidth:getComputedStyle(row.cells[0]).borderLeftWidth,
+                rowBackground:getComputedStyle(row.cells[0]).backgroundColor};
+            })()`);
+            assert.equal(styles.text, state, "Colour never replaces the text label");
+            assert.equal(styles.background, colour, `${state} badge in ${theme} theme`);
+            assert.equal(styles.summary, colour, "Full-list count shares the row status colour");
+            assert.equal(styles.foreground, "rgb(255, 255, 255)");
+            if (["Invalid", "Unsupported", "Ambiguous"].includes(state)) {
+              assert.equal(styles.border, state === "Ambiguous" ? "rgb(217, 119, 6)" : "rgb(180, 35, 24)");
+              assert.notEqual(styles.borderWidth, "0px");
+              assert.notEqual(styles.rowBackground, "rgba(0, 0, 0, 0)");
+            }
+          }
         }
         assert.ok(await page.evaluate("document.querySelector('#import-results').textContent.includes('1 candidate device/IP pairs')"));
         assert.equal(await page.evaluate("document.querySelectorAll('#import-results img').length"), 0);

@@ -22,7 +22,7 @@
 <h2 id="preview-heading">Preview results{% if batch_label %} · {{ batch_label }}{% endif %}</h2>
 {% if batch_reason %}<p>{{ batch_reason }}</p>{% endif %}
 <p>{{ preview.rows | length }} rows · {{ preview.ips | length }} unique IPv4 addresses · {{ preview.ignored_lines }} blank/comment lines ignored.</p>
-<p class="preview-counts">{% for state, count in preview.counts.items() %}<span>{{ state }}: {{ count }}</span>{% endfor %}</p>
+<p class="preview-counts">{% for state, count in preview.counts.items() %}<span class="preview-state-badge" data-preview-status="{{ state }}">{{ state }}: {{ count }}</span>{% endfor %}</p>
 <p><strong>{{ preview.candidate_pairs }} candidate device/IP pairs</strong> after excluding duplicates, protected addresses and already observed shuns. These are not queued operations.</p>
 <p>This is a point-in-time check of retained local observations (policy revision {{ preview.policy_revision }}), not a fresh Cisco query. Open Status for freshness. Policy and observations can change: parse again to recheck.</p>
 <p>Selected devices: {% for device in preview.devices %}{{ device.hostname }}{% if not loop.last %}, {% endif %}{% endfor %}. <strong>Creation interface scope: not yet validated.</strong></p>
@@ -37,7 +37,7 @@
 </nav>
 <div class="table-scroll"><table class="preview-table"><thead><tr><th>IP / result</th><th>Source lines</th><th>Selected device state</th><th>Reason / comment</th><th>Source excerpt</th></tr></thead><tbody>
 {% for row in preview.page_rows %}<tr data-preview-state="{{ row.status }}"{% if row.protected %} class="protected-shun"{% endif %}>
-<td>{% if row.ip %}{{ row.ip }}{% else %}—{% endif %}<br><strong>{{ row.status }}</strong>{% if row.protected %}<span class="protected-ip-badge">Protected IP</span>{% endif %}</td>
+<td>{% if row.ip %}{{ row.ip }}{% else %}—{% endif %}<br><strong class="preview-state-badge" data-preview-status="{{ row.status }}">{{ row.status }}</strong>{% if row.protected %}<span class="protected-ip-badge">Protected IP</span>{% endif %}</td>
 <td>{{ row.source_lines | join(', ') }}</td>
 <td>{% for device in row.devices %}<div>{{ device.hostname }}: {% if row.protected %}Protected — excluded{% elif row.status == 'Duplicate' %}Duplicate — excluded{% elif device.already_shunned %}Already shunned{% else %}Candidate only{% endif %}</div>{% else %}No target extracted{% endfor %}</td>
 <td>{{ row.reason }}{% if row.comment %}<div class="policy-comment">Comment: {{ row.comment }}</div>{% endif %}</td><td><code>{{ row.excerpt }}</code></td>

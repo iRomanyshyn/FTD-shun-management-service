@@ -73,6 +73,15 @@ th, td { border-bottom: 1px solid #8886; text-align: left; padding: .7rem .6rem;
 .preview-error { color: light-dark(#a22317, #ffb4a8); font-weight: 600; }
 .preview-table { font-size: .9rem; }
 .preview-table code { overflow-wrap: anywhere; }
+.preview-state-badge { background: #445366; border-radius: .3rem; color: white; display: inline-block; font-size: .8rem; font-weight: 700; margin: .3rem 0; padding: .2rem .5rem; white-space: nowrap; }
+.preview-state-badge[data-preview-status="Ready"] { background: #166534; }
+.preview-state-badge[data-preview-status="Already shunned"] { background: #1d4ed8; }
+.preview-state-badge[data-preview-status="Protected"], .preview-state-badge[data-preview-status="Ambiguous"] { background: #92400e; }
+.preview-state-badge[data-preview-status="Invalid"], .preview-state-badge[data-preview-status="Unsupported"] { background: #b42318; }
+.preview-table tr[data-preview-state="Invalid"] td, .preview-table tr[data-preview-state="Unsupported"] td { background: color-mix(in srgb, #ef4444 14%, transparent); }
+.preview-table tr[data-preview-state="Invalid"] td:first-child, .preview-table tr[data-preview-state="Unsupported"] td:first-child { border-left: .25rem solid #b42318; }
+.preview-table tr[data-preview-state="Ambiguous"] td { background: color-mix(in srgb, #f59e0b 14%, transparent); }
+.preview-table tr[data-preview-state="Ambiguous"] td:first-child { border-left: .25rem solid #d97706; }
 .request-progress { border: 1px solid #8886; border-left: .25rem solid #2563eb; border-radius: .3rem; margin: 1rem 0; padding: 1rem; display: grid; gap: .75rem; }
 .request-progress progress { accent-color: #2563eb; display: block; height: 1rem; margin: .25rem 0; width: 100%; }
 .request-progress p { margin: 0; }

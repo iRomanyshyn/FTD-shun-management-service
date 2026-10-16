@@ -1,3 +1,5 @@
+import pytest
+
 from ftd_shun_manager.web import Identity, templates
 
 
@@ -52,3 +54,20 @@ def test_search_results_distinguish_historical_protected_records() -> None:
     assert "Historical — not currently shunned" in html
     assert "Protected IP" in html
     assert 'datetime="2026-10-14T10:01:00Z"' in html
+
+
+@pytest.mark.parametrize("state", ["Ready", "Invalid", "Unsupported", "Ambiguous", "Protected", "Already shunned", "Duplicate"])
+def test_preview_status_badges_keep_text_labels_in_rows_and_full_list_counts(state):
+    row = {"ip": "198.51.100.10", "status": state, "protected": state == "Protected",
+           "source_lines": [1], "devices": [], "reason": "Fixture only", "excerpt": "198.51.100.10"}
+    preview = {"rows": [row], "page_rows": [row], "ips": [row["ip"]], "ignored_lines": 0,
+               "counts": {state: 1}, "candidate_pairs": 0, "policy_revision": 1,
+               "devices": [], "page": 1, "pages": 1, "first_row": 1, "last_row": 1}
+    html = templates.get_template("import-preview.html").render(
+        identity=Identity("viewer", "Viewer", ("Viewer",)), csrf_token="token",
+        refresh={"devices": {}}, preview=preview, devices=[], selected_devices=[], source_text="",
+    )
+    assert f'<span class="preview-state-badge" data-preview-status="{state}">{state}: 1</span>' in html
+    assert f'<strong class="preview-state-badge" data-preview-status="{state}">{state}</strong>' in html
+    assert f'data-preview-state="{state}"' in html
+    assert "Preview only — device additions are unavailable." in html

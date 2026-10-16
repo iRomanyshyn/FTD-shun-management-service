@@ -1478,6 +1478,43 @@ change was made. Reload tabs and re-paste the original full list because the
 old field's already-truncated content cannot be reconstructed. Authenticated
 live browser inspection remains an operator task.
 
+## 2026-10-16 — Colour-coded import preview outcomes
+
+**Status:** Implemented, tested and deployed to the explicitly approved dev lab
+
+Added consistent status badges to preview rows and full-list counts: Ready
+green, Invalid/Unsupported red, Ambiguous/Protected amber, Already shunned blue
+and Duplicate grey. Invalid/Unsupported rows have a red tint/leading border;
+Ambiguous rows have amber cues. Existing protected-row highlighting is retained,
+including the independent Protected IP marker on duplicate protected addresses.
+Text labels and reasons stay visible; green is candidate data, not write success.
+
+**Validation:** 186 Python tests passed; all fourteen Chromium scenarios passed
+(15 reported browser tests). Compileall, Ruff, Node syntax and diff checks passed.
+Seven template regressions cover explicit labels
+in row/count badges. Chromium's existing synthetic preview scenario now covers
+all seven outcomes, actual styles in light/dark themes, matching summary colours
+and row warning borders/backgrounds while retaining no-write/no-hint behavior.
+No source parser, policy, API, queue, schema, protocol, credential or setting
+changed; test fixtures use synthetic source and temporary state only.
+
+**Operational impact:** Rebuild/recreate Web and reload browser tabs only.
+The operator explicitly approved Web-only deployment after tests. API and agent
+remain running; no executor restart or new queue/refresh request is required.
+The prior Web image restores the preceding presentation without data restore.
+Authenticated live inspection remains an operator task; actual additions/import
+and the outstanding FTD laboratory gates are unaffected.
+
+**Deployment:** Preserved the old Web image as
+`before-preview-colours-20261016t093234z`, built Web and recreated only Web
+with --no-deps. Verified API, agent, Caddy and Authelia container IDs are
+unchanged and running. New CSS status rules return 200 over the private Web
+socket; anonymous preview GET/POST and refresh-status requests return 401.
+HTTPS Import preview returns the normal Authelia 302 with TLS verification.
+No policy mutation, queue admission, refresh hint or device write was submitted
+for validation. Reload tabs; authenticated visual inspection remains an
+operator task. Database, environment, credentials and agent were not changed.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

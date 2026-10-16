@@ -2541,6 +2541,10 @@ retain the escaped form and explicit error rather than a JSON-only page.
 Preview is available to authenticated
 users; future admission still requires its separate write authorization and
 fresh policy/state checks. No source text becomes a Cisco command.
+Preview outcome badges and full-list counts use consistent colour cues with
+visible text labels in both themes; invalid/unsupported and ambiguous rows
+also have distinct background/border cues. Green Ready means candidate only,
+never queued, added or agent-verified execution success.
 
 - All user additions and removals enter a shared durable SQLite queue. Queue
   acceptance is distinct from verified FTD success. Preserve the actor,

@@ -65,15 +65,20 @@ CIDR or port notation is excluded as a whole, including spaced notation.
 Malformed/leading-zero/partial IPv4 tokens are **Invalid**. Review context
 before correcting anything: parser refusal is not permission to truncate input.
 
-| Result | Meaning |
-| --- | --- |
-| Ready | Exact unique IPv4 with at least one selected device not currently showing it; candidate only, addition unavailable. |
-| Duplicate | Same canonical IP appeared earlier; source-line references and per-line comments are retained. |
-| Already shunned | All selected devices already show an active shun for this IP in local state. |
-| Protected | Enabled fleet-wide protection policy excludes this IP from addition candidates. |
-| Invalid | No exact supported IPv4 token can be accepted. |
-| Unsupported | An unsupported address/route/URL/range/port form; no substring/expansion is used. |
-| Ambiguous | Multiple address-like candidates in free text; no target is selected. |
+| Result | Colour | Meaning |
+| --- | --- | --- |
+| Ready | Green | Exact unique IPv4 with at least one selected device not currently showing it; candidate only, addition unavailable. |
+| Duplicate | Grey | Same canonical IP appeared earlier; source-line references and per-line comments are retained. |
+| Already shunned | Blue | All selected devices already show an active shun for this IP in local state. |
+| Protected | Amber | Enabled fleet-wide protection policy excludes this IP from addition candidates. |
+| Invalid | Red | No exact supported IPv4 token can be accepted. |
+| Unsupported | Red | An unsupported address/route/URL/range/port form; no substring/expansion is used. |
+| Ambiguous | Amber | Multiple address-like candidates in free text; no target is selected. |
+
+Row badges and full-list count badges share these colours in light and dark
+themes. Invalid/Unsupported rows also have a red tint and leading border;
+Ambiguous rows have an amber tint and border. Text labels/reasons remain visible
+so colour is not the only cue. A green Ready badge is not execution success.
 
 ## Limits and privacy
 
@@ -115,6 +120,9 @@ images removes preview routes/UI without touching existing policy/history/queue.
 No real test shun needs to be created to validate this preview.
 Reverting only the large-list update restores the older paste/row/pair limits;
 it does not affect stored data because previews remain unpersisted.
+The status-colour update changes only Web templates/CSS: rebuild/recreate Web
+and reload browser tabs without restarting API/agent. Reverting the Web image
+restores the preceding presentation; no database restore/migration is needed.
 
 Next, finish the existing removal-cycle laboratory evidence and separately
 design/lab validate the narrow ADD operation before creating import admission,

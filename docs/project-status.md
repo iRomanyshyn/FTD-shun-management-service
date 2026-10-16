@@ -1,8 +1,22 @@
 # Project Status
 
-Last updated: 2026-10-15
+Last updated: 2026-10-16
 
 ## Current increment
+
+**Colour-coded preview outcomes (2026-10-16).** Row and full-list count badges
+now distinguish Ready (green), Invalid/Unsupported (red), Ambiguous/Protected
+(amber), Already shunned (blue) and Duplicate (grey). Refused rows also have
+red/amber background and leading-border cues; text labels/reasons remain
+visible in both themes. This is presentation only, not addition success or a
+change to parsing, eligibility, counts, pagination, API or worker behavior.
+All 186 Python tests and fourteen Chromium scenarios passed (15 reported browser
+tests), including all seven colours in light/dark themes and retained no-write
+behavior. Deployed only Web after explicit approval; API, agent, Caddy and
+Authelia container IDs are unchanged. New status styles return 200, anonymous
+preview GET/POST/status remain 401 and HTTPS redirects to Authelia with TLS
+verification. Reload browser tabs; authenticated live visual inspection remains
+an operator task. No new operation, policy edit or refresh hint was submitted.
 
 **Large-list preview fix (2026-10-15).** Removed the textarea character limit
 that silently truncated pastes and conflicted with server UTF-8 validation.
