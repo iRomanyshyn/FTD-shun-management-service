@@ -58,7 +58,8 @@ def test_invalid_legacy_import_rolls_back_and_can_be_corrected(policy, monkeypat
     monkeypatch.setenv("FTD_SHUN_TRUSTED_AUTO_REMOVE_IPS", "198.51.100.10,192.0.2.0/24")
     with pytest.raises(ValueError):
         policy.migrate_legacy_environment()
-    assert policy.snapshot() == {"entries": [], "revision": 0, "limit": 1000}
+    assert policy.snapshot() == {"entries": [], "revision": 0, "limit": 1000,
+                                 "managed_policy_available": True, "managed_revision": 0}
     assert policy.store.list_events() == []
     monkeypatch.setenv("FTD_SHUN_TRUSTED_AUTO_REMOVE_IPS", "198.51.100.10")
     policy.migrate_legacy_environment()

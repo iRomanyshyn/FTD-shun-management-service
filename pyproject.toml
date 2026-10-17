@@ -21,6 +21,7 @@ dev = ["pytest>=8,<9", "ruff>=0.6,<1"]
 [project.scripts]
 ftd-shun-api = "ftd_shun_manager.api:main"
 ftd-shun-web = "ftd_shun_manager.web:main"
+ftd-shun-maintenance = "ftd_shun_manager.maintenance:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/ftd_shun_manager"]

@@ -3,10 +3,12 @@
 ## Status and decision
 
 **Registry foundation and read-only API/UI visibility implemented on 2026-10-17.
-Restoration, managed confirmation and worker integration remain unimplemented/off.**
+Restoration and combined removal confirmation remain unimplemented/off.**
 The [removal handoff coordinator](managed-removal-handoffs.md) is implemented
 offline: atomic single-target retirement/cleanup and RUNNING-ADD settlement
-are tested, but no runtime route or scheduler invokes it.
+are tested. A default-off worker advances waits; separate
+[revocation controls](managed-controls.md) support policy-only retirement and
+waiting cancellation. No runtime route admits a managed device write.
 The operator requested re-adding manually added shuns when they disappear,
 for example after FTD reboot. This replaces the former one-time-only target
 requirement. The deployed [import workflow](import-review.md) is still one-time
@@ -143,14 +145,16 @@ outcomes to pretend they authorized future maintenance.
 The explicit registry initializer now provides empty additive policy tables,
 authorization/request ledger and optimistic revisions. It is not called by
 normal API/Store startup. Job/policy generation linkage, atomic retirement/
-protection hooks and independent default-off reconciliation control remain
-unimplemented. All existing ADD gates/device profiles remain mandatory; no
-setting is introduced into `.env` yet.
+protection hooks and independent default-off desired reconciliation control
+remain unimplemented. All existing ADD gates/device profiles remain mandatory.
+The separate default-off cleanup-worker setting does not enable restoration;
+see [Managed Removal Handoffs](managed-removal-handoffs.md).
 
 Before schema rollout take a SQLite-safe checked backup and retain paired
 images. Never restore an older enabled desired policy and start restoration
-automatically: suspend both pending jobs **and policy enforcement**, obtain fresh
-observations and require review. Downgrade must disable the new controller,
+automatically: use [Offline Recovery](recovery.md) to suspend both pending jobs
+**and policy enforcement**, obtain fresh observations and require review. The
+tool never resumes desired restoration. Downgrade must disable the new controller,
 settle/suspend in-flight work and retain its additive policy tables. Ordinary
 backup, upgrade, restart and audit retention are not new device-write authority.
 
@@ -190,8 +194,9 @@ requires an already initialized Store and adds:
 exact typed pairs, both revisions and normalized bounded label/reason. Its digest
 is not a capability. `change()` requires a matching digest, canonical UUID and
 current Operator/Administrator. It validates the entire batch before changes.
-Legacy one-time request keys cannot be reused in this namespace. No API actor
-forwarding, CSRF route or browser action is implemented for this policy yet.
+Legacy one-time request keys cannot be reused in this namespace. A separate
+frozen/CSRF policy-only RETIRE route now forwards the current trusted actor;
+MAINTAIN has no HTTP/browser action. See [Managed Controls](managed-controls.md).
 
 MAINTAIN validates enabled device, Protected IP revision/exclusion and rejects
 implicit adoption of already observed shuns. Already-enabled desired targets
@@ -262,11 +267,13 @@ controller for these tables and must not be advertised as managed-shun support.
 ## Read-only Managed shuns page
 
 Open **Managed shuns** in the navigation. Every authenticated user may view it.
-The private `GET /api/v1/managed-shuns` resource and authenticated BFF page have
-no POST/PUT/DELETE or policy/resume controls. Existing imports remain one-time.
+The private `GET /api/v1/managed-shuns` resource remains observational, with no
+write method on that path. Separate revocation-only POSTs now provide frozen
+policy retirement and owner/Admin waiting cancellation. They do not create,
+re-enable, resume or admit device work. Existing imports remain one-time.
 The Web page now offers a separate **non-executable** preparatory removal review
 to Operators/Administrators and read-only handoff visibility to authenticated
-users. Those POSTs never contact admission or change policy; see
+users. Those combined-review POSTs never contact admission or change policy; see
 [Managed Removal Review](managed-removal-review.md).
 Neither opening the tab nor status polling initializes tables, adopts an old
 import, emits policy audit, admits jobs, requests a refresh or calls the agent.

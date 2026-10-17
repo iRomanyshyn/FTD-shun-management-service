@@ -47,6 +47,8 @@
 </div></details>
 </div>
 <div class="service-notices" aria-label="Service alerts">
+{% set safety_pause = (refresh.queue | default({})).mutations_suspended | default(false) %}
+<p class="refresh-error" data-recovery-warning{% if not safety_pause and not refresh.managed_removal_worker_error %} hidden{% endif %} role="status">{% if safety_pause %}Recovery safety pause: device mutations and new jobs are suspended. Monitoring continues; offline review is required before resuming.{% elif refresh.managed_removal_worker_error %}{{ refresh.managed_removal_worker_error }}{% endif %}</p>
 <p class="refresh-error" data-action-warning hidden role="alert"></p>
 <p class="refresh-error" data-refresh-warning{% if not refresh.last_error %} hidden{% endif %} role="status">{{ refresh.last_error or '' }}</p>
 <p class="refresh-error" data-queue-warning hidden role="status"></p>

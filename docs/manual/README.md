@@ -9,6 +9,8 @@ These manuals describe the first implementation increment. The service is safe t
 | [Deployment](deployment.md) | Caddy, Authelia, Unix sockets, secrets, and container layout. |
 | [Operations](operations.md) | Roles, removal workflow, logs, backup, health, and incident response. |
 | [Operation Queue](operation-queue.md) | Queued removal, progress/cancellation, limits, lease recovery, migration, backup restore, and rollback. |
+| [Offline Recovery](recovery.md) | Checked backup, durable mutation pause, composite queue/policy suspension and reviewed ordinary resume. |
+| [Managed Controls](managed-controls.md) | Frozen policy-only stop-maintaining review and owner/Admin waiting-cleanup cancellation; no device-write admission. |
 | [Protected IPs](protected-ips.md) | Shared authenticated policy editor, concurrency, one-time legacy import, audit, backup and rollback. |
 | [Import Preview](import-preview.md) | Non-executable paste parsing, local-state classification, supported syntax, limits and the pending ADD release gate. |
 | [Browser Import Review](import-review.md) | Frozen exact-target confirmation, identity/CSRF, bounded ephemeral drafts, same-key retry, default-off admission and rollback. |

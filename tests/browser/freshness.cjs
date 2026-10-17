@@ -16,6 +16,7 @@ import json, sys
 from ftd_shun_manager.import_preview import paginate_preview, parse_blocklist, summarize_preview
 from ftd_shun_manager.import_review import ImportReviews
 from ftd_shun_manager.managed_review import ManagedRemovalReviews
+from ftd_shun_manager.managed_retirement_review import ManagedRetirementReviews
 from ipaddress import IPv4Address
 from ftd_shun_manager.web import Identity, templates
 p = json.load(sys.stdin)
@@ -35,10 +36,12 @@ event = dict(timestamp="2026-10-15T10:00:00Z", event_type="FIXTURE_EVENT_" + str
 review = ImportReviews().prepare("test", "fixture-token", preview, p.get("label", ""), "Fixture only") if p["template"] == "import-confirm.html" else None
 if p["template"] == "managed-remove-review.html":
     review = ManagedRemovalReviews().prepare("test", "fixture-token", p["managed"], 1, IPv4Address("198.51.100.251"), 900, "Fixture only")
+if p["template"] == "managed-retirement-review.html":
+    review = ManagedRetirementReviews().prepare("test", "fixture-token", p["managed"], 1, IPv4Address("198.51.100.251"), "Fixture only")
 print(templates.get_template(p["template"]).render(identity=Identity("test", "Test Operator", ("Operator",)),
-    review=review, accepted=None, message=None, admission_enabled=p["refresh"].get("import_admission_enabled", False),
+    review=review, accepted=None, result=None, confirm_ip="", message=None, admission_enabled=p["refresh"].get("import_admission_enabled", False),
     retry_available=p["refresh"].get("import_admission_enabled", False), execution_enabled=False,
-    frozen_view=p["template"] in ("import-confirm.html", "managed-remove-review.html"),
+    frozen_view=p["template"] in ("import-confirm.html", "managed-remove-review.html", "managed-retirement-review.html"),
     managed=p.get("managed"), handoffs=p.get("handoffs"),
     csrf_token="fixture-token", shuns=[shun], refresh=p["refresh"], search_query=p["query"],
     search_results=None, trusted_policy_ips=enabled_ips, disabled_policy_ips=disabled_ips, recent_events=p.get("history", {}).get("events", [event]),
@@ -48,8 +51,8 @@ print(templates.get_template(p["template"]).render(identity=Identity("test", "Te
     source_text=p.get("source_text", ""), batch_label=p.get("label", ""), batch_reason=p.get("reason", ""),
     selected_devices=[1] if p.get("submitted") else [], preview=preview, preview_error=None,
     devices=[dict(id=1,hostname="lab-ftd",enabled=True),dict(id=2,hostname="disabled-ftd",enabled=False)],
-    active_page="managed" if p["template"] in ("managed-shuns.html", "managed-remove-review.html") else "imports" if p["template"] == "import-preview.html" else "protected" if p["template"] == "protected-ips.html" else "history" if p["template"] == "history.html" else "shuns",
-    auto_request=p["template"] not in ("protected-ips.html", "history.html", "import-preview.html", "import-confirm.html", "managed-shuns.html", "managed-remove-review.html")))
+    active_page="managed" if p["template"] in ("managed-shuns.html", "managed-remove-review.html", "managed-retirement-review.html") else "imports" if p["template"] == "import-preview.html" else "protected" if p["template"] == "protected-ips.html" else "history" if p["template"] == "history.html" else "shuns",
+    auto_request=p["template"] not in ("protected-ips.html", "history.html", "import-preview.html", "import-confirm.html", "managed-shuns.html", "managed-remove-review.html", "managed-retirement-review.html")))
 `;
 
 const initial = () => ({
@@ -116,7 +119,7 @@ async function connectPage(debugOrigin, url) {
   } };
 }
 
-test("refresh interaction in real Chromium", { timeout: 90000 }, async (t) => {
+test("refresh interaction in real Chromium", { timeout: 120000 }, async (t) => {
   let status = initial();
   let generation = 1;
   let failStatus = false;
@@ -131,6 +134,7 @@ test("refresh interaction in real Chromium", { timeout: 90000 }, async (t) => {
   let policyPosts = 0;
   let previewPosts = 0;
   let confirmationPosts = 0;
+  let managedCancelPosts = 0;
   let managed = { initialized: false, revision: 0, entries: [], limit: 1000,
     restoration_suspended: true, controller_available: false, read_only: true };
   let handoffs = { initialized: false, counts: {}, items: [], display_limit: 20, read_only: true };
@@ -230,6 +234,13 @@ test("refresh interaction in real Chromium", { timeout: 90000 }, async (t) => {
         return;
       }
       const ip = field("ip");
+      const maintained = policy.entries.find((entry) => entry.ip === ip)?.maintained_devices || 0;
+      if (maintained && (url.pathname.endsWith("/delete") || field("enabled") !== "true")
+          && (Number(field("managed_revision")) !== policy.managed_revision || field("confirm_maintenance_resume") !== "true")) {
+        response.statusCode = 409;
+        response.end(JSON.stringify({ detail: "Managed policy changed. Reload saved values and review the maintenance warning." }));
+        return;
+      }
       if (url.pathname.endsWith("/delete")) {
         assert.equal(field("confirm_ip"), ip);
         policy.entries = policy.entries.filter((entry) => entry.ip !== ip);
@@ -243,6 +254,19 @@ test("refresh interaction in real Chromium", { timeout: 90000 }, async (t) => {
       status.policy_revision = policy.revision;
       status.status_revision += 1;
       response.end(JSON.stringify(stamp()));
+    } else if (/^\/managed-shuns\/handoffs\/[^/]+\/cancel$/.test(url.pathname) && request.method === "POST") {
+      let body = "";
+      for await (const chunk of request) body += chunk;
+      assert.match(request.headers["content-type"], /^application\/x-www-form-urlencoded/);
+      assert.equal(new URLSearchParams(body).get("csrf"), "fixture-token");
+      managedCancelPosts += 1;
+      handoffs.items[0].state = "CANCELLED";
+      handoffs.counts = { CANCELLED: 1 };
+      status.queue.revision += 1;
+      status.data_revision += 1;
+      status.status_revision += 1;
+      response.setHeader("Content-Type", "application/json");
+      response.end(JSON.stringify(stamp()));
     } else if (url.pathname === "/imports/confirm" && request.method === "POST") {
       let body = "";
       for await (const chunk of request) body += chunk;
@@ -253,7 +277,7 @@ test("refresh interaction in real Chromium", { timeout: 90000 }, async (t) => {
       confirmationPosts += 1;
       response.setHeader("Content-Type", "text/html");
       response.end("<p>Fixture admission received; no device work</p>");
-    } else if (["/", "/history", "/protected-ips", "/imports", "/imports/review", "/managed-shuns", "/managed-shuns/removal-review"].includes(url.pathname) || url.pathname.startsWith("/shuns/")) {
+    } else if (["/", "/history", "/protected-ips", "/imports", "/imports/review", "/managed-shuns", "/managed-shuns/removal-review", "/managed-shuns/retirement-review"].includes(url.pathname) || url.pathname.startsWith("/shuns/")) {
       pageReads += 1;
       let previewFields = {};
       if (url.pathname === "/imports/review") previewFields = {
@@ -284,7 +308,8 @@ test("refresh interaction in real Chromium", { timeout: 90000 }, async (t) => {
         policy, managed, handoffs, template: url.pathname === "/" ? "index.html" : url.pathname === "/history" ? "history.html"
           : url.pathname === "/protected-ips" ? "protected-ips.html" : url.pathname === "/imports" ? "import-preview.html"
             : url.pathname === "/imports/review" ? "import-confirm.html" : url.pathname === "/managed-shuns" ? "managed-shuns.html"
-              : url.pathname === "/managed-shuns/removal-review" ? "managed-remove-review.html" : "detail.html" };
+              : url.pathname === "/managed-shuns/removal-review" ? "managed-remove-review.html"
+                : url.pathname === "/managed-shuns/retirement-review" ? "managed-retirement-review.html" : "detail.html" };
       response.setHeader("Content-Type", "text/html; charset=utf-8");
       response.end(execFileSync("python3", ["-c", renderScript], {
         cwd: root, input: JSON.stringify(payload), encoding: "utf8",
@@ -639,6 +664,46 @@ test("refresh interaction in real Chromium", { timeout: 90000 }, async (t) => {
         assert.equal(postCount, hints, "Policy page background polling and CRUD do not request FTD refresh");
       } finally { await page.close(); }
     });
+    await t.test("managed protection acknowledgement retains its reviewed revision and resets on explicit reload", async () => {
+      status = initial();
+      status.policy_revision = 1;
+      status.managed_policy_revision = 10;
+      status.managed_policy_initialized = true;
+      policy = { revision: 1, limit: 1000, managed_policy_available: true, managed_revision: 10, entries: [
+        { ip: "198.51.100.10", name: "Maintained office", comment: "Fixture", enabled: true,
+          active_devices: 0, last_auto_removed_at: null, maintained_devices: 2 },
+      ] };
+      const hints = postCount;
+      const executions = executionCount;
+      const page = await connectPage(debugOrigin, `${origin}/protected-ips`);
+      try {
+        assert.ok(await page.evaluate("document.querySelector('[data-maintenance-warning]').textContent.includes('Enabled maintenance: 2')"));
+        await page.evaluate(`(() => { const form=document.getElementById('edit-policy-form-198.51.100.10'); form.closest('details').open=true;
+          form.elements.enabled.checked=false; form.elements.confirm_maintenance_resume.checked=true;
+          form.elements.enabled.dispatchEvent(new Event('input',{bubbles:true})); })()`);
+        policy.managed_revision = status.managed_policy_revision = 11;
+        policy.entries[0].maintained_devices = 3;
+        status.status_revision += 1;
+        await wake(page);
+        await page.until("document.querySelector('[data-maintenance-warning]').textContent.includes('Enabled maintenance: 3')");
+        assert.equal(await page.evaluate("document.getElementById('edit-policy-form-198.51.100.10').elements.managed_revision.value"), "10");
+        assert.equal(await page.evaluate("document.getElementById('edit-policy-form-198.51.100.10').elements.confirm_maintenance_resume.checked"), true);
+        assert.equal(await page.evaluate("document.getElementById('delete-policy-form-198.51.100.10').elements.managed_revision.value"), "11");
+        await page.evaluate("document.getElementById('edit-policy-form-198.51.100.10').requestSubmit()");
+        await page.until("document.querySelector('[data-action-warning]').textContent.includes('Managed policy changed')");
+        assert.equal(policy.entries[0].enabled, true);
+      } finally { await page.close(); }
+      const clean = await connectPage(debugOrigin, `${origin}/protected-ips`);
+      try {
+        assert.equal(await clean.evaluate("document.getElementById('edit-policy-form-198.51.100.10').elements.managed_revision.value"), "11");
+        assert.equal(await clean.evaluate("document.getElementById('edit-policy-form-198.51.100.10').elements.confirm_maintenance_resume.checked"), false);
+        assert.equal(await clean.evaluate("document.getElementById('delete-policy-form-198.51.100.10').elements.confirm_maintenance_resume.required"), true);
+        await clean.call("Emulation.setDeviceMetricsOverride", { width: 375, height: 800, deviceScaleFactor: 1, mobile: true });
+        assert.equal(await clean.evaluate("document.documentElement.scrollWidth<=window.innerWidth"), true);
+        assert.equal(postCount, hints);
+        assert.equal(executionCount, executions);
+      } finally { await clean.close(); }
+    });
     await t.test("enabled/disabled badges and observed disabled protection update across policy, shuns and detail", async () => {
       status = initial();
       status.policy_revision = 1;
@@ -768,16 +833,20 @@ test("refresh interaction in real Chromium", { timeout: 90000 }, async (t) => {
         for (const width of [1100, 375]) {
           await page.call("Emulation.setDeviceMetricsOverride", { width, height: 800, deviceScaleFactor: 1, mobile: false });
           const baseline = await position();
-          for (const phase of ["refreshing", "error", "ready"]) {
+          for (const phase of ["refreshing", "error", "paused", "cleanup_error", "ready"]) {
             status.refresh_in_progress = phase === "refreshing";
-            status.devices["1"].state = phase;
+            status.devices["1"].state = ["paused", "cleanup_error"].includes(phase) ? "ready" : phase;
             status.devices["1"].stale = phase === "error";
             status.last_error = phase === "error" ? "A long device failure. ".repeat(12) : null;
             status.queue.counts = phase === "error" ? { UNVERIFIED: 12345 } : {};
+            status.queue.mutations_suspended = phase === "paused";
+            status.managed_removal_worker_error = phase === "cleanup_error" ? "Managed cleanup handoff failed; mutations skipped for this cycle." : null;
             status.status_revision += 1;
             await wake(page);
-            const label = { refreshing: "Refreshing", error: "Error", ready: "Current" }[phase];
+            const label = { refreshing: "Refreshing", error: "Error", ready: "Current", paused: "Current", cleanup_error: "Current" }[phase];
             await page.until(`document.querySelector('[data-device-status]').textContent.includes('${label}')`);
+            await page.until(`document.querySelector('[data-recovery-warning]').hidden === ${!["paused", "cleanup_error"].includes(phase)}`);
+            if (phase === "paused") assert.ok(await page.evaluate("document.querySelector('[data-recovery-warning]').textContent.includes('Monitoring continues')"));
             assert.equal(await position(), baseline, `${width}px viewport / ${phase} leaves search in place`);
           }
           failStatus = true;
@@ -983,6 +1052,49 @@ test("refresh interaction in real Chromium", { timeout: 90000 }, async (t) => {
           await page.call("Emulation.setDeviceMetricsOverride", { width, height: 800, deviceScaleFactor: 1, mobile: width === 375 });
           assert.equal(await page.evaluate("document.documentElement.scrollWidth<=window.innerWidth"), true);
         }
+        assert.equal(postCount, hints);
+        assert.equal(executionCount, executions);
+      } finally { await page.close(); }
+    });
+    await t.test("policy-only retirement review is frozen and waiting cancellation updates without navigation or writes", async () => {
+      status = initial();
+      managed.entries[0].enabled = true;
+      const hints = postCount;
+      const executions = executionCount;
+      const reviewPage = await connectPage(debugOrigin, `${origin}/managed-shuns/retirement-review`);
+      try {
+        assert.ok(await reviewPage.evaluate("document.body.textContent.includes('No device command')"));
+        assert.equal(await reviewPage.evaluate("document.querySelector('.import-confirm-form button').disabled"), false);
+        const original = await reviewPage.evaluate("document.querySelector('input[name=review]').value");
+        await reviewPage.evaluate("document.querySelector('#confirm-retirement-ip').value='198.51.100.251'; document.querySelector('#confirm-retirement-ip').focus()");
+        const reads = pageReads;
+        status.managed_policy_revision = 50;
+        status.data_revision += 1;
+        status.status_revision += 1;
+        await wake(reviewPage);
+        await delay(300);
+        assert.equal(pageReads, reads);
+        assert.equal(await reviewPage.evaluate("document.querySelector('input[name=review]').value"), original);
+        assert.equal(await reviewPage.evaluate("document.activeElement.id"), "confirm-retirement-ip");
+        assert.equal(await reviewPage.evaluate("document.querySelector('#confirm-retirement-ip').value"), "198.51.100.251");
+        for (const width of [1100, 375]) {
+          await reviewPage.call("Emulation.setDeviceMetricsOverride", { width, height: 800, deviceScaleFactor: 1, mobile: width === 375 });
+          assert.equal(await reviewPage.evaluate("document.documentElement.scrollWidth<=window.innerWidth"), true);
+        }
+      } finally { await reviewPage.close(); }
+      handoffs.items[0].state = "WAITING_ADD";
+      handoffs.items[0].queue_state = null;
+      handoffs.counts = { WAITING_ADD: 1 };
+      const page = await connectPage(debugOrigin, `${origin}/managed-shuns`);
+      try {
+        assert.equal(await page.evaluate("document.querySelector('[data-managed-cancel-form]').closest('details').open"), false);
+        await page.evaluate("document.querySelector('[data-managed-cancel-form]').closest('details').open=true");
+        const cancelBefore = managedCancelPosts;
+        await page.evaluate("document.querySelector('[data-managed-cancel-form] button').click()");
+        await page.until("document.querySelector('#managed-removal-state').textContent.includes('Cleanup cancelled')");
+        assert.equal(managedCancelPosts, cancelBefore + 1);
+        assert.equal(await page.evaluate("location.pathname"), "/managed-shuns");
+        assert.equal(await page.evaluate("Boolean(document.querySelector('[data-managed-cancel-form]'))"), false);
         assert.equal(postCount, hints);
         assert.equal(executionCount, executions);
       } finally { await page.close(); }

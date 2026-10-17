@@ -72,6 +72,7 @@ def test_registry_is_opt_in_and_normal_application_does_not_initialize_it(tmp_pa
         assert not db.execute("SELECT name FROM sqlite_master WHERE name LIKE 'managed_shun_%'").fetchall()
     assert {route.path for route in app.routes if "managed" in route.path} == {
         "/api/v1/managed-shuns", "/api/v1/managed-removal-handoffs",
+        "/api/v1/managed-shuns/retire", "/api/v1/managed-removal-handoffs/{request_id}/cancel",
     }
     assert next(route for route in app.routes if route.path == "/api/v1/managed-shuns").methods == {"GET"}
     assert app.state.synchronizer.queue.status()["counts"] == {}
@@ -272,6 +273,9 @@ def test_stale_protection_review_and_legacy_removal_key_do_not_grant_policy(regi
         registry.change(**arguments(registry, request_id=key))
     assert not registry.snapshot()["entries"]
     admin = arguments(registry, roles=("Administrator",))
+    with pytest.raises(ManagedConflict, match="Removal is pending"):
+        registry.change(**admin)
+    queue.cancel(key, "alice", False)
     registry.change(**admin)
     assert registry.snapshot()["entries"][0]["actor_roles"] == ["Administrator"]
 

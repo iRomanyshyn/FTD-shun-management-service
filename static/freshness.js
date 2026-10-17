@@ -79,13 +79,14 @@
   };
 
   // Retain editable values and focus only for the same form action and field.
-  // Hidden security fields always come from the fresh server-rendered form.
+  // Hidden security fields come from fresh forms except saved CAS revisions:
+  // a dirty acknowledgement must never silently acquire a newer policy scope.
   const replaceRegion = (oldRegion, nextRegion) => {
     const values = new Map();
     const fieldKey = (field) => `${field.form?.getAttribute("action") || ""}:${field.form?.dataset.policyIp || ""}:${field.name}:${field.type}`;
     oldRegion.querySelectorAll("input, textarea, select").forEach((field) => {
       if (field.form?.matches("[data-policy-form]")) {
-        if (!field.form.dataset.dirty || (field.type === "hidden" && field.name !== "revision")) return;
+        if (!field.form.dataset.dirty || (field.type === "hidden" && !["revision", "managed_revision"].includes(field.name))) return;
       } else if (field.type === "hidden") return;
       values.set(fieldKey(field), {
         value: field.value, checked: field.checked, focused: document.activeElement === field,
@@ -262,6 +263,13 @@
       const indicator = panel.querySelector("[data-queue-indicator]");
       if (indicator) indicator.textContent = `${activeTotal}${attentionTotal ? ` · ${attentionTotal} need attention` : ""}`;
       const queueWarning = panel.querySelector("[data-queue-warning]");
+      const recoveryWarning = panel.querySelector("[data-recovery-warning]");
+      if (recoveryWarning) {
+        recoveryWarning.hidden = !queue.mutations_suspended && !status.managed_removal_worker_error;
+        recoveryWarning.textContent = queue.mutations_suspended
+          ? "Recovery safety pause: device mutations and new jobs are suspended. Monitoring continues; offline review is required before resuming."
+          : (status.managed_removal_worker_error || "");
+      }
       if (queueWarning) {
         queueWarning.hidden = !attentionTotal;
         queueWarning.textContent = `${attentionTotal} failed or unverified operation(s). Open Queue → Needs attention. Unverified writes are not automatically retried.`;
@@ -410,7 +418,9 @@
           try {
             action.body.set("csrf", form.querySelector("input[name=csrf]").value);
             response = await fetchChecked(action.url, {
-              method: "POST", body: action.body, headers: { Accept: "application/json" },
+              method: "POST", body: action.sourceForm?.matches("[data-managed-cancel-form]")
+                ? new URLSearchParams(action.body) : action.body,
+              headers: { Accept: "application/json" },
             }, "application/json");
             failedAction = null;
             actionError = "";
@@ -483,7 +493,7 @@
       if (!busy) schedule(0);
     };
     document.addEventListener("submit", (event) => {
-      if (!event.target.matches("[data-queue-form], [data-policy-form]")) return;
+      if (!event.target.matches("[data-queue-form], [data-policy-form], [data-managed-cancel-form]")) return;
       event.preventDefault();
       submitAction(event.target.action, new FormData(event.target), event.submitter, event.target);
     });

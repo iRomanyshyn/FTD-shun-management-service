@@ -20,15 +20,17 @@ from .managed_shuns import (
     canonical_managed_change,
 )
 from .operation_queue import OperationQueue, QueueConflict, QueueFull, stamp
+from .safety import mutations_suspended
 
 MAX_HANDOFF_RECORDS = 10000  # Retained request keys; no automatic recycling.
 
 
 class ManagedRemovals:
-    def __init__(self, registry: ManagedShuns, queue: OperationQueue):
+    def __init__(self, registry: ManagedShuns, queue: OperationQueue, *, worker_enabled: bool = False):
         if registry.store.path != queue.store.path:
             raise ValueError("Managed removal must use one policy/queue database.")
         self.registry, self.queue, self.store = registry, queue, registry.store
+        self.worker_enabled = worker_enabled
 
     def initialize(self) -> None:
         """Explicit additive migration; never called by normal API/Store startup."""
@@ -101,6 +103,8 @@ class ManagedRemovals:
                 if old["actor_subject"] != subject or old["payload_json"] != payload:
                     raise ManagedConflict("Request key was already used for another managed removal.")
                 return {**json.loads(old["result_json"]), "replayed": True}
+            if mutations_suspended(db):
+                raise QueueConflict("Device mutations are suspended for recovery; no cleanup was admitted.")
             if any(db.execute(f"SELECT 1 FROM {table} WHERE id=?", (request_id,)).fetchone()
                    for table in ("operation_requests", "manual_import_batches", "managed_shun_requests")):
                 raise ManagedConflict("An existing operation key cannot acquire managed-removal semantics.")
@@ -158,7 +162,7 @@ class ManagedRemovals:
         return result
 
     def advance(self, owner: str, limit: int = 16) -> int:
-        """Explicit leased handoff step; no scheduler calls this in the current product.
+        """Bounded leased handoff step, called once before an opted-in cycle cutoff.
 
         Admit removal only after the predecessor settles, under the original
         deadline. No RPC, independent executor or automatic ADD replay exists.
@@ -169,6 +173,8 @@ class ManagedRemovals:
         admitted = 0
         with self.store._connection() as db:
             db.execute("BEGIN IMMEDIATE")
+            if mutations_suspended(db):
+                return 0
             current = self.queue._now()
             lease = db.execute("SELECT * FROM operation_executor WHERE id=1").fetchone()
             if not owner or lease["owner"] != owner or not lease["lease_until"] or lease["lease_until"] <= stamp(current):
@@ -233,6 +239,16 @@ class ManagedRemovals:
             print(json.dumps(entry), flush=True)
         return admitted
 
+    def has_waiting(self) -> bool:
+        with self.store._connection() as db:
+            return (not mutations_suspended(db) and self.queue._handoffs_present(db)
+                    and db.execute("SELECT 1 FROM managed_removal_handoffs WHERE state='WAITING_ADD' LIMIT 1").fetchone() is not None)
+
+    def advance_if_present(self, owner: str) -> int:
+        with self.store._connection() as db:
+            present = self.queue._handoffs_present(db)
+        return self.advance(owner) if present else 0
+
     @staticmethod
     def _deadline(row):
         return datetime.fromisoformat(row["expires_at"])
@@ -248,7 +264,7 @@ class ManagedRemovals:
         self.queue._bump(db)
 
     def cancel_waiting(self, request_id: str, subject: str, display_name: str,
-                       roles: tuple[str, ...]) -> None:
+                       roles: tuple[str, ...]) -> bool:
         _require_operator(subject, roles)
         with self.store._connection() as db:
             db.execute("BEGIN IMMEDIATE")
@@ -256,7 +272,7 @@ class ManagedRemovals:
             if row is None or (row["actor_subject"] != subject and "Administrator" not in roles):
                 raise PermissionError("Waiting cleanup cancellation is not permitted.")
             if row["state"] == "CANCELLED":
-                return
+                return False
             if row["state"] != "WAITING_ADD":
                 raise QueueConflict("Not waiting for ADD; inspect/cancel the admitted queue request instead.")
             db.execute("UPDATE managed_removal_handoffs SET state='CANCELLED',reason='Cancelled by operator' WHERE id=?",
@@ -266,6 +282,7 @@ class ManagedRemovals:
             self.queue._bump(db)
         print(json.dumps({"event": "managed_shun.cleanup.cancelled", "request_id": request_id,
                           "actor_subject": subject}), flush=True)
+        return True
 
     def snapshot(self) -> dict:
         with self.store._connection() as db:
@@ -278,7 +295,7 @@ class ManagedRemovals:
             db.execute("BEGIN")
             if not self.queue._handoffs_present(db):
                 return {"initialized": False, "counts": {}, "items": [], "display_limit": 20,
-                        "scheduler_integration_available": False, "admission_enabled": False, "read_only": True}
+                        "scheduler_integration_available": self.worker_enabled, "admission_enabled": False, "read_only": True}
             return {**self._snapshot(db), "initialized": True, "admission_enabled": False, "read_only": True}
 
     def _snapshot(self, db) -> dict:
@@ -293,4 +310,4 @@ class ManagedRemovals:
                     WHEN h.state='ATTENTION' OR queue_state IN ('FAILED','UNVERIFIED') THEN 1 ELSE 2 END,
                 h.requested_at DESC,h.id LIMIT 20""").fetchall()
         return {"counts": counts, "items": [{**dict(row), "ip": str(IPv4Address(row["ip"]))} for row in rows],
-                "display_limit": 20, "scheduler_integration_available": False}
+                "display_limit": 20, "scheduler_integration_available": self.worker_enabled}

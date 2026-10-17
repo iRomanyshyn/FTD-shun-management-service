@@ -6,6 +6,7 @@
 <p class="policy-warning">Disabling or deleting cancels unstarted policy requests. Already running commands and independent manual requests are not cancelled.</p>
 <p>All signed-in users can manage this policy. Edits are checked against the saved revision. If someone else changes the policy, <a href="/protected-ips">reload saved values</a> before retrying (unsaved drafts will be discarded).</p>
 <section id="protected-policy" data-live-region>
+{% if policy.managed_policy_available is defined and not policy.managed_policy_available %}<p class="preview-error" role="status">Managed policy is unavailable. Maintenance counts are unknown, not zero; disabling/deleting protection is blocked until this is reviewed. Enabling protection remains available.</p>{% endif %}
 <p>{{ policy.entries | selectattr('enabled') | list | length }} enabled · {{ policy.entries | length }} / {{ policy.limit }} addresses.</p>
 <details id="add-protected-ip" class="policy-editor">
 <summary>Add protected IP</summary>
@@ -23,17 +24,22 @@
 {% if entry.active_devices and not entry.enabled %}<p class="disabled-protection-summary"><strong>Protection disabled — currently shunned.</strong> Automatic removal is off for this address.</p>{% endif %}
 {% if entry.comment %}<p class="policy-comment">{{ entry.comment }}</p>{% endif %}
 <p>Observed shun: {% if entry.active_devices %}{{ entry.active_devices }} device(s){% else %}not currently observed{% endif %} · Last auto-removed: {% if entry.last_auto_removed_at %}<time class="local-timestamp" datetime="{{ entry.last_auto_removed_at }}">{{ entry.last_auto_removed_at }}</time>{% else %}Never recorded{% endif %}</p>
+{% if entry.maintained_devices | default(0) %}<p class="policy-warning" data-maintenance-warning>Enabled maintenance: {{ entry.maintained_devices }} device(s), including missing or disabled-device targets. {% if entry.enabled %}Protection currently blocks restoration.{% else %}Protection is disabled; these intents remain enabled.{% endif %} Removing protection may allow maintenance to resume when the restoration controller is enabled; it does not add a shun now. Stop maintaining separately to revoke that intent.</p>{% endif %}
 <details id="edit-policy-{{ entry.ip }}" class="policy-editor"><summary>Edit / enable / disable</summary>
 <form id="edit-policy-form-{{ entry.ip }}" method="post" action="/protected-ips/edit" class="policy-form" data-policy-form data-policy-ip="{{ entry.ip }}">
 <input type="hidden" name="csrf" value="{{ csrf_token }}"><input type="hidden" name="revision" value="{{ policy.revision }}"><input type="hidden" name="ip" value="{{ entry.ip }}">
+{% if policy.managed_policy_available | default(false) %}<input type="hidden" name="managed_revision" value="{{ policy.managed_revision }}">{% endif %}
 <label>Name <input name="name" value="{{ entry.name }}" maxlength="100"></label>
 <label>Comment <textarea name="comment" maxlength="500" rows="2">{{ entry.comment }}</textarea></label>
 <label class="checkbox-label"><input type="checkbox" name="enabled" value="true"{% if entry.enabled %} checked{% endif %}> Enable automatic removal fleet-wide</label>
+{% if entry.maintained_devices | default(0) %}<label class="checkbox-label"><input type="checkbox" name="confirm_maintenance_resume" value="true"> I understand that disabling protection may allow the retained maintenance intents to resume. Required if disabling currently enabled protection.</label>{% endif %}
 <button type="submit">Save changes</button>
 </form></details>
 <details id="delete-policy-{{ entry.ip }}" class="policy-editor"><summary>Delete address</summary>
 <form id="delete-policy-form-{{ entry.ip }}" method="post" action="/protected-ips/delete" class="remove-all-form" data-policy-form data-policy-ip="{{ entry.ip }}">
 <input type="hidden" name="csrf" value="{{ csrf_token }}"><input type="hidden" name="revision" value="{{ policy.revision }}"><input type="hidden" name="ip" value="{{ entry.ip }}">
+{% if policy.managed_policy_available | default(false) %}<input type="hidden" name="managed_revision" value="{{ policy.managed_revision }}">{% endif %}
+{% if entry.maintained_devices | default(0) %}<label class="checkbox-label"><input type="checkbox" name="confirm_maintenance_resume" value="true" required> I understand that deleting protection may allow the retained maintenance intents to resume; deletion does not stop maintaining them.</label>{% endif %}
 <label>Type {{ entry.ip }} to confirm <input name="confirm_ip" required autocomplete="off"></label><button type="submit">Delete protected IP</button>
 </form></details>
 </article>

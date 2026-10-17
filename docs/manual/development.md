@@ -2,6 +2,26 @@
 
 ## Offline managed-policy foundation
 
+`tests/test_managed_protection.py` exercises optional managed-state validation,
+enabled-intent counts, current-revision/acknowledgement checks before protection
+weakening, real all-role BFF forwarding, unchanged authority and no work hints.
+It covers audit rollback including unsent ADD cancellation, retained RUNNING ADD/
+waiting cleanup, missing/disabled targets, malformed optional state with healthy
+monitoring, guarded legacy fleet/device removal and serialized MAINTAIN/removal
+admission. All state and actors are synthetic. Chromium verifies dirty managed
+revision/checkbox retention, stale rejection, fresh acknowledgement reset and
+mobile warning layout; no lab policy/FTD mutation is performed.
+
+`tests/test_managed_controls.py` covers the distinct executable revocation-only
+workflow: frozen/session-bound policy RETIRE, strict current role/CSRF/scope,
+same-key retry/new-generation safety, concurrency, paused/disabled/protected/
+missing targets, uncertainty/receipt validation and audit rollback. Waiting
+cancellation tests owner/Admin, promotion conflict, unknown response/retry,
+unchanged running ADD and separate one-time jobs, optional schemas and no new
+work signal. All data/actors are synthetic. Chromium checks frozen retirement
+token/input/focus and AJAX cancellation without navigation/device hints. See
+[Managed Controls](managed-controls.md). Combined removal confirmation stays 503.
+
 `python3 -m pytest -q tests/test_managed_shuns.py` exercises only temporary
 SQLite: explicit empty initialization without legacy adoption, canonical managed
 mode, current roles, UUID/digest binding, optimistic concurrency, idempotent
@@ -38,8 +58,16 @@ coordinator with real temporary SQLite/queue and synthetic typed outcomes.
 It covers RUNNING/no-overlap, verified/no-op/uncertain completion, exact pre-write
 deferral, lease recovery, original expiry/cancellation, full rollback, parallel
 replay, shared reservations/rate/capacity, generation/key safety and retention/
-backup. Startup/API never initializes or invokes it; see
+backup. Startup/API never initializes or admits handoffs; the default-off worker
+can advance existing waits before its leased cutoff. See
 [Managed Removal Handoffs](managed-removal-handoffs.md) before integration.
+
+`tests/test_recovery_controls.py` covers composite offline suspension, original
+uncertainty, atomic audit rollback, private checked/no-overwrite backups,
+concurrent-commit refusal, restart durability, resume without resurrection,
+paused monitoring/protected-policy suppression, strict default-off worker
+configuration and shared lease/cutoff/fresh-snapshot/error behavior. It uses
+disposable SQLite and synthetic agents only. See [Offline Recovery](recovery.md).
 
 `tests/test_managed_review.py` covers the optional GET and non-executable Web
 review: authentication/current role/CSRF, strict fields/scope/reason, immutable

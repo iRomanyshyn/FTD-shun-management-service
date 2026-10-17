@@ -1,4 +1,4 @@
-"""Desired-policy foundation; API integration exposes optional reads only.
+"""Desired-policy registry; API exposes optional reads and explicit revocation.
 
 Initializing this registry is explicit: normal application startup does not
 migrate it. Nothing here admits queue jobs, reads FTD or establishes creation.
@@ -6,14 +6,15 @@ migrate it. Nothing here admits queue jobs, reads FTD or establishes creation.
 
 from __future__ import annotations
 
-import hashlib
 import hmac
 import json
 import sqlite3
 from ipaddress import IPv4Address
 from uuid import UUID, uuid4
 
-from .import_intent import canonical_import
+from .managed_intent import canonical_managed_change
+from .managed_safety import managed_state
+from .safety import mutations_suspended
 from .store import Store, now
 
 MAX_MANAGED_TARGETS = 1000  # Includes retired tombstones; never silently recycle.
@@ -26,22 +27,6 @@ class ManagedConflict(ValueError):
 
 class ManagedCapacity(ValueError):
     """The registry cannot accept the entire change within its bounds."""
-
-
-def canonical_managed_change(
-    action: str, targets: list[tuple[int, IPv4Address]], managed_revision: int,
-    protected_revision: int, label: str = "", reason: str = "",
-) -> tuple[list[tuple[int, IPv4Address]], str, str]:
-    if action not in {"MAINTAIN", "RETIRE"}:
-        raise ValueError("Managed action must be MAINTAIN or RETIRE.")
-    if type(managed_revision) is not int or managed_revision < 0:
-        raise ValueError("A non-negative managed revision is required.")
-    targets, canonical, _ = canonical_import(targets, protected_revision, label, reason)
-    payload = json.loads(canonical)
-    payload.update(scope="managed_shuns", mode="maintain_present", action=action,
-                   managed_revision=managed_revision)
-    payload = json.dumps(payload, sort_keys=True, separators=(",", ":"))
-    return targets, payload, hashlib.sha256(payload.encode()).hexdigest()
 
 
 def _require_operator(subject: str, roles: tuple[str, ...]) -> None:
@@ -125,7 +110,8 @@ class ManagedShuns:
         """Trusted internal composition hook: caller owns write transaction/commit/logging.
 
         Uses a savepoint so even a caught conflict cannot leave partial policy or
-        audit writes inside the caller's transaction. There is no queue hook yet.
+        audit writes inside the caller's transaction. This hook never admits
+        queue work itself; composite callers own that separate admission.
         """
         if not db.in_transaction:
             raise ValueError("Managed changes require a caller-owned transaction.")
@@ -159,6 +145,8 @@ class ManagedShuns:
             if previous["actor_subject"] != subject or previous["payload_json"] != payload:
                 raise ManagedConflict("Request key was already used for another managed intention.")
             return {**json.loads(previous["result_json"]), "replayed": True}
+        if action == "MAINTAIN" and mutations_suspended(db):
+            raise ManagedConflict("New managed authority is suspended for recovery; retirement remains available.")
         # A key from the one-time namespace cannot acquire standing semantics.
         legacy_queue = db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='operation_requests'").fetchone()
         if (db.execute("SELECT 1 FROM manual_import_batches WHERE id=?", (request_id,)).fetchone()
@@ -179,6 +167,10 @@ class ManagedShuns:
         for device_id, ip in targets:
             old = db.execute("SELECT * FROM managed_shun_targets WHERE device_id=? AND ip=?", (device_id, ip.packed)).fetchone()
             if action == "MAINTAIN":
+                if (legacy_queue and db.execute("""SELECT 1 FROM operation_jobs WHERE device_id=? AND ip=?
+                        AND action='REMOVE' AND state IN ('QUEUED','RUNNING') LIMIT 1""",
+                                               (device_id, ip.packed)).fetchone()):
+                    raise ManagedConflict("Removal is pending or running; resolve it before authorizing maintenance.")
                 if db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='managed_removal_handoffs'").fetchone():
                     cleanup = db.execute("""SELECT 1 FROM managed_removal_handoffs h
                         WHERE h.device_id=? AND h.ip=? AND (h.state IN ('WAITING_ADD','ATTENTION')
@@ -259,7 +251,7 @@ class ManagedShuns:
         """Cheap optional read for refresh metadata; no initialization or migration."""
         with self.store._connection() as db:
             db.execute("BEGIN")
-            state = self._registry_state(db, if_present=True)
+            state = managed_state(db)
             return {"managed_policy_available": True, "managed_policy_initialized": state is not None,
                     "managed_policy_revision": state["revision"] if state is not None else 0}
 

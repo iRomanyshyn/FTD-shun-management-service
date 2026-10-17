@@ -4,6 +4,114 @@ Last updated: 2026-10-17
 
 ## Current increment
 
+**Protected/managed lifecycle and guarded ordinary removal (2026-10-17).**
+Protected cards now report enabled maintenance counts separately from observed
+shuns, including missing/disabled-device targets. Disabling enabled protection
+or deleting a matching entry requires explicit acknowledgement and current
+managed revision in the policy transaction. Dirty forms retain both revisions;
+acknowledgement cannot silently acquire a newer scope. Malformed optional state
+is unknown/not zero; weakening/manual admission fail closed while monitoring
+and strengthening protection remain available. Actual actor roles are unchanged.
+Queued ADD cancellation/audit stay atomic; RUNNING ADD/waiting cleanup survive.
+
+Legacy ordinary device/fleet removal now refuses enabled managed policy within
+its scope, including maintained-but-missing devices outside observed targets.
+The queue repeats this under its write lock; a scope label is not an exemption.
+MAINTAIN cannot race over queued/running removal. Protected automatic removal
+still has priority without retiring desired intent. Offline combined admission
+still works by retiring before queue delegation in one transaction. These are
+admission barriers, not system-source/generation/claim integration; combined
+Web confirmation remains 503, no controller/schema initialization or ADD/worker
+enablement. See [Protected IPs](manual/protected-ips.md#managed-maintenance-acknowledgement)
+and [queue guard](manual/operation-queue.md#managed-policy-admission-guard).
+
+All 488 Python tests and 20 Chromium scenarios (21 reported tests) pass, including
+stale acknowledgement retention/reset, mobile layout, concurrency, unchanged
+running/waiting work, late audit rollback and malformed-state isolation.
+Compileall/Ruff/JS syntax/diff checks and 224 relative links pass; Rust and binary
+protocol unchanged. Packaged Python 3.12 actual multipart BFF/API acknowledgement,
+fleet guard and optional-corruption isolation smoke pass in a networkless/
+read-only synthetic container. No live new mutation.
+
+Deployed API/Web `17eed6be119d` / `026c40c1517b`, retaining paired images
+`before-managed-protection-20261017t1555z` and checked volume/ignored host backup
+`.local/backups/state-before-managed-protection-20261017T155504Z.sqlite3`
+(0600/private 0700). Schema and ten stable tables match backup, integrity/FK
+pass; three Protected IPs report known zero maintained targets without creating
+optional tables. Eight VERIFIED/one NOOP, no pending/active shuns; ADD and cleanup
+worker off/zero profiles, actual env/inventory/secrets unchanged. Agent/Caddy/
+Authelia unchanged, anonymous Web 401/TLS-verified 302. Ordinary v2 cycle at
+15:57:55Z used two reads/zero mutations in 8649 ms, next baseline 16:02:55Z/no
+error. This is not executable combined/fleet or restoration acceptance.
+
+**Managed revocation controls, no device admission (2026-10-17).** Implemented
+a separate frozen policy-only stop-maintaining review/confirmation and strict
+private RETIRE endpoint. Current Operator/Administrator, CSRF/session binding,
+exact IP, immutable UUID/digest and atomic global-revision/audit checks are
+required; missing/protected/disabled-device targets remain revocable during
+recovery pause. Receipts/retries describe the original generation, never current
+device success or a newer intent. Separate owner/Admin waiting-cleanup cancel
+is serialized with promotion, idempotent and keeps RUNNING ADD/retirement intact.
+Unknown replies are not success; no refresh/work signal, new job or device call.
+No schema/gate/initialization or live policy migration. Combined removal remains
+unconditional 503; creation/re-enable/resume/controller unavailable. See
+[Managed Controls](manual/managed-controls.md). Synthetic validation and the
+default-off lab deployment result are recorded below/in the development log.
+
+All 465 Python tests and 19 Chromium scenarios (20 reported tests) pass;
+compileall/Ruff/JS syntax/diff and 221 relative links pass. Transport review
+caught/corrected multipart versus URL-encoded cancellation before release;
+the browser now asserts Content-Type/CSRF. Packaged Python 3.12 isolated BFF/API
+retirement/cancel/combined-refusal smoke passes with no live mounts or network.
+
+Deployed only API/Web (`87a3a20c9abb` / `8142c72f110b`), retaining paired images
+`before-managed-controls-20261017t1523z` and checked 0600 volume/ignored host
+backup `.local/backups/state-before-managed-controls-20261017T152446Z.sqlite3`.
+Schema and ten stable tables match backup exactly, integrity/FK pass, no managed
+tables or lab control submission. Queue remains eight VERIFIED/one NOOP, no
+pending/active shuns. ADD/worker off, zero eligible profiles, actual config/
+inventory/secrets unchanged. Agent/Caddy/Authelia unchanged; anonymous new Web
+paths 401 and TLS-verified HTTPS 302. Persisted cooldown was respected, then
+ordinary v2 cycle completed 15:27:31Z with two reads/zero mutations in 8493 ms,
+next baseline 15:32:31Z/no error. No live managed-write acceptance or new fixture.
+
+**Composite recovery safety and default-off cleanup worker (2026-10-17).**
+Implemented a checked-backup offline CLI that atomically cancels old queued
+work/delegations/waits, preserves running uncertainty and suspends desired
+restoration plus ordinary mutation admission/claims. The additive executor
+pause survives restart; monitoring stays available. Reviewed ordinary resume
+never resurrects work or enables desired restoration. Web status warnings are
+visible without moving content. Optional cleanup promotion now shares the
+existing lease/cooldown, runs once before the cycle cutoff (at most 16 waits)
+and requires fresh device observations before ordinary removal. The independent
+worker flag defaults off; no optional schema initialization or admission route.
+Unexpected advancement errors skip cycle mutations, not monitoring. All ADD/
+restoration gates remain off, frozen confirmation still always rejects 503.
+See [Offline Recovery](manual/recovery.md) and
+[Managed Removal Handoffs](manual/managed-removal-handoffs.md).
+
+Synthetic validation covers private verified/no-overwrite backups, concurrent
+commit refusal, atomic audit rollback, old-schema migration, pause/restart,
+ordinary resume, protected discovery suppression and shared-worker behavior.
+All 440 Python tests and 18 Chromium scenarios (19 reported tests) pass,
+including closed-menu recovery/worker warnings and stable desktop/mobile layout.
+Compileall, Ruff, JS syntax, relative links and diff checks pass. Packaged Python
+3.12 CLI/API/template smoke passed with disposable SQLite in a networkless/
+read-only container; Rust/wire unchanged.
+
+Deployed only API/Web (`c301d62eeb9f` / `466f4e540846`) under standing lab
+authorization. Retained paired images `before-recovery-20261017t1505z` and
+checked 0600 volume/ignored host backup
+`.local/backups/state-before-recovery-20261017T150139Z.sqlite3`. The only schema
+change is default-zero mutation pause metadata; no recovery command, managed
+schema seed, policy/job admission, gate or actual environment/inventory change.
+All ten stable tables match backup; integrity/FK checks pass, queue eight
+VERIFIED/one NOOP with zero pending/active shuns. All ADD gates and cleanup worker
+remain off, zero eligible profiles, no managed tables. Ordinary v2 cycle at
+15:02:33Z used two reads/zero mutations in 8601 ms; next baseline 15:07:33Z and
+no errors. Anonymous Web paths remain 401; TLS-verified HTTPS redirects 302.
+Agent/Caddy/Authelia unchanged. This is not a live restore or managed write test.
+
 **Preparatory managed-removal review and read-only cleanup visibility (2026-10-17).**
 Operators/Administrators can select one retained managed target and prepare an
 immutable session/cookie-bound review. Confirmation is unconditionally 503:
@@ -698,10 +806,13 @@ The foundation increment was checked with:
 The separately approved one-fixture service lifecycle is complete. Frozen BFF
 confirmation and the eligible-ADD reason fix are implemented with gates off.
 The new restoration requirement now takes precedence for development. The
-isolated registry/authorization/revision/retention foundation and read-only
-visibility are implemented; next implement explicit managed confirmation/controls,
-restore-suspension tooling and atomic retirement/removal handoff, followed by
-default-off shared-worker integration. Do not enable reconciliation by deriving
+isolated registry/authorization/revision/retention foundation, preparatory
+visibility/reviews, offline atomic retirement/removal handoff, composite
+recovery controls and default-off shared-worker integration are implemented.
+Policy-only retirement/wait cancellation are now implemented; next complete
+combined executable cleanup confirmation, fleet scope and protection/system
+hooks, followed by bounded default-off desired reconciliation
+with uncertainty/rearm and anti-churn controls. Do not enable it by deriving
 policy from historical imports or by renewing old user jobs. Resolve controller
 anti-churn defaults and any expansion beyond initial registry bounds before live
 migration. Follow the

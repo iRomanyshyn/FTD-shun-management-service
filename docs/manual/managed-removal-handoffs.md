@@ -3,9 +3,12 @@
 ## Current boundary
 
 Implemented on 2026-10-17 as an internal coordinator in `managed_removals.py`,
-**not connected to admission HTTP/Web forms or the scheduler**. Optional GET
+**not connected to admission HTTP/Web forms**. A separately gated shared-worker
+hook is now implemented, default off. Optional GET
 visibility and [preparatory Web reviews](managed-removal-review.md) are now
-implemented; confirmation cannot execute or call this coordinator. Normal API/Store/queue
+implemented; combined confirmation cannot execute or call this coordinator.
+Separate owner/Administrator waiting-cancel controls are available without
+admitting device work; see [Managed Controls](managed-controls.md). Normal API/Store/queue
 startup does not initialize it. Do not initialize or call it against the lab/
 production database for testing. No live mutation is authorized; ADD/restoration
 gates remain off. The initial contract handles **one reviewed device/IPv4 pair**
@@ -48,7 +51,20 @@ needs attention.
 ## Ordered settlement
 
 `advance(owner, limit=16)` requires the current valid executor lease and processes
-at most 16 eligible handoffs. It is explicit: **the scheduler does not call it**.
+at most 16 eligible handoffs. The shared scheduler calls `advance_if_present()`
+once per cycle only with `FTD_SHUN_MANAGED_REMOVAL_WORKER_ENABLED=true` (default
+false; deployed Settings require socket mode). This does not enable admission,
+ADD or desired restoration and never initializes optional tables. Waiting work
+participates in the persisted 60-second cooldown; the current lease is required.
+Advancement occurs after lease recovery but before capturing the cycle cutoff,
+then each device supplies a fresh initial snapshot before ordinary removal.
+It never runs mid-cycle against an old pre-ADD in-memory snapshot. Work admitted
+after the cutoff, or an ADD settling during the cycle, waits for the next one.
+Already ADMITTED jobs belong to the ordinary queue, not this promotion gate.
+Unexpected advancement errors block mutations for the entire cycle, retain
+monitoring/final snapshots and publish a sanitized status/log warning; they do
+not create an independent writer or turn errors into empty policy. Global
+recovery suspension blocks promotion, admission and mutation claims.
 It opens no SSH/RPC and never sends device commands itself.
 
 | Condition | Result |
@@ -86,16 +102,17 @@ uncertain settlement, lease recovery, deadlines/cancellation, shared limits,
 namespaces, generations, pruning, immutable authority and SQLite backup. This
 is not live Cisco, session, load or production evidence.
 
-**No live migration, deployment or restart was performed.** Before runtime use,
-complete executable confirmation/cancellation, shared-worker wake/advance/
-expiry, all-device scope union, protection/system cancellation and reviewed
-recovery tools. Take a checked SQLite-safe backup and retain paired images
+Before runtime use, complete executable combined confirmation,
+all-device scope union, protection/system cancellation and reviewed fixture
+validation. Shared-worker wake/advance/expiry is tested with synthetic state;
+it is not enabled in the lab and no handoffs are seeded there. Take a checked SQLite-safe backup and retain paired images
 before an approved schema rollout. Do not drop authority/tombstones to revert.
 
 Retention preserves a predecessor while cleanup waits; handoff authority is
 not ordinary expiring history. Backup recovery must suspend waiting cleanup,
 queued jobs and desired restoration before starting any worker, followed by
-fresh observations and review. Current tools do not implement that composite
-recovery procedure: it blocks live rollout. Older images ignore reservations;
+fresh observations and review. [Offline Recovery](recovery.md) now implements
+checked composite suspension and ordinary resume, never desired restoration
+resume. Older images ignore both the durable pause and reservations;
 never run them against pending handoffs. Reverting code or restoring a backup
 does not authorize replay. This coordinator does not enable restoration.

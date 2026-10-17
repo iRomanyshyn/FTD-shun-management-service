@@ -11,6 +11,8 @@ from uuid import uuid4
 
 from .agent_protocol import AdditionResult, _valid_interface
 from .import_intent import canonical_import
+from .managed_safety import require_ordinary_removal
+from .safety import mutations_suspended
 from .store import Store
 
 ACTIVE = ("QUEUED", "RUNNING")
@@ -87,6 +89,9 @@ class OperationQueue:
             """)
             db.execute("BEGIN IMMEDIATE")
             columns = {row["name"] for row in db.execute("PRAGMA table_info(operation_jobs)")}
+            executor_columns = {row["name"] for row in db.execute("PRAGMA table_info(operation_executor)")}
+            if "mutations_suspended" not in executor_columns:
+                db.execute("ALTER TABLE operation_executor ADD COLUMN mutations_suspended INTEGER NOT NULL DEFAULT 0 CHECK(mutations_suspended IN (0,1))")
             if "action" not in columns:
                 db.execute("ALTER TABLE operation_jobs ADD COLUMN action TEXT NOT NULL DEFAULT 'REMOVE' CHECK(action IN ('REMOVE','ADD'))")
             if "dispatch_kind" not in columns:
@@ -106,6 +111,10 @@ class OperationQueue:
     @staticmethod
     def _bump(db) -> None:
         db.execute("UPDATE operation_executor SET revision=revision+1 WHERE id=1")
+
+    def mutations_suspended(self) -> bool:
+        with self.store._connection() as db:
+            return mutations_suspended(db)
 
     @staticmethod
     def _handoffs_present(db) -> bool:
@@ -228,6 +237,8 @@ class OperationQueue:
             ):
                 raise QueueConflict("idempotency key was already used for another request")
             return {"operation_id": request_id, "status": "accepted", "replayed": True}, []
+        if mutations_suspended(db):
+            raise QueueConflict("Device mutations are suspended for recovery; no new work was admitted.")
         if self._handoffs_present(db):
             handoff = db.execute("SELECT * FROM managed_removal_handoffs WHERE id=?", (request_id,)).fetchone()
             if handoff is not None and (
@@ -236,6 +247,10 @@ class OperationQueue:
                 or targets != [(handoff["device_id"], IPv4Address(handoff["ip"]))]
             ):
                 raise QueueConflict("Managed-removal key is reserved for its exact cleanup handoff.")
+        if source == "manual":
+            # Combined admission retires policy under this very write lock
+            # before it delegates removal. A scope label is not a bypass.
+            require_ordinary_removal(db, targets, fleet=scope == "all")
         if action == "ADD":
             if db.execute("SELECT revision FROM protected_policy WHERE id=1").fetchone()[0] != policy_revision:
                 raise QueueConflict("Protected IPs changed; review the import again.")
@@ -308,6 +323,8 @@ class OperationQueue:
 
     def has_pending(self, device_id: int | None = None, *, addition_device_ids: frozenset[int] = frozenset()) -> bool:
         with self.store._connection() as db:
+            if mutations_suspended(db):
+                return False
             if not addition_device_ids:
                 return db.execute("""SELECT 1 FROM operation_jobs WHERE state='QUEUED'
                     AND action='REMOVE' AND (? IS NULL OR device_id=?) LIMIT 1""", (device_id, device_id)).fetchone() is not None
@@ -433,6 +450,8 @@ class OperationQueue:
     def _claim_mutation(self, device_id: int, owner: str, cutoff: int, action: str | None) -> dict | None:
         with self.store._connection() as db:
             db.execute("BEGIN IMMEDIATE")
+            if mutations_suspended(db):
+                return None  # Keep ordinary read cycles available while paused.
             self._cancel_obsolete_policy(db)
             # Long cycles can outlast a request. Expire unstarted requesters
             # before each claim, not just at sweep start: an expired coalesced
@@ -652,7 +671,7 @@ class OperationQueue:
         with self.store._connection() as db:
             # Counts and independently selected groups must describe one snapshot.
             db.execute("BEGIN")
-            executor = db.execute("SELECT revision,next_eligible_at FROM operation_executor WHERE id=1").fetchone()
+            executor = db.execute("SELECT revision,next_eligible_at,mutations_suspended FROM operation_executor WHERE id=1").fetchone()
             counts = {row["state"]: row["n"] for row in db.execute(
                 "SELECT state,COUNT(*) AS n FROM operation_jobs GROUP BY state"
             )}
@@ -714,6 +733,7 @@ class OperationQueue:
                 request_progress.append({**view, "total": total, "processed": processed,
                                          "counts": outcomes})
         return {"revision": executor["revision"], "next_eligible_at": executor["next_eligible_at"],
+                "mutations_suspended": bool(executor["mutations_suspended"]),
                 "counts": counts, "items": jobs,
                 "display_limits": {"active": 100, "attention": 20, "completed": 20},
                 "add_execution_enabled": bool(addition_device_ids),

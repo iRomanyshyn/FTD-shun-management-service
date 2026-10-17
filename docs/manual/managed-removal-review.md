@@ -3,6 +3,8 @@
 ## Current scope
 
 The Managed shuns page exposes retained policy and optional cleanup state.
+Separate [revocation controls](managed-controls.md) now support policy-only
+retirement and waiting cancellation; they cannot execute this combined review.
 Operator/Administrator users can prepare a **single-target** stop-maintenance-
 and-remove review. **Execution is unavailable:** preparation is not retirement,
 queue admission or a device operation. There is no environment switch to enable
@@ -69,8 +71,11 @@ Actor/diagnostic text is escaped; inventory routes, pins, raw payloads and
 credentials are not exposed. Existing queue revisions drive local updates
 without refresh hints or device queries.
 
-The view explicitly reports that scheduler integration is unavailable. Display
-does not advance/cancel handoffs. See [the coordinator contract](managed-removal-handoffs.md).
+The view reports the cleanup-worker flag (default off), separately from
+unconditionally unavailable combined-removal admission. GET display never
+advances/cancels handoffs. The separate owner/Administrator waiting-cancel POST
+is documented in [Managed Controls](managed-controls.md).
+See [the coordinator contract](managed-removal-handoffs.md).
 
 ## Validation and rollout
 
@@ -90,7 +95,8 @@ handoff tables, disabled ADD, unchanged state/queue/policy aggregates, ordinary
 healthy reads, anonymous 401 and a TLS-verified Authelia redirect. Revert paired
 images without restoring old state if necessary; do not drop authority tables.
 
-Before any execution release, complete shared-worker wake/advance/expiry,
-visible cancellation, reviewed all-device scope, protection/system cancellation,
-target uncertainty handling and composite restore suspension. The preparatory
+Before any execution release, complete visible cancellation, reviewed all-device
+scope, protection/system cancellation and target uncertainty handling. The
+default-off shared-worker hook and [composite recovery controls](recovery.md)
+have synthetic coverage, not live acceptance. The preparatory
 POSTs and GET resource do not waive those gates or authorize a live mutation.

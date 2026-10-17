@@ -2683,6 +2683,307 @@ No live identity headers were fabricated. Reload tabs once; actual authenticated
 visuals, executable confirmation/recovery/worker integration and any further
 device experiment require their remaining gates, not inference from this rollout.
 
+## 2026-10-17 — Composite recovery pause and gated shared cleanup worker
+
+**Change:** Added `ftd-shun-maintenance` offline suspend/resume-mutations with
+explicit offline/review assertions, trusted-host maintenance attribution,
+private exclusive checked SQLite backup and concurrent-commit refusal.
+Transactionally cancel queued jobs/delegations/waits, preserve RUNNING as
+UNVERIFIED, suspend optional desired restoration, clear lease and persist a
+60-second ordinary-mutation pause with per-item/aggregate audit. Resume clears
+only ordinary suspension; no work resurrection or desired restoration rearm.
+Queue migration adds a default-zero executor column without resetting it on
+restart. Block new admissions/claims and managed MAINTAIN/cleanup while paused,
+but retain snapshots, read leases, policy-only retirement and old-key reads.
+Replace insufficient queue-only restore SQL with a structured recovery manual;
+older images ignore the new pause and must not run paused/restored work.
+
+Added independent strict default-off cleanup-worker flag (deployed socket mode
+only), no optional schema initialization. Existing waits wake the shared
+cooldown/lease worker. Advance once, at most 16 eligible waits before cutoff,
+then fresh initial observations and ordinary bounded queue execution. Never
+advance against a mid-cycle pre-ADD snapshot. Original delegation/deadline and
+uncertainty remain intact; unexpected advancement errors skip mutations for
+that cycle while retaining monitoring/final snapshots. Expose sanitized worker
+status plus persistent recovery warnings; no Web/private admission POST and
+preparatory confirmation remains unconditional 503. ADD/restoration not enabled.
+
+**Validation:** Temporary SQLite/fake-agent tests cover migration, compound
+suspension/resume/replay, current policy pause, backup permissions/no overwrite,
+concurrent commit, audit rollback, no automatic schema initialization, continued
+monitoring without trusted admission, strict flag and single leased/cutoff
+worker promotion with fresh snapshots and preserved ADD uncertainty. Chromium
+passes all 18 scenarios (19 reported tests), including visible pause/worker
+warnings and stable search coordinates at desktop/mobile widths. The obsolete
+manual-SQL regression was updated to exercise the documented checked CLI rather
+than retain unsafe queue-only instructions. Final Python/static result follows.
+Restricted async runs stalled and were interrupted; full tests run with local
+socket/thread permissions. Rust and binary agent protocol unchanged.
+
+**Rollout plan:** Current authorized lab preflight has no pending work or
+managed/handoff tables, eight VERIFIED/one NOOP, zero active shuns, disabled ADD,
+zero eligible profiles, normal monitoring and clean integrity/FK checks.
+Preserve paired API/Web images and a checked SQLite-safe backup; validate the
+packaged CLI in a networkless/read-only synthetic container. Stop/recreate only
+API/Web; startup adds default-zero pause metadata and may execute existing
+ordinary queue/policy work. Do not run recovery against lab data, seed policy/
+handoffs, change actual gates/environment/inventory or submit any new fixture.
+Verify state preservation, optional-schema absence, default-off worker/gates,
+ordinary reads, anonymous 401 and TLS-verified authentication redirect. Record
+deployment result below; desired restoration/executable controls, protection/
+fleet/system hooks and live validation remain future work.
+
+**Final validation and deployment:** All **440 Python tests** pass in 12.98 s;
+compileall, Ruff, JS syntax, relative documentation links and diff checks pass.
+The actual packaged Python 3.12 maintenance console entrypoint successfully
+performed checked backup/suspend/ordinary-resume on disposable SQLite inside a
+networkless, read-only container. Private synthetic API reported the durable
+pause/default-off worker and absent optional tables; production template showed
+the recovery warning, resume retained cancelled jobs and integrity/FK checks
+passed. No live mounts, identity or credentials were used in that smoke.
+
+Preserved paired pre-upgrade images as `before-recovery-20261017t1505z`.
+SQLite backup API created
+`/var/lib/ftd-shun-manager/state-before-recovery-20261017T150139Z.sqlite3` and
+ignored host `.local/backups/state-before-recovery-20261017T150139Z.sqlite3`;
+file 0600/directory 0700, integrity and FK checks pass. Built API
+`sha256:f226e98fb43c4ffb9127d9a751243f2fa8077411c09b1c193125542450f1185f`
+and Web `sha256:190e80fff9a3458861c2a28dc16a66400e89c451f7bea8a736944bae0bb3c2bc`.
+Build resolved the existing unlocked dependency ranges; smoke is not dependency
+pinning or a production compatibility claim. Quiet merged Compose validation
+passed. Stopped the sole API/Web pair cleanly, then recreated only them with
+--no-deps; new IDs `c301d62eeb9f` / `466f4e540846`. Agent `9d1f50d361ca`,
+Caddy `9c8fdb3a7f21`, Authelia `76f3635ab737` are unchanged.
+
+API startup added only `mutations_suspended=0`. All ten other stable tables
+match backup exactly, optional managed/handoff tables remain absent, integrity
+ok/FK errors zero, queue eight VERIFIED/one NOOP/no pending, zero active shuns.
+Worker/ADD admission/API execution/agent execution off and zero eligible device
+profiles; no actual environment, inventory or secret changed. No lab recovery
+command, new policy/job, refresh hint, independent device call or test mutation.
+Healthy ordinary v2 cycle completed 15:02:33Z with two commands/zero removal,
+addition or mutation steps in 8601 ms; next baseline 15:07:33Z/no error. Actual
+anonymous Web managed/status/review/confirm paths are 401 and TLS-verified HTTPS
+returns 302 to authentication; packaged entrypoint/warning assets present.
+Reload tabs once for new assets. Do not enable cleanup or seed a live fixture:
+executable cancellation/confirmation, protection/system/fleet integration and
+separately scoped live acceptance remain pending. For this currently unpaused,
+empty/no-managed lab only, paired rollback remains possible after rechecking
+those conditions and stopping the sole executor; older images cannot honor a
+future active pause or waiting reservations. No automatic rollback was needed.
+
+## 2026-10-17 — Managed revocation controls without device-write admission
+
+**Change:** Added a separate frozen, current-role/CSRF/session-bound policy-only
+RETIRE review and strict private API. One exact pair/revision/reason/key/digest;
+no generic action/mode/list/create/re-enable/resume. Move unchanged canonical
+policy hashing into the pure intent module, retaining registry import alias so
+Web imports no storage/coordinator. Preparation is observational. Confirmation
+atomically uses existing registry ledger/CAS/audit, including during recovery
+pause or on missing/protected/disabled devices. Existing one-time jobs/running
+ADD/separate cleanup and current shun are not cancelled/removed. Show this before
+confirmation. Same-key replay cannot retire a new generation. Validate exact
+receipt/revision; unknown/lost/malformed replies preserve the frozen retry key
+and typed IP, no auto-submit/rebase. A valid receipt survives optional status
+failure and is explicitly not proof of latest policy/device state.
+
+Added owner/Administrator waiting-cleanup cancellation over private API/BFF,
+strict current identity/CSRF/body, collapsed explicit explanation and the shared
+single-submission AJAX controller. Serialize WAITING_ADD cancellation with
+promotion: admitted work conflicts, not silently cancelled; already cancelled
+is audit-free no-op. Keep real cancelling attribution, original ADD/retirement
+and no authority renewal. Validate cancellation receipt; unknown reply is not
+success. Native form redirects, AJAX updates without navigation or device hints.
+Combined removal review remains unconditional 503. No optional-schema startup,
+controller/admission/ADD enablement, new live fixture, credentials/topology,
+database schema or agent-wire change.
+
+**Validation:** Synthetic SQLite/ASGI cases cover immutable reviews and role/
+CSRF/scope/reason/session/cross-purpose/cache bounds, revision conflict between
+users, same-key replay after new generation, optional-schema refusal, policy
+retirement during pause, untouched one-time work/observations, audit rollback,
+unknown replies/exact-revision receipt and original-key retry. Waiting tests
+cover owner/Admin, promotion race, audit rollback, repeat/uncertain responses
+and untouched RUNNING ADD. Existing GET-only/no-admission tests were narrowed
+to explicitly allow only the two new revocation routes, not generic writes.
+Real Chromium passes 19 scenarios (20 reported tests): frozen retirement token/
+typed IP/focus through metadata updates and desktop/mobile layout, plus one
+AJAX waiting-cancel submission with no navigation/refresh/device execution.
+Initial synthetic ADD fixtures used the pre-migration protected revision and
+now read the actual revision; no runtime restriction was relaxed. Final Python/
+static/package/deployment results follow. Rust unchanged.
+
+**Lab rollout plan:** Under standing lab permission preserve paired API/Web
+images and checked SQLite-safe backup, validate packaged Python 3.12 with
+temporary synthetic data in a networkless/read-only container, stop/recreate
+only the sole API/Web pair. API startup may execute already admitted ordinary
+queue/policy work. No managed/handoff seed or actual control submission in lab;
+keep all actual gates/profiles/env/inventory/secrets unchanged. Verify absent
+optional schemas, disabled gates, stable-table comparison/integrity, ordinary
+reads, anonymous rejection and TLS-verified redirect. No live managed acceptance
+is implied. Fleet/protection/system integration, combined admission and bounded
+desired reconciliation/rearm/anti-churn remain required before device writes.
+
+**Final validation:** All 465 Python tests pass (16.28 s), compileall/Ruff/JS
+syntax/diff checks pass and 221 relative documentation links resolve. Production
+transport review caught that the generic action controller used multipart while
+the new bounded cancel endpoint intentionally requires URL-encoded forms. Only
+that action now encodes URLSearchParams; the Chromium fixture asserts actual
+Content-Type/CSRF and all 19 scenarios (20 reported tests) pass again. Synthetic
+ASGI explicitly rejects multipart before cancellation. No deployed regression
+occurred: this was corrected and images rebuilt before replacement.
+
+Packaged Python 3.12 smoke passed in a networkless/read-only container using
+temporary SQLite/synthetic identity only: actual BFF prepares/confirms policy
+retirement, URL-encoded JSON/AJAX cancellation returns a validated receipt,
+original ADD stays RUNNING, retirement stays effective and combined confirmation
+still returns 503. Integrity/FK checks pass and no work hint is signalled. No lab
+mounts, inventory, secrets or device writes. Build resolved existing unlocked
+dependency ranges; no dependency pinning/production acceptance claim.
+
+**Deployment preparation:** Quiet merged Compose validation and read-only lab
+preflight pass: eight VERIFIED/one NOOP, no pending or active shuns/managed tables,
+ordinary reads healthy, mutation pause false, ADD and cleanup worker off/zero
+eligible profiles. Preserved previous paired images as
+`before-managed-controls-20261017t1523z`. SQLite backup API created exclusive
+`/var/lib/ftd-shun-manager/state-before-managed-controls-20261017T152446Z.sqlite3`
+and ignored host `.local/backups/state-before-managed-controls-20261017T152446Z.sqlite3`;
+file 0600/directory 0700, integrity/FK checks pass. Built API
+`sha256:bd52e4950d8ffc2a5ec710f7431d5bcfb5bc1bdc066002f90deb3bbdfde93b06`
+and Web `sha256:8fcdca04f6785422ce31fe691ce40d40242b01e9f356a0adead38388ee6d1de1`.
+Only the sole API/Web pair is replaced, no overlapping executor. Post-deploy
+checks/results follow; no schema/gate or lab policy/job changes are planned.
+
+**Deployment result:** Cleanly stopped/recreated only API/Web with --no-deps;
+new IDs `87a3a20c9abb` / `8142c72f110b`. Agent `9d1f50d361ca`, Caddy
+`9c8fdb3a7f21`, Authelia `76f3635ab737` unchanged. Full sqlite_master definitions
+and ten stable tables compare exactly with backup (executor lease/cooldown
+metadata is expected to change on ordinary cycles). Integrity ok/FK zero,
+eight VERIFIED/one NOOP, no pending or active shuns. Repeated optional GETs
+leave managed/handoff schemas absent. Mutation pause false, ADD admission/API
+and agent execution/cleanup worker off, zero eligible profiles. Actual env,
+inventory, secrets and policy/jobs unchanged; no live control action, seed,
+device test mutation, independent agent call or forced refresh. Initial status
+had no new-process success yet and preserved the existing 15:27:23Z cooldown;
+waited normally rather than bypassing it. Ordinary v2 cycle then completed
+15:27:31Z, two commands/zero removal/addition/mutation steps, 8493 ms, next
+baseline 15:32:31Z/no error. Actual anonymous managed/status/new retirement/
+cancel/combined-confirm Web paths reject 401; TLS-verified HTTPS returns 302
+to authentication. New template and corrected JS encoding are packaged.
+
+Reload tabs once. The current lab has no managed targets, so retirement forms
+remain absent rather than demonstrating them through unauthorized seed data.
+Paired rollback images/checked backup retained; do not restore old authority
+just to revert UI. This is a default-off delivery of revocation-only controls,
+not a managed-policy migration, live restoration/cleanup acceptance or approval
+for new FTD writes. Remaining combined admission/fleet/protection/system and
+controller/rearm/anti-churn work is tracked in the development plan.
+
+## 2026-10-17 — Protected/managed lifecycle and ordinary-removal admission barrier
+
+**Change:** Added bounded, non-initializing optional managed structural safety
+reads shared by Protected-IP context, cheap managed status and ordinary-removal
+admission. Publish enabled-intent counts independently of observed shuns,
+including missing/disabled-device targets. Unknown/partial/malformed state is
+not zero: show unavailable/unknown context and reject weakening/manual removal
+while allowing monitoring/protection strengthening.
+
+Protected-IP weakening now checks the current global managed revision and
+explicit matching-intent acknowledgement under the policy write lock, sharing
+atomic queued-ADD cancellation/audit. Existing no-intent clients stay compatible;
+actual all-role authenticated permissions are unchanged. Record checked revision/
+count/ack in policy audit, without changing desired authority, work deadlines or
+submitting any work. Dirty forms preserve both reviewed revisions/checkbox
+values; fresh reload resets acknowledgement. A stale acknowledgement cannot
+silently widen scope on background updates.
+
+Added transactional ordinary manual-removal guard: exact device scope and full
+matching fleet maintained scope, including missing devices not enumerated from
+observations. API checks before empty-scope handling; queue rechecks after
+original-key/reserved-namespace checks before insertion. Scope names cannot
+waive retirement. MAINTAIN rejects queued/running removal, serializing the
+opposite-order race. Protected-policy removal stays independent/higher priority.
+Offline combined coordinator still retires policy before queue admission under
+the same transaction; combined Web confirmation remains 503. No system policy
+source/generation/claim hook/controller is added or claimed complete.
+
+**Validation:** All **488 Python tests** pass (16.63 s); compileall, Ruff, JS
+syntax and diff checks pass. Synthetic tests cover scope counts, explicit/stale/
+missing/strict API acknowledgement, role-preserving BFF, weak/strong/no-op
+transitions, partial/corrupt optional state, healthy monitoring, running/waiting
+cleanup preservation, audit rollback including unsent ADD cancellation, exact/
+fleet/missing-target guards and concurrent MAINTAIN/removal. Legacy namespace
+regression retains its original guard precedence; the old grant-after-queued-
+remove fixture now explicitly cancels that removal first. Snapshot assertions
+distinguish unchanged desired authority from changing observed protection.
+Chromium passes **20 scenarios (21 reported tests)**, including stale dirty
+managed revision/ack retention, fresh-form reset, required delete acknowledgement
+and mobile warning layout. Fixtures only; no lab data or FTD writes. Rust/wire
+unchanged. Updated structured manuals, normative amendment, status and plan.
+
+**Rollout plan:** Use standing lab authority for API/Web only. Preserve paired
+rollback images and a checked SQLite-safe backup, validate packaged Python 3.12
+against temporary synthetic data in a networkless/read-only container, then
+stop/recreate the sole pair. No schema/environment/agent change or managed seed;
+all actual ADD/cleanup-worker gates and device profiles remain disabled. API
+startup can execute already admitted ordinary/policy work, but no new job/control
+submission, independent device command or forced hint will be used for validation.
+Verify unchanged stable state/schema, absent optional managed tables, zero
+pending work, disabled gates, private anonymous rejection/TLS redirect and an
+ordinary cooldown-respecting read cycle. Package/deployment results follow.
+
+**Package/pre-deployment:** Packaged Python 3.12 smoke passes inside a
+networkless/read-only container, disposable SQLite/synthetic identities only.
+Verify absent managed schema stays absent on initial reads, then explicitly
+create a synthetic fixture: two-intent warning renders, missing acknowledgement
+returns 409, real multipart BFF save forwards strict reviewed fields and actual
+Viewer identity, managed intent stays enabled, missing-fleet ordinary removal
+returns 409, malformed optional columns publish unavailability while monitoring
+stays healthy, no work signal/jobs, integrity/FK pass. No live mounts/secrets,
+SSH or agent socket. Build resolved existing unlocked dependency ranges, not a
+production compatibility/dependency-locking claim.
+
+Read-only lab preflight: eight VERIFIED/one NOOP, no pending or active shuns,
+no managed tables, mutation pause false, ADD/API admission/execution and cleanup
+worker off, zero eligible profiles; ordinary reads healthy/integrity pass.
+Quiet merged Compose validation passed. Saved paired preceding images as
+`before-managed-protection-20261017t1555z`. Exclusive SQLite-safe backup:
+`/var/lib/ftd-shun-manager/state-before-managed-protection-20261017T155504Z.sqlite3`
+and ignored host `.local/backups/state-before-managed-protection-20261017T155504Z.sqlite3`,
+0600/private 0700 directory, integrity/FK checks pass. Built API
+`sha256:18d9b5508d9a026d5c645f5b2d49e193b0c752e96d0a531df1c1d65d1a52664c`
+and Web `sha256:bbaa34ba7f36aff39b0532e7877f0ba4e813df5051674e3d86a53338fc3db9d9`.
+Only the sole API/Web pair is replaced, leaving all actual configuration,
+inventory, secrets, schema and other services unchanged. Post-deploy checks
+follow; no live weakening/removal/managed seed or refresh hint is submitted.
+
+**Deployment result:** Stopped the sole API/Web pair and recreated only them
+with --no-deps, no overlapping executor. New IDs `17eed6be119d` / `026c40c1517b`.
+Agent `9d1f50d361ca`, Caddy `9c8fdb3a7f21` and Authelia `76f3635ab737` stayed
+unchanged. Full sqlite_master definitions and ten stable state/policy/queue/
+authority/event tables match backup (ordinary executor lease/cooldown metadata
+excluded), integrity ok/FK errors zero. Three Protected IP entries expose
+available managed revision 0/count 0; repeated optional reads create no managed/
+handoff tables. Eight VERIFIED/one NOOP, no pending or active shuns, mutation
+pause false, actual ADD admission/API execution/agent execution/cleanup worker
+off and zero eligible device profiles. No actual environment/inventory/secret,
+schema, policy/job or authority change; no live acknowledgement, weakening,
+removal, managed seed, new test fixture, direct agent read or refresh hint.
+
+Normal post-start v2 cycle completed 15:57:55Z, two commands/zero removal,
+addition or mutation steps, 8649 ms, next baseline 16:02:55Z/no error. Actual
+anonymous Protected/Managed/status and managed POST paths reject 401;
+TLS-verified HTTPS returns 302 to authentication. New warning/ack template and
+dual-revision retention JS are packaged. All 224 relative documentation links
+resolve; final Ruff/diff checks pass. Reload tabs once for current assets.
+Paired rollback images/checked backup retained; no database restore or authority
+reset is needed merely to revert code. Managed tables remain absent in this lab,
+so no enabled-intent warning/ack is manufactured for demonstration. Combined
+confirmation/fleet execution, system-generation/claim/protection hooks and
+restoration uncertainty/rearm/anti-churn still require their next implementation
+and separately scoped live evidence. Do not interpret this rollout as enabling
+those paths or approving new FTD mutations.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

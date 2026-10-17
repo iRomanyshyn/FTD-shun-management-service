@@ -2,7 +2,7 @@
 {% block content %}
 <h1>Review stop maintenance and remove</h1>
 {% if refresh %}{% include "refresh-panel.html" %}{% endif %}
-<p class="policy-warning"><strong>Preparatory review only — execution is unavailable.</strong> No policy change or device operation has been submitted. Worker integration and recovery safeguards are not complete.</p>
+<p class="policy-warning"><strong>Preparatory review only — execution is unavailable.</strong> No policy change or device operation has been submitted. Executable cleanup admission and protection/fleet integration remain incomplete. Use the separate policy-only review to stop maintaining without removal.</p>
 {% if message %}<p class="preview-error" role="alert">{{ message }}</p>{% endif %}
 <p>This action would stop maintenance for <strong>one exact device/IP target</strong>, including when it is not currently observed, and request removal through the existing queue. It would not affect other devices. A running ADD would finish before separately authorized cleanup; expiry or failure would not turn maintenance back on.</p>
 <dl class="import-review-metadata">

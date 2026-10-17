@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Review stop maintaining — policy only</h1>
+{% if refresh %}{% include "refresh-panel.html" %}{% endif %}
+<p class="policy-warning"><strong>No device command.</strong> This retires maintenance for one exact managed device/IP. It does not remove an existing shun or cancel already submitted one-time jobs, a running ADD or separate cleanup. Manage those independently in Queue / Managed removal handoffs.</p>
+{% if message %}<p class="preview-error" role="alert">{{ message }}</p>{% endif %}
+<dl class="import-review-metadata">
+<dt>Device</dt><dd>{{ review.hostname }} ({{ review.device_id }}) · {{ 'Enabled' if review.device_enabled else 'Disabled — retirement is still allowed' }}</dd>
+<dt>IPv4 address</dt><dd>{{ review.ip }}</dd>
+<dt>Managed intent / generation</dt><dd><code>{{ review.intent_id }}</code> / {{ review.generation }}</dd>
+<dt>Managed revision</dt><dd>{{ review.managed_revision }} — checked atomically on a new request</dd>
+<dt>Retained local observation</dt><dd>{{ 'Observed present' if review.observed_present else 'Not currently observed' }}; not a fresh Cisco query</dd>
+<dt>Protected IP</dt><dd>{{ 'Enabled protection takes priority' if review.protected else 'Not protected by an enabled entry' }}; protection changes do not prevent retirement</dd>
+<dt>Reason</dt><dd>{{ review.reason or 'Not supplied' }}</dd>
+<dt>Review expires</dt><dd><time class="local-timestamp" datetime="{{ review.expires_at }}">{{ review.expires_at }}</time></dd>
+<dt>Policy request / retry key</dt><dd><code>{{ review.request_id }}</code></dd>
+</dl>
+{% if result %}
+<section aria-label="Policy retirement receipt">
+<h2>Recorded policy-only result</h2>
+<p>{{ result.changed_targets }} target retired by the original request. Saved registry revision {{ result.managed_revision }}. {{ 'Original-key replay; no new change was applied.' if result.replayed else 'No device command or queue request was submitted.' }}</p>
+<p>This receipt describes the original request and reviewed generation, not current policy after any later changes. Open Managed shuns to inspect current state. Old-key retries never retire a newer generation.</p>
+</section>
+{% else %}
+<form method="post" action="/managed-shuns/retirement-confirm" class="import-confirm-form">
+<input type="hidden" name="csrf" value="{{ csrf_token }}">
+<input type="hidden" name="review" value="{{ review.token }}">
+<label for="confirm-retirement-ip">Type {{ review.ip }} to stop maintaining this target only</label>
+<input id="confirm-retirement-ip" name="confirm_ip" value="{{ confirm_ip }}" autocomplete="off" inputmode="decimal" required>
+<button type="submit">Stop maintaining — do not remove shun</button>
+</form>
+{% endif %}
+<p class="preview-help">This frozen review is bound to your subject and CSRF cookie, expires within ten minutes and is lost on Web restart. It cannot authorize creation, re-enable, removal or resumption of restoration.</p>
+<a href="/managed-shuns">Back to Managed shuns</a>
+{% if refresh %}<script src="/static/freshness.js" defer></script>{% endif %}
+{% endblock %}

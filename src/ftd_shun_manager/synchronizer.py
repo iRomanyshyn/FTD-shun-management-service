@@ -14,6 +14,8 @@ from uuid import uuid4
 from .agent_client import AgentClient, AgentUnavailable
 from .agent_protocol import MAX_CYCLE_REMOVALS as MAX_CYCLE_MUTATIONS
 from .agent_protocol import AdditionResult
+from .managed_removals import ManagedRemovals
+from .managed_shuns import ManagedShuns
 from .operation_queue import QueueConflict, QueueFull
 from .protected_policy import ProtectedPolicy
 from .store import Store
@@ -44,6 +46,7 @@ class Synchronizer:
         session_cycles_enabled: bool = False,
         import_execution_enabled: bool = False,
         addition_device_ids: frozenset[int] = frozenset(),
+        managed_removal_worker_enabled: bool = False,
     ) -> None:
         if import_execution_enabled and not session_cycles_enabled:
             raise ValueError("import execution requires session cycles")
@@ -62,6 +65,10 @@ class Synchronizer:
         self._priority_pending = False
         self._priority_used = False
         self.queue = self.policy.queue
+        self.managed_removal_worker_enabled = managed_removal_worker_enabled
+        self.managed_removals = ManagedRemovals(ManagedShuns(store), self.queue,
+                                               worker_enabled=managed_removal_worker_enabled)
+        self._managed_removal_error: str | None = None
         self._lease_seconds = operation_timeout_seconds + interactive_min_interval_seconds + 30
         self._cycle_cutoff: int | None = None
         self.instance_id = str(uuid4())
@@ -177,6 +184,8 @@ class Synchronizer:
             "devices": devices,
             "queue": self.queue.status(addition_device_ids=self.addition_device_ids),
             "import_execution_enabled": self.import_execution_enabled,
+            "managed_removal_worker_enabled": self.managed_removal_worker_enabled,
+            "managed_removal_worker_error": self._managed_removal_error,
             "addition_device_count": len(self.addition_device_ids),
             "session_cycles_enabled": self.session_cycles_enabled,
             "device_cycle": deepcopy(self._device_cycle),
@@ -282,13 +291,23 @@ class Synchronizer:
         self._refresh_in_progress = True
         self._cycle_id += 1
         self._cycle_started_at = _timestamp()
-        self._cycle_cutoff = self.queue.cutoff()
         self._cycle_outcome = "running"
         self._next_baseline_refresh = None
         self._next_interactive_refresh = None
         self._set_interactive_state("running")
         self._status_revision += 1
         try:
+            self._managed_removal_error = None
+            if self.managed_removal_worker_enabled:
+                try:
+                    # Exactly once before the cutoff; never materialize removal
+                    # against an in-memory pre-ADD snapshot later in this cycle.
+                    self.managed_removals.advance_if_present(self.instance_id)
+                except (sqlite3.Error, ValueError):
+                    self._managed_removal_error = "Managed cleanup handoff failed; mutations skipped for this cycle."
+                    print(json.dumps({"event": "managed_shun.cleanup.worker_failed",
+                                      "reason": self._managed_removal_error}), flush=True)
+            self._cycle_cutoff = self.queue.cutoff()
             await self._collect()
         finally:
             self._active_device_id = None
@@ -314,7 +333,15 @@ class Synchronizer:
         return await asyncio.to_thread(function, *args)
 
     def _has_pending(self, device_id: int | None = None) -> bool:
-        return self.queue.has_pending(device_id, addition_device_ids=self.addition_device_ids)
+        if self.queue.has_pending(device_id, addition_device_ids=self.addition_device_ids):
+            return True
+        if self.managed_removal_worker_enabled and device_id is None:
+            try:
+                return self.managed_removals.has_waiting()
+            except (sqlite3.Error, ValueError):
+                # A normal baseline cycle will surface the error; never spin.
+                return False
+        return False
 
     async def _collect(self) -> None:
         await self._prune_expired_history_if_due()
@@ -423,12 +450,14 @@ class Synchronizer:
         self.note_state_change()
 
     def _admit_trusted(self, device_id: int, ips) -> None:
+        if self._managed_removal_error or self.queue.mutations_suspended():
+            return
         for ip in ips:
             if not self.queue.has_target(device_id, ip):
                 try:
                     self.queue.enqueue(str(uuid4()), [(device_id, ip)], "system:trusted-ip-policy",
                                        "Trusted IP policy", (), source="trusted_policy")
-                except QueueFull:
+                except (QueueFull, QueueConflict):
                     break
 
     async def _session_mutations(self, device_id: int, cycle, snapshot) -> str | None:
@@ -436,7 +465,7 @@ class Synchronizer:
             allowed = self.policy.enabled_ips()
             self._admit_trusted(device_id, sorted({entry.ip for entry in snapshot
                                if entry.ip in allowed}, key=int))
-            for _ in range(MAX_CYCLE_MUTATIONS):
+            for _ in range(0 if self._managed_removal_error else MAX_CYCLE_MUTATIONS):
                 if self._priority_pending and not self._priority_used:
                     self._priority_pending = False
                     last = self._device_success_at.get(device_id)
@@ -503,7 +532,7 @@ class Synchronizer:
             self._publish_snapshot(device_id, snapshot)
             self._priority_pending = False
             self._device_cycle.update(action="completed", priority_state="satisfied")
-            return None
+            return self._managed_removal_error
         except (AgentUnavailable, OSError, ValueError, sqlite3.Error) as error:
             self._device_cycle["action"] = "failed"
             print(json.dumps({"event": "queue.cycle.failed", "device_id": device_id,
@@ -534,6 +563,8 @@ class Synchronizer:
         return True
 
     async def _queued_removal(self, device_id: int, snapshot, trusted_ips) -> str | None:
+        if self._managed_removal_error:
+            return self._managed_removal_error
         try:
             # Policy discovery may join this cycle; user mutations admitted
             # after its cutoff wait for the next cycle.

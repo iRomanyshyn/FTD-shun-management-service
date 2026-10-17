@@ -44,7 +44,9 @@ are optional plain text and escaped in HTML; they never become Cisco commands.
    and queues verified automatic removal within existing cycle limits.
 4. Disabling/deleting atomically cancels unstarted policy intentions. A shared
    manual request survives; already RUNNING operations cannot be interrupted.
-   Disabling protection does not add a shun back to the device.
+   Disabling protection does not itself add a shun back to the device. Retained
+   managed maintenance may become eligible when its future controller is enabled;
+   review the acknowledgement described below.
 
 Edits carry the global saved policy revision. Another user's change
 causes `409 Conflict`, not last-writer-wins overwrite. Dynamic updates preserve
@@ -53,6 +55,47 @@ Use **reload saved values** to discard drafts, review the latest policy and
 resubmit. An interrupted save is not automatically retried: check the current
 list first. Successful saves refresh the list and other tabs observe the
 durable policy revision without triggering a Cisco query.
+
+### Managed maintenance acknowledgement
+
+Each card now reports the number of **enabled managed intents** for that address,
+including missing observations and disabled devices, excluding stopped intents.
+These are desired-policy counts, not current shuns or proof of restoration.
+Enabled protection blocks future managed restoration without deleting intent.
+Disabling/deleting protection is not a substitute for **Stop maintaining**.
+
+If an enabled managed intent exists, disabling currently enabled protection or
+deleting the entry requires an explicit **I understand** acknowledgement and
+the reviewed global managed revision. Deleting an already-disabled entry also
+requires this acknowledgement. The private API and SQLite transaction enforce
+it; changing the DOM, omitting the fields or calling the API directly cannot
+bypass the check. Existing clients remain compatible when no matching enabled
+intent exists. Adding a disabled entry, renaming an already-disabled entry or
+enabling/keeping protection on does not weaken protection and needs no resume
+acknowledgement. All authenticated users retain policy-edit permission, with
+their real roles in audit; there is no promotion to Administrator.
+
+Dirty edit/delete forms retain **both** original saved revisions and the user's
+checkbox values. Another user's managed change cannot silently rebase an old
+acknowledgement onto a newer target set. The server returns 409; use **reload
+saved values**, inspect current counts and acknowledge again. Fresh forms start
+unchecked. Revocation of all matching intents can remove the need for an ack,
+but a supplied stale revision still conflicts rather than silently rebasing.
+
+Absent optional managed tables mean no registered intents and never initialize
+them. Partial/malformed/unsupported optional state is **unknown**, not zero:
+show a warning/unknown count and refuse disabling/deleting with 503 until
+reviewed. Enabling protection and ordinary monitoring remain available. Status
+publishes managed unavailability so revision-driven pages can update safely.
+
+The acknowledgement does not enable ADD, resume restoration, adopt old imports,
+extend authority or admit work. The controller remains unavailable and all lab
+ADD/cleanup-worker gates stay off. A successful weakening audit records managed
+revision/count/acknowledgement alongside the ordinary before/after policy.
+Policy mutation, cancellation of queued ADD and its audit remain atomic. Already
+RUNNING ADD and waiting/admitted cleanup retain their state/authorization;
+protection changes must not erase pending cleanup. This is synthetic validation,
+not live managed-policy acceptance.
 
 ## Audit
 

@@ -80,7 +80,9 @@ def test_application_does_not_initialize_or_expose_handoff_writes(tmp_path, monk
                              device_inventory_path=None, agent_mode="disabled"), store)
     with store._connection() as db:
         assert not db.execute("SELECT 1 FROM sqlite_master WHERE name='managed_removal_handoffs'").fetchone()
-    assert all(route.methods == {"GET"} for route in app.routes if "handoff" in route.path)
+    # Cancellation is revocation only; no handoff admission route exists.
+    assert all(route.methods == {"GET"} or route.path.endswith("/{request_id}/cancel")
+               for route in app.routes if "handoff" in route.path)
 
 
 def test_no_running_add_retires_and_queues_atomically_without_claiming_success(handoffs):

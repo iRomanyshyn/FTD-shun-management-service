@@ -59,8 +59,11 @@ class Settings:
     large_snapshots_enabled: bool = False
     import_admission_enabled: bool = False
     import_execution_enabled: bool = False
+    managed_removal_worker_enabled: bool = False
 
     def __post_init__(self) -> None:
+        if self.managed_removal_worker_enabled and self.agent_mode != "socket":
+            raise ValueError("managed removal worker requires socket agent mode")
         if self.import_execution_enabled and (
             self.agent_mode != "socket" or not self.agent_cycles_enabled or not self.large_snapshots_enabled
         ):
@@ -83,6 +86,9 @@ class Settings:
         import_execution = environ.get("FTD_SHUN_IMPORT_EXECUTION_ENABLED", "false")
         if import_execution not in {"true", "false"}:
             raise ValueError("FTD_SHUN_IMPORT_EXECUTION_ENABLED must be true or false")
+        managed_worker = environ.get("FTD_SHUN_MANAGED_REMOVAL_WORKER_ENABLED", "false")
+        if managed_worker not in {"true", "false"}:
+            raise ValueError("FTD_SHUN_MANAGED_REMOVAL_WORKER_ENABLED must be true or false")
         agent_timeout_seconds = int(environ.get("FTD_SHUN_AGENT_TIMEOUT_SECONDS", "45"))
         if not 5 <= agent_timeout_seconds <= 120:
             raise ValueError("FTD_SHUN_AGENT_TIMEOUT_SECONDS must be between 5 and 120")
@@ -120,4 +126,5 @@ class Settings:
             large_snapshots_enabled=large_snapshots == "true",
             import_admission_enabled=import_admission == "true",
             import_execution_enabled=import_execution == "true",
+            managed_removal_worker_enabled=managed_worker == "true",
         )

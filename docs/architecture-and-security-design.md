@@ -3013,3 +3013,146 @@ or upstream flag enables it. No managed admission HTTP route exists. UI/GET
 deployment does not authorize policy migration, seed data, work or restoration;
 shared-worker, cancellation/protection/fleet and composite recovery gates still
 precede any managed write. See [Managed Removal Review](manual/managed-removal-review.md).
+
+### Composite offline recovery and gated cleanup worker — 2026-10-17
+
+This amendment supersedes prior statements that composite recovery and shared
+waiting-cleanup advancement are unimplemented; it does not enable managed Web
+admission or desired restoration.
+
+Queue schema adds durable `operation_executor.mutations_suspended` (default 0).
+Offline maintenance requires stopped API/Web and no old executable RPC, a
+checked SQLite-API backup in a private operator-owned directory, integrity/FK
+checks, no overwritten backup and no concurrent commit during backup. Capture
+an explicit trusted-host `maintenance:` actor, never fabricated Web identity.
+Atomically cancel QUEUED jobs/delegations and WAITING/transitional handoffs,
+preserve RUNNING writes as UNVERIFIED, suspend optional desired restoration,
+clear the lease, impose 60 seconds and append per-item/aggregate audit.
+Retain desired targets/tombstones/authority, not old work for automatic replay.
+
+While paused, new manual/import/trusted admissions, managed MAINTAIN/composite
+cleanup and all mutation claims are blocked. Old-key replay is observational;
+policy-only RETIRE remains possible. Monitoring leases/complete snapshots
+continue, with a persistent visible Web warning. Resume requires offline/fresh
+review assertions, no pending jobs/waits and restoration still suspended; it
+clears only ordinary mutation suspension, never resurrecting jobs or desired
+restoration. New protected-policy removals may be admitted after ordinary
+resume. Older executors ignore this flag and optional reservations: never
+downgrade/start them against paused/restored/pending state. See
+[Offline Recovery](manual/recovery.md) for the operating contract.
+
+`FTD_SHUN_MANAGED_REMOVAL_WORKER_ENABLED=false` independently gates promotion of
+existing reviewed handoffs, not their admission or ADD/restoration. Deployed
+Settings require socket mode. With the flag enabled, existing waits wake the
+same persisted-cooldown executor. After acquiring/recovering its lease, advance
+at most 16 eligible waits once, before freezing the cycle cutoff. Then require
+fresh device snapshots and use ordinary FIFO/capacity/expiry/verified-removal
+paths. Never promote mid-cycle after ADD using an earlier snapshot. A write
+settling during that cycle is eligible for a later one; original deadlines are
+not extended. Optional tables are never initialized by startup or worker reads.
+Global pause blocks promotion; unexpected handoff/database errors skip all
+mutations for that cycle but retain monitoring/final snapshots and surface a
+sanitized status/log warning. Already ADMITTED jobs remain ordinary queue work.
+
+The flag stays off in the lab, with no managed schema seed or fixture. Synthetic
+SQLite/fake-agent/Chromium validation is not live managed acceptance. Executable
+confirmation/cancellation, fleet scope, protection/system hooks, uncertainty
+latches, anti-churn and separately authorized restoration evidence still gate
+the controller and any live managed writes. Rust/agent wire protocol unchanged.
+
+### Managed revocation controls without device admission — 2026-10-17
+
+This amendment permits two local revocation controls before combined removal/
+creation/controller release. It supersedes the earlier no-policy-POST/no-cancel
+UI boundary only for these exact operations; ADD/restoration and combined
+RETIRE_AND_REMOVE admission remain unavailable/default-off.
+
+Operator/Administrator may prepare a separate frozen **Stop maintaining — policy
+only** review for one enabled retained intent, including missing/protected or
+disabled-device targets. Freeze pair, intent/generation, managed revision, reason,
+UUID/digest and local metadata. Bind the cache to subject/CSRF-cookie, at most
+ten minutes/the sensitive-action age, five per subject/256 globally per action
+cache. Status polls cannot reclassify/replace its token, typed IP or focus.
+Preparation is observational. Confirmation rechecks current identity/role/CSRF,
+cache and exact typed IP; BFF sends only frozen fields/current trusted actor.
+
+Private `POST /api/v1/managed-shuns/retire` fixes action RETIRE, one exact pair,
+Protected-IP canonical revision 0 and an explicit UUID key. No mode/action/list
+or creation/re-enable/resume capability is exposed. Share the existing atomic
+registry revision/ledger/audit checks and replay-before-CAS behavior. Same-key
+replay cannot retire another generation. Do not initialize optional schemas.
+Policy-only retirement works while ordinary mutations are recovery-paused.
+It neither removes a current shun nor cancels separately admitted one-time jobs,
+running ADD or cleanup; show this before confirmation. Future system restoration
+must atomically honour revocation/cancel unstarted system links before release.
+No refresh/work signal or new queue/agent operation is generated.
+
+Validate the exact policy receipt/key/revision and distinguish it from current
+policy or verified device removal. Unknown/malformed responses retain the same
+frozen retry key; no auto-submit/retry/rebase. Optional status failure cannot
+negate an already validated receipt. Cross-purpose tokens cannot authorize this
+operation or turn it into combined removal.
+
+Private waiting-cancel POST and authenticated CSRF-protected BFF may invoke
+`cancel_waiting()` for current owner Operator/Administrator or an Administrator.
+Serialize with promotion: only WAITING_ADD changes to CANCELLED; already
+CANCELLED is an audit-free no-op, other phases conflict, never silently cancel
+an admitted queue job. Preserve retirement and original ADD/authority/outcome.
+Audit/log the real cancelling actor after commit. Strict fields, exact root ID,
+bounded form and receipt validation remain mandatory. A collapsed explicit
+confirmation explains that ADD may finish and a shun may remain. Browser
+cancellation uses the existing single-submission/metadata controller without
+navigation or refresh hint; no-JS uses an ordinary redirect. GET snapshots
+remain observational; their `read_only` flag is not a claim that separate
+revocation routes do not exist. See [Managed Controls](manual/managed-controls.md).
+
+These controls do not authorize live registry seeding, enable the cleanup worker,
+change actual ADD gates/profiles, adopt history or consume another fixture.
+Combined confirmation remains unconditional 503. Protection/system/fleet hooks,
+uncertainty/rearm/anti-churn and separately approved live evidence still gate
+device-write integration. No topology, credentials, schema or agent-wire change.
+
+### Protected/managed lifecycle and ordinary-removal barrier — 2026-10-17
+
+Protected policy reads may publish global managed revision/availability and per-IP
+enabled-intent counts, including missing observations/disabled devices, excluding
+retired targets. Read only optional existing tables; never initialize/adopt.
+Malformed/partial/unsupported state is unavailable, not zero; expose unknown
+counts, keep monitoring/strengthening protection available and refuse weakening.
+Cheap managed status uses the same structural safety validation; canonical
+authorizations still require their separate full registry validation.
+
+When disabling enabled protection or deleting an entry with enabled managed
+intents, require an explicit acknowledgement and reviewed managed revision under
+the same SQLite write lock as policy mutation, queued-ADD cancellation and audit.
+A supplied stale managed revision conflicts even if no enabled intents remain.
+No matching intent permits old clients without the new fields. Keep real current
+authenticated actor/roles and existing all-user Protected-IP permissions. Audit
+the checked revision/count/acknowledgement; do not retire desired intent, renew
+authority, admit work or enable any controller through this acknowledgement.
+
+Warnings must distinguish desired counts from observed shuns and state that
+maintenance may resume only when its future controller is enabled. Dirty forms
+retain both protected and managed CAS revisions with the acknowledgement, never
+silently upgrading its scope during polling. Fresh/reloaded forms reset the ack.
+Unknown-state forms cannot bypass the server check. Existing RUNNING ADD and
+waiting/admitted cleanup remain intact through protection changes; already
+implemented cancellation of unsent protected ADD stays atomic with policy audit.
+
+Ordinary manual removal cannot bypass enabled desired policy: device scope
+checks the exact pair, fleet scope includes matching maintained-but-missing
+devices not present in the observed list. Recheck within queue admission's write
+transaction after original-key/namespace checks, before request/job insertion.
+The API also checks before empty observed-scope rejection. A caller-supplied
+scope name does not waive retirement; offline combined coordination retires
+under that transaction before removal admission. MAINTAIN rejects queued/running
+removal, so concurrent opposite-order grant/admission cannot both commit.
+Old-key replay remains observational and does not retire or requeue. Protected
+automatic removal is exempt: it implements the higher-priority policy without
+erasing desired intent. Absent optional schema preserves one-time behavior;
+unknown managed state fails ordinary admission closed with a controlled error.
+
+These are lifecycle/admission barriers, not a system restoration queue source,
+generation/claim hook, uncertainty latch, executable fleet confirmation or live
+acceptance. Combined confirmation remains 503, ADD/cleanup worker stay off in
+the lab, and managed tables are not seeded. No schema/protocol/isolation change.

@@ -32,6 +32,7 @@ from .import_preview import (
     summarize_preview,
 )
 from .import_review import ImportReviews, ReviewUnavailable
+from .managed_retirement_review import ManagedRetirementReviews
 from .managed_review import ManagedRemovalReviews
 
 PROJECT_ROOT = Path(os.environ.get("FTD_SHUN_ASSET_ROOT", Path(__file__).resolve().parents[2]))
@@ -151,6 +152,8 @@ def refresh_metadata(refresh: object) -> dict[str, object]:
         "queue",
         "session_cycles_enabled",
         "import_execution_enabled",
+        "managed_removal_worker_enabled",
+        "managed_removal_worker_error",
         "addition_device_count",
         "device_cycle",
         "priority_refresh_available",
@@ -176,6 +179,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(title="FTD Shun Manager", docs_url=None, redoc_url=None, openapi_url=None)
     reviews = ImportReviews(settings.sensitive_action_max_age_seconds)
     managed_reviews = ManagedRemovalReviews(settings.sensitive_action_max_age_seconds)
+    retirement_reviews = ManagedRetirementReviews(settings.sensitive_action_max_age_seconds)
     app.mount("/static", StaticFiles(directory=str(PROJECT_ROOT / "static")), name="static")
 
     @app.middleware("http")
@@ -449,7 +453,124 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     def require_managed_operator(identity):
         if not {"Operator", "Administrator"}.intersection(identity.roles):
-            raise HTTPException(403, "Operator role required for managed removal review.")
+            raise HTTPException(403, "Operator role required for managed controls.")
+
+    def retirement_view(request, identity, review, refresh=None, *, result=None, message=None,
+                        confirm_ip="", status_code=200):
+        return render(request, "managed-retirement-review.html", {
+            "identity": identity, "review": review, "refresh": refresh, "result": result,
+            "message": message, "confirm_ip": confirm_ip, "active_page": "managed",
+            "auto_request": False, "frozen_view": True,
+        }, status_code)
+
+    @app.post("/managed-shuns/retirement-review", response_class=HTMLResponse)
+    async def prepare_retirement(request: Request) -> HTMLResponse:
+        identity = identity_from_request(request, settings.development_auth)
+        require_managed_operator(identity)
+        fields = await preview_form(request, allowed={"csrf", "target", "reason"}, max_bytes=16384)
+        require_csrf(request, fields.get("csrf", [""])[0])
+        try:
+            raw_device, raw_ip = fields.get("target", [""])[0].split(":")
+            device_id, ip = int(raw_device), IPv4Address(raw_ip)
+            if raw_device != str(device_id):
+                raise ValueError("Non-canonical device ID")
+        except ValueError as error:
+            raise HTTPException(422, "Choose an exact managed device and IPv4 address.") from error
+        return await run_in_threadpool(prepare_retirement_review, request, identity, device_id, ip,
+                                       fields.get("reason", [""])[0])
+
+    def prepare_retirement_review(request, identity, device_id, ip, reason):
+        try:
+            with api_client(settings) as client:
+                policy = client.get("/api/v1/managed-shuns")
+                refresh = client.get("/api/v1/status")
+            if policy.status_code != 200 or refresh.status_code != 200:
+                raise httpx.RequestError("Policy state unavailable")
+            review = retirement_reviews.prepare(identity.subject, request.cookies.get("ftd_shun_csrf", ""),
+                                                policy.json(), device_id, ip, reason)
+            state = refresh.json()
+            if not isinstance(state, dict):
+                raise TypeError("Invalid status")
+        except ReviewUnavailable as error:
+            raise HTTPException(409, str(error)) from error
+        except (ValueError, KeyError, TypeError, AttributeError) as error:
+            raise HTTPException(422, "Invalid retirement review data; no change was submitted.") from error
+        except httpx.HTTPError as error:
+            raise HTTPException(503, "Retirement review is unavailable; no change was submitted.") from error
+        return retirement_view(request, identity, review, state)
+
+    @app.post("/managed-shuns/retirement-confirm", response_class=HTMLResponse)
+    async def confirm_retirement(request: Request) -> HTMLResponse:
+        identity = identity_from_request(request, settings.development_auth)
+        require_managed_operator(identity)
+        fields = await preview_form(request, allowed={"csrf", "review", "confirm_ip"}, max_bytes=4096)
+        require_csrf(request, fields.get("csrf", [""])[0])
+        try:
+            review = retirement_reviews.get(fields.get("review", [""])[0], identity.subject,
+                                             request.cookies.get("ftd_shun_csrf", ""))
+        except ReviewUnavailable as error:
+            raise HTTPException(409, str(error)) from error
+        if fields.get("confirm_ip", [""])[0] != str(review.ip):
+            raise HTTPException(422, "Type the exact IPv4 address shown in the retirement review.")
+        return await run_in_threadpool(save_retirement, request, identity, review)
+
+    def save_retirement(request, identity, review):
+        result, message, status_code, state = None, None, 200, None
+        try:
+            with api_client(settings) as client:
+                response = client.post("/api/v1/managed-shuns/retire", headers={"Idempotency-Key": review.request_id},
+                                       json={"actor": identity.__dict__, "device_id": review.device_id,
+                                             "ip": str(review.ip), "managed_revision": review.managed_revision,
+                                             "confirmation_digest": review.digest, "reason": review.reason})
+                value = response.json()
+                if response.status_code != 200:
+                    detail = value.get("detail") if isinstance(value, dict) else None
+                    message = detail if isinstance(detail, str) else "Policy retirement was rejected; inspect current state."
+                    status_code = response.status_code
+                else:
+                    if (not isinstance(value, dict) or value.get("status") != "policy_saved"
+                            or value.get("operation_id") != review.request_id
+                            or type(value.get("changed_targets")) is not int or value["changed_targets"] not in (0, 1)
+                            or type(value.get("managed_revision")) is not int
+                            or value["managed_revision"] != review.managed_revision + 1
+                            or type(value.get("replayed")) is not bool):
+                        raise ValueError("Invalid policy receipt")
+                    result = value
+        except (httpx.HTTPError, ValueError, TypeError):
+            message = "Retirement outcome is unknown. Retry this same review/key; do not prepare a new request merely to retry."
+            status_code = 503
+        # Optional status failure does not negate a validated durable receipt.
+        try:
+            with api_client(settings) as client:
+                response = client.get("/api/v1/status")
+                if response.status_code == 200 and isinstance(response.json(), dict):
+                    state = response.json()
+        except (httpx.HTTPError, ValueError, TypeError):
+            pass
+        return retirement_view(request, identity, review, state, result=result, message=message,
+                               confirm_ip=str(review.ip), status_code=status_code)
+
+    @app.post("/managed-shuns/handoffs/{request_id}/cancel")
+    async def cancel_waiting_cleanup(request: Request, request_id: UUID) -> Response:
+        identity = identity_from_request(request, settings.development_auth)
+        require_managed_operator(identity)
+        fields = await preview_form(request, allowed={"csrf"}, max_bytes=4096)
+        require_csrf(request, fields.get("csrf", [""])[0])
+        return await run_in_threadpool(cancel_waiting_cleanup_request, request, request_id, identity)
+
+    def cancel_waiting_cleanup_request(request, request_id, identity):
+        try:
+            with api_client(settings) as client:
+                response = client.post(f"/api/v1/managed-removal-handoffs/{request_id}/cancel", json=identity.__dict__)
+            if response.status_code == 200:
+                value = response.json()
+                if (not isinstance(value, dict) or value.get("status") != "cancelled"
+                        or value.get("request_id") != str(request_id) or type(value.get("changed")) is not bool
+                        or value.get("maintenance_reenabled") is not False or value.get("add_cancelled") is not False):
+                    raise ValueError("Invalid cleanup cancellation receipt")
+        except (httpx.HTTPError, ValueError, TypeError) as error:
+            raise HTTPException(503, "Cleanup cancellation was not confirmed; inspect the handoff state before retrying.") from error
+        return queued_result(request, response, "/managed-shuns")
 
     def managed_review_view(request, identity, review, refresh, *, message=None, status_code=200):
         return render(request, "managed-remove-review.html", {
@@ -536,16 +657,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                       ip: Annotated[IPv4Address, Form()], revision: Annotated[int, Form(ge=0)],
                       csrf: str = Form(...), name: str = Form("", max_length=100),
                       comment: str = Form("", max_length=500), enabled: str = Form("false"),
-                      confirm_ip: str = Form("")) -> Response:
+                      confirm_ip: str = Form(""), managed_revision: int | None = Form(None, ge=0),
+                      confirm_maintenance_resume: str = Form("false")) -> Response:
         require_csrf(request, csrf)
         identity = identity_from_request(request, settings.development_auth)
-        if enabled not in {"true", "false"}:
-            raise HTTPException(422, "invalid enabled state")
+        if enabled not in {"true", "false"} or confirm_maintenance_resume not in {"true", "false"}:
+            raise HTTPException(422, "invalid enabled state or maintenance acknowledgement")
         try:
             with api_client(settings) as client:
                 response = client.post(f"/api/v1/protected-ips/{ip}/{action}", json={
                     "actor": identity.__dict__, "revision": revision, "name": name,
                     "comment": comment, "enabled": enabled == "true", "confirm_ip": confirm_ip,
+                    "managed_revision": managed_revision,
+                    "confirm_maintenance_resume": confirm_maintenance_resume == "true",
                 })
         except httpx.HTTPError as error:
             raise HTTPException(503, "Policy save was not confirmed. Check the current list before retrying.") from error

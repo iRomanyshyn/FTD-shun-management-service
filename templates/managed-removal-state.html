@@ -5,7 +5,7 @@
 {% elif not handoffs.initialized %}
 <p>No handoff registry has been initialized. Opening this page does not create one.</p>
 {% else %}
-<p class="preview-help">Read-only integration view. The scheduler does not advance waiting cleanups yet. Admission is not verified removal.</p>
+<p class="preview-help">Admission is not verified removal. {% if handoffs.scheduler_integration_available %}Waiting cleanups are checked at the start of eligible shared cycles under their original authorization deadline.{% else %}The cleanup worker is disabled; waiting cleanups do not advance.{% endif %} Cancelling a wait never cancels its running ADD or re-enables maintenance.</p>
 <p>{% for state, count in handoffs.counts.items() %}{{ state }}: {{ count }}{% if not loop.last %} · {% endif %}{% else %}No recorded cleanup requests.{% endfor %}</p>
 {% set outcomes = {'QUEUED': 'Queued for removal', 'RUNNING': 'Removal running', 'VERIFIED': 'Verified removal', 'NOOP': 'No removal needed', 'FAILED': 'Removal failed', 'UNVERIFIED': 'Outcome unknown — needs attention', 'CANCELLED': 'Removal cancelled', 'RECONCILED_ABSENT': 'Absence observed — removal was not verified'} %}
 {% set phases = {'WAITING_ADD': 'Waiting for ADD to finish', 'ATTENTION': 'Needs attention', 'EXPIRED': 'Authorization expired', 'CANCELLED': 'Cleanup cancelled'} %}
@@ -17,6 +17,14 @@
 <span class="state-badge cleanup-state" data-cleanup-state="{{ 'attention' if attention else 'waiting' if item.state == 'WAITING_ADD' else 'verified' if item.queue_state == 'VERIFIED' else 'active' if active else 'settled' }}">{{ phases.get(item.state, outcomes.get(item.queue_state, 'Admitted — queue history unavailable')) }}</span></p>
 {% if item.reason %}<p class="policy-comment">{{ item.reason }}</p>{% endif %}
 <p class="preview-help">Request <code>{{ item.id }}</code> · {{ item.actor_display_name }} ({{ item.actor_subject }}) · Requested <time class="local-timestamp" datetime="{{ item.requested_at }}">{{ item.requested_at }}</time> · Original authorization deadline <time class="local-timestamp" datetime="{{ item.expires_at }}">{{ item.expires_at }}</time>. Maintenance remains stopped.</p>
+{% if item.state == 'WAITING_ADD' and ('Operator' in identity.roles or 'Administrator' in identity.roles) and (item.actor_subject == identity.subject or 'Administrator' in identity.roles) %}
+<details><summary>Cancel this waiting cleanup</summary>
+<p>Only the waiting removal is cancelled. The ADD may still finish, a shun may remain, and maintenance stays stopped. This cannot cancel a cleanup already handed to Queue.</p>
+<form method="post" action="/managed-shuns/handoffs/{{ item.id }}/cancel" data-managed-cancel-form>
+<input type="hidden" name="csrf" value="{{ csrf_token }}">
+<button type="submit">Cancel waiting cleanup only</button>
+</form></details>
+{% endif %}
 {% if not active and not attention %}</details>{% else %}</div>{% endif %}
 {% endfor %}
 {% if handoffs['items'] %}<p class="preview-help">Showing at most {{ handoffs.display_limit }} records, active/attention first; counts include all retained handoffs. Hidden completed records are not deleted or replayed.</p>{% endif %}

@@ -19,7 +19,7 @@ from .agent_client import (
 from .config import Settings
 from .import_preview import MAX_DEVICES, MAX_ROWS, classify_targets
 from .inventory import load_devices
-from .managed_removals import ManagedRemovals
+from .managed_safety import ManagedStateUnavailable, require_ordinary_removal
 from .managed_shuns import ManagedCapacity, ManagedConflict, ManagedShuns
 from .operation_queue import QueueConflict, QueueFull
 from .store import HistoryWindowExpired, Shun, Store
@@ -39,6 +39,22 @@ class PolicyChange(BaseModel):
     comment: str = Field(default="", max_length=500)
     enabled: StrictBool = True
     confirm_ip: str = ""
+    managed_revision: int | None = Field(default=None, strict=True, ge=0)
+    confirm_maintenance_resume: StrictBool = False
+
+
+class ManagedControlActor(Actor):
+    model_config = ConfigDict(extra="forbid")
+
+
+class ManagedRetirementRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    actor: ManagedControlActor
+    device_id: int = Field(strict=True, ge=1, le=65535)
+    ip: IPv4Address
+    managed_revision: int = Field(strict=True, ge=0)
+    confirmation_digest: str = Field(pattern=r"^[0-9a-f]{64}$")
+    reason: str = Field(default="", max_length=500)
 
 
 class ImportPreviewRequest(BaseModel):
@@ -118,9 +134,10 @@ def create_app(
         session_cycles_enabled=settings.agent_cycles_enabled,
         import_execution_enabled=settings.import_execution_enabled,
         addition_device_ids=addition_device_ids,
+        managed_removal_worker_enabled=settings.managed_removal_worker_enabled,
     )
     policy = synchronizer.policy
-    managed_removals = ManagedRemovals(managed, synchronizer.queue)  # Optional reads only.
+    managed_removals = synchronizer.managed_removals  # Optional schema; no startup initialization.
     policy.migrate_legacy_environment()
 
     @asynccontextmanager
@@ -180,12 +197,47 @@ def create_app(
     def protected_ips() -> dict:
         return policy.snapshot()
 
+    @app.post("/api/v1/managed-shuns/retire")
+    def retire_managed_shun(change: ManagedRetirementRequest, request: Request) -> dict:
+        # Policy-only revocation: no generic action, queue delegation or SSH.
+        key = request.headers.get("Idempotency-Key", "")
+        try:
+            result = managed.change(key, "RETIRE", [(change.device_id, change.ip)], change.managed_revision,
+                                    0, change.confirmation_digest, change.actor.subject,
+                                    change.actor.display_name, tuple(change.actor.roles), reason=change.reason)
+        except PermissionError as error:
+            raise HTTPException(403, str(error)) from error
+        except (ManagedConflict, ManagedCapacity) as error:
+            raise HTTPException(409, str(error)) from error
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from error
+        except sqlite3.DatabaseError as error:
+            raise HTTPException(503, "Policy retirement was not confirmed. Retry the original review; do not create a new request.") from error
+        if not result["replayed"]:
+            synchronizer.note_state_change()  # Metadata only; never signal device work.
+        return result
+
     @app.get("/api/v1/managed-removal-handoffs")
     def managed_removal_handoffs() -> dict:
         try:
             return managed_removals.snapshot_if_present()
         except (sqlite3.DatabaseError, ManagedConflict, ManagedCapacity, ValueError, TypeError, KeyError) as error:
             raise HTTPException(503, "Managed cleanup state is unavailable; no operation was submitted.") from error
+
+    @app.post("/api/v1/managed-removal-handoffs/{request_id}/cancel")
+    def cancel_managed_handoff(request_id: UUID, actor: ManagedControlActor) -> dict:
+        try:
+            changed = managed_removals.cancel_waiting(str(request_id), actor.subject, actor.display_name, tuple(actor.roles))
+        except PermissionError as error:
+            raise HTTPException(403, str(error)) from error
+        except QueueConflict as error:
+            raise HTTPException(409, str(error)) from error
+        except sqlite3.DatabaseError as error:
+            raise HTTPException(503, "Cleanup cancellation was not confirmed; inspect current state before retrying.") from error
+        if changed:
+            synchronizer.note_state_change()
+        return {"status": "cancelled", "request_id": str(request_id), "changed": changed,
+                "maintenance_reenabled": False, "add_cancelled": False}
 
     @app.post("/api/v1/protected-ips/{ip}/{action}")
     async def change_protected_ip(ip: IPv4Address, action: Literal["add", "edit", "delete"],
@@ -199,7 +251,11 @@ def create_app(
         try:
             policy.change(action, ip, change.revision, change.actor.subject,
                           change.actor.display_name, tuple(change.actor.roles),
-                          change.name, change.comment, change.enabled)
+                          change.name, change.comment, change.enabled,
+                          managed_revision=change.managed_revision,
+                          confirm_maintenance_resume=change.confirm_maintenance_resume)
+        except ManagedStateUnavailable as error:
+            raise HTTPException(503, str(error)) from error
         except QueueConflict as error:
             raise HTTPException(409, str(error)) from error
         except ValueError as error:
@@ -283,6 +339,10 @@ def create_app(
             replay = synchronizer.queue.replay(key, actor.subject, scope, ip, device_id)
             if replay:
                 return replay
+            with store._connection() as db:
+                # Include missing maintained devices in fleet safety checks,
+                # even when the observed-only target list would be empty.
+                require_ordinary_removal(db, [(device_id or 0, ip)], fleet=device_id is None)
             targets = sorted({shun.device_id for shun in store.list_active_shuns(ip)}) if device_id is None else [device_id]
             if not targets:
                 raise HTTPException(409, "no current matching devices; refresh the displayed state")
@@ -291,6 +351,8 @@ def create_app(
                 actor.display_name, tuple(actor.roles),
                 ttl_seconds=min(900, settings.sensitive_action_max_age_seconds), scope=scope,
             )
+        except ManagedStateUnavailable as error:
+            raise HTTPException(503, str(error)) from error
         except QueueConflict as error:
             raise HTTPException(409, str(error)) from error
         except QueueFull as error:

@@ -72,11 +72,26 @@ Do not rewrite historical log entries except to correct an objective error; add 
   convert old imports/history into standing authority, renew expired user
   requests or replay uncertain ADD. The isolated registry foundation is now
   implemented; optional read-only API/UI visibility does not initialize or
-  authorize policy. The single-target removal handoff coordinator is offline-only;
+  authorize policy. Single-target removal admission remains offline-only;
   its optional waiting-cleanup schema is not initialized by startup. Read-only
-  visibility/preparatory Web reviews never invoke admission; confirmation is
-  unconditionally unavailable. The scheduler does not invoke it. Do not deploy/seed pending handoffs before visible
-  controls and composite backup-restore suspension are implemented. All live gates
+  visibility/preparatory combined-removal reviews never invoke admission;
+  combined-removal confirmation is unconditionally unavailable. Separate frozen
+  policy-only RETIRE and owner/Administrator waiting-cleanup cancellation are
+  supported local revocation controls; neither admits device work nor cancels
+  independent one-time jobs or a RUNNING ADD. No create/re-enable/resume route.
+  Protected-IP weakening checks matching intents and reviewed managed revision/
+  acknowledgement atomically; dirty forms retain that revision. Unknown optional
+  state is not zero. Ordinary manual removal is guarded against enabled policy,
+  including missing fleet targets, and MAINTAIN rejects pending/running removal.
+  Protected automatic removal remains independent; system restoration claim/
+  generation hooks are not implemented by these admission barriers.
+  Follow docs/manual/managed-controls.md. A default-off cleanup-worker hook may advance
+  existing waits under the shared lease before its cycle cutoff; it does not
+  enable admission, ADD or restoration and never initializes optional schemas.
+  Composite offline recovery now provides a durable mutation pause and ordinary
+  resume only. Older images ignore that pause; follow docs/manual/recovery.md.
+  Do not seed pending handoffs or enable the worker in the lab without scoped
+  approval and remaining executable controls/protection/fleet validation. All live gates
   remain off; UI/queue integration, reviewed migration and a separately approved
   live fixture are still required.
 - On 2026-10-16 the operator separately approved the one-address service

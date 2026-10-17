@@ -288,7 +288,7 @@ Useful event types include `SHUN_DETECTED`, `SHUN_REAPPEARED`, `SHUN_DISAPPEARED
 
 Back up the `state` volume consistently while the service is stopped or using a SQLite-safe backup method. Back up Authelia's `authelia-data` volume separately. Neither backup contains the FTD SSH password; that credential is provisioned through the agent secret only.
 
-Before starting API against a restored database, follow the [queue recovery procedure](operation-queue.md#backup-restore-and-rollback) to suspend old mutations. After startup, wait for a successful FTD snapshot before treating the UI state as current. Investigate any visible warning first.
+Before starting API against a restored database, follow [Offline Recovery](recovery.md): checked backup, composite suspension and durable mutation pause, then fresh read-only monitoring and review before ordinary resume. Cancelled work is never resurrected and desired restoration is not resumed. Older images ignore the pause; do not use them against paused/restored/pending state. After startup, wait for a successful FTD snapshot before treating the UI state as current. Investigate any visible warning first.
 
 ## Incident response
 

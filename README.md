@@ -7,7 +7,14 @@ The governing specification is the [Architecture and Security Design](docs/archi
 Next requirement: [managed manual-shun restoration](docs/manual/managed-shuns.md)
 after confirmed disappearance/reboot, while explicit service removal stops
 maintenance. Its registry foundation and read-only Managed shuns tab are
-implemented; explicit managed confirmation/controller integration is pending.
+implemented, including non-executable frozen reviews. Composite
+[offline recovery controls](docs/manual/recovery.md) and a default-off shared
+cleanup-worker hook are implemented. [Revocation controls](docs/manual/managed-controls.md)
+now support policy-only stop-maintaining and waiting-cleanup cancellation.
+Protected-IP weakening requires reviewed acknowledgement when managed intents
+exist; ordinary removal cannot silently bypass enabled maintenance.
+Combined device-removal admission, managed creation and desired restoration/
+controller integration remain pending.
 Current imports remain one-time and all ADD gates stay
 disabled in the lab. Old imports are not auto-adopted and no live migration
 initializes the new registry yet.

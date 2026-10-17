@@ -13,6 +13,27 @@ from .import_review import ReviewUnavailable
 from .managed_intent import canonical_managed_removal
 
 
+def select_managed_target(policy: dict, device_id: int, ip: IPv4Address, *, allow_disabled: bool = False) -> dict:
+    """Validate one retained target for a frozen review, without trusting flags."""
+    if policy.get("initialized") is not True:
+        raise ReviewUnavailable("Managed policy is not initialized; no review was prepared.")
+    entries = policy["entries"]
+    if not isinstance(entries, list) or len(entries) > 1000:
+        raise ValueError("Invalid managed target view.")
+    selected = [entry for entry in entries if entry["device_id"] == device_id and entry["ip"] == str(ip)]
+    if len(selected) != 1:
+        raise ReviewUnavailable("Managed target is missing; review its current policy.")
+    entry = selected[0]
+    if (type(entry["generation"]) is not int or entry["generation"] < 1
+            or str(UUID(entry["intent_id"])) != entry["intent_id"]
+            or not isinstance(entry["hostname"], str)
+            or any(type(entry[key]) is not bool for key in ("device_enabled", "observed_present", "protected", "enabled"))):
+        raise ValueError("Invalid managed target metadata.")
+    if not allow_disabled and not entry["device_enabled"]:
+        raise ReviewUnavailable("Managed target device is disabled; review its current policy.")
+    return entry
+
+
 @dataclass(frozen=True)
 class ManagedRemovalReview:
     token: str
@@ -49,21 +70,8 @@ class ManagedRemovalReviews:
                 ttl_seconds: int, reason: str = "") -> ManagedRemovalReview:
         if not subject.strip() or not cookie:
             raise ValueError("An authenticated session and CSRF cookie are required.")
-        if policy.get("initialized") is not True:
-            raise ReviewUnavailable("Managed policy is not initialized; no review was prepared.")
+        entry = select_managed_target(policy, device_id, ip)
         _, digest = canonical_managed_removal(device_id, ip, policy["revision"], ttl_seconds, reason)
-        entries = policy["entries"]
-        if not isinstance(entries, list) or len(entries) > 1000:
-            raise ValueError("Invalid managed target view.")
-        selected = [entry for entry in entries if entry["device_id"] == device_id and entry["ip"] == str(ip)]
-        if len(selected) != 1 or selected[0]["device_enabled"] is not True:
-            raise ReviewUnavailable("Managed target is missing or disabled; review its current policy.")
-        entry = selected[0]
-        if (type(entry["generation"]) is not int or entry["generation"] < 1
-                or str(UUID(entry["intent_id"])) != entry["intent_id"]
-                or not isinstance(entry["hostname"], str)
-                or any(type(entry[key]) is not bool for key in ("observed_present", "protected", "enabled"))):
-            raise ValueError("Invalid managed target metadata.")
         with self._lock:
             self._prune()
             if len(self._entries) >= 256 or sum(r.subject == subject for r in self._entries.values()) >= 5:

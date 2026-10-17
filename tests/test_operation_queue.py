@@ -285,15 +285,22 @@ def test_initialization_is_additive_and_repeatable(queue):
 
 
 def test_documented_restore_procedure_suspends_old_work(queue):
+    from ftd_shun_manager.maintenance import main
+
     enqueue(queue)
     enqueue(queue, "bob", "203.0.113.2")
     assert queue.claim_cycle("old-worker", 135)
     queue.claim_removal(1, "old-worker", queue.cutoff())
     manual = Path(__file__).resolve().parents[1] / "docs/manual/operation-queue.md"
-    sql = manual.read_text().split("```sql\n", 1)[1].split("```", 1)[0]
-    with queue.store._connection() as db:
-        db.executescript(sql)
+    assert "[Offline Recovery](recovery.md)" in manual.read_text()
+    procedure = (manual.parent / "recovery.md").read_text()
+    assert "ftd-shun-maintenance suspend" in procedure and "--confirm-offline" in procedure
+    backup_dir = queue.store.path.parent / "private"
+    backup_dir.mkdir(mode=0o700)
+    assert main(["suspend", "--database", str(queue.store.path), "--backup", str(backup_dir / "before.sqlite3"),
+                 "--actor", "synthetic-operator", "--confirm-offline"]) == 0
     queue.initialize()
     assert queue.status()["counts"] == {"CANCELLED": 1, "UNVERIFIED": 1}
     assert not queue.has_pending()
-    assert any(e["event_type"] == "OPERATION_QUEUE_RESTORE_SUSPENDED" for e in queue.store.list_events())
+    assert queue.mutations_suspended()
+    assert any(e["event_type"] == "RECOVERY_MUTATIONS_SUSPENDED" for e in queue.store.list_events())

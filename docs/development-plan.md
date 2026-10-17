@@ -510,9 +510,15 @@ Current next work supersedes the older sequence below:
 1. Delivered in isolation: desired registry/revisions, explicit managed mode and
    durable authorization with lifecycle/concurrency/retention/backup tests.
    Normal startup still does not initialize it. API/UI now expose optional
-   read-only visibility; managed confirmation and worker use remain pending.
-2. Managed-target UI/confirmation, missing-target retirement, protection warnings
-   and exact observed-versus-desired-versus-created distinctions.
+   observational visibility, frozen reviews and revocation-only policy RETIRE/
+   waiting-cancel controls. Composite offline recovery and default-off leased
+   cleanup promotion are implemented with synthetic tests, not live acceptance.
+   Protected-IP warnings/current-revision acknowledgement and guarded ordinary
+   removal/MAINTAIN admission are now implemented. They do not provide system
+   restoration generation/claim hooks or executable fleet cleanup.
+2. Complete combined executable cleanup confirmation, reviewed fleet scope and
+   protection/system hooks; retain observed-versus-desired-versus-created
+   distinctions. Policy-only revocation is not device removal or creation.
 3. Shared-worker system intentions, ordered retirement/removal handoff, atomic
    protection checks, uncertainty latch, deduplication/backpressure and bounded
    anti-churn, independently gated off.

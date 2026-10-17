@@ -206,48 +206,42 @@ multiple actor events do not imply multiple CLI writes. Completed
 queue records follow configured history retention; unfinished QUEUED/RUNNING
 work is preserved until settled.
 
+## Managed-policy admission guard
+
+New ordinary manual removal cannot bypass enabled managed policy. Device scope
+checks that exact pair; fleet scope checks all enabled intents for the IP,
+including missing devices outside the observed target list. The queue repeats
+the check inside its admission write transaction; a scope string is not an
+override. The API checks before observed-only enumeration too, so a missing
+managed target is not misreported as an ordinary empty scope. First explicitly
+stop maintaining the relevant targets. Combined device-removal confirmation
+remains unavailable; its offline coordinator retires policy in the same
+transaction before queue admission and still passes this guard.
+
+MAINTAIN refuses a queued/running removal, closing the opposite-order race.
+No job/deadline is cancelled or renewed by a failed admission. Existing-key
+replay remains observational. Enabled Protected-IP policy may still admit its
+own removal without retiring managed intent. Malformed optional policy blocks
+ordinary admission, not monitoring/protective removal. These are admission
+barriers, **not** a system-restoration source/generation/claim implementation;
+those hooks remain required before connecting a managed controller.
+
 ## Backup, restore, and rollback
 
 Take a SQLite-safe backup before starting the first queue-enabled API. Rebuild
 API and Web together, then reload browser tabs once: the write contract is now
 `202`, and forms require an idempotency key. The current agent stays compatible.
 
-For restoration or downgrade, stop API/Web and ensure no previous RPC can still
-execute. A restored queue can contain work completed after the backup. Review
-and suspend old pending work on the restored SQLite file before starting API.
-For a backup containing queue tables, use this SQL with the approved offline
-SQLite maintenance procedure:
+For restoration stop API/Web and ensure no previous RPC can still execute.
+Follow [Offline Recovery](recovery.md): checked backup, atomic suspension of
+jobs/delegations/waiting handoffs and desired restoration, durable mutation
+pause, fresh monitoring and reviewed ordinary resume. The former queue-only
+SQL procedure is insufficient: trusted policy could recreate removals, and
+managed waits/policy need suspension too. No automatic replay is authorized.
 
-```sql
-BEGIN IMMEDIATE;
-UPDATE operation_jobs
-SET state = CASE WHEN state = 'RUNNING' THEN 'UNVERIFIED' ELSE 'CANCELLED' END,
-    completed_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'),
-    reason = 'Suspended during backup restore or downgrade; review required'
-WHERE state IN ('QUEUED', 'RUNNING');
-UPDATE operation_executor
-SET owner = NULL, lease_until = NULL,
-    next_eligible_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '+60 seconds'),
-    revision = revision + 1
-WHERE id = 1;
-INSERT INTO shun_events
-  (id, timestamp, event_type, actor_subject, actor_display_name, details_json)
-VALUES
-  (lower(hex(randomblob(16))), strftime('%Y-%m-%dT%H:%M:%fZ', 'now'),
-   'OPERATION_QUEUE_RESTORE_SUSPENDED', 'system:restore-maintenance',
-   'Offline restore maintenance', '{"reason":"restore_or_downgrade"}');
-COMMIT;
-```
-
-Preserve the original backup. Pre-queue backups have no pending mutations and
-no queue tables; the SQL above is not applicable to them. After startup,
-reconcile actual FTD state and submit still-required manual work as new
-requests. The configured trusted-IP policy may independently generate new
-policy removals after a successful snapshot.
-
-For rollback, stop the new API/Web, suspend pending work as above (including
-all staged ADD), then restore
-the previous paired images. Keep the additive tables for audit/re-upgrade;
-do not drop them or restore older device state just to revert code. The older
-API returns immediate results, so clients/Web must be rolled back together.
-Never run old immediate writers beside the new executor.
+Initialization adds `operation_executor.mutations_suspended` (default 0).
+Preserve the original backup and additive authority tables. Pre-queue backups
+need separate reviewed migration. Retain paired API/Web images, but **older
+images ignore the new pause and reservations**; do not start them against paused,
+restored or pending work. Review downgrade offline rather than assuming a code
+rollback is safe. Never run old immediate writers beside the new executor.

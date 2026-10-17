@@ -4,7 +4,7 @@
 {% include "refresh-panel.html" %}
 <p>Desired shun presence is separate from observed device state. This page reads retained local data only; it does not query Cisco or adopt existing shuns.</p>
 <section id="managed-shun-state" data-live-region>
-<p class="policy-warning"><strong>Read-only preview — automatic restoration is not implemented.</strong> Operators may prepare a removal review, but execution is unavailable. No policy change or device operation can be submitted here.</p>
+<p class="policy-warning"><strong>Automatic restoration is not implemented.</strong> Operators may stop maintaining policy only or cancel their waiting cleanup. Creation, re-enable and device-removal admission are unavailable; the combined removal review cannot execute.</p>
 {% if not managed.initialized %}
 <p>The managed registry has not been initialized. Existing imports remain one-time; no historical shun has been converted into maintained policy.</p>
 {% else %}
@@ -23,6 +23,24 @@
 </tbody></table></div>
 {% elif managed.initialized %}<p>No managed targets. Nothing is scheduled for restoration.</p>{% endif %}
 <p class="preview-help">Enabled Protected IPs take priority over desired presence. Stopped policy never restarts from old request replay. Future restoration requires explicit standing authorization; old imports and SSH-created shuns are not adopted automatically.</p>
+</section>
+<section id="managed-retirement-preparation" data-live-region>
+{% set maintained = managed.entries | selectattr('enabled') | list %}
+{% if managed.initialized and maintained and ('Operator' in identity.roles or 'Administrator' in identity.roles) %}
+<details><summary>Stop maintaining a target — no device command</summary>
+<p>Prepare a frozen policy-only review. Existing shuns and already submitted one-time jobs are not removed or cancelled. Missing, disabled-device and protected targets can still be retired.</p>
+<form method="post" action="/managed-shuns/retirement-review" class="import-confirm-form">
+<input type="hidden" name="csrf" value="{{ csrf_token }}">
+<label for="retirement-target">Managed target</label>
+<select id="retirement-target" name="target" required>
+<option value="">Choose one device/IP</option>
+{% for entry in maintained %}<option value="{{ entry.device_id }}:{{ entry.ip }}">{{ entry.hostname }} — {{ entry.ip }}</option>{% endfor %}
+</select>
+<label for="retirement-reason">Reason (optional)</label>
+<input id="retirement-reason" name="reason" maxlength="500" autocomplete="off">
+<button type="submit">Review stop maintaining only</button>
+</form></details>
+{% endif %}
 </section>
 <section id="managed-removal-preparation" data-live-region>
 {% if managed.initialized and managed.entries and ('Operator' in identity.roles or 'Administrator' in identity.roles) %}
