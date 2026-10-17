@@ -4,6 +4,38 @@ Last updated: 2026-10-17
 
 ## Current increment
 
+**Frozen fleet-removal scope prerequisite (2026-10-17).** A private observational
+scope API and non-executable BFF review now cover one IPv4 across the union of
+active local shuns and enabled maintained targets. Missing/disabled devices stay
+included; multiple interfaces collapse, retired-and-missing/unrelated targets
+are excluded. One read transaction covers desired generations, observations,
+device enablement and protection. Empty/over-1000/unknown scopes fail closed,
+never truncate or initialize optional tables. No routes, pins or raw authority
+payloads are exposed. Fleet/single reviews share the immutable bounded cache;
+every target and disabled-device blocker is visible. Versioned scope/action
+digests are separate; a caller-owned transactional comparison rejects changed
+membership/state rather than silently rebasing. See
+[Frozen all-device scope](manual/managed-removal-review.md#frozen-all-device-scope).
+
+This is not atomic multi-target admission: no per-device admission loop, queue
+request, retirement, device call or restoration was added. Combined confirmation
+still unconditionally returns 503, with no enable switch. Existing ordinary
+removal is unchanged; all ADD/cleanup-worker gates remain off and optional lab
+tables remain absent. All 509 Python tests and 21 Chromium scenarios (22 reported
+tests), compileall/Ruff/JS syntax/diff checks and packaged Python 3.12 synthetic
+networkless/read-only smoke pass. No live new mutation.
+
+Deployed API/Web `353554c15e15` / `41a490d14a70`, retaining paired rollback
+images `before-fleet-review-20261017t1823z` and checked 0600 volume/ignored host
+backup `.local/backups/state-before-fleet-review-20261017T1823Z.sqlite3` in a
+0700 directory. Full schema and all eleven non-executor SQLite tables match
+backup; integrity/FK checks pass, optional tables absent, queue eight VERIFIED/
+one NOOP with no pending/active shuns. ADD/cleanup worker off/zero profiles;
+actual env/inventory/secrets and agent/Caddy/Authelia unchanged. Anonymous new
+Web paths 401, TLS-verified HTTPS 302. Ordinary v2 read cycle completed at
+18:23:29Z, two commands/zero mutations/8466 ms, next baseline 18:28:29Z/no error.
+This is not combined/fleet execution or restoration acceptance.
+
 **Protected/managed lifecycle and guarded ordinary removal (2026-10-17).**
 Protected cards now report enabled maintenance counts separately from observed
 shuns, including missing/disabled-device targets. Disabling enabled protection
@@ -809,8 +841,9 @@ The new restoration requirement now takes precedence for development. The
 isolated registry/authorization/revision/retention foundation, preparatory
 visibility/reviews, offline atomic retirement/removal handoff, composite
 recovery controls and default-off shared-worker integration are implemented.
-Policy-only retirement/wait cancellation are now implemented; next complete
-combined executable cleanup confirmation, fleet scope and protection/system
+Policy-only retirement/wait cancellation and frozen fleet scope/comparison are
+now implemented; next complete atomic multi-target retirement/handoff admission,
+combined executable cleanup confirmation and protection/system
 hooks, followed by bounded default-off desired reconciliation
 with uncertainty/rearm and anti-churn controls. Do not enable it by deriving
 policy from historical imports or by renewing old user jobs. Resolve controller

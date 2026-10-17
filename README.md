@@ -13,6 +13,8 @@ cleanup-worker hook are implemented. [Revocation controls](docs/manual/managed-c
 now support policy-only stop-maintaining and waiting-cleanup cancellation.
 Protected-IP weakening requires reviewed acknowledgement when managed intents
 exist; ordinary removal cannot silently bypass enabled maintenance.
+The [frozen fleet review](docs/manual/managed-removal-review.md#frozen-all-device-scope)
+includes observed and maintained-but-missing targets without submitting work.
 Combined device-removal admission, managed creation and desired restoration/
 controller integration remain pending.
 Current imports remain one-time and all ADD gates stay

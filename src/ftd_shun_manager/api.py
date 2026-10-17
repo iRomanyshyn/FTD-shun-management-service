@@ -20,6 +20,7 @@ from .config import Settings
 from .import_preview import MAX_DEVICES, MAX_ROWS, classify_targets
 from .inventory import load_devices
 from .managed_safety import ManagedStateUnavailable, require_ordinary_removal
+from .managed_scope import ManagedRemovalScopes
 from .managed_shuns import ManagedCapacity, ManagedConflict, ManagedShuns
 from .operation_queue import QueueConflict, QueueFull
 from .store import HistoryWindowExpired, Shun, Store
@@ -192,6 +193,15 @@ def create_app(
             return managed.snapshot_if_present()
         except (sqlite3.DatabaseError, ManagedConflict, ManagedCapacity, ValueError, TypeError, KeyError) as error:
             raise HTTPException(503, "Managed shun registry is unavailable; no policy was changed.") from error
+
+    @app.get("/api/v1/managed-removal-scope/{ip}")
+    def managed_removal_scope(ip: IPv4Address) -> dict:
+        try:
+            return ManagedRemovalScopes(store).snapshot(ip)
+        except ManagedConflict as error:
+            raise HTTPException(409, str(error)) from error
+        except (sqlite3.DatabaseError, ValueError, TypeError, KeyError) as error:
+            raise HTTPException(503, "Fleet removal scope is unavailable; nothing was submitted.") from error
 
     @app.get("/api/v1/protected-ips")
     def protected_ips() -> dict:

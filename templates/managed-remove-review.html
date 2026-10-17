@@ -4,14 +4,33 @@
 {% if refresh %}{% include "refresh-panel.html" %}{% endif %}
 <p class="policy-warning"><strong>Preparatory review only — execution is unavailable.</strong> No policy change or device operation has been submitted. Executable cleanup admission and protection/fleet integration remain incomplete. Use the separate policy-only review to stop maintaining without removal.</p>
 {% if message %}<p class="preview-error" role="alert">{{ message }}</p>{% endif %}
+{% if review.scope == 'fleet' %}
+<p>This frozen fleet scope contains <strong>{{ review.targets | length }} exact device/IP targets</strong>: current local shuns plus enabled maintained targets, including missing observations. It does not include unrelated inventory or stopped-and-missing targets. No fresh Cisco query has been made.</p>
+{% if review.targets | rejectattr('device_enabled') | list %}<p class="preview-error" role="alert"><strong>Disabled devices are included, not silently skipped.</strong> Cleanup cannot be admitted for this whole scope while a device is disabled. Policy-only retirement remains a separate action.</p>{% endif %}
+<div class="table-scroll"><table aria-label="Frozen fleet removal scope"><thead><tr><th>Device</th><th>Local observation</th><th>Desired policy</th><th>Intent / generation</th></tr></thead><tbody>
+{% for target in review.targets %}<tr>
+<td>{{ target.hostname }} ({{ target.device_id }})<br><span class="state-badge {{ 'policy-enabled' if target.device_enabled else 'policy-disabled' }}">{{ 'Device enabled' if target.device_enabled else 'Device disabled — blocks cleanup' }}</span></td>
+<td>{{ 'Observed present' if target.observed_present else 'Not currently observed — retained scope' }}</td>
+<td>{{ 'Maintain presence — would retire' if target.maintenance_enabled else 'Not maintained — cleanup only' }}</td>
+<td>{% if target.intent_id %}<code>{{ target.intent_id }}</code> / {{ target.generation }}{% else %}No managed intent; no adoption{% endif %}</td>
+</tr>{% endfor %}
+</tbody></table></div>
+<p>Future combined execution must retire the entire reviewed scope and admit cleanup atomically, or do neither. A running ADD must settle first. This preparatory review cannot execute that transaction.</p>
+{% else %}
 <p>This action would stop maintenance for <strong>one exact device/IP target</strong>, including when it is not currently observed, and request removal through the existing queue. It would not affect other devices. A running ADD would finish before separately authorized cleanup; expiry or failure would not turn maintenance back on.</p>
+{% endif %}
 <dl class="import-review-metadata">
+{% if review.scope != 'fleet' %}
 <dt>Device</dt><dd>{{ review.hostname }} ({{ review.device_id }})</dd>
-<dt>IPv4 address</dt><dd>{{ review.ip }}</dd>
 <dt>Managed intent / generation</dt><dd><code>{{ review.intent_id }}</code> / {{ review.generation }}</dd>
-<dt>Managed revision</dt><dd>{{ review.managed_revision }} — future admission must recheck it atomically</dd>
 <dt>Retained local observation</dt><dd>{{ 'Observed present' if review.observed_present else 'Not currently observed' }}; not a fresh Cisco query</dd>
 <dt>Maintenance</dt><dd>{{ 'Enabled' if review.maintenance_enabled else 'Already stopped' }}</dd>
+{% else %}
+<dt>Scope binding</dt><dd><code>{{ review.scope_digest }}</code> — future admission must reject changed targets, never silently rebase</dd>
+<dt>Protected-IP revision</dt><dd>{{ review.protected_revision }}</dd>
+{% endif %}
+<dt>IPv4 address</dt><dd>{{ review.ip }}</dd>
+<dt>Managed revision</dt><dd>{{ review.managed_revision }} — future admission must recheck it atomically</dd>
 <dt>Protected IP</dt><dd>{{ 'Enabled protection takes priority' if review.protected else 'Not protected by an enabled entry' }}</dd>
 <dt>Reason</dt><dd>{{ review.reason or 'Not supplied' }}</dd>
 <dt>Review expires</dt><dd><time class="local-timestamp" datetime="{{ review.expires_at }}">{{ review.expires_at }}</time></dd>
@@ -21,7 +40,7 @@
 <form method="post" action="/managed-shuns/removal-confirm" class="import-confirm-form">
 <input type="hidden" name="csrf" value="{{ csrf_token }}">
 <input type="hidden" name="review" value="{{ review.token }}">
-<label for="confirm-managed-ip">Type {{ review.ip }} to confirm this single target</label>
+<label for="confirm-managed-ip">Type {{ review.ip }} to confirm {{ 'this frozen fleet scope' if review.scope == 'fleet' else 'this single target' }}</label>
 <input id="confirm-managed-ip" name="confirm_ip" autocomplete="off" inputmode="decimal" required>
 <button type="submit" disabled>Stop maintenance and queue removal — unavailable</button>
 </form>

@@ -12,7 +12,10 @@ admitting device work; see [Managed Controls](managed-controls.md). Normal API/S
 startup does not initialize it. Do not initialize or call it against the lab/
 production database for testing. No live mutation is authorized; ADD/restoration
 gates remain off. The initial contract handles **one reviewed device/IPv4 pair**
-per request, not a silently split fleet/bulk operation.
+per request, not a silently split fleet/bulk operation. A separate frozen
+[fleet scope review](managed-removal-review.md#frozen-all-device-scope) now reads
+the full union and supplies a transactional comparison primitive; it does not
+extend this single-target admission into atomic fleet execution.
 
 ## Atomic admission and durable authority
 

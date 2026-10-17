@@ -16,6 +16,7 @@ import json, sys
 from ftd_shun_manager.import_preview import paginate_preview, parse_blocklist, summarize_preview
 from ftd_shun_manager.import_review import ImportReviews
 from ftd_shun_manager.managed_review import ManagedRemovalReviews
+from ftd_shun_manager.managed_intent import canonical_managed_fleet_scope
 from ftd_shun_manager.managed_retirement_review import ManagedRetirementReviews
 from ipaddress import IPv4Address
 from ftd_shun_manager.web import Identity, templates
@@ -35,7 +36,14 @@ event = dict(timestamp="2026-10-15T10:00:00Z", event_type="FIXTURE_EVENT_" + str
              device_hostname="lab-ftd", actor_display_name="Test Operator", actor_subject="test", ip=shun["ip"])
 review = ImportReviews().prepare("test", "fixture-token", preview, p.get("label", ""), "Fixture only") if p["template"] == "import-confirm.html" else None
 if p["template"] == "managed-remove-review.html":
-    review = ManagedRemovalReviews().prepare("test", "fixture-token", p["managed"], 1, IPv4Address("198.51.100.251"), 900, "Fixture only")
+    if p.get("fleet_review"):
+        scope = dict(ip="198.51.100.251", managed_initialized=True, managed_revision=p["managed"]["revision"], protected_revision=1, protected=False,
+            targets=[dict(device_id=1,hostname="maintained-missing",device_enabled=True,observed_present=False,maintenance_enabled=True,intent_id="11111111-1111-4111-8111-111111111111",generation=1),
+                dict(device_id=2,hostname="observed-only",device_enabled=True,observed_present=True,maintenance_enabled=False,intent_id=None,generation=None),
+                dict(device_id=3,hostname="disabled-missing",device_enabled=False,observed_present=False,maintenance_enabled=True,intent_id="22222222-2222-4222-8222-222222222222",generation=2)])
+        review = ManagedRemovalReviews().prepare_fleet("test", "fixture-token", dict(**scope, scope_digest=canonical_managed_fleet_scope(scope)[1]), IPv4Address(scope["ip"]), 900, "Fixture only")
+    else:
+        review = ManagedRemovalReviews().prepare("test", "fixture-token", p["managed"], 1, IPv4Address("198.51.100.251"), 900, "Fixture only")
 if p["template"] == "managed-retirement-review.html":
     review = ManagedRetirementReviews().prepare("test", "fixture-token", p["managed"], 1, IPv4Address("198.51.100.251"), "Fixture only")
 print(templates.get_template(p["template"]).render(identity=Identity("test", "Test Operator", ("Operator",)),
@@ -277,7 +285,7 @@ test("refresh interaction in real Chromium", { timeout: 120000 }, async (t) => {
       confirmationPosts += 1;
       response.setHeader("Content-Type", "text/html");
       response.end("<p>Fixture admission received; no device work</p>");
-    } else if (["/", "/history", "/protected-ips", "/imports", "/imports/review", "/managed-shuns", "/managed-shuns/removal-review", "/managed-shuns/retirement-review"].includes(url.pathname) || url.pathname.startsWith("/shuns/")) {
+    } else if (["/", "/history", "/protected-ips", "/imports", "/imports/review", "/managed-shuns", "/managed-shuns/removal-review", "/managed-shuns/fleet-removal-review", "/managed-shuns/retirement-review"].includes(url.pathname) || url.pathname.startsWith("/shuns/")) {
       pageReads += 1;
       let previewFields = {};
       if (url.pathname === "/imports/review") previewFields = {
@@ -303,12 +311,13 @@ test("refresh interaction in real Chromium", { timeout: 120000 }, async (t) => {
           anchor: rows[0]?.id || null, events: rows.slice((current - 1) * 100, current * 100) };
       }
       const payload = { refresh: stamp(), generation, query: url.searchParams.get("q") || "", shun_origins: shunOrigins,
+        fleet_review: url.pathname === "/managed-shuns/fleet-removal-review",
         history, anchor: url.searchParams.get("anchor"),
         ...previewFields,
         policy, managed, handoffs, template: url.pathname === "/" ? "index.html" : url.pathname === "/history" ? "history.html"
           : url.pathname === "/protected-ips" ? "protected-ips.html" : url.pathname === "/imports" ? "import-preview.html"
             : url.pathname === "/imports/review" ? "import-confirm.html" : url.pathname === "/managed-shuns" ? "managed-shuns.html"
-              : url.pathname === "/managed-shuns/removal-review" ? "managed-remove-review.html"
+              : ["/managed-shuns/removal-review", "/managed-shuns/fleet-removal-review"].includes(url.pathname) ? "managed-remove-review.html"
                 : url.pathname === "/managed-shuns/retirement-review" ? "managed-retirement-review.html" : "detail.html" };
       response.setHeader("Content-Type", "text/html; charset=utf-8");
       response.end(execFileSync("python3", ["-c", renderScript], {
@@ -1044,6 +1053,35 @@ test("refresh interaction in real Chromium", { timeout: 120000 }, async (t) => {
         await wake(page);
         await delay(300);
         assert.equal(pageReads, reads, "Frozen POST review must not be fetched/replaced by status updates");
+        assert.equal(await page.evaluate("document.querySelector('input[name=review]').value"), original);
+        assert.equal(await page.evaluate("document.querySelector('#confirm-managed-ip').value"), "198.51.100.251");
+        assert.equal(await page.evaluate("document.activeElement.id"), "confirm-managed-ip");
+        assert.equal(await page.evaluate("document.querySelector('.import-confirm-form button').disabled"), true);
+        for (const width of [1100, 375]) {
+          await page.call("Emulation.setDeviceMetricsOverride", { width, height: 800, deviceScaleFactor: 1, mobile: width === 375 });
+          assert.equal(await page.evaluate("document.documentElement.scrollWidth<=window.innerWidth"), true);
+        }
+        assert.equal(postCount, hints);
+        assert.equal(executionCount, executions);
+      } finally { await page.close(); }
+    });
+    await t.test("fleet review includes missing and disabled targets, remains frozen and cannot execute", async () => {
+      status = initial();
+      const hints = postCount;
+      const executions = executionCount;
+      const page = await connectPage(debugOrigin, `${origin}/managed-shuns/fleet-removal-review`);
+      try {
+        assert.ok(await page.evaluate("document.body.textContent.includes('3 exact device/IP targets')"));
+        assert.ok(await page.evaluate("document.body.textContent.includes('Disabled devices are included')"));
+        assert.equal(await page.evaluate("document.querySelectorAll('table[aria-label=\"Frozen fleet removal scope\"] tbody tr').length"), 3);
+        const original = await page.evaluate("document.querySelector('input[name=review]').value");
+        await page.evaluate("document.querySelector('#confirm-managed-ip').value='198.51.100.251'; document.querySelector('#confirm-managed-ip').focus()");
+        const reads = pageReads;
+        status.data_revision += 1;
+        status.managed_policy_revision = (status.managed_policy_revision || 0) + 1;
+        await wake(page);
+        await delay(300);
+        assert.equal(pageReads, reads);
         assert.equal(await page.evaluate("document.querySelector('input[name=review]').value"), original);
         assert.equal(await page.evaluate("document.querySelector('#confirm-managed-ip').value"), "198.51.100.251");
         assert.equal(await page.evaluate("document.activeElement.id"), "confirm-managed-ip");

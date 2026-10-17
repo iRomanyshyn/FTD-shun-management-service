@@ -2984,6 +2984,100 @@ restoration uncertainty/rearm/anti-churn still require their next implementation
 and separately scoped live evidence. Do not interpret this rollout as enabling
 those paths or approving new FTD mutations.
 
+## 2026-10-17 — Frozen all-device managed-removal scope, no execution
+
+Implemented an observational union for one IPv4 in `managed_scope.py`, exposed
+through private GET `/api/v1/managed-removal-scope/{ip}`. Read active observed
+devices and enabled maintained targets in one consistent SQLite transaction,
+including missing observations and disabled devices; collapse interfaces and
+exclude unrelated inventory/stopped-and-missing targets. Unknown optional state
+fails closed without breaking monitoring; entirely absent optional schema stays
+absent. Empty/over-1000 scopes reject instead of silently truncating. No inventory
+routes, pins, credentials or raw authorization payloads are published.
+
+Added strict versioned canonical scope/action bindings and caller-transaction
+comparison against current state. Generation, policy, inventory and union changes
+invalidate the review; timestamp/additional-interface changes on the same target
+do not. This comparison grants no authority and is **not** atomic multi-target
+admission. Do not call the single-target coordinator in a loop to simulate a
+fleet transaction. The future writer still needs atomic retirement/handoffs,
+system/protection/generation/claim integration and uncertainty/rearm controls.
+
+Managed shuns now offers a collapsed preparatory fleet review with every target,
+desired/observed distinction and explicit disabled-device blocker. Immutable
+target dataclasses share the existing single-review subject/CSRF-bound cache,
+five per subject/256 globally and at-most-ten-minute lifetime. Strict forms,
+current roles/CSRF and exact typed IP are rechecked. Combined confirmation stays
+unconditional 503 even with fake enablement/DOM changes; no private admission
+POST, retirement, job, hint or device operation. Ordinary removal is unchanged.
+No schema, configuration or agent/protocol change; all ADD and cleanup-worker
+gates remain disabled, no live fixture/managed seed is authorized.
+
+Validation: all **509 Python tests** pass (18.64 seconds); **21 Chromium
+scenarios / 22 reported tests** pass, including frozen token/input/focus, complete
+scope, disabled blockers and 375px layout without navigation or hints. New
+synthetic SQLite/ASGI tests cover union membership, multiple interfaces, missing/
+disabled/retired targets, schema absence/corruption, exact validation/digests,
+overflow, concurrent consistent reads, immutable cache/capacity, unchanged data,
+identity/CSRF, escaping and unconditional execution refusal. The explicit API
+route whitelist was extended only for the observational GET. Compileall, Ruff,
+JS syntax and diff checks pass. Rust is unchanged.
+
+Deployment preparation under standing lab authority: only API/Web, restart may
+execute already admitted ordinary queue/policy work; no new work/control or
+forced refresh will be submitted. Read-only preflight: integrity ok/FK zero,
+no optional managed objects, eight VERIFIED/one NOOP, zero pending/active shuns,
+three Protected IPs, disabled admission/API ADD/cleanup worker. Ordinary reads
+healthy at 18:18:24Z, next baseline 18:23:24Z. Retained paired images
+`deploy-api:before-fleet-review-20261017t1823z` and
+`deploy-web:before-fleet-review-20261017t1823z`. Created exclusive checked 0600
+SQLite-safe volume backup `state-before-fleet-review-20261017T1823Z.sqlite3`
+and ignored private host `.local/backups/state-before-fleet-review-20261017T1823Z.sqlite3`
+(0700 directory); both integrity/FK checks pass. Merged Compose quiet validation
+and API/Web build pass. Built API
+`sha256:d067d58bf1dad83c56b1aa068cba5fa8581aaa8418c8b4b8914e42a498872e21`
+and Web `sha256:7844e383ea00ad1608858049edc1e7085ffe00998c4b9fb76464382d87ab34e2`.
+Actual env/inventory/secrets/gates and all other services are preserved.
+Packaged/pre-deployment and rollout results follow; no live mutation acceptance
+is claimed by preparatory reviews or synthetic tests.
+
+**Packaged/deployment result:** Python 3.12 packaged scope/BFF review smoke
+passes in a read-only, networkless container with only temporary synthetic
+SQLite and identities, no live mounts/secrets/agent socket. An absent registry
+stays absent; the explicit fixture includes missing maintenance, observed-only
+and disabled targets. Native URL-encoded review renders the complete union;
+repeated exact confirmation returns 503 with the same token and no database/
+queue/audit/hint change. The first fixture setup used a hard-coded Protected-IP
+revision and correctly conflicted; using its actual revision passes without
+relaxing canonical/CAS validation. Build uses existing unlocked dependency
+ranges, not a production dependency compatibility claim.
+
+Stopped the sole API/Web pair and recreated only them with --no-deps, avoiding
+overlapping executors. New IDs `353554c15e15` / `41a490d14a70`; agent
+`9d1f50d361ca`, Caddy `9c8fdb3a7f21` and Authelia `76f3635ab737` unchanged.
+Full sqlite_master definitions and all eleven non-executor SQLite tables match
+the checked backup exactly; integrity ok/FK errors zero. No managed schema,
+mutation pause, pending job, new policy or live fixture. Queue remains eight
+VERIFIED/one NOOP, zero active shuns, three Protected IPs. Repeated optional GETs
+do not initialize anything; the empty fleet scope correctly returns 409.
+Actual admission/API ADD/agent ADD/cleanup-worker flags remain off and inventory
+has zero eligible addition profiles. Actual env/inventory/secrets unchanged.
+The minimal agent image has no shell; its single ADD flag was checked through
+filtered container metadata without disclosing environment values.
+
+Ordinary post-start v2 cycle completed at 18:23:29Z with two commands, zero
+mutations and 8466 ms; next baseline 18:28:29Z/no error. New packaged form/template
+present, anonymous Managed/status/review/confirmation reject 401, TLS-verified
+HTTPS returns 302 to authentication. No synthetic Web identity was used against
+the live stack; no live controls, seeding, direct agent calls, refresh hints or
+new work. Paired rollback images and backup retained; revert code without
+restoring older authority or dropping tables, following the recovery manual.
+Reload tabs for current templates. Frozen fleet scope is now a completed
+prerequisite; atomic multi-target admission, executable combined controls and
+system restoration/uncertainty integration remain next, with live validation
+requiring fresh scoped authority. Synthetic/default-off rollout is not live
+managed mutation or production acceptance.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

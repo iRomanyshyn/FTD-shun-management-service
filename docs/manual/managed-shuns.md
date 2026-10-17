@@ -165,6 +165,11 @@ backup, upgrade, restart and audit retention are not new device-write authority.
    anti-churn defaults/restore suspension before applying a live migration.
 2. Add managed-target UI and frozen confirmation, including missing targets,
    retirement, protection warnings and observed/provenance distinctions.
+   Read-only visibility, policy-only retirement/wait cancellation and frozen
+   single/fleet removal review are implemented. The fleet union/comparison
+   prerequisite does not implement atomic multi-target cleanup admission or
+   managed-create/standing-mode confirmation; see
+   [Frozen all-device scope](managed-removal-review.md#frozen-all-device-scope).
 3. Integrate ordered removal handoff, revocation/cancellation/protection races,
    system queue admission and uncertain-outcome latch under independent gates.
 4. Cover complete-versus-partial snapshots, reboot-like mass absence, unknown

@@ -3156,3 +3156,32 @@ These are lifecycle/admission barriers, not a system restoration queue source,
 generation/claim hook, uncertainty latch, executable fleet confirmation or live
 acceptance. Combined confirmation remains 503, ADD/cleanup worker stay off in
 the lab, and managed tables are not seeded. No schema/protocol/isolation change.
+
+### Frozen fleet-removal scope prerequisite — 2026-10-17
+
+A private observational resource and preparatory BFF review may expose the exact
+union, for one IPv4, of locally active observed devices and enabled managed
+targets, including missing observations and disabled devices. Collapse multiple
+interfaces into one device/IP target; exclude retired-and-missing records and
+unrelated inventory. Never silently omit disabled devices, unknown optional
+policy or overflow beyond 1000 targets. Read observations, desired generations,
+device enablement and protection in one SQLite read transaction without schema
+initialization, device calls, refresh hints, audit or queue writes.
+
+Bind a versioned canonical scope digest to exact sorted target metadata,
+managed initialization/revision and Protected-IP revision/state. Observation
+timestamps are not authority and do not invalidate unchanged membership.
+A trusted internal comparison hook must re-read the scope on the caller's
+transaction and reject a changed digest, never widen/shrink/rebase targets.
+This is a prerequisite, not an admission/transaction coordinator or guarantee
+that an unconnected future writer has performed that check.
+
+Fleet review shares the existing subject/CSRF-bound, immutable, TTL/size-bounded
+combined-review cache. Bind a separate canonical fleet intent, UUID, reason and
+cleanup lifetime; display all targets and disabled-device blockers. Current
+role, CSRF and exact typed IP remain necessary, not sufficient. Confirmation
+remains unconditional 503 with no private admission call, regardless of DOM or
+upstream flags. Preparation neither retires policy nor grants durable cleanup
+authority. Single-target admission must not be looped into partial fleet writes;
+atomic multi-target retirement/handoffs, system/protection/uncertainty hooks and
+separately scoped live acceptance remain prerequisites to execution.

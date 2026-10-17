@@ -5,14 +5,16 @@
 The Managed shuns page exposes retained policy and optional cleanup state.
 Separate [revocation controls](managed-controls.md) now support policy-only
 retirement and waiting cancellation; they cannot execute this combined review.
-Operator/Administrator users can prepare a **single-target** stop-maintenance-
-and-remove review. **Execution is unavailable:** preparation is not retirement,
+Operator/Administrator users can prepare a **single-target** or **frozen fleet**
+stop-maintenance-and-remove review. **Execution is unavailable:** preparation is not retirement,
 queue admission or a device operation. There is no environment switch to enable
 this form. ADD and automatic restoration remain disabled under their own gates.
 
-In the current lab the managed/handoff tables are absent, so no targets or
-preparation controls appear. Opening the page/API never creates them, adopts old
-imports or queries FTD. Do not seed live policy to demonstrate these controls.
+In the current lab the managed/handoff tables are absent, so no retained-policy
+single-target controls appear. Fleet review can still show existing observed
+shuns without adopting them; an empty scope is refused. Opening the page/API
+never creates optional tables, adopts old imports or queries FTD. Do not seed
+live policy to demonstrate these controls.
 
 ## Review workflow
 
@@ -35,6 +37,44 @@ still checks current role, CSRF, review binding/expiry and exact typed IP, then
 returns **503 Execution unavailable without contacting admission**. Changing
 HTML or upstream status flags cannot enable it. No private admission POST exists.
 The review grants no durable authority and is not an accepted queue request.
+
+## Frozen all-device scope
+
+Open **Managed shuns → Preview all-device removal scope — no execution** and
+enter one exact IPv4 plus an optional reason. This preparatory form works without
+an initialized registry if current observed shuns exist. It does not submit the
+ordinary removal form or request a Cisco refresh.
+
+Private `GET /api/v1/managed-removal-scope/{ip}` reads, in one SQLite transaction,
+the union of locally active observations and enabled maintained targets for that
+IP. Several interfaces on one FTD produce one target. Maintained-but-missing and
+disabled devices remain included; stopped-and-missing entries and unrelated
+inventory are excluded. An observed unmanaged address is labelled **cleanup
+only**, never adopted. Unknown/partial policy returns 503, not an observed-only
+fallback; empty/over-1000-target scopes return 409 without truncation.
+
+The review lists every hostname/ID, device enablement, local presence, desired
+policy and retained intent/generation. A disabled device is visibly a blocker
+for future whole-scope cleanup, not silently omitted; policy-only retirement is
+still available separately. Enabled protection is shown independently. No row
+or digest proves service creation or live device freshness.
+
+A versioned scope digest binds the exact sorted metadata, managed initialization/
+revision and Protected-IP revision/state. Observation timestamps/additional
+interfaces do not change device-level membership. The separate fleet action
+digest also binds cleanup lifetime and reason; it cannot be reused as a
+single-target or policy-only action. Fleet/single reviews share the existing
+five-per-subject/256-global combined-review cache and immutable session/TTL rules.
+Confirmation uses the same exact typed IP and always returns 503, with no
+admission call even if upstream advertises enablement. Status polling never
+changes a frozen scope; prepare a new review only after inspecting new state.
+
+`ManagedRemovalScopes.require_current(db, reviewed)` is an internal comparison
+prerequisite for a future composite writer, not that writer or an authorization
+interface. It re-reads and compares within the caller's transaction and rejects
+scope changes without commits, audit or queue work. Atomic fleet retirement/
+handoffs are **not implemented**: never loop over single-target admissions to
+simulate them. Existing ordinary device/fleet removal behavior is unchanged.
 
 ## Session and refresh behavior
 
@@ -95,8 +135,9 @@ handoff tables, disabled ADD, unchanged state/queue/policy aggregates, ordinary
 healthy reads, anonymous 401 and a TLS-verified Authelia redirect. Revert paired
 images without restoring old state if necessary; do not drop authority tables.
 
-Before any execution release, complete visible cancellation, reviewed all-device
-scope, protection/system cancellation and target uncertainty handling. The
+Before any execution release, connect the frozen all-device scope to atomic
+multi-target retirement/handoff admission, protection/system cancellation and
+target uncertainty handling. Visible revocation/cancellation is implemented. The
 default-off shared-worker hook and [composite recovery controls](recovery.md)
 have synthetic coverage, not live acceptance. The preparatory
 POSTs and GET resource do not waive those gates or authorize a live mutation.

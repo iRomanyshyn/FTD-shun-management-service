@@ -1,4 +1,4 @@
-"""Ephemeral single-target removal reviews. Preparation never admits work."""
+"""Ephemeral exact-scope removal reviews. Preparation never admits work."""
 
 import hashlib
 import secrets
@@ -10,7 +10,11 @@ from threading import Lock
 from uuid import UUID, uuid4
 
 from .import_review import ReviewUnavailable
-from .managed_intent import canonical_managed_removal
+from .managed_intent import (
+    canonical_managed_fleet_removal,
+    canonical_managed_fleet_scope,
+    canonical_managed_removal,
+)
 
 
 def select_managed_target(policy: dict, device_id: int, ip: IPv4Address, *, allow_disabled: bool = False) -> dict:
@@ -54,12 +58,45 @@ class ManagedRemovalReview:
     ttl_seconds: int
     reason: str
     digest: str
+    scope: str = "device"
+
+
+@dataclass(frozen=True)
+class ManagedFleetTarget:
+    device_id: int
+    hostname: str
+    device_enabled: bool
+    observed_present: bool
+    maintenance_enabled: bool
+    intent_id: str | None
+    generation: int | None
+
+
+@dataclass(frozen=True)
+class ManagedFleetRemovalReview:
+    token: str
+    subject: str
+    cookie_hash: str
+    request_id: str
+    expires: float
+    expires_at: str
+    ip: IPv4Address
+    managed_revision: int
+    managed_initialized: bool
+    protected_revision: int
+    protected: bool
+    targets: tuple[ManagedFleetTarget, ...]
+    scope_digest: str
+    ttl_seconds: int
+    reason: str
+    digest: str
+    scope: str = "fleet"
 
 
 class ManagedRemovalReviews:
     def __init__(self, ttl: int = 600):
         self.ttl = max(1, min(600, ttl))
-        self._entries: dict[str, ManagedRemovalReview] = {}
+        self._entries: dict[str, ManagedRemovalReview | ManagedFleetRemovalReview] = {}
         self._lock = Lock()
 
     def _prune(self):
@@ -68,28 +105,46 @@ class ManagedRemovalReviews:
 
     def prepare(self, subject: str, cookie: str, policy: dict, device_id: int, ip: IPv4Address,
                 ttl_seconds: int, reason: str = "") -> ManagedRemovalReview:
-        if not subject.strip() or not cookie:
-            raise ValueError("An authenticated session and CSRF cookie are required.")
         entry = select_managed_target(policy, device_id, ip)
         _, digest = canonical_managed_removal(device_id, ip, policy["revision"], ttl_seconds, reason)
+        return self._save(ManagedRemovalReview, subject, cookie,
+                          device_id=device_id, ip=ip, hostname=entry["hostname"], intent_id=entry["intent_id"],
+                          generation=entry["generation"], managed_revision=policy["revision"],
+                          observed_present=entry["observed_present"], protected=entry["protected"],
+                          maintenance_enabled=entry["enabled"], ttl_seconds=ttl_seconds, reason=reason.strip(), digest=digest)
+
+    def prepare_fleet(self, subject: str, cookie: str, view: dict, ip: IPv4Address,
+                      ttl_seconds: int, reason: str = "") -> ManagedFleetRemovalReview:
+        scope = {key: value for key, value in view.items()
+                 if key not in {"scope_digest", "execution_available", "read_only"}}
+        _, scope_digest = canonical_managed_fleet_scope(scope)
+        if view.get("scope_digest") != scope_digest or str(ip) != scope["ip"]:
+            raise ValueError("Fleet view does not match the requested scope.")
+        _, digest = canonical_managed_fleet_removal(scope, ttl_seconds, reason)
+        return self._save(ManagedFleetRemovalReview, subject, cookie,
+                          ip=ip, managed_revision=scope["managed_revision"], managed_initialized=scope["managed_initialized"],
+                          protected_revision=scope["protected_revision"], protected=scope["protected"],
+                          targets=tuple(ManagedFleetTarget(**row) for row in sorted(scope["targets"], key=lambda row: row["device_id"])),
+                          scope_digest=scope_digest, ttl_seconds=ttl_seconds, reason=reason.strip(), digest=digest)
+
+    def _save(self, review_type, subject, cookie, **fields):
+        if not subject.strip() or not cookie:
+            raise ValueError("An authenticated session and CSRF cookie are required.")
         with self._lock:
             self._prune()
             if len(self._entries) >= 256 or sum(r.subject == subject for r in self._entries.values()) >= 5:
                 raise ReviewUnavailable("Too many open managed reviews. Wait for expiry; nothing was queued.")
-            review = ManagedRemovalReview(
+            review = review_type(
                 token=secrets.token_urlsafe(32), subject=subject,
                 cookie_hash=hashlib.sha256(cookie.encode()).hexdigest(), request_id=str(uuid4()),
                 expires=time.monotonic() + self.ttl,
                 expires_at=datetime.fromtimestamp(time.time() + self.ttl, UTC).isoformat().replace("+00:00", "Z"),
-                device_id=device_id, ip=ip, hostname=entry["hostname"], intent_id=entry["intent_id"],
-                generation=entry["generation"], managed_revision=policy["revision"],
-                observed_present=entry["observed_present"], protected=entry["protected"],
-                maintenance_enabled=entry["enabled"], ttl_seconds=ttl_seconds, reason=reason.strip(), digest=digest,
+                **fields,
             )
             self._entries[review.token] = review
             return review
 
-    def get(self, token: str, subject: str, cookie: str) -> ManagedRemovalReview:
+    def get(self, token: str, subject: str, cookie: str) -> ManagedRemovalReview | ManagedFleetRemovalReview:
         with self._lock:
             self._prune()
             review = self._entries.get(token)

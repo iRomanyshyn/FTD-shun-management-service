@@ -59,6 +59,16 @@
 </form>
 {% endif %}
 </section>
+{% if 'Operator' in identity.roles or 'Administrator' in identity.roles %}
+<details id="managed-fleet-review-preparation"><summary>Preview all-device removal scope — no execution</summary>
+<p>Review one IPv4 across the union of current shuns and maintained targets, including missing observations and disabled devices. No policy change or queue request is submitted.</p>
+<form method="post" action="/managed-shuns/fleet-removal-review" class="import-confirm-form">
+<input type="hidden" name="csrf" value="{{ csrf_token }}">
+<label for="fleet-review-ip">IPv4 address</label><input id="fleet-review-ip" name="ip" inputmode="decimal" autocomplete="off" required>
+<label for="fleet-review-reason">Reason (optional)</label><input id="fleet-review-reason" name="reason" maxlength="500" autocomplete="off">
+<button type="submit">Review fleet scope — unavailable for execution</button>
+</form></details>
+{% endif %}
 {% include "managed-removal-state.html" %}
 <script src="/static/freshness.js" defer></script>
 {% endblock %}

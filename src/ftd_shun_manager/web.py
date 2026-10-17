@@ -617,6 +617,43 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(503, "Managed review is unavailable; nothing was submitted.") from error
         return managed_review_view(request, identity, review, state)
 
+    @app.post("/managed-shuns/fleet-removal-review", response_class=HTMLResponse)
+    async def prepare_managed_fleet_removal(request: Request) -> HTMLResponse:
+        identity = identity_from_request(request, settings.development_auth)
+        require_managed_operator(identity)
+        fields = await preview_form(request, allowed={"csrf", "ip", "reason"}, max_bytes=16384)
+        require_csrf(request, fields.get("csrf", [""])[0])
+        try:
+            ip = IPv4Address(fields.get("ip", [""])[0])
+        except ValueError as error:
+            raise HTTPException(422, "Enter one exact IPv4 address for fleet review.") from error
+        return await run_in_threadpool(prepare_managed_fleet_review, request, identity, ip,
+                                       fields.get("reason", [""])[0])
+
+    def prepare_managed_fleet_review(request, identity, ip, reason):
+        try:
+            with api_client(settings) as client:
+                response = client.get(f"/api/v1/managed-removal-scope/{ip}")
+                refresh = client.get("/api/v1/status")
+            if response.status_code == 409:
+                raise ReviewUnavailable("No complete fleet scope could be prepared. Inspect current targets and limits.")
+            if response.status_code != 200 or refresh.status_code != 200:
+                raise httpx.RequestError("Fleet review state unavailable")
+            review = managed_reviews.prepare_fleet(
+                identity.subject, request.cookies.get("ftd_shun_csrf", ""), response.json(), ip,
+                min(900, settings.sensitive_action_max_age_seconds), reason,
+            )
+            state = refresh.json()
+            if not isinstance(state, dict):
+                raise TypeError("Invalid status")
+        except ReviewUnavailable as error:
+            raise HTTPException(409, str(error)) from error
+        except (ValueError, KeyError, TypeError, AttributeError) as error:
+            raise HTTPException(422, "Invalid fleet review data; nothing was submitted.") from error
+        except httpx.HTTPError as error:
+            raise HTTPException(503, "Fleet review is unavailable; nothing was submitted.") from error
+        return managed_review_view(request, identity, review, state)
+
     @app.post("/managed-shuns/removal-confirm", response_class=HTMLResponse)
     async def confirm_managed_removal(request: Request) -> HTMLResponse:
         identity = identity_from_request(request, settings.development_auth)
