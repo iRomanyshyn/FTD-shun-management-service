@@ -963,7 +963,7 @@ test("refresh interaction in real Chromium", { timeout: 120000 }, async (t) => {
         await delay(100);
         assert.equal(confirmationPosts, confirmations, "Wrong count fails native validation");
         await page.evaluate("document.querySelector('#confirm-count').value='1'; document.querySelector('.import-confirm-form').requestSubmit()");
-        await page.until("document.body.textContent.includes('Fixture admission received')");
+        await page.until("Boolean(document.body?.textContent.includes('Fixture admission received'))");
         assert.equal(confirmationPosts, confirmations + 1);
         assert.equal(postCount, hints);
         assert.equal(executionCount, executions);

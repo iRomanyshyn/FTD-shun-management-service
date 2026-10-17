@@ -3078,6 +3078,137 @@ system restoration/uncertainty integration remain next, with live validation
 requiring fresh scoped authority. Synthetic/default-off rollout is not live
 managed mutation or production acceptance.
 
+## 2026-10-17 — Offline atomic ready-target fleet retirement and cleanup admission
+
+Implemented `ManagedFleetRemovals`, separate from the single-target ordered
+handoff and deliberately not connected to API/BFF/CLI admission. One reviewed
+IPv4 union is compared within a single `BEGIN IMMEDIATE`; enabled managed
+members are retired together through one derived policy key/revision, then one
+ordinary REMOVE delegation covers the complete scope. Observed unmanaged targets
+are cleanup only, never adopted. Disabled devices, any QUEUED/RUNNING ADD and
+existing WAITING_ADD cleanup reject the entire scope without silently dropping
+members/cancelling independent ADD. Fleet ordered waiting remains pending.
+
+Policy, jobs, links, immutable root receipt and audit either commit together or
+roll back, including late capacity/audit failure. A savepoint-backed trusted
+`apply_admit()` supports caller-owned transactions and returns un-emitted logs;
+the standalone wrapper emits accepted JSON only after commit. Captured cleanup
+authority is at most 900 seconds and is checked again at the end of admission;
+partial/slow admission cannot extend it. Existing queue capacity/rate, REMOVE
+coalescing, lease/cutoff/cooldown/budgets and verified-result semantics remain.
+Atomic admission does not promise cross-device rollback/exactly-once writes.
+
+Explicit isolated initialization adds retained `managed_fleet_removals` (10000
+root-key limit, immutable actor/scope/action/receipt/deadline/retirement reference,
+monotonic transaction-local ADMITTING → ADMITTED). Startup/reads/worker never
+initialize it. Replay precedes current CAS/recovery pause/ledger capacity and
+returns the original receipt without new audit/jobs or retiring a later intent,
+including after cancellation/pruning/restart. Added cross-namespace root/derived
+key guards to queue, registry and single-target admission. Recovery preserves
+fleet authority/retirement while cancelling ordinary delegated work; orphaned
+registry or committed transitional fleet phase refuses recovery. No new queue
+source, waiting reservation, scheduler or SSH path.
+
+Synthetic coverage includes whole-union mixed managed/observed scope, absent
+startup schema, exact role/digest/UUID/scope binding, disabled/opposite/waiting
+conflicts, late queue/audit rollback, caught savepoint failure/outer commit and
+rollback, original and late expiry, same/different-key races, one-root actor
+rate accounting, capacity, coalesced cancellation, namespaces both directions,
+retention/new generations, lease/cutoff and checked offline backup/recovery.
+All **549 Python tests pass** (19.87 seconds). Compileall, Ruff, diff and JS syntax
+checks pass; Rust/wire unchanged. The first Chromium run exposed an existing
+fixture race reading `document.body` during native navigation. Changed that
+single polling expression to wait while the body is absent, preserving the
+required receipt assertion; full Chromium rerun/package results follow.
+
+Updated architecture, status, agent agreement and structured
+[Atomic Fleet Removal](manual/managed-fleet-removals.md) manual plus affected
+review/handoff/queue/recovery documentation. Combined Web confirmation stays
+unconditional 503; no HTTP admission, optional live schema, gate enablement,
+restoration or new test mutation. Future fleet waiting/system-source/generation/
+claim/uncertainty controls and scoped live validation remain prerequisites.
+
+Lab release preparation under standing authorization: announce API/Web-only
+replacement and existing queue startup risk, retain paired rollback images
+`deploy-api:before-fleet-atomic-20261017t1838z` /
+`deploy-web:before-fleet-atomic-20261017t1838z`. Read-only preflight showed healthy
+18:33:46Z ordinary reads/next baseline 18:38:46Z, eight VERIFIED/one NOOP, no
+pending/active shuns, three Protected IPs, absent optional managed objects,
+disabled ADD/admission/cleanup worker and zero eligible profiles. Quiet merged
+Compose validation passes. Exclusive SQLite-safe volume backup
+`state-before-fleet-atomic-20261017T1838Z.sqlite3` and ignored private host
+`.local/backups/state-before-fleet-atomic-20261017T1838Z.sqlite3` are 0600, host
+directory 0700; both integrity/FK checks pass. Build/pre-release checks underway,
+no source schema/env/inventory/secrets or other services changed. No live policy
+seed/control/job, direct agent call or forced refresh will be used for smoke.
+
+**Pre-deployment result:** Full Chromium rerun passes all 21 scenarios/22 reported
+tests, including native import confirmation, frozen single/fleet reviews,
+CSRF/role controls, no hints and mobile layout. All 239 relative documentation
+file links resolve. Packaged Python 3.12 smoke passes in a networkless/read-only
+container using only temporary SQLite/synthetic actors: normal API startup
+creates no optional tables; explicit isolated fixture demonstrates atomic late
+audit rollback, whole-scope retirement/admission without unmanaged adoption,
+one-root cancellation, new generation, pruning/replay/key reservation, recovery
+pause and still-unavailable BFF confirmation without any new metadata-driven
+work. Integrity/FK checks pass. No live state/credential/socket mounts or FTD
+connection. Build resolves existing unlocked dependency ranges, not production
+dependency-locking/compatibility evidence.
+
+Built API `sha256:7d93f90c5b11324e9291416dda1ad32436d7e3524432a927876030fa8b4c95cc`
+and Web `sha256:a03b330f299e6d8c090746046827aee6344e4556d2efc565115997be362e7a8a`.
+Replacing only the sole API/Web pair with --no-deps after stopping both; no
+overlapping executor or optional schema migration. Post-deploy checks follow.
+
+**Final lifetime edge-case correction:** Post-package inspection found that
+flooring a remaining fractional second made an otherwise valid 1-second cleanup
+lifetime reject immediately. Use ceiling only for the queue's integer-duration
+input; clamp the persisted queue deadline to the immutable original root expiry
+and recheck expiry after all queue/audit work. A new half-second elapsed fixture
+confirms 1-second admission succeeds without extending the original deadline;
+existing pre/post-queue expiry rollback tests remain. Final Python rerun and
+rebuilt-package/deployment checks follow. No live admission or optional schema
+was exercised during this correction.
+
+**Final validation/deployment result:** All **550 Python tests pass** (20.12
+seconds); 21 Chromium scenarios/22 reported tests pass. Final compileall/Ruff/
+JS syntax/diff and 239 relative file links pass. Rebuilt Python 3.12 package
+smoke confirms half-second admission with a valid 1-second immutable deadline,
+unchanged receipt replay and integrity/FK, in a disposable networkless/read-only
+container. The final deadline correction changed no UI/runtime admission gate.
+
+Final API image
+`sha256:f4192b7d543b1046fcfa70cb190a6fd55b83d3b746d29519f7e642f3f1c709c3`
+and Web `sha256:9ef4b50830b8e5fb39e83d7b4d9f2ac164bd6d8dfb78ec78e9e6cee6775509a3`
+are running as `d61053998b5b` / `ea732cd8598e`. The release replaced only the
+sole API/Web pair, including the final lifetime correction, with no overlapping
+executor. The original checked backup/paired rollback tags remain valid and
+retained. Intermediate pair `68c144283e65` / `1ab6f265b9fc` performed an ordinary
+read at 18:40:03Z; final pair respected the persisted minimum interval, completed
+its ordinary v2 cycle at 18:41:21Z with two commands/zero removal/addition/mutation
+steps and 8429 ms, next baseline 18:46:21Z/no error. No refresh hint/direct RPC
+was used to accelerate either cycle.
+
+Full sqlite_master definitions and all eleven non-executor tables match the
+18:38Z checked backup exactly; integrity ok/FK errors zero. No optional managed/
+handoff/fleet tables were initialized, no policies/jobs/authority changed. Eight
+VERIFIED/one NOOP, zero pending/active shuns, three Protected IPs, mutation pause
+false. Actual ADD admission/API execution/agent execution/cleanup-worker flags
+remain off and inventory has zero eligible addition profiles. Actual env/
+inventory/secrets unchanged. Agent `9d1f50d361ca`, Caddy `9c8fdb3a7f21`, Authelia
+`76f3635ab737` unchanged. Anonymous Managed/status/review/confirmation paths
+return 401, TLS-verified HTTPS redirects 302 to authentication. New coordinator
+is packaged/importable, not invoked or initialized on the live database. No
+spoofed live Web actor, test mutation, fixture seed or production action.
+
+Retain additive authority on any future approved migration/rollback; never
+restore old enabled intent or use an older writer that ignores root keys merely
+to revert software. The new offline ready-target atomic admission is complete;
+fleet ordered ADD waiting, system/protection/generation/claim and uncertainty
+integration, executable confirmation and scoped live validation remain next.
+Do not present synthetic default-off deployment as managed-write or production
+acceptance. No additional action is needed from the operator for this release.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

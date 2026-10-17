@@ -16,6 +16,7 @@ These manuals describe the first implementation increment. The service is safe t
 | [Browser Import Review](import-review.md) | Frozen exact-target confirmation, identity/CSRF, bounded ephemeral drafts, same-key retry, default-off admission and rollback. |
 | [Managed Shuns](managed-shuns.md) | Registry foundation and read-only visibility, lifecycle/storage bounds and planned managed confirmation/shared-worker restoration; no controller. |
 | [Managed Removal Handoffs](managed-removal-handoffs.md) | Offline atomic retirement, waiting cleanup, original authorization, ordered settlement and remaining runtime/recovery gates. |
+| [Atomic Fleet Removal](managed-fleet-removals.md) | Offline whole-scope retirement/queue admission for ready targets, retained receipt, rollback, replay and explicit ADD/waiting refusal. |
 | [Managed Removal Review](managed-removal-review.md) | Non-executable single/fleet frozen scopes, observational union/CAS prerequisite, read-only handoff visibility, session limits and deployment checks. |
 | [Import Admission](import-admission.md) | Default-off private staging, ADD/REMOVE conflicts, immutable occurrence provenance, additive migration and rollback; no executable import. |
 | [Import Execution](import-execution.md) | Independent default-off scheduler gate, per-device v3, common FIFO/budgets, priority reads, no-replay recovery and disabled-mode rollout. |

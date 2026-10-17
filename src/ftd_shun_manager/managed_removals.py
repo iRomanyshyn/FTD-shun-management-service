@@ -13,6 +13,7 @@ from ipaddress import IPv4Address
 from uuid import UUID, uuid5
 
 from .managed_intent import canonical_managed_removal
+from .managed_safety import fleet_key_reserved
 from .managed_shuns import (
     ManagedConflict,
     ManagedShuns,
@@ -105,6 +106,8 @@ class ManagedRemovals:
                 return {**json.loads(old["result_json"]), "replayed": True}
             if mutations_suspended(db):
                 raise QueueConflict("Device mutations are suspended for recovery; no cleanup was admitted.")
+            if fleet_key_reserved(db, request_id):
+                raise ManagedConflict("Managed-fleet keys cannot acquire single-target removal semantics.")
             if any(db.execute(f"SELECT 1 FROM {table} WHERE id=?", (request_id,)).fetchone()
                    for table in ("operation_requests", "manual_import_batches", "managed_shun_requests")):
                 raise ManagedConflict("An existing operation key cannot acquire managed-removal semantics.")

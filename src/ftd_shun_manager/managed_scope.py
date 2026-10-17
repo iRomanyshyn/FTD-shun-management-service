@@ -59,7 +59,7 @@ class ManagedRemovalScopes:
 
     @classmethod
     def require_current(cls, db, reviewed: dict) -> dict:
-        """Future composite writers must call within their write transaction.
+        """Composite writers must call within their write transaction.
 
         Comparison alone grants no authority, retires nothing and admits no job.
         Never call per-target admission in a loop and mistake this for atomicity.

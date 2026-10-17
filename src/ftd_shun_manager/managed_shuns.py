@@ -13,7 +13,7 @@ from ipaddress import IPv4Address
 from uuid import UUID, uuid4
 
 from .managed_intent import canonical_managed_change
-from .managed_safety import managed_state
+from .managed_safety import fleet_key_reserved, managed_state
 from .safety import mutations_suspended
 from .store import Store, now
 
@@ -147,6 +147,8 @@ class ManagedShuns:
             return {**json.loads(previous["result_json"]), "replayed": True}
         if action == "MAINTAIN" and mutations_suspended(db):
             raise ManagedConflict("New managed authority is suspended for recovery; retirement remains available.")
+        if fleet_key_reserved(db, request_id):
+            raise ManagedConflict("Managed-fleet keys cannot authorize another policy operation.")
         # A key from the one-time namespace cannot acquire standing semantics.
         legacy_queue = db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='operation_requests'").fetchone()
         if (db.execute("SELECT 1 FROM manual_import_batches WHERE id=?", (request_id,)).fetchone()

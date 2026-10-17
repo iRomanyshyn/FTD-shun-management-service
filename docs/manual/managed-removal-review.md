@@ -70,11 +70,13 @@ admission call even if upstream advertises enablement. Status polling never
 changes a frozen scope; prepare a new review only after inspecting new state.
 
 `ManagedRemovalScopes.require_current(db, reviewed)` is an internal comparison
-prerequisite for a future composite writer, not that writer or an authorization
-interface. It re-reads and compares within the caller's transaction and rejects
-scope changes without commits, audit or queue work. Atomic fleet retirement/
-handoffs are **not implemented**: never loop over single-target admissions to
-simulate them. Existing ordinary device/fleet removal behavior is unchanged.
+prerequisite, not an authorization interface. It re-reads and compares within
+the caller's transaction and rejects scope changes without commits, audit or
+queue work. The [offline ready-target coordinator](managed-fleet-removals.md)
+now uses it for atomic retirement/admission, but is not connected to this BFF
+and refuses unfinished ADD/waiting cleanup. Fleet ordered waiting remains
+unimplemented; never loop over single-target admissions to simulate it.
+Existing ordinary device/fleet removal behavior is unchanged.
 
 ## Session and refresh behavior
 

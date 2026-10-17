@@ -4,6 +4,45 @@ Last updated: 2026-10-17
 
 ## Current increment
 
+**Offline atomic fleet retirement/cleanup for ready targets (2026-10-17).**
+`ManagedFleetRemovals` now compares the complete frozen scope under one write
+lock, retires all enabled desired targets with one policy request and admits
+one ordinary whole-scope REMOVE delegation. Observed unmanaged targets are
+cleanup-only, never adopted. Policy/jobs/links/retained receipt/audit commit
+together or roll back, including late capacity/audit failure and admission
+expiry. Disabled devices, any QUEUED/RUNNING ADD or existing waiting cleanup
+reject the entire request; fleet ordered waiting remains unimplemented. This
+is local admission atomicity, not cross-device transactional execution.
+
+Explicit isolated initialization adds one immutable 10000-key fleet ledger;
+normal startup/GET/worker never initializes it. Original-key replay precedes
+current scope/pause/limits and cannot retire another generation or recreate work
+after cancellation/pruning/restart. Root/derived policy keys cannot cross queue/
+import/registry/single-handoff namespaces. Recovery preserves receipt/retirement
+while cancelling ordinary queue work; orphan/transitional fleet authority fails
+closed. See [Atomic Fleet Removal](manual/managed-fleet-removals.md).
+
+No HTTP/CLI admission route, new gate, schema seed or live operation. Combined
+Web confirmation remains unconditional 503. Single-target ordered handoff is
+unchanged; runtime fleet waiting, system/generation/claim/uncertainty integration
+and scoped live validation remain before executable controls/restoration.
+All 550 Python tests and 21 Chromium scenarios (22 reported tests), compileall/
+Ruff/diff/JS syntax and 239 relative links pass. Isolated packaged Python 3.12
+rollback/admission/pruning/recovery/BFF-refusal smoke passes; final subsecond
+rounding test preserves a valid 1-second lifetime without extending its deadline.
+
+Deployed API/Web `d61053998b5b` / `ea732cd8598e`, retaining paired original
+rollback images `before-fleet-atomic-20261017t1838z` and checked 0600 volume/
+ignored host `.local/backups/state-before-fleet-atomic-20261017T1838Z.sqlite3`
+in a 0700 directory. Full schema and all eleven non-executor tables match
+backup, integrity/FK pass; all optional managed tables stay absent, queue eight
+VERIFIED/one NOOP, no pending/active shuns. Actual ADD/admission/cleanup worker
+off/zero profiles, mutation pause false, env/inventory/secrets and agent/Caddy/
+Authelia unchanged. Anonymous paths 401/TLS-verified HTTPS 302. Ordinary v2
+cycle at 18:41:21Z used two reads/zero mutations/8429 ms; next baseline
+18:46:21Z/no error. No managed seed/control/new test job or direct agent/forced
+refresh was submitted. This is not runtime fleet execution/live acceptance.
+
 **Frozen fleet-removal scope prerequisite (2026-10-17).** A private observational
 scope API and non-executable BFF review now cover one IPv4 across the union of
 active local shuns and enabled maintained targets. Missing/disabled devices stay
@@ -841,9 +880,9 @@ The new restoration requirement now takes precedence for development. The
 isolated registry/authorization/revision/retention foundation, preparatory
 visibility/reviews, offline atomic retirement/removal handoff, composite
 recovery controls and default-off shared-worker integration are implemented.
-Policy-only retirement/wait cancellation and frozen fleet scope/comparison are
-now implemented; next complete atomic multi-target retirement/handoff admission,
-combined executable cleanup confirmation and protection/system
+Policy-only retirement/wait cancellation, frozen fleet scope/comparison and
+offline ready-target atomic fleet admission are now implemented; next complete
+ordered fleet ADD/cleanup handoff, combined executable confirmation and protection/system
 hooks, followed by bounded default-off desired reconciliation
 with uncertainty/rearm and anti-churn controls. Do not enable it by deriving
 policy from historical imports or by renewing old user jobs. Resolve controller

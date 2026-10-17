@@ -77,8 +77,12 @@ Do not rewrite historical log entries except to correct an objective error; add 
   visibility/preparatory combined-removal reviews never invoke admission;
   combined-removal confirmation is unconditionally unavailable. Separate frozen
   fleet reviews read the observed/enabled-managed union with a transactional
-  scope-comparison prerequisite, not atomic fleet admission. Never simulate
-  atomic fleet writes by looping over the single-target coordinator. Separate
+  scope-comparison prerequisite. An offline ready-target fleet coordinator now
+  retires enabled targets and admits one whole-scope REMOVE transaction; it
+  rejects any unfinished ADD/waiting cleanup/disabled device without changes.
+  Its optional retained authority table is never initialized by startup; no
+  HTTP admission or fleet ordered waiting exists. Never simulate atomic fleet
+  writes by looping over the single-target coordinator. Separate
   policy-only RETIRE and owner/Administrator waiting-cleanup cancellation are
   supported local revocation controls; neither admits device work nor cancels
   independent one-time jobs or a RUNNING ADD. No create/re-enable/resume route.

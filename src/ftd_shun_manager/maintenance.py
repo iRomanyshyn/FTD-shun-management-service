@@ -51,6 +51,11 @@ def apply_recovery_control(db, store: Store, action: str, actor: str, *, now: da
             raise ValueError("Partial managed schema; repair/review the backup before recovery.")
         if "managed_removal_handoffs" in tables and not managed_tables.issubset(tables):
             raise ValueError("Handoffs without their policy registry; review the backup.")
+        if "managed_fleet_removals" in tables:
+            if not managed_tables.issubset(tables):
+                raise ValueError("Fleet authority without its policy registry; review the backup.")
+            if db.execute("SELECT 1 FROM managed_fleet_removals WHERE phase!='ADMITTED' LIMIT 1").fetchone():
+                raise ValueError("Transitional fleet authority is inconsistent; review the backup.")
         columns = {row[1] for row in db.execute("PRAGMA table_info(operation_executor)")}
         if "mutations_suspended" not in columns:
             db.execute("ALTER TABLE operation_executor ADD COLUMN mutations_suspended INTEGER NOT NULL DEFAULT 0 CHECK(mutations_suspended IN (0,1))")

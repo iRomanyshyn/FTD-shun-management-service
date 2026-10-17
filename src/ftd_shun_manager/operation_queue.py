@@ -11,7 +11,7 @@ from uuid import uuid4
 
 from .agent_protocol import AdditionResult, _valid_interface
 from .import_intent import canonical_import
-from .managed_safety import require_ordinary_removal
+from .managed_safety import require_fleet_queue_key, require_ordinary_removal
 from .safety import mutations_suspended
 from .store import Store
 
@@ -239,6 +239,7 @@ class OperationQueue:
             return {"operation_id": request_id, "status": "accepted", "replayed": True}, []
         if mutations_suspended(db):
             raise QueueConflict("Device mutations are suspended for recovery; no new work was admitted.")
+        require_fleet_queue_key(db, request_id, targets, subject, source, scope)
         if self._handoffs_present(db):
             handoff = db.execute("SELECT * FROM managed_removal_handoffs WHERE id=?", (request_id,)).fetchone()
             if handoff is not None and (

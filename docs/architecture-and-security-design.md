@@ -3185,3 +3185,38 @@ upstream flags. Preparation neither retires policy nor grants durable cleanup
 authority. Single-target admission must not be looped into partial fleet writes;
 atomic multi-target retirement/handoffs, system/protection/uncertainty hooks and
 separately scoped live acceptance remain prerequisites to execution.
+
+### Offline atomic fleet removal, ready targets only — 2026-10-17
+
+An internal coordinator may admit the full frozen fleet scope in a single
+`BEGIN IMMEDIATE` transaction. This is an offline integration stage, not an HTTP
+admission route, live migration or enablement of the preparatory confirmation.
+Require current Operator/Administrator, canonical UUID, exact fleet action digest
+and comparison of the complete scope under the write lock. Reject the entire
+request on a disabled target, QUEUED/RUNNING ADD or existing waiting cleanup.
+Do not shrink the scope, cancel independent ADD or loop over single-target
+admissions/commits. Fleet ordered waiting remains a separate future increment.
+
+Retire all enabled managed targets together using one derived policy key, then
+delegate the entire reviewed union through one ordinary REMOVE request. Observed
+unmanaged targets receive cleanup only, never adopted policy or invented origin.
+Retirement, queue jobs/links, immutable fleet receipt and audit either commit
+together or roll back. Reuse existing queue capacity/rate, captured at-most-900s
+authorization, coalescing, cutoff/lease/budgets and verified-result rules. Never
+emit accepted logs before commit or extend authority when retrying.
+
+Explicit offline initialization may add a retained fleet request ledger, bounded
+to 10000 keys without recycling. It binds original actor, canonical intent,
+receipt, derived retirement key and original deadline. Same-key replay precedes
+current scope/CAS/gate checks and returns only the original receipt, even after
+queue pruning/restart/recovery; it never retires a later generation or recreates
+jobs. Keys cannot cross into ordinary/import/policy/single-handoff operations.
+Normal startup/reads never create this table. Composite recovery cancels the
+ordinary queue delegation and suspends restoration while retaining immutable
+fleet authority; older writers ignoring these reservations are unsafe.
+
+This stage intentionally refuses rather than implements fleet WAITING_ADD.
+Single-target ordered handoff remains distinct. Runtime controls, system-source/
+generation/claim cancellation, uncertainty/rearm, migration and scoped live
+validation still block combined execution/restoration. All lab gates remain off;
+no optional schema seed or device mutation is authorized by this amendment.

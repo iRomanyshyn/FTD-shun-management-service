@@ -15,7 +15,10 @@ Protected-IP weakening requires reviewed acknowledgement when managed intents
 exist; ordinary removal cannot silently bypass enabled maintenance.
 The [frozen fleet review](docs/manual/managed-removal-review.md#frozen-all-device-scope)
 includes observed and maintained-but-missing targets without submitting work.
-Combined device-removal admission, managed creation and desired restoration/
+An [offline ready-target fleet coordinator](docs/manual/managed-fleet-removals.md)
+now atomically retires the reviewed scope and delegates cleanup, rejecting
+unfinished ADD/disabled targets without partial changes. It has no HTTP admission.
+Runtime combined device-removal admission, managed creation and desired restoration/
 controller integration remain pending.
 Current imports remain one-time and all ADD gates stay
 disabled in the lab. Old imports are not auto-adopted and no live migration

@@ -1,10 +1,34 @@
 """Optional managed-policy safety reads. No initialization or authority grant."""
 
+import json
 import sqlite3
 
 
 class ManagedStateUnavailable(ValueError):
     pass
+
+
+def fleet_key_reserved(db, key: str) -> bool:
+    """Optional immutable fleet authority survives ordinary queue retention."""
+    if not db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='managed_fleet_removals'").fetchone():
+        return False
+    return db.execute("SELECT 1 FROM managed_fleet_removals WHERE id=? OR retirement_request_id=?",
+                      (key, key)).fetchone() is not None
+
+
+def require_fleet_queue_key(db, key, targets, subject, source, scope) -> None:
+    if not fleet_key_reserved(db, key):
+        return
+    row = db.execute("SELECT * FROM managed_fleet_removals WHERE id=?", (key,)).fetchone()
+    if (row is not None and row["phase"] == "ADMITTING" and row["actor_subject"] == subject
+            and source == "manual" and scope == "managed_fleet_removal"):
+        intent = json.loads(row["payload_json"])
+        expected = [(entry["device_id"], intent["ip"]) for entry in intent["targets"]]
+        if [(device, str(ip)) for device, ip in targets] == expected:
+            return
+    from .operation_queue import QueueConflict
+
+    raise QueueConflict("Managed-fleet key is reserved for its exact original cleanup.")
 
 
 def managed_state(db) -> dict | None:
@@ -16,7 +40,7 @@ def managed_state(db) -> dict | None:
     }
     try:
         names = {r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
-        if not names.intersection(expected):
+        if not names.intersection(expected) and "managed_fleet_removals" not in names:
             return None
         if not names.issuperset(expected):
             raise ValueError("Partial managed schema")

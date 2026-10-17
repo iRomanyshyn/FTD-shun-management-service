@@ -226,6 +226,14 @@ ordinary admission, not monitoring/protective removal. These are admission
 barriers, **not** a system-restoration source/generation/claim implementation;
 those hooks remain required before connecting a managed controller.
 
+The [offline ready-target fleet coordinator](managed-fleet-removals.md) now
+retires the whole reviewed enabled-policy scope before admitting one ordinary
+REMOVE delegation. Its root/derived policy keys remain reserved after queue
+history pruning. Only the uncommitted exact-scope fleet admission may materialize
+that queue key; another source/scope or old-key re-admission conflicts. No
+HTTP admission is connected. Any unfinished ADD/waiting cleanup rejects the
+whole fleet request; it is not a workaround for the ordered-handoff gate.
+
 ## Backup, restore, and rollback
 
 Take a SQLite-safe backup before starting the first queue-enabled API. Rebuild
@@ -242,6 +250,6 @@ managed waits/policy need suspension too. No automatic replay is authorized.
 Initialization adds `operation_executor.mutations_suspended` (default 0).
 Preserve the original backup and additive authority tables. Pre-queue backups
 need separate reviewed migration. Retain paired API/Web images, but **older
-images ignore the new pause and reservations**; do not start them against paused,
+images ignore the new pause, reservations and fleet-key authority**; do not start them against paused,
 restored or pending work. Review downgrade offline rather than assuming a code
 rollback is safe. Never run old immediate writers beside the new executor.
