@@ -4,6 +4,21 @@ Last updated: 2026-10-17
 
 ## Current increment
 
+**Offline managed removal handoff coordinator (2026-10-17).** Implemented
+single-target reviewed RETIRE_AND_REMOVE: atomic retirement and ordinary removal
+or durable WAITING_ADD, without cancelling/overlapping a running ADD. Immutable
+composite authority, original deadline, concurrent/idempotent replay, bounded
+leased settlement, known pre-write deferral, uncertainty preservation and
+attention/cancellation are covered. Optional waiting reservations share normal
+capacity/request/rate limits and protect predecessor retention; old keys cannot
+requeue after history pruning or retire a new generation. All 409 Python tests
+pass, including 25 new coordinator cases, plus compileall/Ruff/diff/link checks.
+No HTTP/UI/scheduler hook, normal-startup schema initialization, restoration,
+live migration, job/policy admission or deployment. All ADD gates remain off.
+Next: frozen controls and visible waiting/attention, worker wake/expiry, fleet/
+protection handling and composite recovery before live integration. See
+[Managed Removal Handoffs](manual/managed-removal-handoffs.md).
+
 **Caller-owned queue admission foundation (2026-10-17).** Added a savepoint-
 protected `apply_enqueue()` hook, with ordinary admission using the same path.
 Synthetic tests compose managed retirement and removal in one transaction:

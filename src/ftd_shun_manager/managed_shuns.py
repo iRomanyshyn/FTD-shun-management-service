@@ -164,6 +164,9 @@ class ManagedShuns:
         if (db.execute("SELECT 1 FROM manual_import_batches WHERE id=?", (request_id,)).fetchone()
                 or (legacy_queue and db.execute("SELECT 1 FROM operation_requests WHERE id=?", (request_id,)).fetchone())):
             raise ManagedConflict("One-time operation keys cannot authorize managed policy.")
+        if (db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='managed_removal_handoffs'").fetchone()
+                and db.execute("SELECT 1 FROM managed_removal_handoffs WHERE id=?", (request_id,)).fetchone()):
+            raise ManagedConflict("Managed-removal keys cannot authorize another policy operation.")
         current = db.execute("SELECT revision FROM managed_shun_registry WHERE id=1").fetchone()[0]
         if current != revision:
             raise ManagedConflict("Managed shuns changed; review the current policy.")
@@ -176,6 +179,15 @@ class ManagedShuns:
         for device_id, ip in targets:
             old = db.execute("SELECT * FROM managed_shun_targets WHERE device_id=? AND ip=?", (device_id, ip.packed)).fetchone()
             if action == "MAINTAIN":
+                if db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='managed_removal_handoffs'").fetchone():
+                    cleanup = db.execute("""SELECT 1 FROM managed_removal_handoffs h
+                        WHERE h.device_id=? AND h.ip=? AND (h.state IN ('WAITING_ADD','ATTENTION')
+                        OR (h.state='ADMITTED' AND EXISTS (
+                            SELECT 1 FROM operation_links l JOIN operation_jobs j ON j.id=l.job_id
+                            WHERE l.request_id=h.id AND j.state IN ('QUEUED','RUNNING'))))""",
+                        (device_id, ip.packed)).fetchone()
+                    if cleanup:
+                        raise ManagedConflict("Managed cleanup is pending or needs attention; do not re-enable maintenance.")
                 device = db.execute("SELECT enabled FROM devices WHERE id=?", (device_id,)).fetchone()
                 if device is None or not device[0]:
                     raise ManagedConflict("Unknown or disabled managed target device.")

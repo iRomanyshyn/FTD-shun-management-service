@@ -107,6 +107,36 @@ class OperationQueue:
     def _bump(db) -> None:
         db.execute("UPDATE operation_executor SET revision=revision+1 WHERE id=1")
 
+    @staticmethod
+    def _handoffs_present(db) -> bool:
+        # Optional explicit/offline schema, never created by queue/API startup.
+        return db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='managed_removal_handoffs'").fetchone() is not None
+
+    def _pending_count(self, db) -> int:
+        count = db.execute("SELECT COUNT(*) FROM operation_jobs WHERE state IN ('QUEUED','RUNNING')").fetchone()[0]
+        if self._handoffs_present(db):
+            count += db.execute("SELECT COUNT(*) FROM managed_removal_handoffs WHERE state='WAITING_ADD'").fetchone()[0]
+        return count
+
+    def _active_request_count(self, db) -> int:
+        count = db.execute("""SELECT COUNT(DISTINCT r.id) FROM operation_requests r
+            JOIN operation_links l ON l.request_id=r.id JOIN operation_jobs j ON j.id=l.job_id
+            WHERE r.state='ACTIVE' AND j.state IN ('QUEUED','RUNNING')""").fetchone()[0]
+        if self._handoffs_present(db):
+            count += db.execute("SELECT COUNT(*) FROM managed_removal_handoffs WHERE state='WAITING_ADD'").fetchone()[0]
+        return count
+
+    def _recent_request_count(self, db, subject, current, exclude_request_id=None) -> int:
+        cutoff = stamp(current - timedelta(minutes=1))
+        count = db.execute("SELECT COUNT(*) FROM operation_requests WHERE actor_subject=? AND requested_at>=?",
+                           (subject, cutoff)).fetchone()[0]
+        if self._handoffs_present(db):
+            count += db.execute("""SELECT COUNT(*) FROM managed_removal_handoffs h
+                WHERE actor_subject=? AND requested_at>=? AND (? IS NULL OR id!=?)
+                AND NOT EXISTS(SELECT 1 FROM operation_requests r WHERE r.id=h.id)""",
+                (subject, cutoff, exclude_request_id, exclude_request_id)).fetchone()[0]
+        return count
+
     def _event(self, db, event: str, request, job, details: dict | None = None) -> None:
         imported = db.execute("SELECT 1 FROM manual_import_batches WHERE id=?", (request["id"],)).fetchone()
         self.store._insert_event(
@@ -198,22 +228,25 @@ class OperationQueue:
             ):
                 raise QueueConflict("idempotency key was already used for another request")
             return {"operation_id": request_id, "status": "accepted", "replayed": True}, []
+        if self._handoffs_present(db):
+            handoff = db.execute("SELECT * FROM managed_removal_handoffs WHERE id=?", (request_id,)).fetchone()
+            if handoff is not None and (
+                handoff["state"] != "ADMITTING" or handoff["actor_subject"] != subject
+                or source != "manual" or scope != "managed_device_removal"
+                or targets != [(handoff["device_id"], IPv4Address(handoff["ip"]))]
+            ):
+                raise QueueConflict("Managed-removal key is reserved for its exact cleanup handoff.")
         if action == "ADD":
             if db.execute("SELECT revision FROM protected_policy WHERE id=1").fetchone()[0] != policy_revision:
                 raise QueueConflict("Protected IPs changed; review the import again.")
             if any(db.execute("SELECT 1 FROM protected_ips WHERE ip=? AND enabled=1", (ip.packed,)).fetchone()
                    for _, ip in targets):
                 raise QueueConflict("Import contains an enabled Protected IP; no targets were queued.")
-        active_requests = db.execute("""SELECT COUNT(DISTINCT r.id) FROM operation_requests r
-            JOIN operation_links l ON l.request_id=r.id JOIN operation_jobs j ON j.id=l.job_id
-            WHERE r.state='ACTIVE' AND j.state IN ('QUEUED','RUNNING')""").fetchone()[0]
+        active_requests = self._active_request_count(db)
         if active_requests >= 2000:
             raise QueueFull("operation queue is full")
         if source in {"manual", "manual_import"}:
-            recent = db.execute("""SELECT COUNT(*) FROM operation_requests
-                WHERE actor_subject=? AND requested_at>=?""",
-                (subject, stamp(current - timedelta(minutes=1))),
-            ).fetchone()[0]
+            recent = self._recent_request_count(db, subject, current, request_id)
             if recent >= 10:
                 raise QueueFull("at most 10 operation submissions per minute per user")
         db.execute("""INSERT INTO operation_requests VALUES (?,?,?,?,?,?,?,?,?)""", (
@@ -226,6 +259,11 @@ class OperationQueue:
             ))
         request = db.execute("SELECT * FROM operation_requests WHERE id=?", (request_id,)).fetchone()
         for device_id, ip in targets:
+            if action == "ADD" and self._handoffs_present(db) and db.execute(
+                "SELECT 1 FROM managed_removal_handoffs WHERE device_id=? AND ip=? AND state='WAITING_ADD'",
+                (device_id, ip.packed),
+            ).fetchone():
+                raise QueueConflict("Reviewed managed cleanup is waiting; no new ADD was admitted.")
             device = db.execute("SELECT enabled FROM devices WHERE id=?", (device_id,)).fetchone()
             if device is None or not device["enabled"]:
                 raise ValueError("unknown or disabled target device")
@@ -235,7 +273,7 @@ class OperationQueue:
             if job is not None and job["action"] != action:
                 raise QueueConflict("Opposite ADD/REMOVE work already exists for this device/IP; no targets were queued.")
             if job is None:
-                pending = db.execute("SELECT COUNT(*) FROM operation_jobs WHERE state IN ('QUEUED','RUNNING')").fetchone()[0]
+                pending = self._pending_count(db)
                 if pending >= 1000:
                     raise QueueFull("operation queue is full")
                 job_id = str(uuid4())
@@ -684,8 +722,12 @@ class OperationQueue:
     def prune_completed(self, retention_days: int) -> None:
         cutoff = stamp(self._now() - timedelta(days=retention_days))
         with self.store._connection() as db:
+            preserve = ""
+            if self._handoffs_present(db):
+                preserve = """ AND NOT EXISTS (SELECT 1 FROM managed_removal_handoffs h
+                    WHERE h.predecessor_id=operation_jobs.id AND h.state='WAITING_ADD')"""
             deleted = db.execute("""DELETE FROM operation_jobs
-                WHERE state NOT IN ('QUEUED','RUNNING') AND completed_at<?""", (cutoff,)).rowcount
+                WHERE state NOT IN ('QUEUED','RUNNING') AND completed_at<?""" + preserve, (cutoff,)).rowcount
             db.execute("""DELETE FROM operation_requests WHERE requested_at<?
                 AND NOT EXISTS(SELECT 1 FROM operation_links WHERE request_id=operation_requests.id)""", (cutoff,))
             batches_deleted = db.execute("""DELETE FROM manual_import_batches WHERE requested_at<?

@@ -10,6 +10,15 @@ for the approved scope extension and unchanged security boundaries.
 
 ## Latest requirement amendment — 2026-10-17
 
+**Offline removal handoff checkpoint (2026-10-17):** Single-target atomic
+retirement and durable WAITING_ADD/ordinary cleanup admission now have a bounded
+coordinator and immutable composite authority. Settlement preserves original
+expiry, uncertainty and shared queue limits. It has no runtime route, UI or
+scheduler call and does not initialize on startup. Next connect frozen reviewed
+controls, waiting/attention visibility and shared-worker wake/expiry only after
+all-device/protection/recovery gates are resolved. See
+[Managed Removal Handoffs](manual/managed-removal-handoffs.md).
+
 **Transactional admission prerequisite (2026-10-17):** Ordinary queue admission
 now delegates to a caller-owned/savepoint-protected hook. Offline tests compose
 managed retirement and removal admission in one transaction without partial

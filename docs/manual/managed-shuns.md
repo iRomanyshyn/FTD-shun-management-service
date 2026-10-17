@@ -4,6 +4,9 @@
 
 **Registry foundation and read-only API/UI visibility implemented on 2026-10-17.
 Restoration, managed confirmation and worker integration remain unimplemented/off.**
+The [removal handoff coordinator](managed-removal-handoffs.md) is implemented
+offline: atomic single-target retirement/cleanup and RUNNING-ADD settlement
+are tested, but no runtime route or scheduler invokes it.
 The operator requested re-adding manually added shuns when they disappear,
 for example after FTD reboot. This replaces the former one-time-only target
 requirement. The deployed [import workflow](import-review.md) is still one-time
@@ -221,9 +224,11 @@ savepoint and post-commit-only log records. Synthetic tests compose retirement
 and queue admission under one outer transaction and verify rollback of both
 ledgers/audit on failure. See the
 [transaction contract](operation-queue.md#caller-owned-admission-transactions).
-This is not a managed removal coordinator: no route performs that composition,
-no opposite-action conflict is bypassed, and composite idempotency, unstarted
-restoration cancellation and RUNNING cleanup remain required before runtime use.
+The offline coordinator now provides single-target composite idempotency and
+bounded RUNNING-ADD handoff using that hook. No route performs the composition;
+ordinary opposite-action conflicts are not bypassed. UI/worker integration,
+system restoration cancellation, all-device scope and reviewed recovery remain
+required before runtime use. See [Managed Removal Handoffs](managed-removal-handoffs.md).
 The standalone wrapper logs only request/action/actor/revision/count after commit;
 labels/reason/target lists are not copied into operating logs.
 

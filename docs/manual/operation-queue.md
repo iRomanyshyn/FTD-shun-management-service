@@ -172,6 +172,16 @@ system authorization or uncertainty replay is introduced. A future coordinator
 must bind/replay the **entire** reviewed action, cancel unstarted restoration
 and retain ordered cleanup after RUNNING ADD before managed writes can ship.
 
+The [offline managed-removal coordinator](managed-removal-handoffs.md) now
+implements one reviewed device/IP handoff, but no route or scheduler invokes it.
+Its explicit optional schema reserves WAITING_ADD capacity/request/rate slots;
+ordinary ADD admission refuses those targets, and retention preserves their
+predecessor evidence. Normal startup never creates that schema. All existing
+ordinary opposite-action conflicts, dispatch/cutoff and authorization rules
+remain in effect. The recovery SQL below suspends existing queue jobs only:
+it is **not sufficient for future managed policies/waiting cleanups**. Composite
+recovery tooling is a prerequisite to any managed live migration.
+
 There is no schema/configuration/protocol migration for this refactor. Reverting
 the code needs no database restore. No deployment is needed to expose a new
 feature: no UI/API workflow uses managed transaction composition yet.

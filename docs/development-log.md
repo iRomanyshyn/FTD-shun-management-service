@@ -2542,6 +2542,60 @@ action requiring lab rollout. No backup restoration/migration is needed to
 revert it; retain existing tables and outcomes. Managed registry initialization
 remains explicit/offline, UI read-only, controller absent and all ADD gates off.
 
+## 2026-10-17 — Offline managed removal coordinator and ordered ADD cleanup
+
+Implemented explicit single-device/IP RETIRE_AND_REMOVE confirmation and atomic
+coordinator, still disconnected from HTTP/UI/scheduler. Its optional additive
+handoff table is initialized only explicitly in isolated development, never by
+normal API/Store/queue startup. Root UUID/canonical mode/scope/revision/reason/
+lifetime, current Operator/Administrator and digest bind durable immutable
+authority. Deterministic separate retirement and cleanup/reservation/audit commit
+together. Replay returns the original reference before revisions or new effects;
+retained root keys prevent renewed cleanup after queue pruning or retirement of
+a newer intent generation. Ledger is capped at 10000 retained one-target rows.
+
+An exact RUNNING ADD remains the sole active command; WAITING_ADD reserves its
+later removal without cancellation/overlap. Waiting records share queue job/
+request/rate bounds, block new target ADD and pending/attention re-enable, and
+protect predecessor evidence from retention. Ordinary opposite conflicts remain;
+unstarted one-time imports require explicit cancellation. Leased, bounded
+advance selects eligible rows without old-running head-of-line blocking. Settled
+success/no-op/failure/uncertainty permits separate ordinary removal under the
+original deadline, not renewed user authority or replayed ADD. Known pre-write
+deferral can supersede that same unsent ADD. Missing/inconsistent evidence or
+admission failure latches attention. Expiry/cancellation leaves policy retired
+and never pretends to cancel running device work. Ordinary queue owns eventual
+fresh snapshots, cutoff, verification/cooldown and budgets; no new RPC/writer.
+
+Added a structured handoff manual and updated normative design, working
+agreement, status, development plan and relevant manuals. State snapshots are
+bounded to 20 entries plus full counts, separate handoff phase from queue state
+and explicitly report missing scheduler integration. No UI/API exposes them.
+
+**Validation:** All 409 Python tests pass, including 25 new temporary-SQLite
+cases for no runtime initialization, atomic/no-overlap admission, typed verified/
+no-op/uncertain settlement, pre-write deferral, lease recovery, expiry/cancellation
+with actual actor attribution, key/generation/replay safety, full audit rollback,
+concurrent same-key admission, shared capacity/rate reservations, pruning,
+immutable authority and checked SQLite backup. Initial test NOOP used a string
+rather than the required typed result; corrected the fixture without weakening
+validation. The backup test now rolls back its deliberately failed immutable
+write before backup, avoiding a self-held writer. One full-suite permission
+review timed out before launch; its allowed retry passed. Final full suite,
+compileall, Ruff, documentation-link and diff checks pass. No browser/agent/wire
+changes; their suites and live Cisco evidence were not rerun or implied.
+
+**Operational impact and remaining gates:** No actual database/configuration/
+secret/inventory/version change, migration, live policy/job, refresh hint, agent
+request, deployment or restart. Do not seed/test the coordinator in the lab.
+Visible waiting/attention controls, frozen confirmation, shared-worker wake/
+advance/expiry, all-device scope union, protection/system cancellation and
+composite backup-restore suspension remain prerequisites to runtime rollout.
+Old queue-only restore SQL does not suspend these waits/desired policy. Retain
+additive authority/tombstones on rollback, and never start older workers ignoring
+pending reservations. All ADD gates remain off; no consumed fixture permission
+is reused and restoration is still unavailable.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

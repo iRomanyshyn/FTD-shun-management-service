@@ -72,7 +72,10 @@ Do not rewrite historical log entries except to correct an objective error; add 
   convert old imports/history into standing authority, renew expired user
   requests or replay uncertain ADD. The isolated registry foundation is now
   implemented; optional read-only API/UI visibility does not initialize or
-  authorize policy. All live gates
+  authorize policy. The single-target removal handoff coordinator is offline-only;
+  its optional waiting-cleanup schema is not initialized by startup, and neither
+  UI nor scheduler invokes it. Do not deploy/seed pending handoffs before visible
+  controls and composite backup-restore suspension are implemented. All live gates
   remain off; UI/queue integration, reviewed migration and a separately approved
   live fixture are still required.
 - On 2026-10-16 the operator separately approved the one-address service

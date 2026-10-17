@@ -13,6 +13,7 @@ These manuals describe the first implementation increment. The service is safe t
 | [Import Preview](import-preview.md) | Non-executable paste parsing, local-state classification, supported syntax, limits and the pending ADD release gate. |
 | [Browser Import Review](import-review.md) | Frozen exact-target confirmation, identity/CSRF, bounded ephemeral drafts, same-key retry, default-off admission and rollback. |
 | [Managed Shuns](managed-shuns.md) | Registry foundation and read-only visibility, lifecycle/storage bounds and planned managed confirmation/shared-worker restoration; no controller. |
+| [Managed Removal Handoffs](managed-removal-handoffs.md) | Offline atomic retirement, waiting cleanup, original authorization, ordered settlement and remaining runtime/recovery gates. |
 | [Import Admission](import-admission.md) | Default-off private staging, ADD/REMOVE conflicts, immutable occurrence provenance, additive migration and rollback; no executable import. |
 | [Import Execution](import-execution.md) | Independent default-off scheduler gate, per-device v3, common FIFO/budgets, priority reads, no-replay recovery and disabled-mode rollout. |
 | [One-Address Service Validation](single-address-service-validation.md) | Scoped runbook and recorded one-fixture VERIFIED/NOOP/cleanup evidence, idempotent replay and restored gates; new tests require new approval. |

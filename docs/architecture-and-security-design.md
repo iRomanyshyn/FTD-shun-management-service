@@ -2949,3 +2949,40 @@ review/replay authority is added. Opposite ADD/REMOVE work still fails closed.
 Keep managed writes unavailable until their complete retirement/cancellation/
 ordered-handoff and uncertainty contracts are implemented together. Transaction
 composition itself cannot authorize a device operation or waive existing gates.
+
+### Offline single-target removal handoff coordinator — 2026-10-17
+
+`ManagedRemovals` implements explicit reviewed single-device/IP retirement plus
+cleanup admission in one transaction. It has no HTTP/UI or scheduler integration;
+normal startup must not initialize its optional additive schema. This is not
+restoration or a live migration. Canonical RETIRE_AND_REMOVE binds fixed mode,
+pair, managed revision, reason and a bounded cleanup lifetime; current Operator/
+Administrator, canonical UUID and exact confirmation are mandatory. Immutable
+root authority/result and original expiry survive pruning/restarts. Same-key
+replay cannot retire a later generation or re-admit cleanup after queue pruning.
+
+If ADD is RUNNING, keep the unique active job intact and persist WAITING_ADD
+against that exact predecessor, atomically with desired retirement. Reserve a
+slot under the existing 1000 unfinished/2000 active-request bounds, share actor
+rate limits, block new ADD coalescing and maintenance re-enable while cleanup is
+pending/attention. Ordinary opposite-action admissions still conflict; an
+unstarted one-time ADD is not silently revoked. Initial ledger limit is 10000
+retained one-target requests; overflow never partially retires policy.
+
+Only the current leased executor may explicitly advance at most 16 eligible
+handoffs. The present scheduler does not call it. Running predecessors remain
+waiting; settled VERIFIED/NOOP/FAILED/UNVERIFIED allow separate REMOVE under the
+original deadline without changing ADD provenance/uncertainty. A known exact
+pre-write deferral may cancel that same unsent ADD before cleanup is admitted.
+Missing/inconsistent evidence, changed generation or admission failure latches
+attention; no automatic replay. Expiry/cancellation/failure never re-enables
+maintenance. Materialized removal uses the existing queue, cutoff, snapshots,
+verification and budgets, not a second executor or SSH path.
+
+Optional queue accounting and retention protect waiting capacity and predecessor
+evidence only when the explicit schema exists. Normal monitoring/admission with
+absent schema remains unchanged. Frozen UI, visible waiting/attention, worker
+wake/expiry, all-device scope, system/protection cancellation and composite
+restore suspension remain live-integration blockers. Backup/downgrade must not
+start an older worker ignoring waiting reservations or replay restored intent.
+See [Managed Removal Handoffs](manual/managed-removal-handoffs.md).

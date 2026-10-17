@@ -29,9 +29,17 @@ compatibility convention and planned (not implemented) development-build identit
 admission, invisible pre-commit state, savepoint/outer rollback, audit/commit
 failure, unchanged authorization/limits/coalescing, and shared atomic retirement
 plus queued removal. Tests deliberately retain QUEUED/RUNNING ADD conflicts;
-there is no managed coordinator or running cleanup handoff yet. Returned
+ordinary admission does not invoke the offline coordinator. Returned
 accepted logs belong to the caller and must not be emitted before outer commit.
 No test in this module opens a device socket or dispatches a command.
+
+`tests/test_managed_removals.py` tests the separate single-target offline
+coordinator with real temporary SQLite/queue and synthetic typed outcomes.
+It covers RUNNING/no-overlap, verified/no-op/uncertain completion, exact pre-write
+deferral, lease recovery, original expiry/cancellation, full rollback, parallel
+replay, shared reservations/rate/capacity, generation/key safety and retention/
+backup. Startup/API never initializes or invokes it; see
+[Managed Removal Handoffs](managed-removal-handoffs.md) before integration.
 
 Browser confirmation tests in `test_import_review.py` use synthetic ASGI/SQLite
 only. They cover frozen exclusions/targets, escaped metadata, current trusted
