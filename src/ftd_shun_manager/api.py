@@ -1,5 +1,6 @@
 """Internal state and event API. It is intended to listen only on a Unix socket."""
 
+import sqlite3
 from contextlib import asynccontextmanager
 from ipaddress import IPv4Address
 from typing import Annotated, Literal
@@ -18,6 +19,7 @@ from .agent_client import (
 from .config import Settings
 from .import_preview import MAX_DEVICES, MAX_ROWS, classify_targets
 from .inventory import load_devices
+from .managed_shuns import ManagedCapacity, ManagedConflict, ManagedShuns
 from .operation_queue import QueueConflict, QueueFull
 from .store import HistoryWindowExpired, Shun, Store
 from .synchronizer import Synchronizer
@@ -95,6 +97,7 @@ def create_app(
     settings = settings or Settings.from_environment()
     store = store or Store(settings.database_path)
     store.initialize()
+    managed = ManagedShuns(store)  # Optional read only; never initialize policy here.
     addition_device_ids = set()
     if settings.device_inventory_path:
         for device, host_key in load_devices(settings.device_inventory_path):
@@ -146,16 +149,30 @@ def create_app(
     @app.get("/api/v1/status")
     async def service_status() -> dict[str, object]:
         policy_state = policy.snapshot()
+        try:
+            managed_metadata = managed.metadata()
+        except (sqlite3.DatabaseError, ManagedConflict, ManagedCapacity, ValueError, TypeError, KeyError):
+            # A malformed optional registry must not stop ordinary fleet monitoring.
+            managed_metadata = {"managed_policy_available": False, "managed_policy_initialized": None,
+                                "managed_policy_revision": None}
         return {
             "status": "ready",
             "agent_mode": settings.agent_mode,
             "large_snapshots_enabled": settings.large_snapshots_enabled,
             "import_admission_enabled": settings.import_admission_enabled,
             **synchronizer.status(),
+            **managed_metadata,
             "policy_revision": policy_state["revision"],
             "trusted_auto_remove_ips": [entry for entry in policy_state["entries"] if entry["enabled"]],
             "disabled_protected_ips": [{"ip": entry["ip"]} for entry in policy_state["entries"] if not entry["enabled"]],
         }
+
+    @app.get("/api/v1/managed-shuns")
+    def managed_shuns() -> dict:
+        try:
+            return managed.snapshot_if_present()
+        except (sqlite3.DatabaseError, ManagedConflict, ManagedCapacity, ValueError, TypeError, KeyError) as error:
+            raise HTTPException(503, "Managed shun registry is unavailable; no policy was changed.") from error
 
     @app.get("/api/v1/protected-ips")
     def protected_ips() -> dict:

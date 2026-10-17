@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Managed shuns</h1>
+{% include "refresh-panel.html" %}
+<p>Desired shun presence is separate from observed device state. This page reads retained local data only; it does not query Cisco or adopt existing shuns.</p>
+<section id="managed-shun-state" data-live-region>
+<p class="policy-warning"><strong>Read-only preview — automatic restoration is not implemented.</strong> Managed confirmation and queue/removal safeguards are still pending. No policy controls or device operations are available here.</p>
+{% if not managed.initialized %}
+<p>The managed registry has not been initialized. Existing imports remain one-time; no historical shun has been converted into maintained policy.</p>
+{% else %}
+<p>Registry revision {{ managed.revision }} · {{ managed.entries | length }} / {{ managed.limit }} target keys, including stopped records. Registry suspension: <strong>{{ 'on' if managed.restoration_suspended else 'off' }}</strong>. The restoration controller is unavailable regardless of this stored flag.</p>
+{% endif %}
+{% if managed.entries %}
+<div class="table-scroll"><table aria-label="Managed shun policy"><thead><tr><th>Device / IP</th><th>Desired policy</th><th>Local observation</th><th>Restoration</th><th>Authorization</th><th>Last verified restoration</th></tr></thead><tbody>
+{% for entry in managed.entries %}<tr{% if entry.enabled and entry.protected %} class="protected-shun"{% endif %}>
+<td>{{ entry.hostname }}<br><a href="/shuns/{{ entry.ip }}">{{ entry.ip }}</a></td>
+<td><span class="state-badge {{ 'policy-enabled' if entry.enabled else '' }}">{{ 'Maintain presence' if entry.enabled else 'Stopped' }}</span><br>Generation {{ entry.generation }}</td>
+<td><span class="state-badge">{{ 'Observed present' if entry.observed_present else 'Not currently observed' }}</span><br>Presence is not proof of service creation.</td>
+<td>{% if not entry.enabled %}Maintenance stopped{% elif entry.protected %}<strong>Blocked by Protected IP</strong>{% elif not entry.device_enabled %}<strong>Device disabled</strong>{% else %}Controller not implemented{% endif %}</td>
+<td>{{ entry.actor_display_name }} ({{ entry.actor_subject }})<br><time class="local-timestamp" datetime="{{ entry.authorized_at }}">{{ entry.authorized_at }}</time>{% if entry.label %}<br>{{ entry.label }}{% endif %}{% if entry.reason %}<div class="policy-comment">{{ entry.reason }}</div>{% endif %}</td>
+<td>Not recorded</td>
+</tr>{% endfor %}
+</tbody></table></div>
+{% elif managed.initialized %}<p>No managed targets. Nothing is scheduled for restoration.</p>{% endif %}
+<p class="preview-help">Enabled Protected IPs take priority over desired presence. Stopped policy never restarts from old request replay. Future restoration requires explicit standing authorization; old imports and SSH-created shuns are not adopted automatically.</p>
+</section>
+<script src="/static/freshness.js" defer></script>
+{% endblock %}

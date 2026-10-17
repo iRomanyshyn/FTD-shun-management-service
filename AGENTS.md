@@ -70,8 +70,11 @@ Do not rewrite historical log entries except to correct an objective error; add 
   current implementation. Restoration needs explicit durable/revocable desired
   policy, protection priority and atomic retirement on service removal. Do not
   convert old imports/history into standing authority, renew expired user
-  requests or replay uncertain ADD. All live gates remain off; implementation,
-  migration and a separately approved live fixture are still required.
+  requests or replay uncertain ADD. The isolated registry foundation is now
+  implemented; optional read-only API/UI visibility does not initialize or
+  authorize policy. All live gates
+  remain off; UI/queue integration, reviewed migration and a separately approved
+  live fixture are still required.
 - On 2026-10-16 the operator separately approved the one-address service
   experiment on lab device 1/fpr1010-lab: unused TEST-NET 198.51.100.251,
   temporary gate/profile enablement for that device only, one queued creation,

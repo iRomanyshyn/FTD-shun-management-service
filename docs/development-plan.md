@@ -26,6 +26,17 @@ discovery/backpressure and backup-restore suspension must be implemented before
 connecting restoration to the worker. The existing 15-minute delegation is not
 silently extended. This change does not authorize a new live test or enablement.
 
+**Registry foundation checkpoint (2026-10-17):** `managed_shuns.py` now provides
+an explicitly initialized, offline-only registry, managed-mode digest, immutable
+request/authorization ledger, optimistic revisions, retirement/new generations
+and caller-owned transactional composition. Normal API startup does not use or
+migrate it. Storage is bounded to 1000 keys including tombstones/10000 request
+keys, reserving 1000 ledger slots for actual retirement. Tests exercise atomic
+failures, idempotency/concurrency, no legacy adoption, retention/restart/backup
+and complete 1000-target snapshots without touching queue or FTD. Runtime UI,
+system queue generation, uncertainty/anti-churn and removal handoff remain next;
+this checkpoint does not implement automatic restoration or approve migration.
+
 ## Implementation checkpoint — 2026-10-15
 
 ### Addition readiness checkpoint — 2026-10-16
@@ -471,8 +482,10 @@ not be implemented as automatic renewal/reimport of expired user requests.
 
 Current next work supersedes the older sequence below:
 
-1. Desired registry/revisions, explicit managed mode and durable authorization;
-   synthetic lifecycle/concurrency/retention/restore tests, no worker hookup.
+1. Delivered in isolation: desired registry/revisions, explicit managed mode and
+   durable authorization with lifecycle/concurrency/retention/backup tests.
+   Normal startup still does not initialize it. API/UI now expose optional
+   read-only visibility; managed confirmation and worker use remain pending.
 2. Managed-target UI/confirmation, missing-target retirement, protection warnings
    and exact observed-versus-desired-versus-created distinctions.
 3. Shared-worker system intentions, ordered retirement/removal handoff, atomic

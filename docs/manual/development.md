@@ -1,5 +1,27 @@
 # Development Manual
 
+## Offline managed-policy foundation
+
+`python3 -m pytest -q tests/test_managed_shuns.py` exercises only temporary
+SQLite: explicit empty initialization without legacy adoption, canonical managed
+mode, current roles, UUID/digest binding, optimistic concurrency, idempotent
+replay across retirement/re-enable, whole-batch rollback and caller-owned
+savepoint failures, limits/retirement reserve, complete 1000-target views,
+retention, restart and SQLite backup. The API now uses optional reads only;
+neither normal startup nor the worker initializes/writes managed policy.
+No FTD, deployment secrets or local .env is read. Its database tests run within
+the ordinary filesystem sandbox; full ASGI/socket regressions may still require
+local permissions. See [Managed Shuns](managed-shuns.md) before integration.
+
+`tests/test_managed_view.py` covers optional missing/partial-schema reads,
+authentication/all-role visibility, escaped author/metadata, no forms/writes or
+refresh hints, observed/retired transitions and version consistency. Package
+version lives only in `ftd_shun_manager.__version__`; Hatch reads that field for
+wheel metadata and Jinja uses it for every page footer. Update that source on
+a release, not separate template/configuration constants. It is not a readiness
+badge or live feature indicator. Chromium checks footer placement on desktop/
+mobile, the five-tab navigation and revision-driven read-only managed updates.
+
 Browser confirmation tests in `test_import_review.py` use synthetic ASGI/SQLite
 only. They cover frozen exclusions/targets, escaped metadata, current trusted
 identity/role and CSRF, unknown fields/counts, subject/cookie/expiry binding,

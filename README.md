@@ -6,8 +6,14 @@ The governing specification is the [Architecture and Security Design](docs/archi
 
 Next requirement: [managed manual-shun restoration](docs/manual/managed-shuns.md)
 after confirmed disappearance/reboot, while explicit service removal stops
-maintenance. This is planned, not implemented; current imports remain one-time
-and all ADD gates remain disabled in the lab. Old imports are not auto-adopted.
+maintenance. Its registry foundation and read-only Managed shuns tab are
+implemented; explicit managed confirmation/controller integration is pending.
+Current imports remain one-time and all ADD gates stay
+disabled in the lab. Old imports are not auto-adopted and no live migration
+initializes the new registry yet.
+
+The page footer displays the package version (currently `v0.1.0`) from the same
+source used for build metadata; it does not imply production readiness.
 
 ## Design goals
 

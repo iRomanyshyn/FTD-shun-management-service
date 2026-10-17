@@ -25,7 +25,7 @@
   const readInitial = (root) => parseStatus(JSON.parse(
     root.querySelector("[data-refresh-initial]").textContent,
   ));
-  const version = (status) => `${status.instance_id}:${status.data_revision}:${status.cycle_revision}:${status.queue?.revision || 0}:${status.policy_revision || 0}`;
+  const version = (status) => `${status.instance_id}:${status.data_revision}:${status.cycle_revision}:${status.queue?.revision || 0}:${status.policy_revision || 0}:${status.managed_policy_revision ?? 0}:${Boolean(status.managed_policy_initialized)}:${status.managed_policy_available ?? true}`;
   // Template JSON and BFF JSON may order object keys differently. Equivalent
   // metadata must not restart native progress animations or replace controls.
   const stableSignature = (value) => JSON.stringify(value, (_key, entry) =>

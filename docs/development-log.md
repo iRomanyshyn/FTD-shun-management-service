@@ -2345,6 +2345,148 @@ queue/policy admission, refresh hint, independent agent read or device mutation
 was changed. All ADD gates remain off; no live permission is inferred from the
 new requirement. Current behavior still does not restore missing imported shuns.
 
+## 2026-10-17 — Offline managed-shun registry and standing-intent lifecycle
+
+**Status:** Implemented in isolation; no runtime integration or live migration
+
+Started the first implementation stage for the requested restoration model.
+Added `managed_shuns.py`, deliberately not imported/initialized by ordinary
+API/Store startup. Explicit initialization creates an empty registry state,
+desired-target table and immutable request/result/authorization ledger. No
+history, observations, origins or queued work is converted into desired policy.
+Default durable restoration suspension is true and there is no resume/controller
+in this increment. Current browser/import/worker remain one-time and gated off.
+
+Canonical MAINTAIN/RETIRE binds fixed managed mode/scope, exact typed targets,
+managed/Protected-IP revisions and normalized metadata. Require current
+non-empty Operator/Administrator, explicit canonical UUID and matching digest;
+the digest is not authorization. Keys from legacy imports/removal requests are
+rejected. New policy requests use global optimistic CAS, persist real actors
+and append per-target policy audit atomically. Another user's already-enabled
+intent is NOOP without replacing its original authorizer. Explicit re-enable
+after retirement rotates UUID/generation; replay of the original key returns
+its original result without changing current policy or renewing anything.
+
+MAINTAIN rejects protected, unknown/disabled and implicitly adopted observed
+targets. Retirement does not require observed presence or an enabled device,
+and a later Protected-IP revision cannot veto revocation. Original authorizing
+metadata is retained while retirement records its actual actor separately.
+The caller-owned write-transaction hook uses a savepoint to prevent partial
+policy/audit/ledger effects even if its caller catches a failure; later outer
+rollback also removes all effects. It is groundwork for future atomic queued
+removal, not implementation of cancellation or running-ADD cleanup handoff.
+Only the standalone wrapper emits bounded aggregate JSON after commit, without
+labels/reason/raw source/full target lists. The snapshot is one consistent
+bounded read separating desired, observed, device and protection state, not
+verified creation or a Cisco query.
+
+Initial storage limits are 1000 total device/IP keys including retired
+tombstones and 10000 request keys with no automatic recycling/pruning. The last
+1000 ledger slots are reserved for actual target retirement: new grant/NOOP
+churn cannot exhaust revocation capacity. Overflow rejects atomically; an
+over-limit store cannot silently render a truncated desired set. Policy/minimum
+authority and tombstones survive ordinary history/queue retention. Future
+archival/capacity expansion, system job source, uncertainty latch, bounded
+restoration discovery/anti-churn and reviewed recovery/resume remain separate.
+
+Updated the normative foundation contract, working agreement, status, plan,
+README and structured development/managed manuals without rewriting prior
+engineering history.
+
+**Validation:** All 357 Python tests pass, including 27 new registry tests.
+Coverage includes explicit/no-runtime migration boundary, distinct canonical
+mode/digest, strict roles/UUID/typed targets/revisions, current protection CAS,
+old import/removal-key exclusion, concurrent same-key replay and different-key
+conflict, missing/protected/disabled retirement, new generations, whole-batch
+limits, revocation reserve, complete 1000-target views, injected audit failure
+under caught savepoint/outer rollback, history retention, restart and SQLite
+backup preservation. Compileall, Ruff, relative-file link checks and
+`git diff --check` pass. Tests use temporary SQLite and fake state only. The
+first elevated targeted-test launch was not started because permission review
+timed out; ordinary sandboxed SQLite checks then passed, and the final full
+ASGI/socket suite passed with local permissions. No test failure was hidden.
+
+**Operational impact:**
+No real configuration, database, schema migration, service deployment/restart,
+policy/queue admission, refresh hint, independent agent read or device mutation
+was performed. This unused foundation needs no lab restart; future integration
+requires a checked SQLite-safe backup, explicit restore suspension and staged
+validation before normal startup may initialize it. Agent/wire/UI/Compose are
+unchanged, so no new Rust/browser or live ADD evidence is claimed.
+
+## 2026-10-17 — Version footer and read-only Managed shuns visibility
+
+**Status:** Implemented, tested and deployed; no managed migration or ADD enablement
+
+Added a normal-flow bottom footer on every base-template page showing v0.1.0,
+the existing package version, not an invented readiness marker. Moved the version
+literal into `ftd_shun_manager.__version__`; Hatch dynamic metadata and Jinja use
+the same source. No Git/host/environment information is read to render it.
+Flex page layout keeps short-page footers at the bottom and long-page footers
+below content without fixed overlays; navigation wraps at mobile widths.
+
+Added optional private managed GET plus authenticated all-role Managed shuns
+tab. It probes registry presence under one read snapshot without DDL or policy
+initialization. No tables is explicitly uninitialized; partial/invalid state
+fails the managed resource with controlled 503, while ordinary monitoring/status
+continues with managed availability false. Cheap availability/initialization/
+revision fields join browser change detection without repeating canonical lists.
+The read-only table distinguishes desired/stopped, local presence, protection/
+disabled device, authorizing actor/time and unknown restoration provenance.
+Escaped metadata and explicit controller-unavailable notice never imply pending
+or verified restoration. There are no managed POST/PUT/DELETE, UI policy/resume
+controls, queue hooks, new feature flags or automatic current/legacy adoption.
+
+**Validation:** All 365 Python tests pass, including optional schema/no-mutation,
+all-role authentication/escaping, missing/partial state, current transitions,
+metadata and version-source tests. Seventeen Chromium scenarios pass (18
+reported tests), including footer position at 1100/375px, mobile navigation,
+read-only managed policy/protection revisions, escaping, localization and no
+extra hints/executions. Compileall, Ruff, JavaScript syntax and diff checks pass.
+All tests use synthetic state, temporary SQLite/local browser; no lab credentials
+or device writes. Agent/Rust/protocol are unchanged and were not retested.
+
+**Operational plan:** Under standing lab authority, preserve paired API/Web
+images and a checked SQLite-safe backup, then recreate only API/Web with no
+overlapping executor. Keep .env/inventory/agent/auth edge and all ADD gates
+unchanged; no managed migration, new policy/job, refresh hint or independent
+agent read. Startup may execute previously admitted removal/policy work. Check
+unchanged aggregates/stable state, uninitialized optional registry/no new tables,
+ordinary healthy v2 cycle, anonymous managed 401, TLS-verified Authelia redirect
+and packaged version/footer alignment. Deployment results will follow.
+
+**Deployment:** Preflight found admission/execution false, eligible zero,
+eight VERIFIED/one NOOP, policy revision 3, zero unfinished work, integrity ok
+and no managed tables. Active local state was already zero before rollout,
+not the 61 rows from the previous recorded observation; no disappearance cause
+or reboot is inferred, and no assistant cleanup/adoption/restoration was done.
+Preserved prior paired images as `before-managed-view-20261017t124734z` and a
+checked SQLite-backup-API copy on the state volume plus ignored host path
+`.local/backups/state-before-managed-view-20261017T124734Z.sqlite3` (0600,
+directory 0700). Host/volume integrity and foreign-key checks pass.
+
+Built API/Web with dynamic package version 0.1.0; packaged Python 3.12 ASGI/
+template/metadata smoke passed in a networkless/read-only container with only
+temporary synthetic SQLite/identity, no lab mounts or secrets. Version source,
+wheel metadata and footer agree, optional reads create no managed tables.
+Quiet merged Compose validation passed. Cleanly stopped the sole API/Web pair,
+then recreated only those two with --no-deps; no overlapping executor. Actual
+agent/Caddy/Authelia IDs remain unchanged. No schema migration, actual .env/
+inventory edit, new queue/policy, refresh hint or independent agent read.
+
+Deployed optional GET is uninitialized/read-only/controller unavailable; cheap
+status availability true/initialized false/revision zero. All ADD gates remain
+off/eligible zero. No managed tables exist after repeated status/view reads.
+Observed stable fields, queue requests/jobs, batches/origins and policy match
+backup exactly; quick_check ok/foreign keys empty. Zero active rows and eight
+VERIFIED/one NOOP remain. The normal v2 cycle succeeded at 12:50:20Z with two
+reads/zero mutations/8448 ms and next baseline 12:55:20Z, no error. Anonymous
+Shuns/Managed shuns/Imports/confirm/status reject with 401; TLS-verified Managed
+shuns HTTPS redirects to Authelia (302). Deployed template/package show v0.1.0
+and new assets are present; no live identity headers were fabricated. Reload
+browser tabs once. Human-authenticated visuals and actual managed confirmation/
+restoration remain separate next work; no production or live ADD acceptance.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

@@ -4,6 +4,62 @@ Last updated: 2026-10-17
 
 ## Current increment
 
+**Product version footer and read-only managed visibility (2026-10-17).** Every
+server-rendered page displays v0.1.0 in a normal-flow footer; package build and
+Jinja share `ftd_shun_manager.__version__` as their only source. Added a Managed
+shuns tab for all authenticated users and optional private GET resource. Reads
+never initialize/migrate/adopt policy or submit jobs. Missing registry is
+explicitly uninitialized; partial/malformed state is unavailable, not fabricated
+empty. Normal fleet monitoring remains available when optional managed state
+is invalid. Cheap availability/initialization/revision metadata drives dynamic
+updates alongside normal observation/protection revisions.
+
+The view separates desired/stopped state, local presence, protection/device
+blocking and original authorization; restoration is explicitly unavailable and
+Last verified restoration is Not recorded. No forms/write/resume controls,
+managed confirmation, controller, gate enablement or schema change. All 365
+Python tests and 17 Chromium scenarios (18 reported tests) pass, plus compileall,
+Ruff, JavaScript syntax and diff checks. The packaged Python 3.12 isolated smoke
+confirms version/footer alignment and no managed migration. See
+[Managed Shuns](manual/managed-shuns.md#read-only-managed-shuns-page).
+
+API/Web are deployed to the approved lab with prior paired images and a fresh
+checked SQLite-safe backup retained. Agent/Caddy/Authelia IDs are unchanged.
+Optional managed GET reports uninitialized/read-only/controller unavailable;
+no managed tables were created. Admission/execution remain false, eligible zero,
+eight VERIFIED/one NOOP and policy three entries/revision 3 preserved. Preflight
+already found zero active shuns, unlike the earlier 61-row observation; no cause
+is inferred and no assistant deletion/restoration was submitted. Stable observed
+state, jobs/requests/origins and policy match the backup after rollout; integrity
+and foreign-key checks pass. The ordinary v2 cycle succeeded at 12:50:20Z with
+two reads/zero mutations/8448 ms, next baseline 12:55:20Z/no error. Anonymous new
+page/status remain 401 and HTTPS redirects to Authelia (302) with TLS verification.
+No real configuration/inventory/.env or policy/job changed. Reload browser tabs;
+authenticated live visuals and managed write/restore validation remain pending.
+
+**Offline managed-policy registry foundation (2026-10-17).** Implemented
+explicit maintained-mode canonicalization, durable desired targets, immutable
+request/authorization ledger, optimistic revisions and atomic actor audit.
+Retirement works for missing/disabled/protected targets; old-key replay cannot
+reactivate it, and explicit re-enable creates a new intent UUID/generation.
+Legacy one-time keys/history are not adopted. Existing observed shuns require a
+separate adoption flow; duplicate enabled intent records actor NOOP without
+changing its original authorization or fabricating creation provenance.
+
+Initial bounds are 1000 total target keys including retired tombstones and
+10000 retained request keys, with a 1000-slot retirement reserve. No eviction or
+silent truncation; current history pruning does not erase policy/authorization.
+Caller-owned transaction/savepoint supports future atomic removal composition;
+queue cancellation/running-ADD handoff is not implemented. The consistent view
+separates desired state, local observation and protection. Explicit initialization
+creates three empty additive tables with restoration suspended; ordinary API/
+Store startup does not initialize or use them. No routes, UI, settings, queue
+discovery, device operations or live migration/deployment changed. All 357 Python
+tests pass, including 27 new registry cases; compileall, Ruff, relative-file link
+and diff checks pass. No Web/agent code changed, so browser/Rust suites were not
+rerun. [Managed Shuns](manual/managed-shuns.md) documents the integration boundary
+and remaining work. ADD remains off; current UI still has no managed workflow.
+
 **Managed-shun restoration requirement (2026-10-17).** Recorded the operator's
 change from one-time-only imports to explicit durable desired-present policy
 for future service-managed additions. After a new complete successful snapshot
@@ -581,12 +637,14 @@ The foundation increment was checked with:
 
 The separately approved one-fixture service lifecycle is complete. Frozen BFF
 confirmation and the eligible-ADD reason fix are implemented with gates off.
-The new restoration requirement now takes precedence for development: implement
-the explicit desired registry, standing-policy authorization, retention/restore
-suspension and removal handoff offline, followed by managed confirmation/UI and
+The new restoration requirement now takes precedence for development. The
+isolated registry/authorization/revision/retention foundation and read-only
+visibility are implemented; next implement explicit managed confirmation/controls,
+restore-suspension tooling and atomic retirement/removal handoff, followed by
 default-off shared-worker integration. Do not enable reconciliation by deriving
 policy from historical imports or by renewing old user jobs. Resolve controller
-capacity/anti-churn defaults before migration. Follow the
+anti-churn defaults and any expansion beyond initial registry bounds before live
+migration. Follow the
 [managed-shun implementation sequence](manual/managed-shuns.md#implementation-sequence-and-acceptance).
 Authenticated browser review can be checked read-only; separately agree any
 further narrow submit/restore/cleanup experiment. Additional

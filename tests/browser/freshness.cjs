@@ -35,6 +35,7 @@ print(templates.get_template(p["template"]).render(identity=Identity("test", "Te
     review=review, accepted=None, message=None, admission_enabled=p["refresh"].get("import_admission_enabled", False),
     retry_available=p["refresh"].get("import_admission_enabled", False), execution_enabled=False,
     frozen_view=p["template"] == "import-confirm.html",
+    managed=p.get("managed"),
     csrf_token="fixture-token", shuns=[shun], refresh=p["refresh"], search_query=p["query"],
     search_results=None, trusted_policy_ips=enabled_ips, disabled_policy_ips=disabled_ips, recent_events=p.get("history", {}).get("events", [event]),
     pagination=p.get("history", {}), anchored_history=bool(p.get("anchor")),
@@ -43,8 +44,8 @@ print(templates.get_template(p["template"]).render(identity=Identity("test", "Te
     source_text=p.get("source_text", ""), batch_label=p.get("label", ""), batch_reason=p.get("reason", ""),
     selected_devices=[1] if p.get("submitted") else [], preview=preview, preview_error=None,
     devices=[dict(id=1,hostname="lab-ftd",enabled=True),dict(id=2,hostname="disabled-ftd",enabled=False)],
-    active_page="imports" if p["template"] == "import-preview.html" else "protected" if p["template"] == "protected-ips.html" else "history" if p["template"] == "history.html" else "shuns",
-    auto_request=p["template"] not in ("protected-ips.html", "history.html", "import-preview.html", "import-confirm.html")))
+    active_page="managed" if p["template"] == "managed-shuns.html" else "imports" if p["template"] == "import-preview.html" else "protected" if p["template"] == "protected-ips.html" else "history" if p["template"] == "history.html" else "shuns",
+    auto_request=p["template"] not in ("protected-ips.html", "history.html", "import-preview.html", "import-confirm.html", "managed-shuns.html")))
 `;
 
 const initial = () => ({
@@ -126,6 +127,8 @@ test("refresh interaction in real Chromium", { timeout: 90000 }, async (t) => {
   let policyPosts = 0;
   let previewPosts = 0;
   let confirmationPosts = 0;
+  let managed = { initialized: false, revision: 0, entries: [], limit: 1000,
+    restoration_suspended: true, controller_available: false, read_only: true };
   let historyRows = [];
   let shunOrigins = [];
   const appendHistory = () => {
@@ -245,7 +248,7 @@ test("refresh interaction in real Chromium", { timeout: 90000 }, async (t) => {
       confirmationPosts += 1;
       response.setHeader("Content-Type", "text/html");
       response.end("<p>Fixture admission received; no device work</p>");
-    } else if (["/", "/history", "/protected-ips", "/imports", "/imports/review"].includes(url.pathname) || url.pathname.startsWith("/shuns/")) {
+    } else if (["/", "/history", "/protected-ips", "/imports", "/imports/review", "/managed-shuns"].includes(url.pathname) || url.pathname.startsWith("/shuns/")) {
       pageReads += 1;
       let previewFields = {};
       if (url.pathname === "/imports/review") previewFields = {
@@ -273,9 +276,9 @@ test("refresh interaction in real Chromium", { timeout: 90000 }, async (t) => {
       const payload = { refresh: stamp(), generation, query: url.searchParams.get("q") || "", shun_origins: shunOrigins,
         history, anchor: url.searchParams.get("anchor"),
         ...previewFields,
-        policy, template: url.pathname === "/" ? "index.html" : url.pathname === "/history" ? "history.html"
+        policy, managed, template: url.pathname === "/" ? "index.html" : url.pathname === "/history" ? "history.html"
           : url.pathname === "/protected-ips" ? "protected-ips.html" : url.pathname === "/imports" ? "import-preview.html"
-            : url.pathname === "/imports/review" ? "import-confirm.html" : "detail.html" };
+            : url.pathname === "/imports/review" ? "import-confirm.html" : url.pathname === "/managed-shuns" ? "managed-shuns.html" : "detail.html" };
       response.setHeader("Content-Type", "text/html; charset=utf-8");
       response.end(execFileSync("python3", ["-c", renderScript], {
         cwd: root, input: JSON.stringify(payload), encoding: "utf8",
@@ -878,6 +881,52 @@ test("refresh interaction in real Chromium", { timeout: 90000 }, async (t) => {
         await page.evaluate("document.querySelector('#confirm-count').value='1'; document.querySelector('.import-confirm-form').requestSubmit()");
         await page.until("document.body.textContent.includes('Fixture admission received')");
         assert.equal(confirmationPosts, confirmations + 1);
+        assert.equal(postCount, hints);
+        assert.equal(executionCount, executions);
+      } finally { await page.close(); }
+    });
+    await t.test("version footer and read-only managed state work on mobile and follow policy revisions without hints", async () => {
+      status = initial();
+      status.managed_policy_revision = 0;
+      status.managed_policy_initialized = false;
+      status.managed_policy_available = true;
+      const hints = postCount;
+      const executions = executionCount;
+      const page = await connectPage(debugOrigin, `${origin}/managed-shuns`);
+      try {
+        assert.ok(await page.evaluate("document.querySelector('#managed-shun-state').textContent.includes('has not been initialized')"));
+        assert.match(await page.evaluate("document.querySelector('[data-product-version]').textContent"), /^v\d+\.\d+\.\d+/);
+        assert.equal(await page.evaluate("getComputedStyle(document.querySelector('.app-footer')).position"), "static");
+        for (const width of [1100, 375]) {
+          await page.call("Emulation.setDeviceMetricsOverride", { width, height: 800, deviceScaleFactor: 1, mobile: width === 375 });
+          assert.equal(await page.evaluate("document.querySelector('.app-footer').getBoundingClientRect().top>=document.querySelector('main').getBoundingClientRect().bottom-1"), true);
+          assert.equal(await page.evaluate("document.documentElement.scrollWidth<=window.innerWidth"), true);
+        }
+        managed = { ...managed, initialized: true, revision: 1, entries: [
+          { hostname: "lab-ftd", ip: "198.51.100.251", enabled: true, device_enabled: true,
+            observed_present: false, protected: false, generation: 1, actor_subject: "test", actor_display_name: "Test Operator",
+            authorized_at: "2026-10-17T10:00:00Z", label: "<img src=x onerror=alert(1)>", reason: "Fixture only" },
+        ] };
+        status.managed_policy_initialized = true;
+        status.managed_policy_revision = 1;
+        status.status_revision += 1;
+        await wake(page);
+        await page.until("document.querySelector('#managed-shun-state').textContent.includes('Maintain presence')");
+        assert.ok(await page.evaluate("document.querySelector('#managed-shun-state').textContent.includes('Not currently observed')"));
+        assert.equal(await page.evaluate("document.querySelectorAll('#managed-shun-state img, #managed-shun-state form, #managed-shun-state button').length"), 0);
+        assert.ok(await page.evaluate("document.querySelector('.local-timestamp').textContent.match(/GMT|UTC/) !== null"));
+        assert.equal(await page.evaluate("document.documentElement.scrollWidth<=window.innerWidth"), true);
+        managed.entries[0].protected = true;
+        status.policy_revision = 2;
+        status.status_revision += 1;
+        await wake(page);
+        await page.until("document.querySelector('#managed-shun-state').textContent.includes('Blocked by Protected IP')");
+        managed.entries[0].enabled = false;
+        managed.revision += 1;
+        status.managed_policy_revision += 1;
+        status.status_revision += 1;
+        await wake(page);
+        await page.until("document.querySelector('#managed-shun-state').textContent.includes('Maintenance stopped')");
         assert.equal(postCount, hints);
         assert.equal(executionCount, executions);
       } finally { await page.close(); }

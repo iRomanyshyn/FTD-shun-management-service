@@ -20,6 +20,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.concurrency import run_in_threadpool
 
+from . import __version__
 from .config import Settings
 from .import_preview import (
     MAX_FORM_BYTES,
@@ -36,6 +37,7 @@ PROJECT_ROOT = Path(os.environ.get("FTD_SHUN_ASSET_ROOT", Path(__file__).resolve
 templates = Jinja2Templates(directory=str(PROJECT_ROOT / "templates"))
 templates.env.globals["new_operation_key"] = lambda: str(uuid4())
 templates.env.globals["import_text_limit"] = MAX_TEXT_BYTES
+templates.env.globals["product_version"] = __version__
 
 
 @dataclass(frozen=True)
@@ -152,6 +154,9 @@ def refresh_metadata(refresh: object) -> dict[str, object]:
         "device_cycle",
         "priority_refresh_available",
         "policy_revision",
+        "managed_policy_revision",
+        "managed_policy_initialized",
+        "managed_policy_available",
         "last_successful_refresh",
         "last_attempt",
         "last_error",
@@ -409,6 +414,23 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             return review_view(request, identity, review, refresh,
                                message="Admission result is uncertain. Check Queue; retry only this same review/key.", status_code=503)
         return review_view(request, identity, review, refresh, accepted=result)
+
+    @app.get("/managed-shuns", response_class=HTMLResponse)
+    def managed_shuns(request: Request) -> HTMLResponse:
+        identity = identity_from_request(request, settings.development_auth)
+        try:
+            with api_client(settings) as client:
+                refresh = client.get("/api/v1/status")
+                policy = client.get("/api/v1/managed-shuns")
+        except httpx.HTTPError as error:
+            raise HTTPException(503, "Managed shun state is unavailable. No policy was changed.") from error
+        if refresh.status_code != 200 or policy.status_code != 200:
+            return render(request, "error.html", {"identity": identity,
+                          "message": "Managed shun state is unavailable. No policy was changed."}, 503)
+        return render(request, "managed-shuns.html", {
+            "identity": identity, "refresh": refresh.json(), "managed": policy.json(),
+            "active_page": "managed", "auto_request": False,
+        })
 
     @app.get("/protected-ips", response_class=HTMLResponse)
     def protected_ips(request: Request) -> HTMLResponse:

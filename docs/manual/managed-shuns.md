@@ -1,8 +1,9 @@
-# Managed Shuns — Planned Desired-State Restoration
+# Managed Shuns — Registry Foundation and Planned Restoration
 
 ## Status and decision
 
-**Approved product direction on 2026-10-17; not implemented or enabled.**
+**Registry foundation and read-only API/UI visibility implemented on 2026-10-17.
+Restoration, managed confirmation and worker integration remain unimplemented/off.**
 The operator requested re-adding manually added shuns when they disappear,
 for example after FTD reboot. This replaces the former one-time-only target
 requirement. The deployed [import workflow](import-review.md) is still one-time
@@ -136,10 +137,12 @@ lifecycle preventing stale work/history from reactivating them. Historical
 events remain append-only within configured retention; do not rewrite old import
 outcomes to pretend they authorized future maintenance.
 
-Implementation needs an additive, empty-by-default registry plus explicit job/
-policy generation linkage, revision checks, atomic retirement/protection hooks
-and independent default-off reconciliation control. All existing ADD gates and
-device profiles remain mandatory. No setting is introduced into `.env` yet.
+The explicit registry initializer now provides empty additive policy tables,
+authorization/request ledger and optimistic revisions. It is not called by
+normal API/Store startup. Job/policy generation linkage, atomic retirement/
+protection hooks and independent default-off reconciliation control remain
+unimplemented. All existing ADD gates/device profiles remain mandatory; no
+setting is introduced into `.env` yet.
 
 Before schema rollout take a SQLite-safe checked backup and retain paired
 images. Never restore an older enabled desired policy and start restoration
@@ -150,9 +153,9 @@ backup, upgrade, restart and audit retention are not new device-write authority.
 
 ## Implementation sequence and acceptance
 
-1. Implement the registry/revisions/explicit mode and durable authorization with
-   synthetic tests; do not hook it to device execution. Specify capacity,
-   anti-churn defaults and restore suspension before applying a live migration.
+1. Registry/revisions/explicit mode and durable authorization are implemented
+   and tested in isolation (details below), without device execution. Resolve
+   anti-churn defaults/restore suspension before applying a live migration.
 2. Add managed-target UI and frozen confirmation, including missing targets,
    retirement, protection warnings and observed/provenance distinctions.
 3. Integrate ordered removal handoff, revocation/cancellation/protection races,
@@ -165,6 +168,118 @@ backup, upgrade, restart and audit retention are not new device-write authority.
    service removal and no restoration. No device reboot or new live write is
    authorized by this plan; a real reboot needs its own operational approval.
 
-Until those stages land, current imports remain one-time and there is no
-automatic restoration. This manual is a design/implementation plan, not a
-procedure for enabling a deployed controller.
+Until integration lands, current imports remain one-time and there is no
+automatic restoration. The following foundation procedure is for isolated
+development only, not enabling a deployed controller.
+
+## Implemented offline registry
+
+`ManagedShuns(store)` has no constructor side effects. Its explicit `initialize()`
+requires an already initialized Store and adds:
+
+| Table | Role |
+| --- | --- |
+| `managed_shun_registry` | Global optimistic revision and `restoration_suspended=1` default. No resume path/controller exists yet. |
+| `managed_shun_targets` | One device/IP desired intent, UUID/generation, enabled/retired state, target revision, authorization reference and UTC dates. |
+| `managed_shun_requests` | Immutable original actor/roles, canonical intent/result and timestamp, independent of pruned queue/history. |
+
+`canonical_managed_change()` binds action MAINTAIN/RETIRE, literal managed mode,
+exact typed pairs, both revisions and normalized bounded label/reason. Its digest
+is not a capability. `change()` requires a matching digest, canonical UUID and
+current Operator/Administrator. It validates the entire batch before changes.
+Legacy one-time request keys cannot be reused in this namespace. No API actor
+forwarding, CSRF route or browser action is implemented for this policy yet.
+
+MAINTAIN validates enabled device, Protected IP revision/exclusion and rejects
+implicit adoption of already observed shuns. Already-enabled desired targets
+are actor-attributed NOOPs; their original authorizing record is not replaced.
+RETIRE works without an active observation, on disabled devices and after
+protection changes; it keeps original authorization and records the retiring
+actor separately. Explicit re-enable rotates the intent UUID and increments
+generation. A same-key replay returns the old result/revision without applying
+it again, even after retirement, re-enable, restart or history cleanup.
+
+The default limit is **1000 total device/IP keys, including retired tombstones**,
+not 1000 active plus unlimited old keys. The ledger retains at most 10000
+requests. Its final 1000 slots are reserved for actual retirement changes:
+new grants and no-op churn are refused before they can exhaust revocation
+capacity. Requests are not automatically expired/recycled. Initial archival/
+capacity expansion is deliberately unsupported pending review; these limits
+are not acceptance for the 7,307-address list. Overflow rejects the whole
+change, not a partial selection. Snapshot rejects an over-limit restored store
+rather than silently hiding rows.
+
+`apply_change(connection, ...)` is a trusted internal composition hook requiring
+a caller-owned write transaction. A savepoint rolls back policy/ledger/audit
+on error even if the caller catches it; a later failure in the outer transaction
+also rolls everything back. It never emits a success log before commit. This
+is the foundation for atomic retirement with future queued removal, **not** a
+safe runtime replacement for current removal admission: queue-link cancellation,
+uncertain-result latches and RUNNING-ADD handoff still need integration first.
+The standalone wrapper logs only request/action/actor/revision/count after commit;
+labels/reason/target lists are not copied into operating logs.
+
+`snapshot()` uses one read transaction. It returns authorization metadata,
+desired state, device hostname/enabled flag, observed presence and enabled
+protection separately. It reads no SSH credential, management route or pin and
+does not change shun state, origins, queue or policy. A desired-present result
+is not a fresh observation or verified creation. Browser escaping remains a
+requirement for the future UI.
+
+### Validation, migration and rollback boundary
+
+Tests use temporary SQLite only: concurrent CAS/idempotency, actor/confirmation
+binding, old-key replay after retirement/new generation, protections/revocation,
+whole-batch rollback including injected audit failure, capacities/reserved
+retirement, 1000-target completeness, restart/history retention, immutable
+ledger and SQLite-safe backup preservation. They never call FTD or dispatch ADD.
+
+There is **no live schema rollout for the registry foundation**. Read-only
+API/UI integration probes existing tables but never initializes/migrates them.
+That visibility update requires paired API/Web replacement, not a new agent.
+For an
+isolated development DB, retain additive tables/ledger when reverting code;
+do not drop tombstones or restore old policy just to roll back software.
+Before eventual integration, take a checked SQLite-safe backup, suspend both
+queue and policy restoration on backup recovery, define the reviewed resume
+workflow and validate it with tests. Ordinary initialization does not clear
+an existing suspension or convert old imports. An older one-time API has no
+controller for these tables and must not be advertised as managed-shun support.
+
+## Read-only Managed shuns page
+
+Open **Managed shuns** in the navigation. Every authenticated user may view it.
+The private `GET /api/v1/managed-shuns` resource and authenticated BFF page have
+no POST/PUT/DELETE or policy/resume controls. Existing imports remain one-time.
+Neither opening the tab nor status polling initializes tables, adopts an old
+import, emits policy audit, admits jobs, requests a refresh or calls the agent.
+
+An absent registry is explicitly labelled **not initialized**, with empty
+entries, rather than being silently migrated. Partial/malformed registry state
+returns a controlled unavailable page, never fabricated empty policy; normal
+monitoring stays available. When a registry exists, desired maintenance,
+stopped state, observed presence, protection and disabled-device blocking are
+separate columns. A missing shun is not labelled pending restoration when no
+controller exists. Authorization is escaped/localized with timezone; Last
+verified restoration is **Not recorded**, never inferred from an import or
+NOOP. The controller-unavailable notice remains visible regardless of the
+registry's stored suspension flag. No route/key from device inventory is exposed.
+
+Cheap status fields publish `managed_policy_available`,
+`managed_policy_initialized` and `managed_policy_revision`. Browser updates
+use these plus ordinary data/protection revisions; full canonical payloads are
+not repeated in polling metadata. No supported runtime policy editor exists
+yet; do not seed desired entries directly in the live SQLite database for testing.
+Availability metadata checks structural registry state, not every saved payload;
+the full GET separately validates its read and fails closed on malformed data.
+
+Deployment: preserve paired API/Web images and a checked SQLite-safe backup,
+stop the sole API executor cleanly, then recreate only API/Web. Starting API may
+execute already admitted removal/policy work. Keep ADD gates and real inventory/
+.env unchanged. Read-only checks should show uninitialized registry/no new
+tables in the current lab, preserved queue/policy/shun state, anonymous page 401,
+normal TLS-verified Authelia redirect, version footer assets and healthy ordinary
+read cycles. Revert the preceding paired images to remove visibility; do not
+restore old device state, erase policy tables or reset queue outcomes. Follow
+the queue suspension procedure for older pre-ADD downgrades. This read-only
+rollout is not a managed-policy migration or permission to create live work.

@@ -2801,7 +2801,8 @@ new protocol is required before default enablement.
 
 The operator requested restoring manually added shuns after disappearance,
 including device reboot. This changes the earlier one-time-only product
-decision, not the deployed behavior. Implementation is pending. The
+decision, not the deployed behavior. The isolated registry foundation is
+implemented below; browser/admission/controller integration is pending. The
 [Managed Shuns design](manual/managed-shuns.md) defines the staged work and
 remaining validation. All ADD gates stay off; no live mutation or conversion
 of existing data is authorized by this design update.
@@ -2862,3 +2863,71 @@ than flooding the console. Migration, authorization, ordered removal handoff,
 restore/rollback, anti-churn limits and tests must be implemented/reviewed before
 connecting this policy to admission or the scheduler. No change to the isolation
 topology, credential boundary, binary protocol or no-arbitrary-CLI invariant.
+
+### Offline managed-policy registry foundation — 2026-10-17
+
+`managed_shuns.py` implements only durable policy lifecycle, not restoration.
+Explicit `ManagedShuns.initialize()` creates three additive, empty tables;
+ordinary Store/API startup does not call it. No HTTP route, feature flag,
+queue/scheduler hook, agent operation or live migration is introduced.
+
+Canonical changes bind `scope=managed_shuns`, `mode=maintain_present`,
+MAINTAIN/RETIRE, exact typed targets, managed/Protected-IP revisions and normalized
+metadata. Require current non-empty Operator/Administrator identity, explicit
+canonical UUID and matching digest. Reject keys already used by legacy imports
+or queue requests. Keep immutable request/result/authorization ledger and
+idempotent replay before revision checks, without applying old policy again.
+The hash is confirmation binding only, never authority by itself.
+
+One effective target retains authorizing request, intent UUID/generation,
+enabled/retired state, revision and UTC dates. Explicit re-enable after retirement
+creates a new UUID/generation; an old-key replay cannot re-enable it. Another
+user's already-enabled intention is audited NOOP, not replacement authorization.
+Fresh MAINTAIN rejects enabled protection, unknown/disabled devices, stale
+policy and implicit adoption of existing observed shuns. Retirement can revoke
+missing/disabled/protected targets; protection revision changes do not veto it.
+
+Changes/CAS/audit/request ledger commit atomically; the caller-owned transaction
+hook uses a savepoint so caught failures cannot leak partial policy. This permits
+future atomic removal composition but does not implement queued cancellation or
+running-ADD handoff yet. Only the standalone wrapper emits a sanitized aggregate
+JSON log after commit. Snapshot reads are consistent/bounded and do not expose
+full canonical lists, routes or pins, or claim verified creation.
+
+Initial storage bounds: 1000 target keys including retained retired tombstones,
+10000 immutable request keys. Reserve the last 1000 request slots for changes
+that actually retire targets; new grants/no-op churn cannot consume revocation
+capacity. Overflow is atomic, never eviction/truncation or key recycling. Active
+authority, tombstones and request metadata are independent of ordinary history
+retention. A future archival/capacity extension requires separate review; these
+bounds do not support the long list. Initialization is repeatable and defaults
+`restoration_suspended=1`; no resume/controller exists in this increment.
+Future restore tooling must suspend enforcement in addition to jobs before
+starting a controller. Anti-churn, uncertainty latch, system queue source,
+ordered handoff and explicit UI remain prerequisites to runtime integration.
+
+### Read-only managed visibility and product version — 2026-10-17
+
+The API may publish optional read-only managed state/cheap revision metadata and
+the authenticated BFF may display a Managed shuns page before write integration.
+Neither path initializes/migrates the registry. An entirely absent registry is
+explicitly uninitialized/empty, not adopted policy; partial/corrupt registry
+fails the managed read closed while ordinary monitoring remains available.
+Status includes managed availability/initialization/revision without loading
+full canonical lists. Browser updates use these revisions plus existing data/
+protection revisions, preserving the difference between desired and observed.
+
+This page offers no policy write/resume/queue action, enables no gate and never
+claims restoration is running or verified. Show stopped/missing/protected/
+disabled-device cases, original authorization and an explicit controller-
+unavailable notice. Missing observations must not be mistaken for created
+restoration jobs. No full inventory routes/keys are exposed. Current runtime
+still executes one-time imports only; atomic retirement/queue handoff and
+explicit standing-mode confirmation are prerequisites to any managed writes.
+
+Every server-rendered page has a normal-flow footer with the product package
+version. `ftd_shun_manager.__version__` is the sole version source; build metadata
+reads that value as well. Do not read Git, secrets, deployment configuration or
+host details to render it. Footer must remain usable on mobile and must not
+overlay content. This version is a release identifier, not production acceptance
+or a claim that all planned capabilities are enabled.
