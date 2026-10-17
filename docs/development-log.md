@@ -2596,6 +2596,93 @@ additive authority/tombstones on rollback, and never start older workers ignorin
 pending reservations. All ADD gates remain off; no consumed fixture permission
 is reused and restoration is still unavailable.
 
+## 2026-10-17 — Non-executable managed removal review and optional handoff visibility
+
+Added compact single-target selection on Managed shuns for Operators/Admins and
+an immutable preparatory review with exact device/IP, generation/revision,
+observed/protection/desired distinctions, bounded reason, proposed cleanup
+lifetime, ephemeral reserved key and timezone-qualified expiry. Five reviews
+per subject/256 globally bind subject and CSRF-cookie hash, expire within ten
+minutes/the shorter sensitive-action age and disappear on Web restart. No
+review token is durable policy authority. Pure canonical intent moved into a
+storage/dispatch-free module, retaining the coordinator's existing import alias.
+
+Confirmation remains deliberately non-executable: disabled button and server-
+side current-role/CSRF/token/expiry/exact-IP validation followed by unconditional
+503, without admission/API POST or database changes even when upstream flags
+claim enablement. Polling retains the frozen POST target/token/input/focus and
+does not GET/reclassify it. No new environment selector or write endpoint exists.
+
+Optional private GET and authenticated read-only handoff view distinguish absent
+schema from unavailable/corrupt state without DDL. Optional failure does not hide
+valid managed policy or invent an empty queue. Bounded 20-row views prioritize
+active/attention, collapse completed records, color-code waiting/attention/
+active/verified and separate admission phase from linked queue outcome. Retained
+root phase never implies verification; missing pruned history is unavailable.
+Escaped actor/diagnostic text, local timezone labels and existing queue revisions
+drive display without refresh hints/FTD calls. No scheduler/coordinator admission
+hook was enabled; pending controls/recovery/fleet/protection gates remain.
+
+**Validation:** All 424 Python tests pass; 18 Chromium scenarios (19 reported
+tests) pass, including managed review freezing, native disabled execution,
+mobile layout, revision-driven handoff colors/outcomes, no additional hints or
+device execution. Synthetic ASGI checks cover auth/current role/CSRF, strict
+fields/selection/reason, malformed/absent optional state, cookie/expiry/restart,
+concurrent/global cache bounds, escaping and no policy/job/audit changes on
+preparation or direct confirmation. Initial fixtures used the pre-migration
+Protected-IP revision; they now read the actual fixture revision. Existing
+no-write endpoint checks now allow the new GET-only resource. A restricted
+ASGI run was interrupted after stalling; the complete final suite passed with
+local socket permissions. Compileall, Ruff, JavaScript syntax, relative links
+and diff checks pass. Rust/wire unchanged; no new live write evidence is claimed.
+
+**Lab rollout plan:** Under standing authorization retain paired rollback images
+and a checked SQLite-safe backup, validate packaged Python 3.12 in a networkless/
+read-only synthetic container, stop the sole API/Web pair then recreate only
+them. No actual configuration/inventory/secret, schema, policy/job admission,
+refresh hint, independent agent call or gate change. Startup may execute already
+admitted ordinary queue/policy work. Validate unchanged state/queue/policy,
+absence of all managed/handoff tables, disabled gates, healthy ordinary reads,
+anonymous 401 and TLS-verified Authelia redirect. Deployment result follows.
+
+**Deployment:** Preflight confirmed zero active shuns, eight VERIFIED/one NOOP,
+no unfinished work or managed tables, three protected entries/revision 3,
+disabled admission/execution and zero eligible devices; normal reads had no
+error. Preserved preceding API/Web images under
+`before-managed-review-20261017t143643z`. SQLite backup API produced volume and
+ignored host copies, host
+`.local/backups/state-before-managed-review-20261017T143643Z.sqlite3`, file 0600/
+directory 0700; both integrity and foreign-key checks pass.
+
+Built API `sha256:4d9a7507b73a27b3fb27f925bfd7dd67385d82ec1e6bb0f2cfdb9368608ed769`
+and Web `sha256:39100c2115701d94f17ef9974323a00911096681807bdd8fad61baa1217ee576`.
+Packaged Python 3.12 smoke passed in a networkless/read-only container with only
+temporary synthetic SQLite/identity: optional GET does not initialize tables,
+review renders from a synthetic policy, direct confirmation remains 503 without
+API POST/audit/queue changes, package/footer version agree. No lab mounts or
+secrets. Existing unlocked dependency ranges resolved at build; no dependency
+pinning change or runtime compatibility claim beyond the smoke is implied.
+
+Quiet merged Compose validation passed. Cleanly stopped the sole API/Web pair
+then recreated only those two with --no-deps, with no overlapping executor.
+Agent `9d1f50d361ca`, Caddy `9c8fdb3a7f21` and Authelia `76f3635ab737` stayed
+unchanged. New API/Web are `83f95765d342`/`59b9764544d5`. No actual environment,
+inventory, secret, gate, policy/job or schema edit; no seed or refresh hint.
+
+Deployed GET reports explicit uninitialized/read-only/admission-disabled/
+scheduler-unavailable handoffs, and repeated reads create no managed/handoff
+tables. Stable devices/protected policy/queue requests/jobs/links/batches/origins/
+shun state/events compare exactly to backup; quick_check ok and foreign keys
+empty. Zero active shuns, eight VERIFIED/one NOOP and policy revision 3/three
+entries remain. ADD admission/execution false and eligible devices zero.
+Ordinary post-start v2 cycle succeeded at 14:40:16Z, two commands/zero removal,
+addition or mutation steps, 11494 ms, next baseline 14:45:16Z/no error. Anonymous
+managed/status/review/confirm requests over actual Web UDS are 401; packaged
+templates/version are present, and TLS-verified HTTPS returns 302 to auth.lab.test.
+No live identity headers were fabricated. Reload tabs once; actual authenticated
+visuals, executable confirmation/recovery/worker integration and any further
+device experiment require their remaining gates, not inference from this rollout.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

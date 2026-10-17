@@ -41,6 +41,14 @@ replay, shared reservations/rate/capacity, generation/key safety and retention/
 backup. Startup/API never initializes or invokes it; see
 [Managed Removal Handoffs](managed-removal-handoffs.md) before integration.
 
+`tests/test_managed_review.py` covers the optional GET and non-executable Web
+review: authentication/current role/CSRF, strict fields/scope/reason, immutable
+subject/cookie/expiry-bound reviews, concurrent cache bounds, malformed optional
+state, escaped outcomes and unconditional 503 on confirmation, even when an
+upstream flag claims enablement. Tests never call the coordinator from Web or
+admit live work. Chromium checks frozen token/input/focus and handoff color/state
+updates using local fixture rendering only. See [Managed Removal Review](managed-removal-review.md).
+
 Browser confirmation tests in `test_import_review.py` use synthetic ASGI/SQLite
 only. They cover frozen exclusions/targets, escaped metadata, current trusted
 identity/role and CSRF, unknown fields/counts, subject/cookie/expiry binding,

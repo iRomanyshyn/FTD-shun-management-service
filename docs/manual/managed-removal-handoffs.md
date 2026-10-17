@@ -3,7 +3,9 @@
 ## Current boundary
 
 Implemented on 2026-10-17 as an internal coordinator in `managed_removals.py`,
-**not connected to HTTP, Web forms or the scheduler**. Normal API/Store/queue
+**not connected to admission HTTP/Web forms or the scheduler**. Optional GET
+visibility and [preparatory Web reviews](managed-removal-review.md) are now
+implemented; confirmation cannot execute or call this coordinator. Normal API/Store/queue
 startup does not initialize it. Do not initialize or call it against the lab/
 production database for testing. No live mutation is authorized; ADD/restoration
 gates remain off. The initial contract handles **one reviewed device/IPv4 pair**
@@ -65,7 +67,7 @@ also prevents direct queue-key reuse after a completed request was pruned.
 
 ADMITTED means handed to the existing queue, not removed. `snapshot()` reports
 phase separately from linked queue state, with full counts and at most 20 rows.
-No UI/API exposes it yet. Fresh snapshots, verified agent response, FIFO/cutoff,
+The optional GET/UI now exposes this read-only view. Fresh snapshots, verified agent response, FIFO/cutoff,
 cooldown and command/time/mutation budgets remain the existing worker's job.
 Cleanup does not bypass cutoff because ADD finished. Uncertain ADD is neither
 upgraded to verified creation nor replayed.
@@ -85,7 +87,7 @@ namespaces, generations, pruning, immutable authority and SQLite backup. This
 is not live Cisco, session, load or production evidence.
 
 **No live migration, deployment or restart was performed.** Before runtime use,
-implement waiting/attention UI, frozen confirmation, shared-worker wake/advance/
+complete executable confirmation/cancellation, shared-worker wake/advance/
 expiry, all-device scope union, protection/system cancellation and reviewed
 recovery tools. Take a checked SQLite-safe backup and retain paired images
 before an approved schema rollout. Do not drop authority/tombstones to revert.

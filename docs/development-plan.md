@@ -10,6 +10,14 @@ for the approved scope extension and unchanged security boundaries.
 
 ## Latest requirement amendment — 2026-10-17
 
+**Preparatory UI checkpoint (2026-10-17):** Frozen one-target removal reviews and
+optional read-only handoff visibility are implemented/tested. Confirmation is
+unconditionally unavailable and never calls the coordinator. Review data is
+ephemeral, not durable authorization. No automatic schema initialization or
+restoration. Worker wake/advance/expiry, executable confirmation/cancellation,
+all-device/protection/system handling and composite recovery remain before any
+managed-write release. See [Managed Removal Review](manual/managed-removal-review.md).
+
 **Offline removal handoff checkpoint (2026-10-17):** Single-target atomic
 retirement and durable WAITING_ADD/ordinary cleanup admission now have a bounded
 coordinator and immutable composite authority. Settlement preserves original

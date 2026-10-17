@@ -70,7 +70,9 @@ def test_registry_is_opt_in_and_normal_application_does_not_initialize_it(tmp_pa
     app = create_app(settings, store)
     with store._connection() as db:
         assert not db.execute("SELECT name FROM sqlite_master WHERE name LIKE 'managed_shun_%'").fetchall()
-    assert {route.path for route in app.routes if "managed" in route.path} == {"/api/v1/managed-shuns"}
+    assert {route.path for route in app.routes if "managed" in route.path} == {
+        "/api/v1/managed-shuns", "/api/v1/managed-removal-handoffs",
+    }
     assert next(route for route in app.routes if route.path == "/api/v1/managed-shuns").methods == {"GET"}
     assert app.state.synchronizer.queue.status()["counts"] == {}
 

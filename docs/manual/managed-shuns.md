@@ -264,6 +264,10 @@ controller for these tables and must not be advertised as managed-shun support.
 Open **Managed shuns** in the navigation. Every authenticated user may view it.
 The private `GET /api/v1/managed-shuns` resource and authenticated BFF page have
 no POST/PUT/DELETE or policy/resume controls. Existing imports remain one-time.
+The Web page now offers a separate **non-executable** preparatory removal review
+to Operators/Administrators and read-only handoff visibility to authenticated
+users. Those POSTs never contact admission or change policy; see
+[Managed Removal Review](managed-removal-review.md).
 Neither opening the tab nor status polling initializes tables, adopts an old
 import, emits policy audit, admits jobs, requests a refresh or calls the agent.
 

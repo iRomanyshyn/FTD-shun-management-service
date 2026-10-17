@@ -19,6 +19,7 @@ from .agent_client import (
 from .config import Settings
 from .import_preview import MAX_DEVICES, MAX_ROWS, classify_targets
 from .inventory import load_devices
+from .managed_removals import ManagedRemovals
 from .managed_shuns import ManagedCapacity, ManagedConflict, ManagedShuns
 from .operation_queue import QueueConflict, QueueFull
 from .store import HistoryWindowExpired, Shun, Store
@@ -119,6 +120,7 @@ def create_app(
         addition_device_ids=addition_device_ids,
     )
     policy = synchronizer.policy
+    managed_removals = ManagedRemovals(managed, synchronizer.queue)  # Optional reads only.
     policy.migrate_legacy_environment()
 
     @asynccontextmanager
@@ -177,6 +179,13 @@ def create_app(
     @app.get("/api/v1/protected-ips")
     def protected_ips() -> dict:
         return policy.snapshot()
+
+    @app.get("/api/v1/managed-removal-handoffs")
+    def managed_removal_handoffs() -> dict:
+        try:
+            return managed_removals.snapshot_if_present()
+        except (sqlite3.DatabaseError, ManagedConflict, ManagedCapacity, ValueError, TypeError, KeyError) as error:
+            raise HTTPException(503, "Managed cleanup state is unavailable; no operation was submitted.") from error
 
     @app.post("/api/v1/protected-ips/{ip}/{action}")
     async def change_protected_ip(ip: IPv4Address, action: Literal["add", "edit", "delete"],

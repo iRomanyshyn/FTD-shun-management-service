@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Review stop maintenance and remove</h1>
+{% if refresh %}{% include "refresh-panel.html" %}{% endif %}
+<p class="policy-warning"><strong>Preparatory review only — execution is unavailable.</strong> No policy change or device operation has been submitted. Worker integration and recovery safeguards are not complete.</p>
+{% if message %}<p class="preview-error" role="alert">{{ message }}</p>{% endif %}
+<p>This action would stop maintenance for <strong>one exact device/IP target</strong>, including when it is not currently observed, and request removal through the existing queue. It would not affect other devices. A running ADD would finish before separately authorized cleanup; expiry or failure would not turn maintenance back on.</p>
+<dl class="import-review-metadata">
+<dt>Device</dt><dd>{{ review.hostname }} ({{ review.device_id }})</dd>
+<dt>IPv4 address</dt><dd>{{ review.ip }}</dd>
+<dt>Managed intent / generation</dt><dd><code>{{ review.intent_id }}</code> / {{ review.generation }}</dd>
+<dt>Managed revision</dt><dd>{{ review.managed_revision }} — future admission must recheck it atomically</dd>
+<dt>Retained local observation</dt><dd>{{ 'Observed present' if review.observed_present else 'Not currently observed' }}; not a fresh Cisco query</dd>
+<dt>Maintenance</dt><dd>{{ 'Enabled' if review.maintenance_enabled else 'Already stopped' }}</dd>
+<dt>Protected IP</dt><dd>{{ 'Enabled protection takes priority' if review.protected else 'Not protected by an enabled entry' }}</dd>
+<dt>Reason</dt><dd>{{ review.reason or 'Not supplied' }}</dd>
+<dt>Review expires</dt><dd><time class="local-timestamp" datetime="{{ review.expires_at }}">{{ review.expires_at }}</time></dd>
+<dt>Prospective cleanup lifetime</dt><dd>{{ review.ttl_seconds }} seconds from future admission, not extended while waiting. This review grants no authority.</dd>
+<dt>Reserved request / retry key</dt><dd><code>{{ review.request_id }}</code> — ephemeral review only; no database request exists</dd>
+</dl>
+<form method="post" action="/managed-shuns/removal-confirm" class="import-confirm-form">
+<input type="hidden" name="csrf" value="{{ csrf_token }}">
+<input type="hidden" name="review" value="{{ review.token }}">
+<label for="confirm-managed-ip">Type {{ review.ip }} to confirm this single target</label>
+<input id="confirm-managed-ip" name="confirm_ip" autocomplete="off" inputmode="decimal" required>
+<button type="submit" disabled>Stop maintenance and queue removal — unavailable</button>
+</form>
+<p class="preview-help">This frozen review is bound to your subject and CSRF cookie, expires within ten minutes and is lost on Web restart. Status updates cannot change its target, token or typed confirmation. Editing the DOM or submitting directly cannot enable execution.</p>
+<a href="/managed-shuns">Back to Managed shuns</a>
+{% if refresh %}<script src="/static/freshness.js" defer></script>{% endif %}
+{% endblock %}

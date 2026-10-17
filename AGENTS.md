@@ -73,8 +73,9 @@ Do not rewrite historical log entries except to correct an objective error; add 
   requests or replay uncertain ADD. The isolated registry foundation is now
   implemented; optional read-only API/UI visibility does not initialize or
   authorize policy. The single-target removal handoff coordinator is offline-only;
-  its optional waiting-cleanup schema is not initialized by startup, and neither
-  UI nor scheduler invokes it. Do not deploy/seed pending handoffs before visible
+  its optional waiting-cleanup schema is not initialized by startup. Read-only
+  visibility/preparatory Web reviews never invoke admission; confirmation is
+  unconditionally unavailable. The scheduler does not invoke it. Do not deploy/seed pending handoffs before visible
   controls and composite backup-restore suspension are implemented. All live gates
   remain off; UI/queue integration, reviewed migration and a separately approved
   live fixture are still required.

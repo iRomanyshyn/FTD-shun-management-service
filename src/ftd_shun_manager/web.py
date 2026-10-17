@@ -32,6 +32,7 @@ from .import_preview import (
     summarize_preview,
 )
 from .import_review import ImportReviews, ReviewUnavailable
+from .managed_review import ManagedRemovalReviews
 
 PROJECT_ROOT = Path(os.environ.get("FTD_SHUN_ASSET_ROOT", Path(__file__).resolve().parents[2]))
 templates = Jinja2Templates(directory=str(PROJECT_ROOT / "templates"))
@@ -174,6 +175,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or Settings.from_environment()
     app = FastAPI(title="FTD Shun Manager", docs_url=None, redoc_url=None, openapi_url=None)
     reviews = ImportReviews(settings.sensitive_action_max_age_seconds)
+    managed_reviews = ManagedRemovalReviews(settings.sensitive_action_max_age_seconds)
     app.mount("/static", StaticFiles(directory=str(PROJECT_ROOT / "static")), name="static")
 
     @app.middleware("http")
@@ -427,10 +429,91 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if refresh.status_code != 200 or policy.status_code != 200:
             return render(request, "error.html", {"identity": identity,
                           "message": "Managed shun state is unavailable. No policy was changed."}, 503)
+        cleanup = None
+        try:
+            with api_client(settings) as client:
+                response = client.get("/api/v1/managed-removal-handoffs")
+            if response.status_code == 200:
+                candidate = response.json()
+                if (isinstance(candidate, dict) and type(candidate.get("initialized")) is bool
+                        and isinstance(candidate.get("items"), list) and len(candidate["items"]) <= 20
+                        and isinstance(candidate.get("counts"), dict) and candidate.get("read_only") is True):
+                    cleanup = candidate
+        except (httpx.HTTPError, ValueError, TypeError):
+            pass  # Optional cleanup errors stay visible; never fabricate empty state.
         return render(request, "managed-shuns.html", {
             "identity": identity, "refresh": refresh.json(), "managed": policy.json(),
+            "handoffs": cleanup,
             "active_page": "managed", "auto_request": False,
         })
+
+    def require_managed_operator(identity):
+        if not {"Operator", "Administrator"}.intersection(identity.roles):
+            raise HTTPException(403, "Operator role required for managed removal review.")
+
+    def managed_review_view(request, identity, review, refresh, *, message=None, status_code=200):
+        return render(request, "managed-remove-review.html", {
+            "identity": identity, "review": review, "refresh": refresh, "message": message,
+            "active_page": "managed", "auto_request": False, "frozen_view": True,
+        }, status_code)
+
+    @app.post("/managed-shuns/removal-review", response_class=HTMLResponse)
+    async def prepare_managed_removal(request: Request) -> HTMLResponse:
+        identity = identity_from_request(request, settings.development_auth)
+        require_managed_operator(identity)
+        fields = await preview_form(request, allowed={"csrf", "target", "reason"}, max_bytes=16384)
+        require_csrf(request, fields.get("csrf", [""])[0])
+        try:
+            raw_device, raw_ip = fields.get("target", [""])[0].split(":")
+            device_id = int(raw_device)
+            if raw_device != str(device_id):
+                raise ValueError("Non-canonical device ID")
+            ip = IPv4Address(raw_ip)
+        except ValueError as error:
+            raise HTTPException(422, "Choose an exact managed device and IPv4 address.") from error
+        return await run_in_threadpool(prepare_managed_review, request, identity, device_id, ip,
+                                       fields.get("reason", [""])[0])
+
+    def prepare_managed_review(request, identity, device_id, ip, reason):
+        try:
+            with api_client(settings) as client:
+                refresh = client.get("/api/v1/status")
+                policy = client.get("/api/v1/managed-shuns")
+            if refresh.status_code != 200 or policy.status_code != 200:
+                raise httpx.RequestError("Managed review state unavailable")
+            review = managed_reviews.prepare(
+                identity.subject, request.cookies.get("ftd_shun_csrf", ""), policy.json(), device_id, ip,
+                min(900, settings.sensitive_action_max_age_seconds), reason,
+            )
+            state = refresh.json()
+            if not isinstance(state, dict):
+                raise TypeError("Invalid status")
+        except ReviewUnavailable as error:
+            raise HTTPException(409, str(error)) from error
+        except (ValueError, KeyError, TypeError, AttributeError) as error:
+            raise HTTPException(422, "Invalid managed review data; nothing was submitted.") from error
+        except httpx.HTTPError as error:
+            raise HTTPException(503, "Managed review is unavailable; nothing was submitted.") from error
+        return managed_review_view(request, identity, review, state)
+
+    @app.post("/managed-shuns/removal-confirm", response_class=HTMLResponse)
+    async def confirm_managed_removal(request: Request) -> HTMLResponse:
+        identity = identity_from_request(request, settings.development_auth)
+        require_managed_operator(identity)
+        fields = await preview_form(request, allowed={"csrf", "review", "confirm_ip"}, max_bytes=4096)
+        require_csrf(request, fields.get("csrf", [""])[0])
+        try:
+            review = managed_reviews.get(fields.get("review", [""])[0], identity.subject,
+                                         request.cookies.get("ftd_shun_csrf", ""))
+        except ReviewUnavailable as error:
+            raise HTTPException(409, str(error)) from error
+        if fields.get("confirm_ip", [""])[0] != str(review.ip):
+            raise HTTPException(422, "Type the exact IPv4 address shown in the review.")
+        # Deliberately no admission call, even if upstream status advertises a flag.
+        # Recovery, shared-worker and fleet/protection gates remain incomplete.
+        return managed_review_view(request, identity, review, None,
+                                   message="Execution is unavailable. No policy change or queue request was submitted.",
+                                   status_code=503)
 
     @app.get("/protected-ips", response_class=HTMLResponse)
     def protected_ips(request: Request) -> HTMLResponse:

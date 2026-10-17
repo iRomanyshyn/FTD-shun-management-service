@@ -112,3 +112,15 @@ th, td { border-bottom: 1px solid #8886; text-align: left; padding: .7rem .6rem;
 .import-review-targets { max-height: 28rem; overflow: auto; margin-block: 1rem; }
 .import-review-metadata dd { margin-bottom: .6rem; overflow-wrap: anywhere; }
 .import-result { border-inline-start: .3rem solid #087f5b; padding: .75rem; }
+.cleanup-record { border-inline-start: .2rem solid #808080; padding: .2rem .8rem; margin-block: .8rem; }
+.cleanup-record p { margin-block: .5rem; }
+.cleanup-state { margin-inline-start: .5rem; }
+.cleanup-state[data-cleanup-state="waiting"] { color: #7a4200; background: #fff1cc; }
+.cleanup-state[data-cleanup-state="attention"] { color: #8b1717; background: #ffe5e5; }
+.cleanup-state[data-cleanup-state="active"] { color: #124979; background: #e1f0ff; }
+.cleanup-state[data-cleanup-state="verified"] { color: #135b2c; background: #dcf5e3; }
+.cleanup-record code { overflow-wrap: anywhere; }
+#managed-removal-preparation select { max-width: 100%; min-width: 0; font: inherit; }
+#managed-removal-preparation input { width: min(22rem, 100%); }
+#confirm-managed-ip { width: 14rem; }
+.cleanup-state { white-space: normal; }

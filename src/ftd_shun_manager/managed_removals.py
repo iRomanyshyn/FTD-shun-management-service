@@ -1,4 +1,4 @@
-"""Explicit, offline-only managed removal coordination; no API or scheduler hook.
+"""Offline managed removal coordination; optional reads, no admission/scheduler hook.
 
 One reviewed device/IP at a time. Initialize only an isolated database until the
 managed UI, migration and scheduler integration gates have been completed.
@@ -6,14 +6,13 @@ managed UI, migration and scheduler integration gates have been completed.
 
 from __future__ import annotations
 
-import hashlib
 import hmac
 import json
 from datetime import datetime, timedelta
 from ipaddress import IPv4Address
 from uuid import UUID, uuid5
 
-from .import_intent import canonical_import
+from .managed_intent import canonical_managed_removal
 from .managed_shuns import (
     ManagedConflict,
     ManagedShuns,
@@ -23,21 +22,6 @@ from .managed_shuns import (
 from .operation_queue import OperationQueue, QueueConflict, QueueFull, stamp
 
 MAX_HANDOFF_RECORDS = 10000  # Retained request keys; no automatic recycling.
-
-
-def canonical_managed_removal(device_id: int, ip: IPv4Address, managed_revision: int,
-                              ttl_seconds: int = 900, reason: str = "") -> tuple[str, str]:
-    if type(managed_revision) is not int or managed_revision < 0:
-        raise ValueError("A non-negative managed revision is required.")
-    if type(ttl_seconds) is not int or not 1 <= ttl_seconds <= 900:
-        raise ValueError("Removal authorization must last 1 to 900 seconds.")
-    _, canonical, _ = canonical_import([(device_id, ip)], 0, reason=reason)
-    payload = json.loads(canonical)
-    payload.update(scope="managed_device_removal", action="RETIRE_AND_REMOVE",
-                   mode="stop_maintenance_and_remove", managed_revision=managed_revision,
-                   ttl_seconds=ttl_seconds)
-    payload = json.dumps(payload, sort_keys=True, separators=(",", ":"))
-    return payload, hashlib.sha256(payload.encode()).hexdigest()
 
 
 class ManagedRemovals:
@@ -286,14 +270,27 @@ class ManagedRemovals:
     def snapshot(self) -> dict:
         with self.store._connection() as db:
             db.execute("BEGIN")
-            counts = {row["state"]: row["n"] for row in db.execute(
-                "SELECT state,COUNT(*) AS n FROM managed_removal_handoffs GROUP BY state")}
-            rows = db.execute("""SELECT h.id,h.device_id,d.hostname AS device_hostname,h.ip,h.state,h.reason,
+            return self._snapshot(db)
+
+    def snapshot_if_present(self) -> dict:
+        """Optional display only; absence is not migration, invalid schema is error."""
+        with self.store._connection() as db:
+            db.execute("BEGIN")
+            if not self.queue._handoffs_present(db):
+                return {"initialized": False, "counts": {}, "items": [], "display_limit": 20,
+                        "scheduler_integration_available": False, "admission_enabled": False, "read_only": True}
+            return {**self._snapshot(db), "initialized": True, "admission_enabled": False, "read_only": True}
+
+    def _snapshot(self, db) -> dict:
+        counts = {row["state"]: row["n"] for row in db.execute(
+            "SELECT state,COUNT(*) AS n FROM managed_removal_handoffs GROUP BY state")}
+        rows = db.execute("""SELECT h.id,h.device_id,d.hostname AS device_hostname,h.ip,h.state,h.reason,
                 h.predecessor_id,h.actor_subject,h.actor_display_name,h.requested_at,h.expires_at
                 ,(SELECT j.state FROM operation_links l JOIN operation_jobs j ON j.id=l.job_id
                     WHERE l.request_id=h.id LIMIT 1) AS queue_state
                 FROM managed_removal_handoffs h JOIN devices d ON d.id=h.device_id
-                ORDER BY CASE WHEN h.state='WAITING_ADD' THEN 0 WHEN h.state='ATTENTION' THEN 1 ELSE 2 END,
-                    h.requested_at DESC,h.id LIMIT 20""").fetchall()
+                ORDER BY CASE WHEN h.state='WAITING_ADD' OR queue_state IN ('RUNNING','QUEUED') THEN 0
+                    WHEN h.state='ATTENTION' OR queue_state IN ('FAILED','UNVERIFIED') THEN 1 ELSE 2 END,
+                h.requested_at DESC,h.id LIMIT 20""").fetchall()
         return {"counts": counts, "items": [{**dict(row), "ip": str(IPv4Address(row["ip"]))} for row in rows],
                 "display_limit": 20, "scheduler_integration_available": False}

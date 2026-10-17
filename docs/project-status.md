@@ -4,6 +4,31 @@ Last updated: 2026-10-17
 
 ## Current increment
 
+**Preparatory managed-removal review and read-only cleanup visibility (2026-10-17).**
+Operators/Administrators can select one retained managed target and prepare an
+immutable session/cookie-bound review. Confirmation is unconditionally 503:
+no admission call, policy/job/audit change or device action, even with a forged
+enablement flag. Optional private GET and authenticated view distinguish absent
+schema/unavailable state, waiting/attention and actual linked queue outcomes;
+active/attention are prioritized and settled rows collapsed. Opening/reviewing
+never initializes tables. Pure canonical intent is shared without Web importing
+the coordinator. All 424 Python tests and 18 Chromium scenarios (19 reported
+tests) pass; compileall/Ruff/JS syntax/diff/link checks pass. See
+[Managed Removal Review](manual/managed-removal-review.md).
+
+Deployed only API/Web to the authorized lab after preserving paired images
+`before-managed-review-20261017t143643z` and a checked 0600 SQLite backup on the
+volume/ignored host path. Packaged Python 3.12 isolated review/refusal/footer
+smoke passed. No managed/handoff tables exist after deployed GETs; stable device,
+policy, queue/request/origin/state/events match backup exactly. Eight VERIFIED/
+one NOOP, zero active shuns, policy three entries/revision 3 and disabled ADD/
+zero eligible devices are preserved. Integrity/foreign keys pass. Agent/Caddy/
+Authelia IDs unchanged; normal v2 cycle at 14:40:16Z used two reads, zero mutations,
+11494 ms, next baseline 14:45:16Z/no error. Anonymous new Web paths are 401 and
+TLS-verified HTTPS returns 302 to auth.lab.test. No live identity spoofing, seed,
+configuration change, admission or forced refresh. Reload browser tabs once;
+authenticated visual checks and executable managed integration remain pending.
+
 **Offline managed removal handoff coordinator (2026-10-17).** Implemented
 single-target reviewed RETIRE_AND_REMOVE: atomic retirement and ordinary removal
 or durable WAITING_ADD, without cancelling/overlapping a running ADD. Immutable

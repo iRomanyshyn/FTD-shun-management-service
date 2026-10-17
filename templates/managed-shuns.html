@@ -4,7 +4,7 @@
 {% include "refresh-panel.html" %}
 <p>Desired shun presence is separate from observed device state. This page reads retained local data only; it does not query Cisco or adopt existing shuns.</p>
 <section id="managed-shun-state" data-live-region>
-<p class="policy-warning"><strong>Read-only preview — automatic restoration is not implemented.</strong> Managed confirmation and queue/removal safeguards are still pending. No policy controls or device operations are available here.</p>
+<p class="policy-warning"><strong>Read-only preview — automatic restoration is not implemented.</strong> Operators may prepare a removal review, but execution is unavailable. No policy change or device operation can be submitted here.</p>
 {% if not managed.initialized %}
 <p>The managed registry has not been initialized. Existing imports remain one-time; no historical shun has been converted into maintained policy.</p>
 {% else %}
@@ -24,5 +24,23 @@
 {% elif managed.initialized %}<p>No managed targets. Nothing is scheduled for restoration.</p>{% endif %}
 <p class="preview-help">Enabled Protected IPs take priority over desired presence. Stopped policy never restarts from old request replay. Future restoration requires explicit standing authorization; old imports and SSH-created shuns are not adopted automatically.</p>
 </section>
+<section id="managed-removal-preparation" data-live-region>
+{% if managed.initialized and managed.entries and ('Operator' in identity.roles or 'Administrator' in identity.roles) %}
+<h2>Prepare a single-target removal review</h2>
+<p>Preparation reads local policy only. It does not stop maintenance, create a job or remove a shun.</p>
+<form method="post" action="/managed-shuns/removal-review" class="import-confirm-form">
+<input type="hidden" name="csrf" value="{{ csrf_token }}">
+<label for="managed-review-target">Managed target</label>
+<select id="managed-review-target" name="target" required>
+<option value="">Choose one device/IP</option>
+{% for entry in managed.entries %}{% if entry.device_enabled %}<option value="{{ entry.device_id }}:{{ entry.ip }}">{{ entry.hostname }} — {{ entry.ip }}</option>{% endif %}{% endfor %}
+</select>
+<label for="managed-review-reason">Reason (optional)</label>
+<input id="managed-review-reason" name="reason" maxlength="500" autocomplete="off">
+<button type="submit">Prepare stop/remove review</button>
+</form>
+{% endif %}
+</section>
+{% include "managed-removal-state.html" %}
 <script src="/static/freshness.js" defer></script>
 {% endblock %}

@@ -2986,3 +2986,30 @@ wake/expiry, all-device scope, system/protection cancellation and composite
 restore suspension remain live-integration blockers. Backup/downgrade must not
 start an older worker ignoring waiting reservations or replay restored intent.
 See [Managed Removal Handoffs](manual/managed-removal-handoffs.md).
+
+### Preparatory managed-removal review and optional visibility — 2026-10-17
+
+Authenticated users may read optional handoff state via the BFF/private GET,
+without schema initialization, audit/queue writes, refresh hints or device calls.
+Missing schema is explicitly uninitialized; malformed state is unavailable, not
+empty. Preserve valid managed policy visibility on optional-resource failure.
+Bound views to 20 prioritized rows/full counts, distinguish admission phase
+from linked queue outcome and collapse settled entries. Never label admitted,
+unknown or reconciled absence as verified removal. Escape actor/diagnostic text
+and display timezone-qualified dates; existing queue revisions drive updates.
+
+Operator/Administrator may prepare a single-target frozen removal review from
+retained current policy. Selectors/reason are untrusted data; server captures
+scope/revision/generation/key/digest. Reviews bind subject/CSRF cookie, expire
+within ten minutes/the sensitive-action age and are bounded to five per subject,
+256 globally. Status updates must not replace/reclassify a POST review or lose
+its token/input/focus. Pure canonical intent can be shared with Web without
+importing storage/coordinator code or delegating device access.
+
+This is **not executable confirmation**. The button stays disabled; direct
+confirmation validates current identity/role/CSRF/token/expiry/exact IP then
+unconditionally rejects 503 without contacting admission. No setting, DOM edit
+or upstream flag enables it. No managed admission HTTP route exists. UI/GET
+deployment does not authorize policy migration, seed data, work or restoration;
+shared-worker, cancellation/protection/fleet and composite recovery gates still
+precede any managed write. See [Managed Removal Review](manual/managed-removal-review.md).
