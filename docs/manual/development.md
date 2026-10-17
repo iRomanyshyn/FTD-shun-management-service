@@ -25,6 +25,14 @@ mobile, the five-tab navigation and revision-driven read-only managed updates.
 See [Versioning](versioning.md) for manual release numbering, the pre-1.0
 compatibility convention and planned (not implemented) development-build identity.
 
+`tests/test_queue_transactions.py` uses temporary SQLite to verify caller-owned
+admission, invisible pre-commit state, savepoint/outer rollback, audit/commit
+failure, unchanged authorization/limits/coalescing, and shared atomic retirement
+plus queued removal. Tests deliberately retain QUEUED/RUNNING ADD conflicts;
+there is no managed coordinator or running cleanup handoff yet. Returned
+accepted logs belong to the caller and must not be emitted before outer commit.
+No test in this module opens a device socket or dispatches a command.
+
 Browser confirmation tests in `test_import_review.py` use synthetic ASGI/SQLite
 only. They cover frozen exclusions/targets, escaped metadata, current trusted
 identity/role and CSRF, unknown fields/counts, subject/cookie/expiry binding,

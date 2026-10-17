@@ -10,6 +10,14 @@ for the approved scope extension and unchanged security boundaries.
 
 ## Latest requirement amendment — 2026-10-17
 
+**Transactional admission prerequisite (2026-10-17):** Ordinary queue admission
+now delegates to a caller-owned/savepoint-protected hook. Offline tests compose
+managed retirement and removal admission in one transaction without partial
+policy/jobs/audit or premature accepted logs. No runtime managed composition,
+composite request contract, system cancellation or RUNNING-ADD handoff exists
+yet. Resolve those together before enabling managed writes/confirmation; this
+does not authorize live policy migration or restoration.
+
 The operator now requires restoring manually added shuns after disappearance,
 including reboot-like loss. Future explicitly confirmed service-managed imports
 must persist desired presence independently of observed state and completed jobs.

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hmac
 import json
+import sqlite3
 from datetime import UTC, datetime, timedelta
 from ipaddress import IPv4Address
 from uuid import uuid4
@@ -125,6 +126,51 @@ class OperationQueue:
         *, batch_label: str = "", batch_reason: str = "", policy_revision: int | None = None,
         confirmation_digest: str | None = None,
     ) -> dict:
+        with self.store._connection() as db:
+            db.execute("BEGIN IMMEDIATE")
+            result, logs = self.apply_enqueue(
+                db, request_id, targets, subject, display_name, roles, ttl_seconds, source, scope,
+                batch_label=batch_label, batch_reason=batch_reason, policy_revision=policy_revision,
+                confirmation_digest=confirmation_digest,
+            )
+        # This wrapper owns the transaction: never report acceptance before commit.
+        for entry in logs:
+            print(json.dumps(entry), flush=True)
+        return result
+
+    def apply_enqueue(
+        self, db: sqlite3.Connection, request_id: str, targets: list[tuple[int, IPv4Address]],
+        subject: str, display_name: str, roles: tuple[str, ...], ttl_seconds: int = 900,
+        source: str = "manual", scope: str = "device",
+        *, batch_label: str = "", batch_reason: str = "", policy_revision: int | None = None,
+        confirmation_digest: str | None = None,
+    ) -> tuple[dict, list[dict]]:
+        """Trusted composition hook; caller owns transaction, commit and accepted logs.
+
+        The returned log records must only be emitted after the outer commit.
+        A savepoint prevents partial admission even when the caller catches an
+        error. This does not retire policy, cancel ADD or resolve RUNNING work.
+        No API/gate/claim authorization is granted by supplying a connection.
+        """
+        if not db.in_transaction:
+            raise ValueError("Queue admission requires a caller-owned transaction.")
+        db.execute("SAVEPOINT queue_admission")
+        try:
+            result = self._apply_enqueue(
+                db, request_id, targets, subject, display_name, roles, ttl_seconds, source, scope,
+                batch_label, batch_reason, policy_revision, confirmation_digest,
+            )
+        except Exception:
+            db.execute("ROLLBACK TO queue_admission")
+            db.execute("RELEASE queue_admission")
+            raise
+        db.execute("RELEASE queue_admission")
+        return result
+
+    def _apply_enqueue(
+        self, db, request_id, targets, subject, display_name, roles, ttl_seconds,
+        source, scope, batch_label, batch_reason, policy_revision, confirmation_digest,
+    ) -> tuple[dict, list[dict]]:
         if source not in {"manual", "trusted_policy", "manual_import"} or not 1 <= ttl_seconds <= 900:
             raise ValueError("invalid queue request")
         if source in {"manual", "manual_import"} and not {"Operator", "Administrator"}.intersection(roles):
@@ -145,72 +191,68 @@ class OperationQueue:
             payload = json.dumps({"scope": scope, "targets": [(device, str(ip)) for device, ip in targets]})
         current = self._now()
         logs = []
-        with self.store._connection() as db:
-            db.execute("BEGIN IMMEDIATE")
-            old = db.execute("SELECT * FROM operation_requests WHERE id=?", (request_id,)).fetchone()
-            if old:
-                if old["actor_subject"] != subject or old["payload_json"] != payload or old["source"] != (
-                    "manual" if action == "ADD" else source
-                ):
-                    raise QueueConflict("idempotency key was already used for another request")
-                return {"operation_id": request_id, "status": "accepted", "replayed": True}
-            if action == "ADD":
-                if db.execute("SELECT revision FROM protected_policy WHERE id=1").fetchone()[0] != policy_revision:
-                    raise QueueConflict("Protected IPs changed; review the import again.")
-                if any(db.execute("SELECT 1 FROM protected_ips WHERE ip=? AND enabled=1", (ip.packed,)).fetchone()
-                       for _, ip in targets):
-                    raise QueueConflict("Import contains an enabled Protected IP; no targets were queued.")
-            active_requests = db.execute("""SELECT COUNT(DISTINCT r.id) FROM operation_requests r
-                JOIN operation_links l ON l.request_id=r.id JOIN operation_jobs j ON j.id=l.job_id
-                WHERE r.state='ACTIVE' AND j.state IN ('QUEUED','RUNNING')""").fetchone()[0]
-            if active_requests >= 2000:
-                raise QueueFull("operation queue is full")
-            if source in {"manual", "manual_import"}:
-                recent = db.execute("""SELECT COUNT(*) FROM operation_requests
-                    WHERE actor_subject=? AND requested_at>=?""",
-                    (subject, stamp(current - timedelta(minutes=1))),
-                ).fetchone()[0]
-                if recent >= 10:
-                    raise QueueFull("at most 10 operation submissions per minute per user")
-            db.execute("""INSERT INTO operation_requests VALUES (?,?,?,?,?,?,?,?,?)""", (
-                request_id, subject, display_name, json.dumps(roles), "manual" if action == "ADD" else source, payload,
-                stamp(current), stamp(current + timedelta(seconds=ttl_seconds)), "ACTIVE",
+        old = db.execute("SELECT * FROM operation_requests WHERE id=?", (request_id,)).fetchone()
+        if old:
+            if old["actor_subject"] != subject or old["payload_json"] != payload or old["source"] != (
+                "manual" if action == "ADD" else source
+            ):
+                raise QueueConflict("idempotency key was already used for another request")
+            return {"operation_id": request_id, "status": "accepted", "replayed": True}, []
+        if action == "ADD":
+            if db.execute("SELECT revision FROM protected_policy WHERE id=1").fetchone()[0] != policy_revision:
+                raise QueueConflict("Protected IPs changed; review the import again.")
+            if any(db.execute("SELECT 1 FROM protected_ips WHERE ip=? AND enabled=1", (ip.packed,)).fetchone()
+                   for _, ip in targets):
+                raise QueueConflict("Import contains an enabled Protected IP; no targets were queued.")
+        active_requests = db.execute("""SELECT COUNT(DISTINCT r.id) FROM operation_requests r
+            JOIN operation_links l ON l.request_id=r.id JOIN operation_jobs j ON j.id=l.job_id
+            WHERE r.state='ACTIVE' AND j.state IN ('QUEUED','RUNNING')""").fetchone()[0]
+        if active_requests >= 2000:
+            raise QueueFull("operation queue is full")
+        if source in {"manual", "manual_import"}:
+            recent = db.execute("""SELECT COUNT(*) FROM operation_requests
+                WHERE actor_subject=? AND requested_at>=?""",
+                (subject, stamp(current - timedelta(minutes=1))),
+            ).fetchone()[0]
+            if recent >= 10:
+                raise QueueFull("at most 10 operation submissions per minute per user")
+        db.execute("""INSERT INTO operation_requests VALUES (?,?,?,?,?,?,?,?,?)""", (
+            request_id, subject, display_name, json.dumps(roles), "manual" if action == "ADD" else source, payload,
+            stamp(current), stamp(current + timedelta(seconds=ttl_seconds)), "ACTIVE",
+        ))
+        if action == "ADD":
+            db.execute("INSERT INTO manual_import_batches VALUES (?,'manual_import',?,?,?,?,?)", (
+                request_id, subject, display_name, json.dumps(roles), payload, stamp(current),
             ))
-            if action == "ADD":
-                db.execute("INSERT INTO manual_import_batches VALUES (?,'manual_import',?,?,?,?,?)", (
-                    request_id, subject, display_name, json.dumps(roles), payload, stamp(current),
-                ))
-            request = db.execute("SELECT * FROM operation_requests WHERE id=?", (request_id,)).fetchone()
-            for device_id, ip in targets:
-                device = db.execute("SELECT enabled FROM devices WHERE id=?", (device_id,)).fetchone()
-                if device is None or not device["enabled"]:
-                    raise ValueError("unknown or disabled target device")
-                job = db.execute("""SELECT * FROM operation_jobs WHERE device_id=? AND ip=?
-                    AND state IN ('QUEUED','RUNNING')""", (device_id, ip.packed)).fetchone()
-                coalesced = job is not None
-                if job is not None and job["action"] != action:
-                    raise QueueConflict("Opposite ADD/REMOVE work already exists for this device/IP; no targets were queued.")
-                if job is None:
-                    pending = db.execute("SELECT COUNT(*) FROM operation_jobs WHERE state IN ('QUEUED','RUNNING')").fetchone()[0]
-                    if pending >= 1000:
-                        raise QueueFull("operation queue is full")
-                    job_id = str(uuid4())
-                    db.execute("""INSERT INTO operation_jobs(id,device_id,ip,state,requested_at,action,reason)
-                        VALUES (?,?,?,'QUEUED',?,?,?)""", (job_id, device_id, ip.packed, stamp(current), action,
-                            None))
-                    job = db.execute("SELECT * FROM operation_jobs WHERE id=?", (job_id,)).fetchone()
-                db.execute("INSERT INTO operation_links VALUES (?,?)", (request_id, job["id"]))
-                self._event(db, "SHUN_OPERATION_QUEUED", request, job, {"coalesced": coalesced})
-                self._event(db, "SHUN_ADD_REQUESTED" if action == "ADD" else
-                            "SHUN_TRUSTED_AUTO_REMOVE_REQUESTED" if source == "trusted_policy"
-                            else "SHUN_REMOVE_REQUESTED", request, job, {"queued": True})
-                logs.append({"event": "queue.request.accepted", "request_id": request_id,
-                             "operation_id": job["id"], "device_id": device_id, "ip": str(ip),
-                             "actor_subject": subject, "source": source, "coalesced": coalesced})
-            self._bump(db)
-        for entry in logs:
-            print(json.dumps(entry), flush=True)
-        return {"operation_id": request_id, "status": "accepted", "replayed": False}
+        request = db.execute("SELECT * FROM operation_requests WHERE id=?", (request_id,)).fetchone()
+        for device_id, ip in targets:
+            device = db.execute("SELECT enabled FROM devices WHERE id=?", (device_id,)).fetchone()
+            if device is None or not device["enabled"]:
+                raise ValueError("unknown or disabled target device")
+            job = db.execute("""SELECT * FROM operation_jobs WHERE device_id=? AND ip=?
+                AND state IN ('QUEUED','RUNNING')""", (device_id, ip.packed)).fetchone()
+            coalesced = job is not None
+            if job is not None and job["action"] != action:
+                raise QueueConflict("Opposite ADD/REMOVE work already exists for this device/IP; no targets were queued.")
+            if job is None:
+                pending = db.execute("SELECT COUNT(*) FROM operation_jobs WHERE state IN ('QUEUED','RUNNING')").fetchone()[0]
+                if pending >= 1000:
+                    raise QueueFull("operation queue is full")
+                job_id = str(uuid4())
+                db.execute("""INSERT INTO operation_jobs(id,device_id,ip,state,requested_at,action,reason)
+                    VALUES (?,?,?,'QUEUED',?,?,?)""", (job_id, device_id, ip.packed, stamp(current), action,
+                        None))
+                job = db.execute("SELECT * FROM operation_jobs WHERE id=?", (job_id,)).fetchone()
+            db.execute("INSERT INTO operation_links VALUES (?,?)", (request_id, job["id"]))
+            self._event(db, "SHUN_OPERATION_QUEUED", request, job, {"coalesced": coalesced})
+            self._event(db, "SHUN_ADD_REQUESTED" if action == "ADD" else
+                        "SHUN_TRUSTED_AUTO_REMOVE_REQUESTED" if source == "trusted_policy"
+                        else "SHUN_REMOVE_REQUESTED", request, job, {"queued": True})
+            logs.append({"event": "queue.request.accepted", "request_id": request_id,
+                         "operation_id": job["id"], "device_id": device_id, "ip": str(ip),
+                         "actor_subject": subject, "source": source, "coalesced": coalesced})
+        self._bump(db)
+        return {"operation_id": request_id, "status": "accepted", "replayed": False}, logs
 
     def replay(self, request_id: str, subject: str, scope: str, ip: IPv4Address,
                device_id: int | None = None) -> dict | None:

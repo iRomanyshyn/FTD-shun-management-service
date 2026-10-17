@@ -4,6 +4,19 @@ Last updated: 2026-10-17
 
 ## Current increment
 
+**Caller-owned queue admission foundation (2026-10-17).** Added a savepoint-
+protected `apply_enqueue()` hook, with ordinary admission using the same path.
+Synthetic tests compose managed retirement and removal in one transaction:
+failures roll back both policy/queue effects, and acceptance logs cannot be
+emitted by the hook before outer commit. Idempotency, coalescing, permissions,
+TTL/capacity checks and opposite ADD/REMOVE conflicts remain unchanged.
+This is not a runtime managed coordinator or RUNNING-ADD cleanup handoff;
+managed UI remains read-only and all ADD gates stay off. No schema/configuration/
+protocol change, live policy/job, device operation or deployment. All 384 Python
+tests pass, plus compileall/Ruff/diff and documentation-link checks. Browser/
+agent code is unchanged and those suites were not rerun for this increment.
+See [transaction composition](manual/operation-queue.md#caller-owned-admission-transactions).
+
 **Versioning convention documented (2026-10-17).** The
 [Versioning manual](manual/versioning.md) records the manual single-source
 package/footer number, release increments and pre-1.0 compatibility, separate

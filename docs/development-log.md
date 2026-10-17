@@ -2504,6 +2504,44 @@ links and `git diff --check` passed. Documentation-only: runtime suites were
 not rerun. No code/configuration/version change, deployment, restart, database
 access or device operation was performed.
 
+## 2026-10-17 — Transactional queue admission prerequisite for managed retirement
+
+Refactored ordinary queue admission through `apply_enqueue(connection, ...)`,
+a trusted caller-owned transaction hook using an internal savepoint. The same
+validation, semantic sources, coalescing, conflict/capacity/rate/TTL checks,
+immutable import batches, request/job/link/audit writes and queue revision are
+retained. The hook returns result plus bounded accepted-log records but never
+commits or logs. The ordinary wrapper emits those records only after its commit;
+replay emits none and does not renew authorization or bump the revision.
+
+Synthetic composition tests combine explicit managed retirement with removal
+admission under one outer transaction, including rollback of policy/ledger/
+events on admission or later failure. Caught queue failures roll back their
+own partial writes without erasing earlier caller work; callers must roll back
+the entire composite action to avoid committing an earlier policy edit alone.
+No managed runtime coordinator, composite confirmation/idempotency contract,
+system source, queue-link cancellation, uncertainty latch or RUNNING-ADD cleanup
+was implemented. Opposite active ADD remains a conflict, not fake cancellation
+or a second writer. Those integration gates still block managed writes.
+
+**Validation:** All 384 Python tests pass, including 19 new temporary-SQLite
+transaction cases: no implicit transaction/migration, invisible pre-commit
+state, savepoint and outer rollback, partial REMOVE/ADD admission/audit failure,
+capacity/coalescing, roles/TTL/source/confirmation, silent replay, simulated
+commit failure and retirement/QUEUED/RUNNING conflicts. An initial assertion
+incorrectly assumed device-list ordering; it now selects the fixture by ID.
+A restricted targeted socket/ASGI run stalled and was interrupted; the final
+full suite passed with local socket permissions. Compileall, Ruff, relative
+documentation links and `git diff --check` pass. UI/browser/agent/protocol are
+unchanged; no new Chromium/Rust or live device evidence is claimed.
+
+**Operational impact:** No schema/configuration/version change, live database
+read/write, policy/job admission, refresh hint, independent agent request,
+deployment or restart. This internal prerequisite provides no new user-facing
+action requiring lab rollout. No backup restoration/migration is needed to
+revert it; retain existing tables and outcomes. Managed registry initialization
+remains explicit/offline, UI read-only, controller absent and all ADD gates off.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

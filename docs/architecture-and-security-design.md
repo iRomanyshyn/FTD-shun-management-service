@@ -2931,3 +2931,21 @@ reads that value as well. Do not read Git, secrets, deployment configuration or
 host details to render it. Footer must remain usable on mobile and must not
 overlay content. This version is a release identifier, not production acceptance
 or a claim that all planned capabilities are enabled.
+
+### Queue transaction composition prerequisite — 2026-10-17
+
+Admission may expose a trusted internal caller-owned transaction hook sharing
+the same semantic validation/idempotency/limits and atomic audit as ordinary
+admission. It must not commit the caller's transaction or emit accepted logs
+before the outer commit. Failed partial admission must roll back to its own
+savepoint, including batches/links/events/revision; failure of a composite
+policy-plus-queue action must roll back the whole composite transaction.
+
+The implemented `OperationQueue.apply_enqueue()` and isolated managed retirement
+tests meet this primitive contract only. Normal HTTP/worker behavior and schema
+are unchanged. No runtime managed coordinator, standing system queue source,
+restoration cancellation, running-command cleanup dependency or composite
+review/replay authority is added. Opposite ADD/REMOVE work still fails closed.
+Keep managed writes unavailable until their complete retirement/cancellation/
+ordered-handoff and uncertainty contracts are implemented together. Transaction
+composition itself cannot authorize a device operation or waive existing gates.

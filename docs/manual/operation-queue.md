@@ -144,6 +144,38 @@ job action/dispatch marker, immutable batches and occurrence origins; see its
 [migration and rollback procedure](import-admission.md#migration-deployment-and-rollback).
 Admission/audit and verified completion/state/audit are atomic.
 
+### Caller-owned admission transactions
+
+`OperationQueue.apply_enqueue(connection, ...)` is an internal composition
+primitive, not an HTTP endpoint or new queue source. The caller must hold a
+write transaction (use `BEGIN IMMEDIATE`). It executes the same validation,
+idempotency, coalescing, limits, request/batch/link/audit writes and revision
+update as ordinary `enqueue()`, without committing or emitting logs. It returns
+`(result, accepted_log_records)`. Emit those records only after the outer commit;
+discard them on rollback. A same-key replay returns no new accepted logs and
+does not extend authorization or bump the queue revision.
+
+An internal savepoint rolls back partial admission if a later target, audit or
+capacity check fails, even when the caller catches the error. Earlier unrelated
+caller work remains intact. When composing policy changes and admission, the
+caller must also roll back the **whole composite operation** on failure: either
+let the error escape the outer transaction or use an enclosing savepoint for
+the entire workflow. Catching only the queue failure and then committing an
+earlier policy edit would not be atomic composition.
+
+The public Python `enqueue()` wrapper owns its transaction and logs only after
+commit, preserving the existing HTTP/worker behavior. This hook is the tested
+prerequisite for future managed retirement plus removal, not its runtime
+integration. It neither retires policy nor cancels pending ADD. QUEUED/RUNNING
+opposite actions still conflict; no cleanup dependency, second writer, standing
+system authorization or uncertainty replay is introduced. A future coordinator
+must bind/replay the **entire** reviewed action, cancel unstarted restoration
+and retain ordered cleanup after RUNNING ADD before managed writes can ship.
+
+There is no schema/configuration/protocol migration for this refactor. Reverting
+the code needs no database restore. No deployment is needed to expose a new
+feature: no UI/API workflow uses managed transaction composition yet.
+
 Only the exact session-protocol deferred-before-write response can return a
 RUNNING item to QUEUED; record `SHUN_OPERATION_DEFERRED`. Any missing/malformed
 write response remains UNVERIFIED. Remaining jobs wait for the next eligible

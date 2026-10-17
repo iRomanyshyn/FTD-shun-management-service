@@ -216,6 +216,14 @@ also rolls everything back. It never emits a success log before commit. This
 is the foundation for atomic retirement with future queued removal, **not** a
 safe runtime replacement for current removal admission: queue-link cancellation,
 uncertain-result latches and RUNNING-ADD handoff still need integration first.
+The queue now has its matching `apply_enqueue(connection, ...)` hook, with a
+savepoint and post-commit-only log records. Synthetic tests compose retirement
+and queue admission under one outer transaction and verify rollback of both
+ledgers/audit on failure. See the
+[transaction contract](operation-queue.md#caller-owned-admission-transactions).
+This is not a managed removal coordinator: no route performs that composition,
+no opposite-action conflict is bypassed, and composite idempotency, unstarted
+restoration cancellation and RUNNING cleanup remain required before runtime use.
 The standalone wrapper logs only request/action/actor/revision/count after commit;
 labels/reason/target lists are not copied into operating logs.
 
