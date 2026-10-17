@@ -4,6 +4,25 @@ Last updated: 2026-10-17
 
 ## Current increment
 
+**Managed-shun restoration requirement (2026-10-17).** Recorded the operator's
+change from one-time-only imports to explicit durable desired-present policy
+for future service-managed additions. After a new complete successful snapshot
+confirms absence, managed targets should restore through the shared bounded
+queue; service removal retires the exact desired scope so it cannot reappear.
+Protected IPs override maintenance. Failed/stale/partial reads never imply
+absence; uncertain ADD must latch attention rather than be retried under a new
+ID. Desired authorization is separate from the old 15-minute manual delegation;
+legacy imports/history/SSH-observed entries are not silently adopted.
+
+This is a design-only increment, **not implemented or enabled**. Updated the
+normative amendment, working agreement, plan and relevant manuals with durable
+policy/observed/provenance separation, removal/running-ADD handoff, missing-target
+UI, protection-resumption warnings, retention/restore suspension and staged
+acceptance. See [Managed Shuns](manual/managed-shuns.md). Current code/review
+still implements one-time imports. No schema, code, settings, deployment,
+queue/policy admission, device read or mutation changed. Documentation link/diff
+checks are recorded in the development log; runtime suites were not rerun.
+
 **Authenticated frozen import review (2026-10-17).** Operators/Administrators
 can prepare an exact candidate set separately from read-only preview, inspect
 all targets/exclusions/metadata and type the pair count before private queue
@@ -562,8 +581,15 @@ The foundation increment was checked with:
 
 The separately approved one-fixture service lifecycle is complete. Frozen BFF
 confirmation and the eligible-ADD reason fix are implemented with gates off.
-Next validate authenticated browser review using read-only preparation, then
-separately agree any further narrow submit/cleanup experiment. Additional
+The new restoration requirement now takes precedence for development: implement
+the explicit desired registry, standing-policy authorization, retention/restore
+suspension and removal handoff offline, followed by managed confirmation/UI and
+default-off shared-worker integration. Do not enable reconciliation by deriving
+policy from historical imports or by renewing old user jobs. Resolve controller
+capacity/anti-churn defaults before migration. Follow the
+[managed-shun implementation sequence](manual/managed-shuns.md#implementation-sequence-and-acceptance).
+Authenticated browser review can be checked read-only; separately agree any
+further narrow submit/restore/cleanup experiment. Additional
 live mutations require fresh scoped authority; traffic/fleet/load/failure/priority
 checks remain before general imports. The staged admission flag is not the
 execution gate. Real 7,307-entry imports remain blocked by

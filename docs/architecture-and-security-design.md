@@ -2772,9 +2772,10 @@ budget deferral/error reasons and all audit/history unchanged.
 
 ### Remaining product requirements
 
-- A pasted blocklist creates one-time manual additions. Successful removal,
-  external disappearance, reconciliation, and restart never regenerate those
-  completed add requests. It is not a continuously enforced blocklist or feed.
+- The managed-shun amendment below supersedes the former one-time-only product
+  requirement for future explicitly confirmed managed imports. Existing import
+  requests still remain one-time: their completion/idempotent replay never
+  creates standing authority or regenerates work.
 - SQLite events and structured logs identify `manual_import` provenance,
   batch, actor, targets, and verified results. Associate provenance with the
   actual operation/occurrence; do not claim ownership of a preexisting shun.
@@ -2795,3 +2796,69 @@ verified-success requirement, and prohibition on arbitrary Cisco commands are
 unchanged. The queue, gated ADD worker and browser confirmation are implemented
 as recorded above; general addition/import enablement remains unavailable. Live validation of the
 new protocol is required before default enablement.
+
+## Managed-shun requirement amendment — 2026-10-17
+
+The operator requested restoring manually added shuns after disappearance,
+including device reboot. This changes the earlier one-time-only product
+decision, not the deployed behavior. Implementation is pending. The
+[Managed Shuns design](manual/managed-shuns.md) defines the staged work and
+remaining validation. All ADD gates stay off; no live mutation or conversion
+of existing data is authorized by this design update.
+
+- Maintain an explicit durable desired-present record per configured device/IPv4,
+  separate from observed shuns, occurrence provenance, completed jobs and audit.
+  Scope is additions/imports explicitly managed through this service, not all
+  observed shuns. Cisco output alone does not identify manual versus automatic
+  origin. No automatic adoption of old imports, SSH-created entries, pre-existing
+  NOOPs or historical occurrences is permitted.
+- Future managed-import confirmation must explicitly authorize persistence until
+  revoked, bind managed mode into the canonical intent/digest and show exact
+  device/IP scope. This is a revocable standing policy, not an extension or
+  renewal of the existing at-most-15-minute captured user authorization.
+  Current legacy API/review must not silently acquire these semantics.
+  Restoration uses a distinct system policy actor linked to the authorizing
+  user/intent revision, never impersonated user roles or stored credentials.
+- After a new complete successful snapshot positively establishes absence,
+  an enabled managed intent may generate bounded restoration work through the
+  existing leased executor, typed v3 ADD, gates/profile, FIFO, priority reads
+  and command/time/cooldown budgets. Never infer absence from timeout, parser
+  failure, stale/partial snapshots, service restart or failed device login.
+  Absence is not proof of reboot; do not invent a disappearance cause.
+- An explicit device-scoped removal through the service must atomically retire
+  that target's desired intent and cancel its unstarted restoration intentions
+  with admission of removal. All-devices removal retires the exact reviewed
+  scope, including managed-but-currently-missing targets. Do not clear the
+  retirement when deletion fails, is uncertain, expires or is cancelled. A
+  previously RUNNING ADD must settle before any queued cleanup; no concurrent
+  opposite command, silent loss of cleanup or claim of cancelled device work.
+  Opposite running-job admission needs an explicit ordered handoff design;
+  the current whole-request conflict rule must not be bypassed ad hoc.
+- Enabled Protected IPs always override managed presence and suppress/cancel
+  unstarted ADD under the same transaction/claim rules. Keep the desired intent
+  visible as blocked, not erased. Removing/disabling protection may resume
+  maintenance under that still-enabled intent; warn explicitly in policy UI.
+  Disabled devices/profile/gates likewise hold rather than widen target scope.
+- Never replay an uncertain ADD under a new restoration ID. UNVERIFIED or lost
+  lease/results must latch the target into attention until explicit reviewed
+  resolution; later absence alone cannot clear it. A healthy completed ADD
+  followed by a later complete absence is a new desired-state reconciliation,
+  not resurrection of its old request. Coalesce duplicate discoveries, bind
+  jobs to intent generation/absence epoch and recheck revision before claim.
+- Active desired intent survives observed disappearance, reboot, service restart
+  and ordinary 366-day history retention. Provenance remains occurrence-bound:
+  only new verified creation establishes a restored occurrence's origin.
+  Observing presence/NOOP never proves that the service restored it. Historical
+  imported provenance is not standing policy and must not be migrated into it.
+
+The new controller must be independently default-off as well as respecting all
+existing ADD gates. UI must distinguish maintained policy, observed presence,
+pending/blocked restoration, attention and last verified restoration. Stop
+maintenance independently of whether a current shun is present. External CLI
+removal is indistinguishable from another disappearance and will be restored
+while intent remains enabled; operators must revoke it in the service first.
+Bound backlog, suppress repeated churn and preserve unknown outcomes rather
+than flooding the console. Migration, authorization, ordered removal handoff,
+restore/rollback, anti-churn limits and tests must be implemented/reviewed before
+connecting this policy to admission or the scheduler. No change to the isolation
+topology, credential boundary, binary protocol or no-arbitrary-CLI invariant.

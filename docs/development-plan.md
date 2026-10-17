@@ -8,6 +8,24 @@ already available. See [Project Status](project-status.md) for delivery evidence
 and [Architecture and Security Design](architecture-and-security-design.md#74-approved-next-increment-queued-device-cycles-and-manual-imports)
 for the approved scope extension and unchanged security boundaries.
 
+## Latest requirement amendment — 2026-10-17
+
+The operator now requires restoring manually added shuns after disappearance,
+including reboot-like loss. Future explicitly confirmed service-managed imports
+must persist desired presence independently of observed state and completed jobs.
+Service removal revokes that intent; external disappearance alone does not.
+Enabled Protected IPs win. Source cannot be inferred from raw `show shun`, so
+unmanaged/old historical entries are not adopted automatically.
+
+The [Managed Shuns design](manual/managed-shuns.md) and normative amendment
+supersede earlier one-time-only **target requirements** below. Existing
+implemented API/review/job behavior stays one-time, with all ADD gates off.
+No historical record/test result is reinterpreted. Durable standing authority,
+retirement, policy job source/generation, uncertain-result latch, bounded
+discovery/backpressure and backup-restore suspension must be implemented before
+connecting restoration to the worker. The existing 15-minute delegation is not
+silently extended. This change does not authorize a new live test or enablement.
+
 ## Implementation checkpoint — 2026-10-15
 
 ### Addition readiness checkpoint — 2026-10-16
@@ -132,9 +150,10 @@ retest, and mid-batch priority reads remain pending.
 - Keep one isolated Rust agent, SQLite WAL, and the existing Web/BFF/API layout.
   A separate message broker, reader service, or writer service is unnecessary
   for this increment.
-- Treat a manually imported blocklist as a one-time collection of add requests.
-  It is not a feed or a desired-state policy. Removing an imported shun does
-  not cause it to be imported again, including after restart or reconciliation.
+- Future explicitly managed imports maintain desired presence across confirmed
+  disappearance/reboot, without a remote feed or extra service. Explicit service
+  removal retires the corresponding desired targets and prevents re-add.
+  Existing one-time imports do not become managed without a new reviewed policy.
 - Record manual-import provenance in SQLite and structured logs, and show it
   in current state and historical views.
 - Accept concurrent users through a shared, durable queue for all device
@@ -389,12 +408,15 @@ confirmation. Bind confirmation to the parsed batch and target snapshot;
 changes require a new preview. Imported text is always HTML-escaped and must
 not appear as an unrestricted raw payload in logs.
 
-### One-time application and provenance
+### Managed application and occurrence provenance
 
-Each accepted import creates durable operation items, not a standing list to
-reapply. A later UI removal, external disappearance, device restart, or
-completed import never schedules that add again. A deliberate new import is
-a new user action with a new operation ID and audit trail.
+The existing implementation creates one-time durable jobs. The new target
+workflow additionally creates explicitly reviewed standing desired policy for
+service-managed imports. A later complete snapshot proving absence can create
+a new bounded restoration intention, not replay the completed job. Explicit
+service removal first retires desired state; external disappearance/reboot
+does not retire it. A new import after retirement requires fresh confirmation
+and a new intent generation; an old-key retry must never re-enable maintenance.
 
 Preserve batch ID, source `manual_import`, submitting actor and roles,
 submission time, reason/comment, canonical targets, request IDs, and per-device
@@ -408,10 +430,13 @@ historical import must not imply ownership of a later externally recreated
 shun. Associate provenance with the particular observed occurrence and verified
 operation; leave unknown origins explicit.
 
-Removal follows the normal queued removal workflow regardless of provenance.
-Retain the historical import annotation after removal, under the configured
-history retention policy. Operational queue/idempotency metadata required for
-unfinished work must not be purged with expired audit history.
+Removal needs atomic desired retirement and cancellation of unstarted
+restoration before ordinary queued device removal, with an explicit serialized
+handoff for an already RUNNING ADD. Include missing-but-managed devices in
+all-device review. Retain historical occurrence annotation under configured
+history retention, but keep active desired policy/minimum authorization metadata
+even when no current shun exists and history is purged. Preserve uncertainty;
+later observation is not proof of who created or restored an occurrence.
 
 ## 5. Security and implementation gates
 
@@ -437,11 +462,27 @@ Restoring a backup must suspend pending mutations until device reconciliation
 and operator review prevent replay of previously completed work.
 
 Custom Security Intelligence feeds, automatic feed downloads, CIDR expansion,
-desired-state enforcement, automatic reimport, expiration/TTL removal, and
-additional reader/writer services are deferred. The accepted requirement is
-manually supplied, removable one-time shun additions.
+expiration/TTL removal and additional reader/writer services remain deferred.
+Desired-state restoration of explicitly managed manual shuns is now required,
+but not implemented or enabled. Its independent system-policy authority must
+not be implemented as automatic renewal/reimport of expired user requests.
 
 ## 6. Delivery order and acceptance
+
+Current next work supersedes the older sequence below:
+
+1. Desired registry/revisions, explicit managed mode and durable authorization;
+   synthetic lifecycle/concurrency/retention/restore tests, no worker hookup.
+2. Managed-target UI/confirmation, missing-target retirement, protection warnings
+   and exact observed-versus-desired-versus-created distinctions.
+3. Shared-worker system intentions, ordered retirement/removal handoff, atomic
+   protection checks, uncertainty latch, deduplication/backpressure and bounded
+   anti-churn, independently gated off.
+4. Separately authorized single managed-fixture create/disappear/restore/remove/
+   no-readd test before any broader reboot/load or long-list trial.
+
+The prior delivery sequence documents the foundational work; it is not approval
+to enable current one-time imports as a restoration controller.
 
 1. Stabilize cycle metadata and browser refresh. Exercise slow/failed devices,
    repeated identical errors, partial fleet success, multiple tabs, request

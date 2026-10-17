@@ -4,6 +4,11 @@ Security-focused internal service for monitoring and managing Cisco Secure Firew
 
 The governing specification is the [Architecture and Security Design](docs/architecture-and-security-design.md). The repository now contains the first Web/BFF and internal-state API increment, together with deployment assets and operational manuals.
 
+Next requirement: [managed manual-shun restoration](docs/manual/managed-shuns.md)
+after confirmed disappearance/reboot, while explicit service removal stops
+maintenance. This is planned, not implemented; current imports remain one-time
+and all ADD gates remain disabled in the lab. Old imports are not auto-adopted.
+
 ## Design goals
 
 - Monitor, reconcile, and retain the history of active FTD shuns.

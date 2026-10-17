@@ -1,5 +1,11 @@
 # Queued Import Execution — Experimental and Default-Off
 
+**Requirement update (2026-10-17):** future [managed restoration](managed-shuns.md)
+will share this executor under separate standing-policy authority and its own
+default-off control. It is not implemented. The worker below still executes
+one-time requests only; do not add restoration by renewing old jobs or replaying
+an uncertain ADD under a different key.
+
 ## Release boundary
 
 ADD is wired into the existing leased scheduler, not a separate writer. This

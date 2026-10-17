@@ -64,6 +64,14 @@ Do not rewrite historical log entries except to correct an objective error; add 
 
 - Validate Compose changes with `docker compose --env-file .env -f deploy/compose.yml config` using temporary, non-secret local configuration. Do not commit that configuration.
 - Live evidence covers device-scoped removal and the separately approved one-address ADD/v3 creation/no-op/cleanup recorded on 2026-10-16. All ADD gates remain default-off and were restored off after that experiment. Traffic, fleet creation scope, large-load and production acceptance remain pending. Default-off implementation/deployment does not authorize new device mutations or general enablement. Do not present either write path, mock mode or socket transport as production-ready.
+- On 2026-10-17 the operator requested restoring service-managed manual shuns
+  after confirmed disappearance. The managed-shun architecture amendment and
+  design manual replace the former one-time-only target requirement, not the
+  current implementation. Restoration needs explicit durable/revocable desired
+  policy, protection priority and atomic retirement on service removal. Do not
+  convert old imports/history into standing authority, renew expired user
+  requests or replay uncertain ADD. All live gates remain off; implementation,
+  migration and a separately approved live fixture are still required.
 - On 2026-10-16 the operator separately approved the one-address service
   experiment on lab device 1/fpr1010-lab: unused TEST-NET 198.51.100.251,
   temporary gate/profile enablement for that device only, one queued creation,

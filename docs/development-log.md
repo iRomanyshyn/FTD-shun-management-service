@@ -2293,6 +2293,58 @@ Reload tabs once; authenticated live confirmation and broader ADD readiness
 still require separate scoped laboratory evidence. Rollback restores paired
 images without schema restore; Web restart invalidates ephemeral reviews.
 
+## 2026-10-17 — Managed manual-shun restoration requirement replaces one-time-only target
+
+**Status:** Design amendment and implementation plan recorded; runtime unchanged
+
+The operator requested re-adding manually added shuns after disappearance,
+including reboot. Recorded the change explicitly in the normative architecture,
+working agreement and plan; the former one-time-only target requirement is
+superseded, not silently implemented against the old security model. Scope is
+explicitly managed service additions/imports, because `show shun` does not
+reliably distinguish manual CLI writes from FTD automation. No historical import,
+NOOP, SSH-observed shun or cleaned-up laboratory fixture becomes managed by
+inference. Earlier chronological implementation/validation entries remain true
+of the previous one-time model and are unchanged.
+
+New structured Managed Shuns design separates durable desired presence,
+observed state and verified occurrence provenance. Future explicit managed-mode
+confirmation must grant revocable standing authority and bind mode/scope into
+canonical intent. This is not extension of the existing 15-minute delegation.
+Restoration uses a distinct system actor/current intent revision, not saved
+credentials or impersonated creator roles. Current API/review remains one-time.
+
+Only a new complete successful snapshot may establish absence; failed/stale/
+partial reads never cause restoration or claim reboot. Reuse one typed agent,
+leased queue, cooldown/budgets, FIFO and priority checkpoints. Explicit service
+removal atomically retires the effective device/IP intent and cancels unstarted
+restorations; all-device review must include missing managed targets. An already
+RUNNING ADD needs an ordered cleanup handoff, not bypassing opposite-action
+conflicts or dispatching another writer. Failed/cancelled/expired cleanup must
+not reactivate intent. Direct SSH removal while policy remains enabled will
+be repaired; operators must stop maintenance in the service when intentional.
+
+Enabled protection always wins; blocked intent remains visible and disabling/
+deleting protection may resume it, requiring clear policy UI warning. Unknown
+ADD latches attention rather than producing new restoration IDs. Active desired
+policy survives observed loss/history retention, while creation provenance
+still requires a new verified result. Backup restore must suspend policy as
+well as jobs to prevent mass reapplication of an older desired set.
+
+Implementation sequence: registry/standing authority/revisions/retention and
+restore safeguards offline; managed UI/frozen confirmation; ordered removal/
+protection/uncertainty/shared-worker integration with independent default-off
+control; then a separately approved one-fixture restoration/removal test.
+Capacity/anti-churn defaults and handoff design must be resolved before schema
+rollout. The current long-list/traffic/fleet/load gates are not waived.
+
+**Validation/impact:** Documentation-only review, relative-file link check and
+`git diff --check`; no runtime test suite rerun is required or claimed. No code,
+schema, environment, credentials, inventory, database, deployment/restart,
+queue/policy admission, refresh hint, independent agent read or device mutation
+was changed. All ADD gates remain off; no live permission is inferred from the
+new requirement. Current behavior still does not restore missing imported shuns.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

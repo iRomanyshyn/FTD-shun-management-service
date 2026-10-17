@@ -1,5 +1,10 @@
 # Import Admission — Staging Only
 
+**Requirement update (2026-10-17):** [managed restoration](managed-shuns.md)
+requires separate durable policy and explicit managed-mode confirmation.
+Implementation is pending. The existing private contract below remains one-time;
+its history/origins and expired requests cannot authorize background re-add.
+
 ## Current boundary
 
 This increment implements durable intentions and provenance.

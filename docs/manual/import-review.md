@@ -1,5 +1,10 @@
 # Browser Import Review and Confirmation
 
+**Requirement update (2026-10-17):** future explicitly confirmed imports will
+support [managed restoration](managed-shuns.md). That design is not implemented;
+this manual describes the current one-time flow. Old reviews/imports do not gain
+standing authority, and old-key replay must never enable future maintenance.
+
 ## Boundary
 
 Import preview remains a read-only parse/classification step. Operators and
