@@ -22,6 +22,9 @@ a release, not separate template/configuration constants. It is not a readiness
 badge or live feature indicator. Chromium checks footer placement on desktop/
 mobile, the five-tab navigation and revision-driven read-only managed updates.
 
+See [Versioning](versioning.md) for manual release numbering, the pre-1.0
+compatibility convention and planned (not implemented) development-build identity.
+
 Browser confirmation tests in `test_import_review.py` use synthetic ASGI/SQLite
 only. They cover frozen exclusions/targets, escaped metadata, current trusted
 identity/role and CSRF, unknown fields/counts, subject/cookie/expiry binding,

@@ -5,6 +5,7 @@ These manuals describe the first implementation increment. The service is safe t
 | Manual | Purpose |
 | --- | --- |
 | [Development](development.md) | Local setup, test commands, and mock agent boundaries. |
+| [Versioning](versioning.md) | Single version source, manual release numbering, pre-1.0 compatibility and planned build identity. |
 | [Deployment](deployment.md) | Caddy, Authelia, Unix sockets, secrets, and container layout. |
 | [Operations](operations.md) | Roles, removal workflow, logs, backup, health, and incident response. |
 | [Operation Queue](operation-queue.md) | Queued removal, progress/cancellation, limits, lease recovery, migration, backup restore, and rollback. |

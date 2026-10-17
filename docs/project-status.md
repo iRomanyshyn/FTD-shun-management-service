@@ -4,6 +4,13 @@ Last updated: 2026-10-17
 
 ## Current increment
 
+**Versioning convention documented (2026-10-17).** The
+[Versioning manual](manual/versioning.md) records the manual single-source
+package/footer number, release increments and pre-1.0 compatibility, separate
+agent/protocol identifiers, and release verification/rollback evidence. Git/
+development-build identity is a future proposal, not implemented automation.
+No version bump, runtime change or deployment was performed.
+
 **Product version footer and read-only managed visibility (2026-10-17).** Every
 server-rendered page displays v0.1.0 in a normal-flow footer; package build and
 Jinja share `ftd_shun_manager.__version__` as their only source. Added a Managed

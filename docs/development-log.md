@@ -2487,6 +2487,23 @@ and new assets are present; no live identity headers were fabricated. Reload
 browser tabs once. Human-authenticated visuals and actual managed confirmation/
 restoration remain separate next work; no production or live ADD acceptance.
 
+## 2026-10-17 — Document manual versioning and release identification
+
+Added the structured Versioning manual and links from README, the manual index
+and contributor procedures. Recorded the current manual `__version__` source,
+Hatch/package/footer wiring, no automatic build/deploy increments, independent
+agent/protocol identifiers, MAJOR.MINOR.PATCH convention with explicit pre-1.0
+breaking-change rules, and a manual release/verification/rollback checklist.
+Development counters and short Git revisions are clearly future work; the
+current footer cannot distinguish exact builds sharing a version. Release
+numbers do not imply production acceptance or enable any device capability.
+
+**Validation:** Cross-checked documentation against the version source, Hatch
+configuration, Jinja global/footer and agent manifest. Relative documentation
+links and `git diff --check` passed. Documentation-only: runtime suites were
+not rerun. No code/configuration/version change, deployment, restart, database
+access or device operation was performed.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

@@ -13,7 +13,8 @@ disabled in the lab. Old imports are not auto-adopted and no live migration
 initializes the new registry yet.
 
 The page footer displays the package version (currently `v0.1.0`) from the same
-source used for build metadata; it does not imply production readiness.
+source used for build metadata; it does not imply production readiness. See
+[Versioning](docs/manual/versioning.md) for how the number is assigned and changed.
 
 ## Design goals
 
