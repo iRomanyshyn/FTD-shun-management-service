@@ -1,4 +1,4 @@
-<section class="refresh-panel" aria-label="Service controls" data-refresh-controller data-status-url="/refresh-status" data-auto-request="{{ 'true' if auto_request | default(true) else 'false' }}" data-subject="{{ identity.subject }}" data-operator="{{ 'true' if 'Operator' in identity.roles or 'Administrator' in identity.roles else 'false' }}" data-administrator="{{ 'true' if 'Administrator' in identity.roles else 'false' }}">
+<section class="refresh-panel" aria-label="Service controls" data-refresh-controller data-status-url="/refresh-status" data-frozen-view="{{ 'true' if frozen_view | default(false) else 'false' }}" data-auto-request="{{ 'true' if auto_request | default(true) else 'false' }}" data-subject="{{ identity.subject }}" data-operator="{{ 'true' if 'Operator' in identity.roles or 'Administrator' in identity.roles else 'false' }}" data-administrator="{{ 'true' if 'Administrator' in identity.roles else 'false' }}">
 <script type="application/json" data-refresh-initial>{{ refresh | tojson }}</script>
 <div class="utility-toolbar">
 <span class="service-summary" data-status-summary>Device status</span>

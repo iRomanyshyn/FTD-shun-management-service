@@ -14,6 +14,7 @@ const future = (seconds) => new Date(Date.now() + seconds * 1000).toISOString();
 const renderScript = `
 import json, sys
 from ftd_shun_manager.import_preview import paginate_preview, parse_blocklist, summarize_preview
+from ftd_shun_manager.import_review import ImportReviews
 from ftd_shun_manager.web import Identity, templates
 p = json.load(sys.stdin)
 policy_entries = (p.get("policy") or {}).get("entries", [])
@@ -29,7 +30,11 @@ shun = dict(ip="198.51.100.10", device_id=1, device_hostname="lab-ftd FIXTURE_EV
             manual_imports=p.get("shun_origins", []))
 event = dict(timestamp="2026-10-15T10:00:00Z", event_type="FIXTURE_EVENT_" + str(p["generation"]),
              device_hostname="lab-ftd", actor_display_name="Test Operator", actor_subject="test", ip=shun["ip"])
+review = ImportReviews().prepare("test", "fixture-token", preview, p.get("label", ""), "Fixture only") if p["template"] == "import-confirm.html" else None
 print(templates.get_template(p["template"]).render(identity=Identity("test", "Test Operator", ("Operator",)),
+    review=review, accepted=None, message=None, admission_enabled=p["refresh"].get("import_admission_enabled", False),
+    retry_available=p["refresh"].get("import_admission_enabled", False), execution_enabled=False,
+    frozen_view=p["template"] == "import-confirm.html",
     csrf_token="fixture-token", shuns=[shun], refresh=p["refresh"], search_query=p["query"],
     search_results=None, trusted_policy_ips=enabled_ips, disabled_policy_ips=disabled_ips, recent_events=p.get("history", {}).get("events", [event]),
     pagination=p.get("history", {}), anchored_history=bool(p.get("anchor")),
@@ -39,7 +44,7 @@ print(templates.get_template(p["template"]).render(identity=Identity("test", "Te
     selected_devices=[1] if p.get("submitted") else [], preview=preview, preview_error=None,
     devices=[dict(id=1,hostname="lab-ftd",enabled=True),dict(id=2,hostname="disabled-ftd",enabled=False)],
     active_page="imports" if p["template"] == "import-preview.html" else "protected" if p["template"] == "protected-ips.html" else "history" if p["template"] == "history.html" else "shuns",
-    auto_request=p["template"] not in ("protected-ips.html", "history.html", "import-preview.html")))
+    auto_request=p["template"] not in ("protected-ips.html", "history.html", "import-preview.html", "import-confirm.html")))
 `;
 
 const initial = () => ({
@@ -120,6 +125,7 @@ test("refresh interaction in real Chromium", { timeout: 90000 }, async (t) => {
   let policy = { revision: 1, limit: 1000, entries: [] };
   let policyPosts = 0;
   let previewPosts = 0;
+  let confirmationPosts = 0;
   let historyRows = [];
   let shunOrigins = [];
   const appendHistory = () => {
@@ -229,9 +235,22 @@ test("refresh interaction in real Chromium", { timeout: 90000 }, async (t) => {
       status.policy_revision = policy.revision;
       status.status_revision += 1;
       response.end(JSON.stringify(stamp()));
-    } else if (["/", "/history", "/protected-ips", "/imports"].includes(url.pathname) || url.pathname.startsWith("/shuns/")) {
+    } else if (url.pathname === "/imports/confirm" && request.method === "POST") {
+      let body = "";
+      for await (const chunk of request) body += chunk;
+      const fields = new URLSearchParams(body);
+      assert.equal(fields.get("csrf"), "fixture-token");
+      assert.equal(fields.get("confirm_count"), "1");
+      assert.ok(fields.get("review"));
+      confirmationPosts += 1;
+      response.setHeader("Content-Type", "text/html");
+      response.end("<p>Fixture admission received; no device work</p>");
+    } else if (["/", "/history", "/protected-ips", "/imports", "/imports/review"].includes(url.pathname) || url.pathname.startsWith("/shuns/")) {
       pageReads += 1;
       let previewFields = {};
+      if (url.pathname === "/imports/review") previewFields = {
+        submitted: true, source_text: "192.0.2.30", label: "<b>Review fixture</b>", page: 1,
+      };
       if (url.pathname === "/imports" && request.method === "POST") {
         let body = "";
         for await (const chunk of request) body += chunk;
@@ -255,7 +274,8 @@ test("refresh interaction in real Chromium", { timeout: 90000 }, async (t) => {
         history, anchor: url.searchParams.get("anchor"),
         ...previewFields,
         policy, template: url.pathname === "/" ? "index.html" : url.pathname === "/history" ? "history.html"
-          : url.pathname === "/protected-ips" ? "protected-ips.html" : url.pathname === "/imports" ? "import-preview.html" : "detail.html" };
+          : url.pathname === "/protected-ips" ? "protected-ips.html" : url.pathname === "/imports" ? "import-preview.html"
+            : url.pathname === "/imports/review" ? "import-confirm.html" : "detail.html" };
       response.setHeader("Content-Type", "text/html; charset=utf-8");
       response.end(execFileSync("python3", ["-c", renderScript], {
         cwd: root, input: JSON.stringify(payload), encoding: "utf8",
@@ -819,6 +839,45 @@ test("refresh interaction in real Chromium", { timeout: 90000 }, async (t) => {
         assert.ok(await page.evaluate("Boolean(document.querySelector('#import-results'))"));
         assert.equal(await page.evaluate("document.activeElement.id"), "blocklist-text");
         assert.equal(previewPosts, 1);
+        assert.equal(postCount, hints);
+        assert.equal(executionCount, executions);
+      } finally { await page.close(); }
+    });
+    await t.test("frozen import review keeps its token and draft through status updates; native confirmation stays explicit", async () => {
+      status = initial();
+      status.import_admission_enabled = false;
+      const hints = postCount;
+      const executions = executionCount;
+      const confirmations = confirmationPosts;
+      const disabled = await connectPage(debugOrigin, `${origin}/imports/review`);
+      try {
+        assert.equal(await disabled.evaluate("document.querySelector('.import-confirm-form button').disabled"), true);
+        assert.ok(await disabled.evaluate("document.body.textContent.includes('admission is disabled')"));
+      } finally { await disabled.close(); }
+      status.import_admission_enabled = true;
+      const page = await connectPage(debugOrigin, `${origin}/imports/review`);
+      try {
+        assert.equal(await page.evaluate("document.querySelectorAll('.import-review-targets tbody tr').length"), 1);
+        assert.equal(await page.evaluate("document.querySelectorAll('.import-review-metadata b').length"), 0);
+        await page.evaluate("window.reviewToken=document.querySelector('[name=review]').value; document.querySelector('#confirm-count').value='1'; document.querySelector('#confirm-count').focus()");
+        const reads = pageReads;
+        complete("partial");
+        await wake(page);
+        await page.until("document.querySelector('[data-refresh-message]').textContent.includes('partially completed')");
+        await delay(700);
+        assert.equal(pageReads, reads, "Frozen POST view must not cause metadata-driven GET/reparse");
+        assert.equal(await page.evaluate("document.querySelector('[name=review]').value===window.reviewToken"), true);
+        assert.equal(await page.evaluate("document.querySelector('#confirm-count').value"), "1");
+        assert.equal(await page.evaluate("document.activeElement.id"), "confirm-count");
+        assert.equal(confirmationPosts, confirmations);
+        await page.call("Emulation.setDeviceMetricsOverride", { width: 375, height: 800, deviceScaleFactor: 1, mobile: true });
+        assert.equal(await page.evaluate("document.documentElement.scrollWidth<=window.innerWidth"), true);
+        await page.evaluate("document.querySelector('#confirm-count').value='2'; document.querySelector('.import-confirm-form').requestSubmit()");
+        await delay(100);
+        assert.equal(confirmationPosts, confirmations, "Wrong count fails native validation");
+        await page.evaluate("document.querySelector('#confirm-count').value='1'; document.querySelector('.import-confirm-form').requestSubmit()");
+        await page.until("document.body.textContent.includes('Fixture admission received')");
+        assert.equal(confirmationPosts, confirmations + 1);
         assert.equal(postCount, hints);
         assert.equal(executionCount, executions);
       } finally { await page.close(); }

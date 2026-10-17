@@ -2,12 +2,14 @@
 
 ## Current boundary
 
-This increment implements durable intentions and provenance, not executable
-imports. `FTD_SHUN_IMPORT_ADMISSION_ENABLED=false` is a strict API-side default.
+This increment implements durable intentions and provenance.
+`FTD_SHUN_IMPORT_ADMISSION_ENABLED=false` is a strict API-side default.
 Setting it true permits **staging only** on the private API Unix socket. It does
 not select cycle v3, enable the agent, create a device profile or dispatch ADD.
-Keep it false in the current lab. There is no Web/BFF submit route or Queue
-import button; [Import preview](import-preview.md) remains non-executable.
+Keep it false in the current lab. The separately gated
+[browser review/confirmation](import-review.md) can submit an exact reviewed
+batch only when intake is enabled; [Import preview](import-preview.md) itself
+remains non-executable.
 
 With execution disabled the leased scheduler selects REMOVE only. Held ADD rows do not
 request extra device cycles. Queue metadata labels them **Held — ADD execution
@@ -43,8 +45,8 @@ not put secrets in them. Structured logs omit them and the canonical payload.
 
 The API is private and trusts its BFF caller, as with removal admission. Do not
 publish it or send browser-supplied actor JSON through a future BFF route.
-Future browser submission must derive identity from Caddy/Authelia, validate
-CSRF and require fresh explicit confirmation of the canonical scope.
+Browser submission derives identity from Caddy/Authelia, validates CSRF and
+requires explicit confirmation of the immutable canonical scope.
 
 Admission is one transaction: recheck enabled devices, current policy revision,
 enabled Protected IP exclusion, capacity/rate limits and conflicting jobs.

@@ -3,15 +3,17 @@
 ## Release boundary
 
 Open **Import preview**. This is a **non-executable preview**, not an import:
-there is no Queue import button, executable preview token, paste persistence
-or worker dispatch. Nothing is written to FTD or queued by this page. Separate
+there is no executable preview token, paste persistence or worker dispatch.
+Operators may open a separate [frozen review](import-review.md) using
+**Review candidate import**; only its explicit confirmation may request gated
+admission. Nothing is written to FTD or queued by parsing/pagination. Separate
 [private staging](import-admission.md) and agent ADD gates are default-off and
 do not change preview semantics.
 Existing removal/policy execution remains independent and unchanged.
 
-The creation interface, Basic-account addition permission, strict ADD response
-parser, actual blocking behavior and post-write verification still require
-separate implementation/review and laboratory validation. The removal-interface
+The ADD parser/worker and one-fixture Basic creation/verification are now
+implemented and documented, with gates restored off. Actual blocking behavior,
+fleet creation scope and full-load validation remain outstanding. The removal-interface
 allowlist is not proof of a valid creation scope. Do not infer write readiness
 from a Ready preview row, mock tests or the number of candidates.
 
@@ -27,7 +29,7 @@ enable addition/import.
 ## Workflow
 
 1. Sign in normally through Authelia. Preview is available to every authenticated
-   user, including users without a mapped group; future write admission remains
+   user, including users without a mapped group; separate write admission remains
    a separate Operator/Administrator capability.
 2. Optionally enter a batch label (100 characters) and reason (500 characters).
    These are preview context only and are not stored or sent to the agent.
@@ -135,8 +137,8 @@ The status-colour update changes only Web templates/CSS: rebuild/recreate Web
 and reload browser tabs without restarting API/agent. Reverting the Web image
 restores the preceding presentation; no database restore/migration is needed.
 
-Next, finish the existing removal-cycle laboratory evidence and separately
-design/lab validate the narrow ADD operation before creating import admission,
-durable provenance or an executable Queue import action. Protected-IP checks
-must be repeated at future admission and dispatch; a preview is never authority
-to execute a write.
+The gated ADD/admission/provenance/worker and separate browser confirmation are
+now implemented, with limited one-fixture CLI lifecycle evidence. All ADD gates
+remain off. Next complete the remaining removal-cycle/ADD and authenticated
+browser laboratory checks before broader enablement. Protected-IP checks repeat
+at admission and dispatch; a preview is never authority to execute a write.

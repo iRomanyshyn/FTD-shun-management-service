@@ -30,8 +30,9 @@ increment in [Section 74](#74-approved-next-increment-queued-device-cycles-and-m
 and the [Development Plan](development-plan.md) extends that scope with queued
 device cycles and one-time manual shun imports. The durable removal queue is
 implemented; a bounded-session protocol is experimental and opt-in pending lab
-validation. ADD transport and private staged-only admission are default-off;
-executable imports remain planned. Default legacy protocol and
+validation. ADD transport, private admission, queued execution and separate
+browser confirmation are implemented behind default-off gates; general imports
+remain disabled pending the remaining validation. Default legacy protocol and
 operating procedures remain in effect until the documented gates are completed.
 
 ---
@@ -2733,6 +2734,42 @@ ADD gates/profile were restored off and ordinary v2 observation succeeded. The
 is one-profile CLI evidence only; the authorization is consumed and does not
 extend to new test writes, traffic/fleet/load acceptance or general enablement.
 
+### Authenticated browser confirmation — 2026-10-17
+
+The BFF may prepare a separate review of up to 1000 candidate device/IPv4
+pairs from a fresh local classification, excluding enabled Protected IPs and
+already observed pairs. Parsing, pagination and review never admit work or
+request device reads. Show all frozen targets/hostnames, exclusions, policy
+revision, normalized metadata and whether admission/execution are disabled.
+Require Operator/Administrator both at preparation and confirmation, CSRF on
+both POSTs and explicit typed target-count confirmation. Never forward browser
+actor, target, policy or digest fields as authority.
+
+Store only canonical intent (not raw paste/comments), an independent UUID
+idempotency key and bounded display metadata in a process-local review cache.
+Use unpredictable tokens bound to authenticated subject and CSRF cookie;
+never put tokens/targets in URLs. Reviews expire within ten minutes (or the
+shorter sensitive-action age), with at most five per subject and 256 globally;
+reject overflow, do not evict a potentially admitted review. Web restart loses
+reviews and fails closed. Keep the same frozen key/body through explicit retries,
+including after a lost admission reply; do not automatically retry or generate
+replacement work. Expiry/restart requires inspecting Queue before a new review.
+
+Only the explicit confirm POST calls private import admission using current
+Caddy-derived identity and the original canonical body/key. The API rechecks
+its independent intake gate, roles, policy revision, protected/device state,
+conflicts and capacity atomically. A 202 is queued/held, not device success;
+report uncertainty on transport failure and offer same-review retry. Never
+reclassify or shrink a frozen review on retry. API execution/agent/profile gates,
+short queued authority, budgets and live-validation requirements are unchanged;
+deployment keeps all ADD gates off and creates no test work. Browser review is
+not a waiver for general or large imports.
+
+Queue eligibility is presentation derived from current process configuration.
+Do not store a permanent execution-disabled reason when admitting new ADD;
+hide only that exact legacy placeholder for eligible QUEUED ADD, retaining real
+budget deferral/error reasons and all audit/history unchanged.
+
 ### Remaining product requirements
 
 - A pasted blocklist creates one-time manual additions. Successful removal,
@@ -2755,6 +2792,6 @@ extend to new test writes, traffic/fleet/load acceptance or general enablement.
 
 The topology, credential isolation, pinned host keys, exact binary validation,
 verified-success requirement, and prohibition on arbitrary Cisco commands are
-unchanged. The queue and experimental removal-cycle extension are implemented
-as recorded above; executable addition/import remains unavailable. Live validation of the
+unchanged. The queue, gated ADD worker and browser confirmation are implemented
+as recorded above; general addition/import enablement remains unavailable. Live validation of the
 new protocol is required before default enablement.

@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Review one-time import</h1>
+{% if refresh %}{% include "refresh-panel.html" %}{% endif %}
+<p class="preview-boundary"><strong>{{ review.targets | length }} exact device/IP targets.</strong> This review has not executed device operations. Additions are one-time requests, not a continuously enforced blocklist.</p>
+{% if accepted %}
+<p class="import-result" role="status"><strong>Request {{ 'already accepted' if accepted.replayed else 'accepted into Queue' }}.</strong> This is not verified device success. {% if not accepted.execution_enabled %}ADD execution is held; unstarted work still expires.{% endif %} Open Queue for progress, outcomes and cancellation.</p>
+{% elif message %}<p class="preview-error" role="alert">{{ message }}</p>{% endif %}
+{% if not admission_enabled %}<p class="preview-error">Import admission is {{ 'unavailable' if retry_available else 'disabled' }}. {% if not retry_available %}This review cannot queue targets.{% endif %}</p>{% endif %}
+{% if not execution_enabled %}<p>API ADD execution is disabled. Enabling intake alone would stage held work, not enable device writes.</p>{% endif %}
+<dl class="import-review-metadata">
+<dt>Request / retry key</dt><dd><code>{{ review.request_id }}</code></dd>
+<dt>Review expires</dt><dd><time class="local-timestamp" datetime="{{ review.expires_at }}">{{ review.expires_at }}</time></dd>
+<dt>Protected IP policy revision</dt><dd>{{ review.policy_revision }} — rechecked atomically on admission</dd>
+<dt>Batch label</dt><dd>{{ review.label or 'Not supplied' }}</dd>
+<dt>Reason</dt><dd>{{ review.reason or 'Not supplied' }}</dd>
+</dl>
+<p class="preview-counts">{% for state, count in review.counts %}<span class="preview-state-badge" data-preview-status="{{ state }}">{{ state }}: {{ count }}</span>{% endfor %}</p>
+<p>Only Ready device/IP pairs listed below are included. Duplicates, refused lines, enabled Protected IPs and already observed pairs are excluded. Disabled Protected IPs are not protected from import. This is retained local state, not a fresh Cisco query. No partial admission or automatic chunking is permitted.</p>
+<div class="table-scroll import-review-targets"><table><thead><tr><th>Device</th><th>IPv4 address</th></tr></thead><tbody>
+{% for device_id, ip in review.targets %}<tr><td>{% for id, hostname in review.devices %}{% if id == device_id %}{{ hostname }} ({{ id }}){% endif %}{% endfor %}</td><td>{{ ip }}</td></tr>{% endfor %}
+</tbody></table></div>
+{% if not accepted %}
+<form method="post" action="/imports/confirm" class="import-confirm-form">
+<input type="hidden" name="csrf" value="{{ csrf_token }}">
+<input type="hidden" name="review" value="{{ review.token }}">
+<label for="confirm-count">Type {{ review.targets | length }} to confirm all listed device/IP targets</label>
+<input id="confirm-count" name="confirm_count" inputmode="numeric" autocomplete="off" required pattern="{{ review.targets | length }}">
+<button type="submit"{% if not retry_available %} disabled{% endif %}>Queue {{ review.targets | length }} targets</button>
+</form>
+{% endif %}
+<p class="preview-help">Up to 1000 unfinished jobs; authorization expires within 15 minutes, and completion before expiry is not guaranteed. Review expiry or Web restart invalidates this form. After any uncertain reply, inspect Queue before preparing a new review. A retry of this review keeps its original targets and key; it cannot renew a completed request or re-add a removed address.</p>
+<a href="/imports">Back to import preview (starts a new draft)</a>
+<script src="/static/freshness.js" defer></script>
+{% endblock %}

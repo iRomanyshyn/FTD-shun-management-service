@@ -7,8 +7,9 @@ increment is implemented and synthetically tested, but the deployed laboratory
 keeps it disabled. The separately approved
 [one-address lifecycle](single-address-service-validation.md#recorded-service-result--2026-10-16)
 now has live VERIFIED creation, NOOP and VERIFIED cleanup evidence, with independent
-operator target reads and gates restored off. There is still no executable
-browser import action. Production, traffic blocking, fleet creation scope,
+operator target reads and gates restored off. The
+[browser confirmation](import-review.md) is implemented behind disabled intake;
+it does not enable execution. Production, traffic blocking, fleet creation scope,
 real large-load capacity and live failure/priority behavior remain unvalidated.
 
 Do not enable execution merely to try a pasted list. Follow

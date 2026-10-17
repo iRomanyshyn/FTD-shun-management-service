@@ -30,6 +30,7 @@ from .import_preview import (
     parse_blocklist,
     summarize_preview,
 )
+from .import_review import ImportReviews, ReviewUnavailable
 
 PROJECT_ROOT = Path(os.environ.get("FTD_SHUN_ASSET_ROOT", Path(__file__).resolve().parents[2]))
 templates = Jinja2Templates(directory=str(PROJECT_ROOT / "templates"))
@@ -75,7 +76,8 @@ def require_csrf(request: Request, supplied: str) -> None:
         raise HTTPException(status_code=403, detail="CSRF validation failed")
 
 
-async def preview_form(request: Request) -> dict[str, list[str]]:
+async def preview_form(request: Request, *, allowed: set[str] | None = None,
+                       max_bytes: int = MAX_FORM_BYTES) -> dict[str, list[str]]:
     """Bound the paste request before parsing; file/multipart uploads are unsupported."""
     if request.headers.get("content-type", "").split(";", 1)[0].strip().lower() != "application/x-www-form-urlencoded":
         raise HTTPException(415, "Paste preview requires a URL-encoded form; uploads are unsupported.")
@@ -83,18 +85,18 @@ async def preview_form(request: Request) -> dict[str, list[str]]:
     if length is not None:
         if not length.isascii() or not length.isdecimal() or len(length) > 10:
             raise HTTPException(400, "Invalid request length.")
-        if int(length) > MAX_FORM_BYTES:
-            raise HTTPException(413, "Encoded paste request exceeds 3 MiB + 16 KiB. Nothing was parsed or queued.")
+        if int(length) > max_bytes:
+            raise HTTPException(413, f"Encoded import form exceeds {max_bytes} bytes. Nothing was parsed or queued.")
     body = bytearray()
     async for chunk in request.stream():
-        if len(body) + len(chunk) > MAX_FORM_BYTES:
-            raise HTTPException(413, "Encoded paste request exceeds 3 MiB + 16 KiB. Nothing was parsed or queued.")
+        if len(body) + len(chunk) > max_bytes:
+            raise HTTPException(413, f"Encoded import form exceeds {max_bytes} bytes. Nothing was parsed or queued.")
         body.extend(chunk)
     try:
         fields = parse_qs(body.decode("ascii"), encoding="utf-8", errors="strict", keep_blank_values=True, max_num_fields=80)
     except (ValueError, UnicodeError) as error:
         raise HTTPException(400, "Invalid preview form encoding or field count.") from error
-    if set(fields) - {"csrf", "text", "device_ids", "label", "reason", "page"} or any(
+    if set(fields) - (allowed if allowed is not None else {"csrf", "text", "device_ids", "label", "reason", "page"}) or any(
         len(values) != 1 for key, values in fields.items() if key != "device_ids"
     ):
         raise HTTPException(422, "Unexpected or repeated preview form field.")
@@ -166,6 +168,7 @@ def refresh_metadata(refresh: object) -> dict[str, object]:
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or Settings.from_environment()
     app = FastAPI(title="FTD Shun Manager", docs_url=None, redoc_url=None, openapi_url=None)
+    reviews = ImportReviews(settings.sensitive_action_max_age_seconds)
     app.mount("/static", StaticFiles(directory=str(PROJECT_ROOT / "static")), name="static")
 
     @app.middleware("http")
@@ -254,8 +257,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         except (TypeError, ValueError) as error:
             raise HTTPException(status_code=503, detail="State API returned invalid status.") from error
 
-    async def import_page(request: Request, submitted: bool = False) -> HTMLResponse:
+    def require_import_operator(identity: Identity) -> None:
+        if not {"Operator", "Administrator"}.intersection(identity.roles):
+            raise HTTPException(403, "Operator role required for import confirmation.")
+
+    async def import_page(request: Request, submitted: bool = False, prepare: bool = False) -> HTMLResponse:
         identity = identity_from_request(request, settings.development_auth)
+        if prepare:
+            require_import_operator(identity)
         text, label, reason = "", "", ""
         selected: list[int] = []
         parsed, error_message = None, None
@@ -283,10 +292,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     raise ValueError("Paste at least one non-comment line.")
             except ValueError as error:
                 parsed, error_message = None, str(error)
-        return await run_in_threadpool(import_view, request, identity, text, label, reason, selected, parsed, error_message, page)
+        return await run_in_threadpool(import_view, request, identity, text, label, reason, selected, parsed, error_message, page, prepare)
 
     def import_view(request: Request, identity: Identity, text: str, label: str, reason: str,
-                    selected: list[int], parsed: dict | None, error_message: str | None, page: int) -> HTMLResponse:
+                    selected: list[int], parsed: dict | None, error_message: str | None, page: int,
+                    prepare: bool = False) -> HTMLResponse:
         try:
             with api_client(settings) as client:
                 refresh = client.get("/api/v1/status")
@@ -307,6 +317,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 raise HTTPException(503, "Local preview state is unavailable. Nothing was queued.")
             else:
                 preview = paginate_preview(summarize_preview(parsed, classification.json()), page)
+        if prepare and preview is not None and not error_message:
+            try:
+                review = reviews.prepare(identity.subject, request.cookies.get("ftd_shun_csrf", ""), preview, label, reason)
+            except ValueError as error:
+                error_message = str(error)
+            else:
+                return review_view(request, identity, review, refresh.json())
         return render(request, "import-preview.html", {
             "identity": identity, "refresh": refresh.json(), "devices": devices.json(),
             "source_text": text, "batch_label": label, "batch_reason": reason,
@@ -321,6 +338,77 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.post("/imports", response_class=HTMLResponse)
     async def parse_import(request: Request) -> HTMLResponse:
         return await import_page(request, submitted=True)
+
+    @app.post("/imports/review", response_class=HTMLResponse)
+    async def prepare_import(request: Request) -> HTMLResponse:
+        return await import_page(request, submitted=True, prepare=True)
+
+    def review_view(request, identity, review, refresh, *, message=None, accepted=None, status_code=200):
+        return render(request, "import-confirm.html", {
+            "identity": identity, "review": review, "refresh": refresh,
+            "message": message, "accepted": accepted,
+            "admission_enabled": refresh.get("import_admission_enabled") is True,
+            "retry_available": refresh.get("import_admission_enabled") is not False,
+            "execution_enabled": refresh.get("import_execution_enabled") is True,
+            "active_page": "imports", "auto_request": False, "frozen_view": True,
+        }, status_code)
+
+    @app.post("/imports/confirm", response_class=HTMLResponse)
+    async def confirm_import(request: Request) -> HTMLResponse:
+        identity = identity_from_request(request, settings.development_auth)
+        require_import_operator(identity)
+        fields = await preview_form(request, allowed={"csrf", "review", "confirm_count"}, max_bytes=4096)
+        require_csrf(request, fields.get("csrf", [""])[0])
+        try:
+            review = reviews.get(fields.get("review", [""])[0], identity.subject,
+                                 request.cookies.get("ftd_shun_csrf", ""))
+        except ReviewUnavailable as error:
+            raise HTTPException(409, str(error)) from error
+        if fields.get("confirm_count", [""])[0] != str(len(review.targets)):
+            raise HTTPException(422, "Type the exact target count shown in the review.")
+        return await run_in_threadpool(submit_import, request, identity, review)
+
+    def submit_import(request, identity, review):
+        # Freeze the key/body across retries. Current trusted identity, never form JSON.
+        refresh = {}
+        try:
+            with api_client(settings) as client:
+                response = client.get("/api/v1/status")
+                if response.status_code != 200:
+                    raise httpx.RequestError("Status unavailable")
+                refresh = response.json()
+                if refresh.get("import_admission_enabled") is not True:
+                    return review_view(request, identity, review, refresh,
+                                       message="Import admission is disabled. No admission request was sent.", status_code=503)
+                # Status can be slow; do not admit a review that expired while waiting.
+                reviews.get(review.token, identity.subject, request.cookies.get("ftd_shun_csrf", ""))
+                response = client.post("/api/v1/imports", json={**review.payload(), "actor": identity.__dict__},
+                                       headers={"Idempotency-Key": review.request_id})
+        except ReviewUnavailable as error:
+            raise HTTPException(409, str(error)) from error
+        except httpx.HTTPError:
+            return review_view(request, identity, review, refresh,
+                               message="Admission was not confirmed. Check Queue; retry only this same review/key, never a new batch.",
+                               status_code=503)
+        except (ValueError, TypeError, AttributeError):
+            return review_view(request, identity, review, {},
+                               message="Admission result is uncertain. Check Queue; retry only this same review/key.", status_code=503)
+        try:
+            result = response.json()
+            if not isinstance(result, dict):
+                raise TypeError("Invalid admission result")
+        except (ValueError, TypeError):
+            return review_view(request, identity, review, refresh,
+                               message="Admission result is uncertain. Check Queue; retry only this same review/key.", status_code=503)
+        if response.status_code != 202:
+            detail = result.get("detail", "Import request was rejected.")
+            return review_view(request, identity, review, refresh, message=detail, status_code=response.status_code)
+        if (result.get("operation_id") != review.request_id or result.get("status") != "accepted"
+                or type(result.get("replayed")) is not bool or type(result.get("execution_enabled")) is not bool
+                or result.get("source") != "manual_import" or result.get("action") != "ADD"):
+            return review_view(request, identity, review, refresh,
+                               message="Admission result is uncertain. Check Queue; retry only this same review/key.", status_code=503)
+        return review_view(request, identity, review, refresh, accepted=result)
 
     @app.get("/protected-ips", response_class=HTMLResponse)
     def protected_ips(request: Request) -> HTMLResponse:

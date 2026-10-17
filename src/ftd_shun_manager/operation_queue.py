@@ -197,7 +197,7 @@ class OperationQueue:
                     job_id = str(uuid4())
                     db.execute("""INSERT INTO operation_jobs(id,device_id,ip,state,requested_at,action,reason)
                         VALUES (?,?,?,'QUEUED',?,?,?)""", (job_id, device_id, ip.packed, stamp(current), action,
-                            "ADD execution is not enabled" if action == "ADD" else None))
+                            None))
                     job = db.execute("SELECT * FROM operation_jobs WHERE id=?", (job_id,)).fetchone()
                 db.execute("INSERT INTO operation_links VALUES (?,?)", (request_id, job["id"]))
                 self._event(db, "SHUN_OPERATION_QUEUED", request, job, {"coalesced": coalesced})
@@ -609,7 +609,11 @@ class OperationQueue:
                         ).fetchone()[0]
                     view["target_count"] = target_counts[request["id"]]
                     request_views.append(view)
-                jobs.append({**dict(row), "ip": str(IPv4Address(row["ip"])),
+                reason = row["reason"]
+                if (row["action"] == "ADD" and row["state"] == "QUEUED"
+                        and row["device_id"] in addition_device_ids and reason == "ADD execution is not enabled"):
+                    reason = None  # Legacy placeholder, not a real deferral/error.
+                jobs.append({**dict(row), "ip": str(IPv4Address(row["ip"])), "reason": reason,
                              "execution_enabled": row["action"] == "REMOVE" or row["device_id"] in addition_device_ids,
                              "request_count": request_count, "requests": request_views})
             progress_filter = """FROM operation_requests r JOIN operation_links l ON l.request_id=r.id

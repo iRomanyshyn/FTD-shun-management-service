@@ -1,8 +1,41 @@
 # Project Status
 
-Last updated: 2026-10-16
+Last updated: 2026-10-17
 
 ## Current increment
+
+**Authenticated frozen import review (2026-10-17).** Operators/Administrators
+can prepare an exact candidate set separately from read-only preview, inspect
+all targets/exclusions/metadata and type the pair count before private queue
+admission. CSRF and current trusted identity/role are required for both POSTs;
+no browser actor/target/policy/digest is authoritative. Bounded process-local
+reviews bind subject/cookie, expire within ten minutes and keep the original
+UUID/canonical body on explicit retry. Unknown replies retain uncertainty;
+no automatic replay/reclassification, renewed queued authority or re-add.
+Status/Queue poll without replacing or GETting the frozen POST view. Intake
+and execution/agent/profile gates remain independent and default-off; the lab
+is not enabled and no new device test work is authorized.
+
+Corrected the misleading execution-disabled wait reason: new ADD has no stored
+placeholder; eligible queued legacy placeholders are hidden only in display.
+Real budget deferral/errors and history are retained. No schema/agent/protocol
+or Compose change. All 330 Python tests and 16 Chromium scenarios (17 reported
+tests) pass, plus compileall, Ruff, JavaScript syntax and diff checks. Packaged
+Python 3.12 isolated ASGI review/admission/replay smoke also passes with synthetic
+state and no lab mounts/network/secrets. See [Browser Import Review](manual/import-review.md).
+
+API/Web are deployed under standing lab authority, with a checked mode-0600
+SQLite backup and prior paired images retained. Agent/Caddy/Authelia IDs are
+unchanged. Admission/execution remain false, eligible devices zero; all 61 active
+rows, stable timestamps/occurrences, eight VERIFIED/one NOOP jobs and three policy
+entries/revision 3 are preserved against backup. No unfinished work or new test
+admission; integrity/foreign-key checks pass. The normal v2 read-only cycle
+succeeded at 2026-10-17T11:26:44Z, two reads/zero mutations/8049 ms, next baseline
+11:31:44Z/no error. Anonymous new POST routes/pages/status return 401;
+HTTPS preview redirects to Authelia (302) with TLS verification. No inventory,
+.env, secret, policy, schema or new device-write change. Reload browser tabs;
+authenticated live review/submission and the remaining broader live gates
+are not established by these synthetic/anonymous checks.
 
 **One-address service experiment completed (2026-10-16).** Under separate scoped
 approval, TEST-NET 198.51.100.251 on device 1/fpr1010-lab completed queued v3
@@ -527,9 +560,10 @@ The foundation increment was checked with:
 
 ## Next work, in order
 
-The separately approved one-fixture service lifecycle is complete. Next fix the
-eligible-ADD wait reason and design/implement authenticated BFF confirmation
-without enabling writes or extending the short authorization window. Additional
+The separately approved one-fixture service lifecycle is complete. Frozen BFF
+confirmation and the eligible-ADD reason fix are implemented with gates off.
+Next validate authenticated browser review using read-only preparation, then
+separately agree any further narrow submit/cleanup experiment. Additional
 live mutations require fresh scoped authority; traffic/fleet/load/failure/priority
 checks remain before general imports. The staged admission flag is not the
 execution gate. Real 7,307-entry imports remain blocked by

@@ -21,7 +21,7 @@ The governing specification is the [Architecture and Security Design](docs/archi
 - Strict fixed binary protocol encoder/decoder and an isolated Rust FTD SSH agent.
 - Default-off [large-snapshot extension](docs/manual/large-snapshots.md) with bounded multi-frame reads and complete-snapshot validation; synthetic 20,000-entry coverage, live small-read lab validation only.
 - Default-off [agent ADD/cycle v3](docs/manual/addition-contract.md) with an explicit creation profile, strict acknowledgement/post-read verification and shared mutation budgets. One approved [lab lifecycle](docs/manual/single-address-service-validation.md#recorded-service-result--2026-10-16) passed creation/NOOP/cleanup; traffic, large-load and production acceptance remain pending.
-- Default-off [private import staging](docs/manual/import-admission.md) with immutable batches, ADD/REMOVE conflicts and occurrence provenance; no Web submission or executable import.
+- Default-off [private import staging](docs/manual/import-admission.md) with immutable batches, ADD/REMOVE conflicts and occurrence provenance; [browser review/confirmation](docs/manual/import-review.md) freezes exact targets and retries without enabling ADD.
 - Independently default-off [queued ADD execution](docs/manual/import-execution.md): explicit per-device v3, common FIFO and 16 combined mutations per cycle, shared priority reads and no-replay recovery. Restored disabled after the approved one-address lab test.
 - Device-scoped and explicitly confirmed bulk removal UI workflows.
 - Durable shared SQLite removal queue with multi-user audit, idempotent admission, progress/cancellation, and a persisted cycle gate.

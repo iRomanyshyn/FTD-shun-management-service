@@ -1,5 +1,16 @@
 # Development Manual
 
+Browser confirmation tests in `test_import_review.py` use synthetic ASGI/SQLite
+only. They cover frozen exclusions/targets, escaped metadata, current trusted
+identity/role and CSRF, unknown fields/counts, subject/cookie/expiry binding,
+concurrent bounded cache admission, exact key/body retry after a committed but
+lost reply, malformed response uncertainty, disabled intake and atomic policy/
+device/opposite-intention rejection. Queue-reason checks retain real deferrals
+and audit. Chromium exercises the actual review template, disabled button,
+native count validation, token/input/focus retention without POST-view GETs,
+live status and 375px layout. See [Browser Import Review](import-review.md).
+These tests do not enable ADD or submit any work to the lab stack.
+
 ## Prerequisites
 
 - Python 3.12+

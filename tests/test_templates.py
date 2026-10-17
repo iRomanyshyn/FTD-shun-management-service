@@ -75,4 +75,4 @@ def test_preview_status_badges_keep_text_labels_in_rows_and_full_list_counts(sta
     assert f'<span class="preview-state-badge" data-preview-status="{state}">{state}: 1</span>' in html
     assert f'<strong class="preview-state-badge" data-preview-status="{state}">{state}</strong>' in html
     assert f'data-preview-state="{state}"' in html
-    assert "Preview only — device additions are unavailable." in html
+    assert "Preview only — this step never queues work." in html

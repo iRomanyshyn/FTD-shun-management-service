@@ -1,6 +1,6 @@
 # Development Plan
 
-Last updated: 2026-10-16
+Last updated: 2026-10-17
 
 **Status: refresh/queue implemented; bounded removal sessions and priority reads experimental; parse-only import preview implemented, addition pending.** This document records
 the next product increments. It describes target behavior, not capabilities
@@ -27,7 +27,9 @@ are held/cancellable unless the independent
 [queued execution](manual/import-execution.md) gate and explicit per-device
 profile permit v3 dispatch. The gated worker now shares FIFO, the 16-operation
 budget, priority snapshots and verified provenance with removals; no new writer
-or executable BFF import exists. The deployed lab keeps all ADD gates off.
+exists. Bounded [BFF review/confirmation](manual/import-review.md) is now
+implemented with default-off intake and frozen same-key retries. The deployed
+lab keeps all ADD gates off.
 The separately approved one-address service lifecycle has now passed VERIFIED
 creation, NOOP, VERIFIED cleanup and original-key replay without re-add, with
 operator before/present/after reads and all gates restored off. Broader live
@@ -475,5 +477,5 @@ manually supplied, removable one-time shun additions.
 Removal-cycle limits, wire format, and captured-authorization expiry are now
 specified and implemented behind laboratory gates. Addition/import schema,
 protocol and worker integration are implemented and default-off; scoped live
-validation, executable BFF submission and large-list scheduling remain. Target requirements
+validation, authenticated live BFF submission and large-list scheduling remain. Target requirements
 above do not imply deployed or lab-validated batch/import capability.

@@ -193,7 +193,7 @@ def test_bff_preview_auth_csrf_escaping_raw_text_is_not_forwarded(fixture, monke
             response = await client.post("/imports", data=data)
             assert response.status_code == 200 and "Protected: 1" in response.text and "Already shunned: 1" in response.text
             assert "&lt;script&gt;" in response.text and "<script>alert(1)</script>" not in response.text
-            assert "Preview only" in response.text and "Creation interface scope: not yet validated" in response.text
+            assert "Preview only" in response.text and "separately validated agent device profile" in response.text
             assert response.headers["cache-control"] == "no-store"
             forwarded = json.loads(next(r for r in captured if r.method == "POST").content)
             assert forwarded == {"ips": ["198.51.100.10", "203.0.113.20"], "device_ids": [1]}

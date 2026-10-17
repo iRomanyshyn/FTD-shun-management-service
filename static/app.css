@@ -5,7 +5,7 @@ header { padding: 1rem 2rem; background: #17202a; color: white; display: flex; f
 header a { color: white; font-weight: 700; text-decoration: none; }
 main, .primary-nav { max-width: 1200px; margin: 0 auto; padding: 0 1.25rem; }
 main { margin-top: 1.5rem; padding-bottom: 3rem; }
-.primary-nav { display: flex; gap: 1.5rem; padding-top: .8rem; padding-bottom: .8rem; border-bottom: 1px solid #8886; }
+.primary-nav { display: flex; flex-wrap: wrap; gap: 1.5rem; padding-top: .8rem; padding-bottom: .8rem; border-bottom: 1px solid #8886; }
 .primary-nav a { text-decoration: none; padding: .3rem 0; }
 .primary-nav [aria-current] { font-weight: 700; border-bottom: .2rem solid #2563eb; }
 h1 { font-size: 1.8rem; margin: .5rem 0 1rem; } h2 { font-size: 1.25rem; } h3 { font-size: 1.05rem; }
@@ -104,3 +104,9 @@ th, td { border-bottom: 1px solid #8886; text-align: left; padding: .7rem .6rem;
   .service-summary { grid-column: 1 / -1; } .utility-panel { padding: .8rem; max-height: 65vh; }
   #active-shuns, .search-results { overflow-x: auto; } .primary-nav { gap: 1rem; }
 }
+/* Frozen import review stays separate from live, replaceable observation regions. */
+.import-confirm-form { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; margin-block: 1.25rem; }
+.import-confirm-form input:not([type="hidden"]) { width: 6rem; }
+.import-review-targets { max-height: 28rem; overflow: auto; margin-block: 1rem; }
+.import-review-metadata dd { margin-bottom: .6rem; overflow-wrap: anywhere; }
+.import-result { border-inline-start: .3rem solid #087f5b; padding: .75rem; }

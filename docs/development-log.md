@@ -2210,6 +2210,89 @@ Follow-up UI issue found: eligible queued ADD retains the staging-disabled wait
 reason until claim; fix that misleading reason before executable browser import.
 No runtime fix or extra test mutation was made during this scoped experiment.
 
+## 2026-10-17 — Frozen authenticated browser import confirmation
+
+**Status:** Implemented, tested and deployed with lab ADD gates unchanged/off
+
+Added a separate exact-target review/confirm flow after the non-executable
+preview. Operator/Administrator plus trusted identity and CSRF are mandatory
+on both POSTs. Fresh local classification excludes duplicates, refused lines,
+enabled protection and already observed device/IP pairs; zero or over-1000
+candidate sets reject as a whole. Every target/hostname, exclusions, normalized
+metadata, policy revision, request key, disabled gates and expiry are visible.
+Typed count confirmation submits only frozen canonical targets/metadata to the
+existing private admission API with current Caddy-derived actor/roles. Browser
+actor/target/digest fields are rejected. Admission rechecks policy/devices,
+conflicts/capacity and its independent gate; no second writer or direct agent
+read/refresh path was added.
+
+Process-local immutable reviews retain canonical intent only, not paste/source
+comments: unpredictable token bound to subject/cookie, independent UUID key,
+at most ten minutes/shorter session age, five reviews per subject/256 globally.
+Overflow rejects rather than evicting potentially admitted work. Expiry/cookie
+change/Web restart fails closed, requiring queue inspection before a new review.
+Explicit retries keep the same body/key even after a committed reply is lost;
+no automatic retry, reclassification, authorization extension or re-add.
+Malformed/unknown responses are uncertainty, not success. Accepted is queued/
+held, never a device-success claim. Status/Queue poll independently without
+GETting/replacing a frozen POST page, losing token or clearing typed input.
+Navigation wraps on narrow screens and confirmation controls have spacing.
+
+New ADD jobs no longer persist a misleading disabled placeholder. Metadata
+hides only that exact legacy placeholder for currently eligible QUEUED ADD;
+real deferral/error reasons and all stored history remain. No migration, wire,
+agent, Compose, dependency, credential, inventory or .env change. All ADD gates
+stay default-off; consumed fixture permission is not reused. No real import,
+policy edit, refresh hint or new device test mutation is part of this work.
+
+Structured review manual covers operation/retry/privacy, replica limitations,
+rollout/rollback and lost drafts. Updated normative design/status and affected
+manuals/plan/README. Preflight found admission/execution false, eligible zero,
+61 active rows, three policy entries/revision 3, eight VERIFIED/one NOOP,
+unfinished zero, successful ordinary cycle/no error, quick_check ok and no
+foreign-key errors. Authenticated live submissions, remaining traffic/fleet/
+large-load/failure/priority evidence and large-list scheduling remain separate.
+
+**Validation:** All 330 Python tests pass; 16 real Chromium scenarios pass
+(17 reported tests). New cases cover CSRF/current-role/identity, cookie/subject/
+expiry/restart binding, count/field/body limits, whole-set bounds/cache caps,
+atomic policy/device/opposite-intention conflicts, lost-after-commit replay with
+identical key/body, malformed-result uncertainty and retained real deferrals.
+Chromium covers frozen token/input/focus across status changes without POST-view
+GETs or extra hints, disabled intake, native count validation and narrow layout.
+Initial fixture assertions used a pre-migration policy revision/nonexistent
+success wording; the final fixtures use current revision/real partial-cycle
+feedback. An unavailable status exposed missing template metadata; the error
+view now omits the panel when no valid status exists, preserving the retry form.
+Compileall, Ruff, JavaScript syntax and diff checks pass. Tests use temporary
+SQLite, fake transports and a synthetic localhost browser, not live devices.
+Rust/protocol are unchanged; their prior evidence was not rerun or relabelled.
+
+**Deployment:** Preserved prior API/Web images under
+`before-import-review-20261017t112512z`. SQLite backup API produced checked
+volume/host copies, host `.local/backups/state-before-import-review-20261017T112512Z.sqlite3`
+mode 0600, ignored directory 0700; integrity and foreign keys pass. Built the
+new pair, checked unchanged merged Compose quietly, and ran a packaged Python
+3.12 review/admission/replay ASGI smoke in an isolated networkless/read-only
+container using temporary synthetic SQLite and explicit fixture identity only.
+No lab mount/secret or actual authentication was used. Existing unlocked
+dependency ranges resolved during build; dependency locking remains follow-up.
+
+Stopped the old API/Web cleanly, then recreated only that pair with --no-deps;
+no overlapping executor, old-state restore, config edit or new work. Agent,
+Caddy and Authelia IDs are unchanged. Deployed gates remain false/eligible zero;
+61 active rows, stable first-seen/appearance/occurrence fields and all queue/
+request/batch/origin/policy records compare unchanged against backup. Eight
+VERIFIED/one NOOP, unfinished zero, policy three entries/revision 3, quick_check
+ok/foreign keys empty. The normal post-start v2 cycle succeeded at 11:26:44Z,
+two reads/zero mutations/8049 ms, next baseline 11:31:44Z and no error. Anonymous Shuns,
+Imports, new review/confirm POSTs and status remain 401; new assets are present
+and HTTPS preview returns TLS-verified Authelia 302. No forged live Web identity,
+new queue/policy edit, refresh hint or independent agent read was submitted.
+Reload tabs once; authenticated live confirmation and broader ADD readiness
+still require separate scoped laboratory evidence. Rollback restores paired
+images without schema restore; Web restart invalidates ephemeral reviews.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

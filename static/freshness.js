@@ -369,6 +369,12 @@
     };
 
     const updateView = async () => {
+      // A frozen confirmation is a POST result, not a reloadable state page.
+      // Queue/status still update; never GET/reparse/replace its targets or token.
+      if (panel.dataset.frozenView === "true") {
+        displayedVersion = version(status);
+        return;
+      }
       const response = await fetchChecked(window.location.href, { headers: { Accept: "text/html" } }, "text/html");
       const nextDocument = new DOMParser().parseFromString(await response.text(), "text/html");
       const renderedStatus = readInitial(nextDocument);

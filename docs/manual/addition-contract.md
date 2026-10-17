@@ -7,7 +7,8 @@ transport, disabled by default. This is not production write support or
 permission to enable imports. The scheduler selects v1/v2 by default. The separate
 [queued execution](import-execution.md) gate permits explicit per-device v3 and
 common FIFO dispatch; it remains off in the lab. [Private admission](import-admission.md)
-and provenance are implemented, but no executable BFF import exists. Mock mode
+and provenance are implemented; [browser confirmation](import-review.md) is
+implemented behind the same default-off intake gate. Mock mode
 does not implement addition.
 
 `agent/src/addition_contract.rs` is an executable evidence model compiled only
@@ -156,8 +157,8 @@ snapshot still fails closed without replaying/undoing an earlier verified add.
 At most one ADD command is issued for a step. Any step failure aborts the session;
 only exact pre-write deferral returns a reusable non-success result.
 
-Staged private admission is atomic, idempotent and role protected. Future BFF
-submission must also enforce CSRF and fresh confirmation; bind explicit
+Staged private admission is atomic, idempotent and role protected. BFF
+submission enforces CSRF and explicit frozen review; bind explicit
 canonical targets, selected devices, actor, label/reason and policy revision to
 confirmation. A local preview is never write authority. Recheck enabled Protected
 IPs at admission and claim, current snapshot capacity, cancellation and short
