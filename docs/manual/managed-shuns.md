@@ -155,8 +155,9 @@ The explicit registry initializer now provides empty additive policy tables,
 authorization/request ledger and optimistic revisions. It is not called by
 normal API/Store startup. Job/policy generation linkage and retirement/protection
 hooks, bounded default-off discovery/shared dispatch and single-pair standing
-admission are implemented. Reviewed migration/resume, resolution/rearm, bulk
-managed admission and executable combined removal remain pending.
+admission and default-off combined removal are implemented. Reviewed offline
+migration/resume are available through [Managed Maintenance](managed-maintenance.md),
+not invoked on the lab. Resolution/rearm and bulk managed admission remain pending.
 All existing ADD gates/device profiles remain mandatory.
 The separate default-off cleanup-worker setting does not enable restoration;
 see [Managed Removal Handoffs](managed-removal-handoffs.md).
@@ -189,7 +190,7 @@ backup, upgrade, restart and audit retention are not new device-write authority.
    The offline system source/claim hooks and atomic retirement/protection/
    recovery integration and default-off bounded runtime discovery are now tested.
    Single-target standing consent/admission is now separately default-off;
-   reviewed resume/rearm and bulk managed grants remain unavailable. Combined
+   reviewed offline resume is now separate; rearm and bulk managed grants remain unavailable. Combined
    cleanup remains disabled in the lab; hold/backoff and latest-sweep counts are read-only.
 4. Cover complete-versus-partial snapshots, reboot-like mass absence, unknown
    results, old-key replay after retirement, multiple users/instances, cutoff/
@@ -210,7 +211,7 @@ requires an already initialized Store and adds:
 
 | Table | Role |
 | --- | --- |
-| `managed_shun_registry` | Global optimistic revision and `restoration_suspended=1` default. No resume path; experimental controller stays separately gated. |
+| `managed_shun_registry` | Global optimistic revision and `restoration_suspended=1` default. Separate reviewed offline resume; experimental controller stays separately gated. |
 | `managed_shun_targets` | One device/IP desired intent, UUID/generation, enabled/retired state, target revision, authorization reference and UTC dates. |
 | `managed_shun_requests` | Immutable original actor/roles, canonical intent/result and timestamp, independent of pruned queue/history. |
 
@@ -283,8 +284,9 @@ For an
 isolated development DB, retain additive tables/ledger when reverting code;
 do not drop tombstones or restore old policy just to roll back software.
 Before eventual integration, take a checked SQLite-safe backup, suspend both
-queue and policy restoration on backup recovery, define the reviewed resume
-workflow and validate it with tests. Ordinary initialization does not clear
+queue and policy restoration on backup recovery, follow the separately reviewed
+[offline resume workflow](managed-maintenance.md) and its validation gates.
+Ordinary initialization does not clear
 an existing suspension or convert old imports. An older one-time API has no
 controller for these tables and must not be advertised as managed-shun support.
 

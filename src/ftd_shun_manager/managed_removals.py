@@ -23,6 +23,7 @@ from .managed_shuns import (
 )
 from .operation_queue import OperationQueue, QueueConflict, QueueFull, stamp
 from .safety import mutations_suspended
+from .schema import execute_schema, schema_connection
 
 MAX_HANDOFF_RECORDS = 10000  # Retained request keys; no automatic recycling.
 
@@ -34,13 +35,13 @@ class ManagedRemovals:
         self.registry, self.queue, self.store = registry, queue, registry.store
         self.worker_enabled = worker_enabled
 
-    def initialize(self) -> None:
+    def initialize(self, *, connection=None) -> None:
         """Explicit additive migration; never called by normal API/Store startup."""
-        with self.store._connection() as db:
+        with schema_connection(self.store, connection) as db:
             self.registry._registry_state(db, if_present=False)
             if db.execute("SELECT 1 FROM operation_executor WHERE id=1").fetchone() is None:
                 raise ManagedConflict("Initialize the existing queue first.")
-            db.executescript("""
+            execute_schema(db, """
                 CREATE TABLE IF NOT EXISTS managed_removal_handoffs (
                     id TEXT PRIMARY KEY,
                     device_id INTEGER NOT NULL REFERENCES devices(id),

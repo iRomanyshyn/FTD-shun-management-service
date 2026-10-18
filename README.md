@@ -23,7 +23,11 @@ The default-off shared worker promotes complete roots only. The Managed shuns
 tab shows bounded fleet cleanup progress/outcomes and owner/Admin cancellation
 of waiting scopes, without treating admission or settled jobs as verified removal.
 No live admission or optional-schema initialization is enabled in the lab.
-Policy resume remains pending. [Combined cleanup](docs/manual/managed-cleanup.md)
+An [offline managed maintenance tool](docs/manual/managed-maintenance.md) now
+provides explicitly reviewed atomic empty-schema initialization and separate
+resume of existing standing policy, with checked backups and no uncertainty
+override. It has not been invoked on the lab; no HTTP resume exists.
+[Combined cleanup](docs/manual/managed-cleanup.md)
 now has separately default-off device/fleet admission: atomic retirement plus
 cleanup, with explicit whole-scope waiting behind RUNNING ADD. Preparation/receipt
 is not verified removal, and startup never initializes optional schemas.

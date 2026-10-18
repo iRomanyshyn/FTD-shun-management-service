@@ -99,7 +99,13 @@ Do not rewrite historical log entries except to correct an objective error; add 
   `FTD_SHUN_MANAGED_POLICY_ADMISSION_ENABLED=false`, requiring explicit consent,
   profiles and existing optional registry/attempt schemas. It never migrates,
   adopts observations/imports, wakes work or clears attention. Old-key replay
-  cannot re-enable policy. Follow docs/manual/managed-grants.md. No resume route.
+  cannot re-enable policy. Follow docs/manual/managed-grants.md. No HTTP resume route.
+  Separate offline managed maintenance now supports reviewed atomic empty-schema
+  initialization and existing-policy resume, with checked backups, exact-state
+  five-minute digests and a fresh-read barrier. It never adopts observations,
+  resets uncertainty, creates/re-enables intent, renews requests, queues work or
+  changes gates. Never invoke migration/resume on the lab without separately
+  scoped activation approval. Follow docs/manual/managed-maintenance.md.
   Protected-IP weakening checks matching intents and reviewed managed revision/
   acknowledgement atomically; dirty forms retain that revision. Unknown optional
   state is not zero. Ordinary manual removal is guarded against enabled policy,
@@ -116,7 +122,8 @@ Do not rewrite historical log entries except to correct an objective error; add 
   migrate, adopt or admit. All live gates remain off. Retirement/
   protection cancel unstarted system ADD atomically; RUNNING remains ordered.
   FAILED/UNVERIFIED latches survive queue retention and new generations; no rearm
-  or resume route exists; standing admission remains disabled in the lab. No startup initializes its
+  or HTTP resume route exists. Offline resume refuses those latches; standing
+  admission remains disabled in the lab. No startup initializes its
   optional attempt ledger. Follow docs/manual/managed-restoration.md; do not
   seed the ledger or enable dispatch/discovery in the lab as a smoke shortcut.
   Follow docs/manual/managed-controls.md. A default-off cleanup-worker hook may advance
@@ -127,9 +134,9 @@ Do not rewrite historical log entries except to correct an objective error; add 
   Do not seed pending handoffs or enable the worker in the lab without scoped
   approval and remaining executable controls/protection/fleet validation. All live gates
   remain off; bounded fleet status and waiting-only Web revocation are available,
-  but combined admission stays disabled. Reviewed resume/uncertainty resolution,
-  reviewed migration and a separately approved
-  live fixture are still required.
+  but combined admission stays disabled. Offline migration/resume tooling is
+  implemented, not invoked in the lab; uncertainty resolution and separately
+  approved migration/policy activation/live fixtures are still required.
 - On 2026-10-16 the operator separately approved the one-address service
   experiment on lab device 1/fpr1010-lab: unused TEST-NET 198.51.100.251,
   temporary gate/profile enablement for that device only, one queued creation,

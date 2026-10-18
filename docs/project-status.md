@@ -4,6 +4,36 @@ Last updated: 2026-10-18
 
 ## Current increment
 
+**Reviewed offline managed migration and policy resume (2026-10-18).** New
+`ftd-shun-managed-maintenance` provides read-only `review-initialize` /
+`review-resume` and explicitly confirmed `initialize` / `resume-policy`.
+Five-minute digests bind schema, retained managed authority, executor/protection
+revisions and device/protection state. Checked exclusive 0600 SQLite backups
+and concurrent-commit refusal reuse recovery safeguards. Optional DDL now composes
+without implicit commits: all seven managed tables/triggers/indexes, metadata
+and audit commit together or not at all. Existing/partial schemas are refused,
+not repaired/adopted. Initialization requires ordinary recovery pause/no pending
+work and leaves empty policy/restoration suspended; startup/GET remain no-init.
+
+Separate policy resume requires reviewed ordinary resume first, services stopped/
+RPCs settled, exact schema, enabled authorized targets and no pending/uncertain/
+failed/attention work or protected/disabled targets. It preserves intent IDs,
+generations, original consent/dates, retired targets, immutable evidence and
+queue contents. Only global desired suspension, enabled revision/fresh-read
+barrier and maintenance audit change. No replay/rekey/rearm, enqueue, wake,
+HTTP route, profile/gate change or device call. Reads starting before the new
+millisecond barrier cannot authorize ADD. See [Offline Managed Maintenance](manual/managed-maintenance.md).
+
+All 852 Python tests pass (41 new maintenance cases); compileall, Ruff and diff
+checks pass. Final-source wheel builds; installed entry point/help and all 41
+new tests against that isolated installed wheel pass. Documentation links pass.
+No lab database operation, deployment, migration, resume, fixture or new device
+mutation was performed in this increment. Existing lab services/gates are not
+changed by shipping this offline-only tool; there is nothing to restart for UI.
+Next: reviewed uncertainty resolution and bulk standing consent, then separately
+approved lab migration/policy lifecycle. Actual restoration/reboot/load and
+production acceptance remain unvalidated.
+
 **Combined cleanup batch: device, fleet, ordered confirmation (2026-10-18).**
 Frozen reviews now connect to the existing atomic coordinators behind independent
 strict `FTD_SHUN_MANAGED_REMOVAL_ADMISSION_ENABLED=false`. True requires socket

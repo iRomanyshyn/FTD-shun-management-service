@@ -163,9 +163,13 @@ Deployments of this disabled integration retain paired API/Web images and a
 checked SQLite-safe backup. Agent/wire protocol is unchanged. Verify unchanged
 gates/profiles, absent optional tables, stable policy/jobs, ordinary read cycles
 and anonymous rejection; do not submit a live fixture merely for smoke testing.
-Before a future approved migration, complete reviewed policy
-resume/uncertainty resolution, bulk managed admission if required and a scoped
-lab lifecycle. Never roll back to an image unaware of pending system authority,
+The separate [Offline Managed Maintenance](managed-maintenance.md) tool now
+provides reviewed atomic empty-schema initialization and policy resume. Neither
+has been invoked on the lab. Resume installs a new fresh-read barrier, preserves
+original authority/outcomes and refuses unresolved uncertainty; it does not
+enable this controller. Before live activation, complete uncertainty resolution
+if needed, bulk managed admission if required and a newly scoped lab lifecycle.
+Never roll back to an image unaware of pending system authority,
 drop its ledger or restore old enabled policy to undo software changes.
 
 ## Validation

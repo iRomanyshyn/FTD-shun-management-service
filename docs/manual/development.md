@@ -96,6 +96,13 @@ paused monitoring/protected-policy suppression, strict default-off worker
 configuration and shared lease/cutoff/fresh-snapshot/error behavior. It uses
 disposable SQLite and synthetic agents only. See [Offline Recovery](recovery.md).
 
+`tests/test_managed_maintenance.py` covers separately reviewed offline empty
+migration and policy resume: complete transactional DDL, exact schema contract,
+no adoption, five-minute state digests, private checked backups, uncertainty/
+cleanup/clock/protection holds, original authority preservation and new snapshot
+barriers. No live database, environment settings, inventory or agent is used.
+See [Offline Managed Maintenance](managed-maintenance.md).
+
 `tests/test_managed_review.py` covers the optional GET and non-executable Web
 review: authentication/current role/CSRF, strict fields/scope/reason, immutable
 subject/cookie/expiry-bound reviews, concurrent cache bounds, malformed optional

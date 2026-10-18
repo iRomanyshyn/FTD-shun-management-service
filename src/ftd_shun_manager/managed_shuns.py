@@ -15,6 +15,7 @@ from uuid import UUID, uuid4
 from .managed_intent import canonical_managed_change
 from .managed_safety import fleet_key_reserved, fleet_target_held, managed_state
 from .safety import mutations_suspended
+from .schema import execute_schema, schema_connection
 from .store import Store, now
 
 MAX_MANAGED_TARGETS = 1000  # Includes retired tombstones; never silently recycle.
@@ -38,10 +39,10 @@ class ManagedShuns:
     def __init__(self, store: Store):
         self.store = store
 
-    def initialize(self) -> None:
+    def initialize(self, *, connection=None) -> None:
         """Add empty tables only; never adopt observations, old imports or jobs."""
-        with self.store._connection() as db:
-            db.executescript("""
+        with schema_connection(self.store, connection) as db:
+            execute_schema(db, """
                 CREATE TABLE IF NOT EXISTS managed_shun_registry (
                     id INTEGER PRIMARY KEY CHECK(id=1),
                     revision INTEGER NOT NULL DEFAULT 0 CHECK(revision>=0),

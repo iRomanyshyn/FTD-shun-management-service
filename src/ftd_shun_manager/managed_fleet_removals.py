@@ -29,6 +29,7 @@ from .managed_scope import ManagedRemovalScopes
 from .managed_shuns import ManagedConflict, _require_operator
 from .operation_queue import QueueConflict, QueueFull, stamp
 from .safety import mutations_suspended
+from .schema import execute_schema, schema_connection
 
 MAX_FLEET_RECORDS = 10000  # Retained keys, independent of ordinary history.
 
@@ -39,14 +40,14 @@ class ManagedFleetRemovals:
             raise ValueError("Fleet removal must use one policy/queue database.")
         self.registry, self.queue, self.store = registry, queue, registry.store
 
-    def initialize(self) -> None:
+    def initialize(self, *, connection=None) -> None:
         """Explicit isolated migration; not called by any deployed service."""
-        with self.store._connection() as db:
+        with schema_connection(self.store, connection) as db:
             if managed_state(db) is None or not db.execute(
                 "SELECT 1 FROM operation_executor WHERE id=1",
             ).fetchone():
                 raise ManagedConflict("Initialize the registry and queue explicitly first.")
-            db.executescript("""
+            execute_schema(db, """
                 CREATE TABLE IF NOT EXISTS managed_fleet_removals (
                     id TEXT PRIMARY KEY,
                     retirement_request_id TEXT UNIQUE REFERENCES managed_shun_requests(id),

@@ -22,8 +22,10 @@ No extra executor, schema initialization, adoption, live grant/resume/rearm
 or live combined confirmation was enabled. Combined device/fleet admission now
 connects to the existing atomic coordinators behind an independent default-off
 gate; explicit ordered-mode review never silently changes ready-only semantics.
-Next: bulk standing-mode authorization and reviewed migration/resume/uncertainty
-resolution, then a newly scoped lab lifecycle. The historical checkpoints below
+Reviewed offline empty-schema migration and desired-policy resume are now
+implemented separately, with exact-state reviews/backups and no uncertainty
+override; neither is activated on the lab. Next: uncertainty resolution and
+bulk standing-mode authorization, then a newly scoped lab lifecycle. The historical checkpoints below
 describe their own delivery dates, not current feature availability.
 
 ## Latest requirement amendment — 2026-10-17

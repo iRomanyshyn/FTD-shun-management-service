@@ -3423,3 +3423,33 @@ maintenance. Disabled admission after uncertainty says only that this attempt
 was not submitted, not that an earlier attempt failed. Retain checked backups
 and paired images; keep all live gates/schemas unchanged. Synthetic tests and
 disabled deployment do not authorize a live cleanup fixture or migration.
+
+### Explicit offline managed migration and reviewed resume — 2026-10-18
+
+Permit a trusted-host maintenance CLI, not HTTP/startup, to initialize the complete
+empty optional managed schema in one transaction. Require the ordinary durable
+mutation pause, a settled executor/no pending jobs, explicit offline assertion,
+short-lived exact-state review and checked exclusive backup. Refuse any existing
+or partial optional schema instead of repairing/adopting it. Keep restoration
+suspended; never turn observations, imports or audit history into authority.
+All optional DDL, metadata and migration audit must roll back together.
+
+Separately permit offline resume of already enabled, explicitly authorized
+policy. This supersedes the no-resume-command boundary only for this CLI.
+Ordinary mutations must already be resumed through the existing reviewed
+procedure, with services still stopped and no outstanding RPC/lease/job. Require
+the exact complete schema, at least one enabled target and a five-minute frozen
+review binding schema, registry/queue/protection revisions, device state and all
+retained managed authority. Pending cleanup, attention, uncertain jobs or failed/
+uncertain restoration refuse resume; there is no resolution override or rearm.
+An expired/stale review never rebases automatically.
+
+Resume changes only the global desired pause and the enabled targets' revision/
+updated-at reconciliation barrier, atomically with maintenance audit. Preserve
+intent IDs, generations, original authorization/request timestamps, retired
+targets, immutable keys, attempts, outcomes and queue contents. Reject backwards
+time. Future absence evidence must start strictly after this barrier; old reads
+cannot authorize ADD. Do not enqueue/wake work or change ordinary pause, settings,
+profiles or execution gates. Ordinary recovery resume continues to leave desired
+restoration paused. No HTTP resume route, live migration, live policy activation
+or new device-write authorization is implied.

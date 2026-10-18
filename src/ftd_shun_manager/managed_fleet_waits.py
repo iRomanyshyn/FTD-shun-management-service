@@ -11,11 +11,12 @@ from .managed_safety import ManagedStateUnavailable, fleet_waits_present, manage
 from .managed_shuns import _require_operator
 from .operation_queue import QueueConflict, QueueFull, stamp
 from .safety import mutations_suspended
+from .schema import execute_schema
 
 
 def initialize_waits(db):
     """Explicit additive migration invoked only by offline fleet initialization."""
-    db.executescript("""
+    execute_schema(db, """
         CREATE TABLE IF NOT EXISTS managed_fleet_waits (
             id TEXT PRIMARY KEY REFERENCES managed_fleet_removals(id),
             target_count INTEGER NOT NULL CHECK(target_count BETWEEN 1 AND 1000),

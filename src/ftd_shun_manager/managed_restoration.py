@@ -10,6 +10,7 @@ from uuid import UUID, uuid4, uuid5
 from .managed_safety import ManagedStateUnavailable, fleet_target_held, managed_state
 from .operation_queue import QueueConflict, QueueFull, stamp
 from .safety import mutations_suspended
+from .schema import execute_schema, schema_connection
 
 ACTOR = "system:managed-shun-policy"
 SOURCE = "managed_shun_policy"
@@ -157,12 +158,12 @@ class ManagedRestorations:
             raise ValueError("Restoration must use the shared queue database.")
         self.store, self.queue = store, queue
 
-    def initialize(self):
+    def initialize(self, *, connection=None):
         """Explicit isolated migration only; never called by deployed services."""
-        with self.store._connection() as db:
+        with schema_connection(self.store, connection) as db:
             if managed_state(db) is None or not db.execute("SELECT 1 FROM operation_executor WHERE id=1").fetchone():
                 raise ValueError("Initialize the policy registry and queue explicitly first.")
-            db.executescript("""
+            execute_schema(db, """
                 CREATE TABLE IF NOT EXISTS managed_restoration_attempts (
                     id TEXT PRIMARY KEY, job_id TEXT NOT NULL UNIQUE,
                     device_id INTEGER NOT NULL REFERENCES devices(id), ip BLOB NOT NULL CHECK(length(ip)=4),

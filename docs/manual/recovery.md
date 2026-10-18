@@ -84,7 +84,10 @@ ftd-shun-maintenance resume-mutations \
 Resume refuses if mutations are not paused, pending jobs/waits remain or a
 managed registry is not restoration-suspended. It clears **only** the ordinary
 mutation pause. Cancelled jobs/delegations/handoffs never restart; uncertain
-results are not requeued. There is no desired-restoration resume/rearm command.
+results are not requeued. This command never resumes desired restoration.
+The separate [Offline Managed Maintenance](managed-maintenance.md) tool can
+resume already authorized standing policy after its own frozen review/backup,
+with services still stopped; it never resolves/rearms uncertain writes.
 After restart, enabled Protected-IP policy may create fresh removals from new
 observations. Submit still-required manual work as new reviewed requests under
 the existing feature gates; backup recovery is not device-write authorization.

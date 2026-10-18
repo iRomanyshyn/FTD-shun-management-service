@@ -3762,6 +3762,66 @@ Default-off implementation/package/deployment is not approval to enable gates,
 initialize a fixture, reuse the consumed one-address authorization or claim
 live managed cleanup/restoration/reboot/load/production validation.
 
+## 2026-10-18 — Reviewed offline managed migration and desired-policy resume
+
+Added `ftd-shun-managed-maintenance` with separately read-only preparation and
+explicit offline initialization/resume commands. A five-minute UTC review binds
+schema, retained policy/attempt/single/fleet authority, executor/protection
+revisions and persisted device/protection state. Changed/expired/future reviews
+refuse instead of silently rebasing. Trusted-host maintenance actors have empty
+directory roles, never spoofed Web identity. Tool reads no environment/inventory
+file/credentials and starts no service or network/agent operation.
+
+Extracted the existing checked exclusive-file SQLite-API backup/concurrent-commit
+wrapper without changing ordinary recovery semantics. Empty initialization
+requires the ordinary durable pause, settled executor and no pending jobs;
+existing/partial optional schemas are not repaired. All seven optional tables,
+indexes/triggers, suspended empty metadata and audit share one transaction.
+Refactored optional initializers to compose complete trusted statements with
+sqlite3.complete_statement rather than executescript's implicit transaction
+commit. Injected late DDL/audit failure rolls everything back even when the
+caller catches the error and commits its outer transaction. No observation,
+old import/job or event becomes standing authority; startup/GET still never
+initialize optional state.
+
+Separate offline resume requires reviewed ordinary recovery resume first, exact
+schema and enabled canonical standing authority. Pending jobs/leases, retained
+UNVERIFIED jobs, pending/FAILED/UNVERIFIED restoration, waiting/transitional/
+attention cleanup, protection/disabled devices, absent targets and backwards
+policy clocks refuse. It clears only desired suspension and bumps enabled
+target revisions/updated-at plus registry revision and atomic maintenance audit.
+A one-millisecond-after-control barrier rejects pre-resume snapshots using the
+existing trusted source check. Preserve intent/generation, original authorization
+dates/requests, retired rows, immutable keys/results and every queue entry.
+Original-key grant replay remains observational. No uncertainty override, rearm,
+new/re-enabled intent, delegation renewal, queue insertion, wake, HTTP resume or
+feature/profile enablement. Added normative amendment and structured offline
+runbook; updated agreement/status/plan and relevant manuals.
+
+Validation: all 852 Python tests pass (39.35 s), including 41 new disposable-
+SQLite maintenance cases covering no-init/no-adoption, quiescence, exact schema,
+digest/CAS/clock/expiry, checked backup/no overwrite, caught-error transaction
+rollback, original authority/retired targets/receipt replay, retained FAILED/
+UNVERIFIED, fleet barriers and post-resume snapshot gating. Existing recovery,
+source/discovery, queue, grant and cleanup admission suites remain green.
+Compileall, Ruff and git diff --check pass. A normal sandbox ASGI-containing
+diagnostic subset was interrupted on the known socket restriction; the complete
+suite used local socket-capable execution, synthetic fixtures only.
+
+Built wheel using an isolated temporary Hatchling backend (not installed into
+the operator's Python environment); final-source package matches all eight
+changed/new Python modules. Installed only under a temporary directory, checked
+the new console entry point/help, and reran all 41 maintenance tests against
+that installed package (0.78 s). No dependency bounds changed. Documentation
+file links resolve. No browser templates/CSS/JS, Rust/protocol, Compose, actual
+env/inventory/secrets or live database changed; no live command/deployment,
+migration/resume/grant/cleanup/hint/fixture or device mutation was submitted.
+Existing lab images remain in place; an offline-only tool does not require UI
+restart. Live optional migration/policy activation still needs scoped approval.
+Next: uncertainty resolution/rearm design and bulk standing consent, then a new
+approved managed lifecycle; this is not live restoration/reboot/load/rollback
+or production acceptance. Never reuse the consumed one-address authorization.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

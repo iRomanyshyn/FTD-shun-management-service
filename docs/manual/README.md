@@ -10,6 +10,7 @@ These manuals describe the first implementation increment. The service is safe t
 | [Operations](operations.md) | Roles, removal workflow, logs, backup, health, and incident response. |
 | [Operation Queue](operation-queue.md) | Queued removal, progress/cancellation, limits, lease recovery, migration, backup restore, and rollback. |
 | [Offline Recovery](recovery.md) | Checked backup, durable mutation pause, composite queue/policy suspension and reviewed ordinary resume. |
+| [Offline Managed Maintenance](managed-maintenance.md) | Explicit empty-schema migration, exact-state five-minute review and separate policy resume; no live activation or uncertainty override. |
 | [Managed Controls](managed-controls.md) | Frozen policy-only retirement, bounded single/fleet cleanup status and owner/Admin waiting cancellation; no device-write admission. |
 | [Combined Managed Cleanup](managed-cleanup.md) | Default-off atomic device/fleet retirement/cleanup, explicit ordered waiting, original-key receipts and rollout. |
 | [Protected IPs](protected-ips.md) | Shared authenticated policy editor, concurrency, one-time legacy import, audit, backup and rollback. |

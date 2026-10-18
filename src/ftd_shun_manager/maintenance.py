@@ -136,6 +136,11 @@ def run_offline(database: Path, backup: Path, action: str, actor: str) -> dict:
     _actor(actor)
     if action not in {"suspend", "resume-mutations"}:
         raise ValueError("Unsupported recovery action.")
+    return checked_offline(database, backup, lambda db, store: apply_recovery_control(db, store, action, actor))
+
+
+def checked_offline(database: Path, backup: Path, control) -> dict:
+    """Run a trusted local control after a verified backup and concurrent-write check."""
     source_path = database.resolve(strict=True)
     if not source_path.is_file():
         raise ValueError("Select an existing SQLite database file.")
@@ -160,7 +165,7 @@ def run_offline(database: Path, backup: Path, action: str, actor: str) -> dict:
         db.execute("BEGIN IMMEDIATE")
         if db.execute("PRAGMA data_version").fetchone()[0] != version:
             raise ValueError("Another process committed during backup. Stop writers; backup retained, no recovery mutation performed.")
-        result = apply_recovery_control(db, Store(source_path), action, actor)
+        result = control(db, Store(source_path))
     return {**result, "backup": str(backup_path)}
 
 
