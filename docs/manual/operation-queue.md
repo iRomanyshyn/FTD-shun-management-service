@@ -231,8 +231,15 @@ retires the whole reviewed enabled-policy scope before admitting one ordinary
 REMOVE delegation. Its root/derived policy keys remain reserved after queue
 history pruning. Only the uncommitted exact-scope fleet admission may materialize
 that queue key; another source/scope or old-key re-admission conflicts. No
-HTTP admission is connected. Any unfinished ADD/waiting cleanup rejects the
-whole fleet request; it is not a workaround for the ordered-handoff gate.
+HTTP admission is connected. Default ready-only mode rejects unfinished ADD;
+separately digested ordered mode may reserve one pending slot per original target
+and one active request while captured RUNNING ADDs settle. QUEUED ADD and another
+waiting cleanup still conflict. All roots share 1000 pending/2000 active bounds
+and actor intake accounting; cancellation does not refund the submission. New
+ADD/MAINTAIN cannot bypass a reservation, and retention preserves captured
+predecessors. Promotion is atomic for the full scope under the shared lease,
+original actor/deadline and ordinary FIFO/cutoff; no partial or automatic ADD
+replay is allowed. See the [ordered contract](managed-fleet-removals.md#ordered-cleanup).
 
 ## Backup, restore, and rollback
 

@@ -280,7 +280,8 @@ def test_worker_error_blocks_all_mutations_but_preserves_fresh_monitoring(queue,
     sync.queue._now = lambda: NOW
     calls = []
 
-    def fail(owner):
+    def fail(owner, limit=16):
+        assert limit == 8
         calls.append(owner)
         raise sqlite3.OperationalError("synthetic private schema detail")
 

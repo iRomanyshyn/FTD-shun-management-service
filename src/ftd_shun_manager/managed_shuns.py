@@ -13,7 +13,7 @@ from ipaddress import IPv4Address
 from uuid import UUID, uuid4
 
 from .managed_intent import canonical_managed_change
-from .managed_safety import fleet_key_reserved, managed_state
+from .managed_safety import fleet_key_reserved, fleet_target_held, managed_state
 from .safety import mutations_suspended
 from .store import Store, now
 
@@ -169,6 +169,8 @@ class ManagedShuns:
         for device_id, ip in targets:
             old = db.execute("SELECT * FROM managed_shun_targets WHERE device_id=? AND ip=?", (device_id, ip.packed)).fetchone()
             if action == "MAINTAIN":
+                if fleet_target_held(db, device_id, ip, attention=True):
+                    raise ManagedConflict("Fleet cleanup is waiting or needs attention; do not re-enable maintenance.")
                 if (legacy_queue and db.execute("""SELECT 1 FROM operation_jobs WHERE device_id=? AND ip=?
                         AND action='REMOVE' AND state IN ('QUEUED','RUNNING') LIMIT 1""",
                                                (device_id, ip.packed)).fetchone()):

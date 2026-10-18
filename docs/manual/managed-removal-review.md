@@ -74,8 +74,10 @@ prerequisite, not an authorization interface. It re-reads and compares within
 the caller's transaction and rejects scope changes without commits, audit or
 queue work. The [offline ready-target coordinator](managed-fleet-removals.md)
 now uses it for atomic retirement/admission, but is not connected to this BFF
-and refuses unfinished ADD/waiting cleanup. Fleet ordered waiting remains
-unimplemented; never loop over single-target admissions to simulate it.
+and defaults to refusing unfinished ADD/waiting cleanup. Separate explicitly
+bound ordered mode now supports a whole-scope RUNNING-ADD barrier, but no browser
+review/admission route enables it. Never loop over single-target admissions to
+simulate fleet atomicity or silently change a ready-only review into ordered mode.
 Existing ordinary device/fleet removal behavior is unchanged.
 
 ## Session and refresh behavior

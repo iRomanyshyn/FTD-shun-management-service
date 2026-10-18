@@ -17,8 +17,10 @@ per request, not a silently split fleet/bulk operation. A separate frozen
 the full union and supplies a transactional comparison primitive; it does not
 extend this single-target handoff into fleet ordered waiting. A separate
 [ready-target fleet coordinator](managed-fleet-removals.md) now atomically retires
-and admits a complete scope only when no unfinished ADD/waiting cleanup exists;
-it remains offline, without HTTP admission or live schema initialization.
+and admits a complete scope in default ready-only mode. Its separate explicit
+ordered mode now reserves the whole scope behind RUNNING ADD; it never loops
+this single-target coordinator or commits partial fleet cleanup. Both remain
+offline, without HTTP admission or live schema initialization.
 
 ## Atomic admission and durable authority
 
@@ -57,11 +59,12 @@ needs attention.
 ## Ordered settlement
 
 `advance(owner, limit=16)` requires the current valid executor lease and processes
-at most 16 eligible handoffs. The shared scheduler calls `advance_if_present()`
+at most 16 eligible handoffs per direct call. The shared scheduler calls `advance_if_present()`
 once per cycle only with `FTD_SHUN_MANAGED_REMOVAL_WORKER_ENABLED=true` (default
 false; deployed Settings require socket mode). This does not enable admission,
 ADD or desired restoration and never initializes optional tables. Waiting work
 participates in the persisted 60-second cooldown; the current lease is required.
+It now allocates at most eight roots each to single/fleet cleanup, sixteen total.
 Advancement occurs after lease recovery but before capturing the cycle cutoff,
 then each device supplies a fresh initial snapshot before ordinary removal.
 It never runs mid-cycle against an old pre-ADD in-memory snapshot. Work admitted

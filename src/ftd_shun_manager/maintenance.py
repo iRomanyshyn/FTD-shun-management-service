@@ -13,6 +13,7 @@ from ipaddress import IPv4Address
 from pathlib import Path
 from uuid import uuid4
 
+from .managed_safety import fleet_waits_present
 from .operation_queue import stamp
 from .safety import mutations_suspended
 from .store import Store
@@ -56,6 +57,10 @@ def apply_recovery_control(db, store: Store, action: str, actor: str, *, now: da
                 raise ValueError("Fleet authority without its policy registry; review the backup.")
             if db.execute("SELECT 1 FROM managed_fleet_removals WHERE phase!='ADMITTED' LIMIT 1").fetchone():
                 raise ValueError("Transitional fleet authority is inconsistent; review the backup.")
+        if "managed_fleet_waits" in tables and "managed_fleet_removals" not in tables:
+            raise ValueError("Fleet waiting cleanup without root authority; review the backup.")
+        if "managed_fleet_waits" in tables:
+            fleet_waits_present(db)  # Refuse orphan/partial evidence before any cancellation.
         columns = {row[1] for row in db.execute("PRAGMA table_info(operation_executor)")}
         if "mutations_suspended" not in columns:
             db.execute("ALTER TABLE operation_executor ADD COLUMN mutations_suspended INTEGER NOT NULL DEFAULT 0 CHECK(mutations_suspended IN (0,1))")
@@ -64,6 +69,9 @@ def apply_recovery_control(db, store: Store, action: str, actor: str, *, now: da
         jobs = db.execute("SELECT * FROM operation_jobs WHERE state IN ('QUEUED','RUNNING')").fetchall()
         waits = (db.execute("SELECT * FROM managed_removal_handoffs WHERE state IN ('WAITING_ADD','ADMITTING')").fetchall()
                  if "managed_removal_handoffs" in tables else [])
+        fleet_waits = (db.execute("""SELECT w.*,r.payload_json FROM managed_fleet_waits w
+            JOIN managed_fleet_removals r ON r.id=w.id WHERE w.state IN ('WAITING_ADD','ADMITTING')""").fetchall()
+                       if "managed_fleet_waits" in tables else [])
         result = {"action": action, "queued_cancelled": 0, "running_unverified": 0,
                   "waiting_cancelled": 0, "requests_cancelled": 0, "restoration_suspended": None}
         if managed_tables.issubset(tables):
@@ -74,7 +82,7 @@ def apply_recovery_control(db, store: Store, action: str, actor: str, *, now: da
         if action == "resume-mutations":
             if not mutations_suspended(db):
                 raise ValueError("Device mutations are not suspended.")
-            if jobs or waits:
+            if jobs or waits or fleet_waits:
                 raise ValueError("Pending jobs/handoffs remain; suspend them before resuming.")
             if managed_tables.issubset(tables) and policy[0] != 1:
                 raise ValueError("Desired restoration must remain suspended during ordinary resume.")
@@ -97,6 +105,13 @@ def apply_recovery_control(db, store: Store, action: str, actor: str, *, now: da
                                     "Offline recovery maintenance", (), request_id,
                                     {"handoff_request_id": row["id"], "predecessor_id": row["predecessor_id"]}, timestamp)
             result["waiting_cancelled"] = len(waits)
+            for row in fleet_waits:
+                db.execute("UPDATE managed_fleet_waits SET state='CANCELLED',reason=? WHERE id=?", (reason, row["id"]))
+                store._insert_event(db, "MANAGED_SHUN_FLEET_CLEANUP_RECOVERY_SUSPENDED", None,
+                                    IPv4Address(json.loads(row["payload_json"])["ip"]), None, subject,
+                                    "Offline recovery maintenance", (), request_id,
+                                    {"fleet_request_id": row["id"], "reserved_targets": row["target_count"]}, timestamp)
+            result["waiting_cancelled"] += len(fleet_waits)
             result["requests_cancelled"] = db.execute("UPDATE operation_requests SET state='CANCELLED' WHERE state='ACTIVE'").rowcount
             if managed_tables.issubset(tables):
                 db.execute("UPDATE managed_shun_registry SET restoration_suspended=1,revision=revision+1 WHERE id=1")

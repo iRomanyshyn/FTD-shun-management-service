@@ -87,12 +87,15 @@ def canonical_managed_fleet_scope(scope: dict) -> tuple[str, str]:
     return payload, hashlib.sha256(payload.encode()).hexdigest()
 
 
-def canonical_managed_fleet_removal(scope: dict, ttl_seconds: int = 900, reason: str = "") -> tuple[str, str]:
+def canonical_managed_fleet_removal(scope: dict, ttl_seconds: int = 900, reason: str = "",
+                                   *, ordered_wait: bool = False) -> tuple[str, str]:
+    if type(ordered_wait) is not bool:
+        raise TypeError("Ordered fleet waiting requires an explicit boolean.")
     canonical, _ = canonical_managed_fleet_scope(scope)
     # Reuse strict reason/lifetime validation, but never reuse single-target intent.
     validated, _ = canonical_managed_removal(1, IPv4Address(scope["ip"]), scope["managed_revision"], ttl_seconds, reason)
     payload = json.loads(canonical)
-    payload.update(action="RETIRE_AND_REMOVE", mode="stop_maintenance_and_remove",
+    payload.update(action="RETIRE_AND_REMOVE", mode="stop_maintenance_and_remove_ordered" if ordered_wait else "stop_maintenance_and_remove",
                    ttl_seconds=ttl_seconds, reason=json.loads(validated)["reason"])
     payload = json.dumps(payload, sort_keys=True, separators=(",", ":"))
     return payload, hashlib.sha256(payload.encode()).hexdigest()

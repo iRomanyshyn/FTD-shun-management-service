@@ -1,7 +1,7 @@
 """Offline atomic fleet retirement/cleanup admission; no HTTP or startup hook.
 
-Ready targets only: QUEUED/RUNNING ADD or waiting cleanup conflicts the entire
-request. This is not fleet ordered handoff or desired restoration.
+Explicit ordered mode may reserve the entire scope behind captured RUNNING ADD.
+Default ready-only semantics and receipts are unchanged. No desired restoration.
 """
 
 import hmac
@@ -12,12 +12,18 @@ from ipaddress import IPv4Address
 from math import ceil
 from uuid import UUID, uuid5
 
+from .managed_fleet_waits import initialize_waits
 from .managed_intent import (
     canonical_managed_change,
     canonical_managed_fleet_removal,
     canonical_managed_fleet_scope,
 )
-from .managed_safety import fleet_key_reserved, managed_state
+from .managed_safety import (
+    fleet_key_reserved,
+    fleet_target_held,
+    fleet_waits_present,
+    managed_state,
+)
 from .managed_scope import ManagedRemovalScopes
 from .managed_shuns import ManagedConflict, _require_operator
 from .operation_queue import QueueConflict, QueueFull, stamp
@@ -65,22 +71,23 @@ class ManagedFleetRemovals:
                     BEFORE DELETE ON managed_fleet_removals BEGIN
                         SELECT RAISE(ABORT,'managed fleet key is retained'); END;
             """)
+            initialize_waits(db)
 
     def admit(self, request_id: str, reviewed: dict, confirmation_digest: str,
               subject: str, display_name: str, roles: tuple[str, ...],
-              ttl_seconds: int = 900, reason: str = "") -> dict:
+              ttl_seconds: int = 900, reason: str = "", *, ordered_wait: bool = False) -> dict:
         """Commit all targets together. Never call the per-target coordinator."""
         with self.store._connection() as db:
             db.execute("BEGIN IMMEDIATE")
             result, logs = self.apply_admit(db, request_id, reviewed, confirmation_digest,
-                                           subject, display_name, roles, ttl_seconds, reason)
+                                           subject, display_name, roles, ttl_seconds, reason, ordered_wait=ordered_wait)
         for entry in logs:
             print(json.dumps(entry), flush=True)
         return result
 
     def apply_admit(self, db: sqlite3.Connection, request_id: str, reviewed: dict,
                     confirmation_digest: str, subject: str, display_name: str, roles: tuple[str, ...],
-                    ttl_seconds: int = 900, reason: str = "") -> tuple[dict, list[dict]]:
+                    ttl_seconds: int = 900, reason: str = "", *, ordered_wait: bool = False) -> tuple[dict, list[dict]]:
         """Trusted composition: caller owns commit/logging; caught errors roll back."""
         if not db.in_transaction:
             raise ValueError("Fleet admission requires a caller-owned write transaction.")
@@ -98,14 +105,14 @@ class ManagedFleetRemovals:
         # Freeze caller-owned mutable objects before acquiring durable authority.
         frozen = json.loads(canonical)
         del frozen["version"], frozen["scope"]
-        payload, digest = canonical_managed_fleet_removal(frozen, ttl_seconds, reason)
+        payload, digest = canonical_managed_fleet_removal(frozen, ttl_seconds, reason, ordered_wait=ordered_wait)
         if (not isinstance(confirmation_digest, str) or not confirmation_digest.isascii()
                 or not hmac.compare_digest(digest, confirmation_digest)):
             raise ValueError("Confirmation does not match the exact fleet removal.")
         db.execute("SAVEPOINT managed_fleet_admission")
         try:
             result = self._apply(db, request_id, frozen, scope_digest, payload, subject,
-                                 display_name, roles, ttl_seconds, reason)
+                                 display_name, roles, ttl_seconds, reason, ordered_wait)
         except Exception:
             db.execute("ROLLBACK TO managed_fleet_admission")
             db.execute("RELEASE managed_fleet_admission")
@@ -113,7 +120,7 @@ class ManagedFleetRemovals:
         db.execute("RELEASE managed_fleet_admission")
         return result
 
-    def _apply(self, db, key, scope, scope_digest, payload, subject, display_name, roles, ttl, reason):
+    def _apply(self, db, key, scope, scope_digest, payload, subject, display_name, roles, ttl, reason, ordered_wait):
         old = db.execute("SELECT * FROM managed_fleet_removals WHERE id=?", (key,)).fetchone()
         if old is not None:
             if old["actor_subject"] != subject or old["payload_json"] != payload or old["phase"] != "ADMITTED":
@@ -131,13 +138,30 @@ class ManagedFleetRemovals:
             raise ManagedConflict("Fleet scope contains a disabled device; no targets were changed or queued.")
         ip = IPv4Address(scope["ip"])
         targets = [(entry["device_id"], ip) for entry in current["targets"]]
+        predecessors = []
         for device_id, _ in targets:
-            if db.execute("""SELECT 1 FROM operation_jobs WHERE device_id=? AND ip=?
-                    AND action='ADD' AND state IN ('QUEUED','RUNNING')""", (device_id, ip.packed)).fetchone():
-                raise QueueConflict("Fleet scope has unfinished ADD; ordered fleet waiting is unavailable. No changes were applied.")
+            job = db.execute("""SELECT * FROM operation_jobs WHERE device_id=? AND ip=?
+                    AND action='ADD' AND state IN ('QUEUED','RUNNING')""", (device_id, ip.packed)).fetchone()
+            if job is not None:
+                if not ordered_wait or job["state"] != "RUNNING":
+                    raise QueueConflict("Fleet scope has unfinished ADD; no changes were applied. QUEUED ADD requires explicit cancellation; RUNNING ADD requires ordered mode.")
+                if job["dispatch_kind"] != "ADD":
+                    raise QueueConflict("RUNNING ADD has inconsistent dispatch evidence; no changes were applied.")
+                predecessors.append({"job_id": job["id"], "device_id": device_id})
+            if fleet_target_held(db, device_id, ip):
+                raise QueueConflict("Fleet scope already has waiting cleanup; inspect its original request.")
             if self.queue._handoffs_present(db) and db.execute("""SELECT 1 FROM managed_removal_handoffs
                     WHERE device_id=? AND ip=? AND state='WAITING_ADD'""", (device_id, ip.packed)).fetchone():
                 raise QueueConflict("Fleet scope has waiting cleanup; inspect its original request. No changes were applied.")
+        if predecessors:
+            if not fleet_waits_present(db):
+                raise ManagedConflict("Ordered fleet schema is not initialized; nothing was admitted.")
+            if self.queue._pending_count(db) + len(targets) > 1000:
+                raise QueueFull("Operation queue including reserved fleet targets is full.")
+            if self.queue._active_request_count(db) >= 2000:
+                raise QueueFull("Operation queue is full.")
+            if self.queue._recent_request_count(db, subject, now) >= 10:
+                raise QueueFull("At most 10 operation submissions per minute per user.")
         retiring = [(entry["device_id"], ip) for entry in current["targets"] if entry["maintenance_enabled"]]
         retirement_key = str(uuid5(UUID(key), "managed-fleet-retirement")) if retiring else None
         if retirement_key is not None:
@@ -154,22 +178,30 @@ class ManagedFleetRemovals:
         requested, deadline = stamp(now), stamp(now + timedelta(seconds=ttl))
         result = {"operation_id": key, "status": "accepted", "replayed": False,
                   "target_count": len(targets), "retired_targets": len(retiring), "managed_revision": revision}
+        if ordered_wait:
+            result["waiting_for_add"] = bool(predecessors)
         db.execute("INSERT INTO managed_fleet_removals VALUES (?,?,?,?,?,?,?,?,?,'ADMITTING')", (
             key, retirement_key, subject, display_name, json.dumps(roles), payload, json.dumps(result), requested, deadline,
         ))
         remaining = ceil((now + timedelta(seconds=ttl) - self.queue._now()).total_seconds())
         if remaining < 1:
             raise QueueConflict("Fleet authorization expired during admission; nothing was committed.")
-        _, logs = self.queue.apply_enqueue(db, key, targets, subject, display_name, roles, remaining,
-                                           scope="managed_fleet_removal")
-        db.execute("UPDATE operation_requests SET requested_at=?,expires_at=MIN(expires_at,?) WHERE id=?",
-                   (requested, deadline, key))
+        logs = []
+        if predecessors:
+            db.execute("INSERT INTO managed_fleet_waits VALUES (?,?,?,'WAITING_ADD',NULL)",
+                       (key, len(targets), json.dumps(predecessors, sort_keys=True, separators=(",", ":"))))
+        else:
+            _, logs = self.queue.apply_enqueue(db, key, targets, subject, display_name, roles, remaining,
+                                               scope="managed_fleet_removal")
+            db.execute("UPDATE operation_requests SET requested_at=?,expires_at=MIN(expires_at,?) WHERE id=?",
+                       (requested, deadline, key))
         db.execute("UPDATE managed_fleet_removals SET phase='ADMITTED' WHERE id=?", (key,))
         self.store._insert_event(db, "MANAGED_SHUN_FLEET_REMOVAL_ADMITTED", None, ip, None,
                                  subject, display_name, roles, key,
                                  {"source": "managed_fleet_removal", "target_count": len(targets),
                                   "retired_targets": len(retiring), "managed_revision": revision,
-                                  "retirement_request_id": retirement_key}, requested)
+                                  "retirement_request_id": retirement_key,
+                                  "waiting_for_add": bool(predecessors)}, requested)
         if self.queue._now() >= now + timedelta(seconds=ttl):
             raise QueueConflict("Fleet authorization expired during admission; nothing was committed.")
         self.queue._bump(db)

@@ -11,7 +11,12 @@ from uuid import uuid4
 
 from .agent_protocol import AdditionResult, _valid_interface
 from .import_intent import canonical_import
-from .managed_safety import require_fleet_queue_key, require_ordinary_removal
+from .managed_safety import (
+    fleet_target_held,
+    fleet_waits_present,
+    require_fleet_queue_key,
+    require_ordinary_removal,
+)
 from .safety import mutations_suspended
 from .store import Store
 
@@ -125,6 +130,8 @@ class OperationQueue:
         count = db.execute("SELECT COUNT(*) FROM operation_jobs WHERE state IN ('QUEUED','RUNNING')").fetchone()[0]
         if self._handoffs_present(db):
             count += db.execute("SELECT COUNT(*) FROM managed_removal_handoffs WHERE state='WAITING_ADD'").fetchone()[0]
+        if fleet_waits_present(db):
+            count += db.execute("SELECT COALESCE(SUM(target_count),0) FROM managed_fleet_waits WHERE state='WAITING_ADD'").fetchone()[0]
         return count
 
     def _active_request_count(self, db) -> int:
@@ -133,6 +140,8 @@ class OperationQueue:
             WHERE r.state='ACTIVE' AND j.state IN ('QUEUED','RUNNING')""").fetchone()[0]
         if self._handoffs_present(db):
             count += db.execute("SELECT COUNT(*) FROM managed_removal_handoffs WHERE state='WAITING_ADD'").fetchone()[0]
+        if fleet_waits_present(db):
+            count += db.execute("SELECT COUNT(*) FROM managed_fleet_waits WHERE state='WAITING_ADD'").fetchone()[0]
         return count
 
     def _recent_request_count(self, db, subject, current, exclude_request_id=None) -> int:
@@ -143,6 +152,11 @@ class OperationQueue:
             count += db.execute("""SELECT COUNT(*) FROM managed_removal_handoffs h
                 WHERE actor_subject=? AND requested_at>=? AND (? IS NULL OR id!=?)
                 AND NOT EXISTS(SELECT 1 FROM operation_requests r WHERE r.id=h.id)""",
+                (subject, cutoff, exclude_request_id, exclude_request_id)).fetchone()[0]
+        if fleet_waits_present(db):
+            count += db.execute("""SELECT COUNT(*) FROM managed_fleet_waits w JOIN managed_fleet_removals r ON r.id=w.id
+                WHERE r.actor_subject=? AND r.requested_at>=? AND (? IS NULL OR r.id!=?)
+                AND NOT EXISTS(SELECT 1 FROM operation_requests q WHERE q.id=r.id)""",
                 (subject, cutoff, exclude_request_id, exclude_request_id)).fetchone()[0]
         return count
 
@@ -275,6 +289,8 @@ class OperationQueue:
             ))
         request = db.execute("SELECT * FROM operation_requests WHERE id=?", (request_id,)).fetchone()
         for device_id, ip in targets:
+            if action == "ADD" and fleet_target_held(db, device_id, ip):
+                raise QueueConflict("Reviewed fleet cleanup is waiting; no new ADD was admitted.")
             if action == "ADD" and self._handoffs_present(db) and db.execute(
                 "SELECT 1 FROM managed_removal_handoffs WHERE device_id=? AND ip=? AND state='WAITING_ADD'",
                 (device_id, ip.packed),
@@ -747,6 +763,10 @@ class OperationQueue:
             if self._handoffs_present(db):
                 preserve = """ AND NOT EXISTS (SELECT 1 FROM managed_removal_handoffs h
                     WHERE h.predecessor_id=operation_jobs.id AND h.state='WAITING_ADD')"""
+            if fleet_waits_present(db):
+                preserve += """ AND NOT EXISTS (SELECT 1 FROM managed_fleet_waits w,
+                    json_each(w.predecessors_json) p WHERE w.state='WAITING_ADD'
+                    AND json_extract(p.value,'$.job_id')=operation_jobs.id)"""
             deleted = db.execute("""DELETE FROM operation_jobs
                 WHERE state NOT IN ('QUEUED','RUNNING') AND completed_at<?""" + preserve, (cutoff,)).rowcount
             db.execute("""DELETE FROM operation_requests WHERE requested_at<?

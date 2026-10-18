@@ -3209,6 +3209,119 @@ integration, executable confirmation and scoped live validation remain next.
 Do not present synthetic default-off deployment as managed-write or production
 acceptance. No additional action is needed from the operator for this release.
 
+## 2026-10-18 — Explicit ordered fleet cleanup barrier and shared-worker integration
+
+Extended offline fleet admission through explicit `ordered_wait=True`, with a
+different canonical mode/digest. Default ready-only bodies/receipts/replays keep
+their old behavior; no browser review or HTTP admission acquires ordered mode.
+RUNNING ADD may now be captured by exact device/job ID while one transaction
+retires all desired members and reserves the full frozen scope. No ready target
+is dispatched early. QUEUED one-time ADD, disabled devices or another waiting
+single/fleet cleanup still reject the whole scope without partial retirement.
+
+Explicit isolated initialization adds `managed_fleet_waits` linked to retained
+root authority. Target count/predecessor evidence are immutable/retained; phases
+are monotonic. Reservations share 1000 pending/2000 active bounds (one slot per
+target, one active root), actor rate accounting including after cancellation,
+new-ADD/managed-re-enable guards and predecessor retention. No auto initialization
+from startup/worker/GET, no live seed, no new system restoration source.
+
+`ManagedFleetWaits` promotes only whole roots under the current shared lease,
+after every captured ADD settles. Skip still-running roots without starving
+later eligible ones. Keep original actor/deadline and validate canonical mode,
+retired UUID/generation, device/hostname, predecessor evidence and original UTC
+lifetime; do not silently widen/shrink by later observations. Exact known
+pre-write deferral may be cancelled atomically with full cleanup, not otherwise.
+UNVERIFIED ADD stays uncertain and is never replayed/upgraded to creation.
+Expiry/changed evidence/failed admission settles EXPIRED or ATTENTION, releasing
+slots without reversing retirement. Lease/audit/database failure rolls back the
+advance transaction; late expiry rolls back every materialized target first.
+Accepted logs are emitted only after commit, without raw exception/metadata text.
+Automated decisions are system audit events linked to the original requester;
+materialized ordinary cleanup keeps only the captured short-lived authority.
+
+Internal owner Operator/Administrator or Administrator cancellation is serialized
+with promotion, audit-free when already cancelled, and conflicts once queue work
+was admitted. It never cancels RUNNING ADD or restarts maintenance. Composite
+offline recovery cancels all barriers/reservations, retains immutable roots and
+preserves running uncertainty; orphan evidence refuses recovery. Ready-only old
+schema still works without implicit migration; ordered waits require the explicit
+new table. Retention holds predecessor jobs only while waiting.
+
+The existing default-off cleanup flag now wakes/advances both single and fleet
+waits under one persisted lease/cooldown. Budget is eight roots each, sixteen total,
+once before the cycle cutoff and fresh device snapshots; no mid-cycle promotion
+against a pre-ADD snapshot or independent SSH/executor. Unexpected handoff errors
+skip cycle mutations, retain monitoring and publish sanitized diagnostics.
+No actual env/gate, topology, wire or agent changes. Executable fleet controls/
+visibility and restoration system/generation/claim/uncertainty/rearm/anti-churn
+integration plus scoped live validation still gate combined execution.
+
+Validation: **597 Python tests pass** (20.04 seconds), **21 Chromium scenarios /
+22 reported tests** pass, compileall/Ruff/JS syntax/diff and 241 relative file links
+pass. New synthetic SQLite/fake-agent cases cover explicit mode separation,
+multi-predecessor no-overlap/full-scope promotion, role/cancel races, original TTL,
+pending/active/rate bounds, generation/device/evidence corruption, atomic root/
+promotion audit rollback, lease loss/late expiry, bounded no-starvation selection,
+retention/recovery/replay and worker gating/fresh-read/cutoff behavior without ADD
+replay. The prior single-worker error fixture now asserts its eight-root share.
+No live Cisco, traffic, large-load or production acceptance is claimed.
+
+Lab release preparation under standing authorization: API/Web only; startup may
+execute already admitted work but no new test job/control/hint/agent RPC will be
+submitted. Preflight: old IDs `d61053998b5b` / `ea732cd8598e`, agent/Caddy/Authelia
+unchanged, no optional managed objects, eight VERIFIED/one NOOP, no pending/active
+shuns, three Protected IPs, admission/API ADD/cleanup worker off, zero profiles,
+integrity/FK pass. Ordinary reads healthy at 15:07:57Z, next baseline 15:12:57Z.
+Retained paired images `before-fleet-waits-20261018t1510z` and exclusive checked
+0600 volume/ignored host `.local/backups/state-before-fleet-waits-20261018T1510Z.sqlite3`
+(0700 host directory), both integrity/FK pass. Quiet merged Compose validation
+and build pass. Built API
+`sha256:0473b945b25bf7d2b594a2f60a186c127df43366e8c8af97cc79226b0f7bb69e`
+and Web `sha256:1b2b2b4930a18b8fa2a9e28278f9c627bd6e9e16bfbeee14e8601198453f5f24`.
+Packaged pre-release/rollout checks follow; actual env/inventory/secrets and live
+schema/gates remain untouched, with no optional fixture seed.
+
+**Package/pre-deployment result:** Python 3.12 built-package smoke passes in a
+read-only/networkless container with disposable SQLite and in-process synthetic
+ASGI identities only. Normal startup creates no optional tables; explicit
+isolated fixture captures two RUNNING ADDs and three reserved targets, proves
+no early cleanup, rolls back a late promotion audit failure, then materializes
+one full-scope request with original actor/deadline. ADD uncertainty remains,
+same-key replay changes nothing, queue cancellation/recovery retain retirement,
+and native BFF combined confirmation still refuses 503 without admission/hints
+or metadata-driven work. Integrity/FK pass. No live mounts, credentials, agent
+socket or FTD connection. The build resolved the existing unlocked dependency
+ranges (including FastAPI 0.145.0); this isolated smoke is not production
+dependency-locking/compatibility evidence. Stopping/recreating only the sole
+API/Web pair with --no-deps, no overlapping executor. Rollout results follow.
+
+**Deployment result:** Stopped the sole API/Web pair, then recreated only them
+with --no-deps; no overlapping executor. API `2942cfd22f14`, Web `b527ecb1bfd0`.
+Agent `9d1f50d361ca`, Caddy `9c8fdb3a7f21`, Authelia `76f3635ab737` unchanged.
+Full sqlite_master definitions and all eleven non-executor tables match the
+checked pre-release backup exactly; integrity ok/FK errors zero. No managed/
+handoff/fleet/barrier schema initialized, no authority/policy/job change. Queue
+remains eight VERIFIED/one NOOP with no pending/active shuns; three Protected
+IPs and mutation pause false. Actual ADD admission/API execution/agent execution/
+cleanup-worker gates remain off, zero eligible addition profiles; env/inventory/
+secrets unchanged. New barrier module is packaged/importable, not invoked or
+initialized on live state. No test mutation, seed, direct agent call, refresh
+hint or spoofed live Web identity.
+
+Ordinary post-start v2 cycle completed at 15:15:29Z: two commands, zero removal/
+addition/mutation steps, 8651 ms; next baseline 15:20:29Z/no error. Repeated
+optional GETs leave schema absent and empty fleet scope correctly returns 409.
+Anonymous Managed/status/review/confirmation paths reject 401; TLS-verified
+HTTPS returns 302 to authentication. Checked backups and paired rollback images
+retained; do not restore old desired authority/drop tables to revert code.
+Clarified root-ledger transitional refusal versus barrier cancellation in the
+recovery manuals. Final compileall/Ruff/JS syntax/diff and 241 relative file
+links pass. Runtime fleet controls/visibility, system restoration/generation/
+claim and uncertainty/rearm/anti-churn integration plus fresh scoped live
+validation remain pending. No live ordered-cleanup, ADD or production acceptance
+is inferred from these synthetic/default-off release checks.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

@@ -80,8 +80,12 @@ Do not rewrite historical log entries except to correct an objective error; add 
   scope-comparison prerequisite. An offline ready-target fleet coordinator now
   retires enabled targets and admits one whole-scope REMOVE transaction; it
   rejects any unfinished ADD/waiting cleanup/disabled device without changes.
-  Its optional retained authority table is never initialized by startup; no
-  HTTP admission or fleet ordered waiting exists. Never simulate atomic fleet
+  A separately digested explicit ordered mode now reserves the whole scope
+  behind captured RUNNING ADDs, preserving original deadlines and uncertainty;
+  QUEUED one-time ADD still conflicts. Its optional retained authority/barrier
+  tables are never initialized by startup. No HTTP admission exists. A default-off
+  shared worker advances at most eight single/eight fleet roots before cutoff;
+  no second executor or partial root promotion. Never simulate atomic fleet
   writes by looping over the single-target coordinator. Separate
   policy-only RETIRE and owner/Administrator waiting-cleanup cancellation are
   supported local revocation controls; neither admits device work nor cancels

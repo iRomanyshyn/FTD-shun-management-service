@@ -1,8 +1,52 @@
 # Project Status
 
-Last updated: 2026-10-17
+Last updated: 2026-10-18
 
 ## Current increment
+
+**Explicit ordered fleet cleanup barrier (2026-10-18).** Separate canonical
+`ordered_wait=True` mode now captures RUNNING ADDs and atomically retires/reserves
+the whole reviewed scope. Default ready-only payloads/replays are unchanged;
+QUEUED one-time ADD, disabled devices and existing waits still conflict. No
+ready member receives early cleanup. All captured ADDs must settle before one
+ordinary full-scope REMOVE request materializes under the original actor/deadline.
+UNVERIFIED ADD remains uncertain and is never replayed. Exact known pre-write
+deferral may be superseded only atomically with full cleanup; expiry/changed
+evidence/failed admission settles EXPIRED or ATTENTION without un-retiring policy.
+
+Reservations share existing pending/active/rate bounds, block new ADD/managed
+re-enable and retain predecessor evidence. Owner/Admin cancellation serializes
+with promotion, never cancels RUNNING ADD or silently switches to ordinary queue
+cancellation. Recovery cancels barriers/reservations and preserves uncertainty/
+immutable receipts; original-key replay cannot rearm anything. The existing
+default-off shared-worker flag now processes at most eight single/eight fleet
+roots before cutoff/fresh snapshots, with one lease/cooldown and no new SSH path.
+Normal startup/worker/reads never initialize the optional new barrier table.
+See [Ordered cleanup](manual/managed-fleet-removals.md#ordered-cleanup).
+
+This remains offline admission/internal cancellation with no HTTP/BFF execution
+or live schema seed; combined confirmation stays unconditional 503. ADD/cleanup
+worker gates remain off. Executable fleet controls/visibility and restoration's
+system/generation/claim/uncertainty/rearm integration still precede scoped live
+validation. Test/package/default-off deployment results follow in the log.
+
+All 597 Python tests and 21 Chromium scenarios (22 reported tests) pass;
+compileall/Ruff/JS syntax/diff and 241 relative file links pass. Synthetic tests
+cover all-predecessor settlement, original-deadline integrity, cancellation/
+promotion races, bounded fairness, slots/rate/retention, corruption/attention,
+audit/lease/expiry rollback and shared-worker fresh reads without ADD replay.
+Rust/wire unchanged; no live new mutation. Packaged Python 3.12 synthetic two-ADD
+barrier/promotion/rollback/replay/recovery/BFF-refusal smoke passes without network
+or live mounts. Deployed API/Web `2942cfd22f14` / `b527ecb1bfd0`, retaining paired
+images `before-fleet-waits-20261018t1510z` and checked 0600 volume/private ignored
+host `.local/backups/state-before-fleet-waits-20261018T1510Z.sqlite3` (0700 dir).
+Schema and all eleven non-executor tables match backup, integrity/FK pass, optional
+tables remain absent. Queue eight VERIFIED/one NOOP, no pending/active shuns;
+ADD/admission/cleanup worker off, zero eligible profiles, actual env/inventory/
+secrets and agent/Caddy/Authelia unchanged. Anonymous paths 401/TLS-verified
+HTTPS 302. Ordinary v2 cycle at 15:15:29Z: two reads/zero mutations/8651 ms, next
+baseline 15:20:29Z/no error. No optional seed/control/new job or forced refresh.
+This is not live ordered-cleanup or restoration acceptance.
 
 **Offline atomic fleet retirement/cleanup for ready targets (2026-10-17).**
 `ManagedFleetRemovals` now compares the complete frozen scope under one write
@@ -882,7 +926,7 @@ visibility/reviews, offline atomic retirement/removal handoff, composite
 recovery controls and default-off shared-worker integration are implemented.
 Policy-only retirement/wait cancellation, frozen fleet scope/comparison and
 offline ready-target atomic fleet admission are now implemented; next complete
-ordered fleet ADD/cleanup handoff, combined executable confirmation and protection/system
+executable fleet controls/visibility, combined confirmation and protection/system
 hooks, followed by bounded default-off desired reconciliation
 with uncertainty/rearm and anti-churn controls. Do not enable it by deriving
 policy from historical imports or by renewing old user jobs. Resolve controller

@@ -8,6 +8,26 @@ class ManagedStateUnavailable(ValueError):
     pass
 
 
+def fleet_waits_present(db) -> bool:
+    present = db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='managed_fleet_waits'").fetchone() is not None
+    if present and not db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='managed_fleet_removals'").fetchone():
+        raise ManagedStateUnavailable("Fleet cleanup reservation is missing its authority ledger.")
+    if present and db.execute("""SELECT 1 FROM managed_fleet_waits w LEFT JOIN managed_fleet_removals r ON r.id=w.id
+            WHERE r.id IS NULL LIMIT 1""").fetchone():
+        raise ManagedStateUnavailable("Fleet cleanup reservation is missing its root authority.")
+    return present
+
+
+def fleet_target_held(db, device_id, ip, *, attention: bool = False) -> bool:
+    if not fleet_waits_present(db):
+        return False
+    return db.execute("""SELECT 1 FROM managed_fleet_waits w JOIN managed_fleet_removals r ON r.id=w.id
+        WHERE (w.state='WAITING_ADD' OR (? AND w.state='ATTENTION'))
+        AND json_extract(r.payload_json,'$.ip')=? AND EXISTS (
+            SELECT 1 FROM json_each(r.payload_json,'$.targets') t
+            WHERE json_extract(t.value,'$.device_id')=?) LIMIT 1""", (attention, str(ip), device_id)).fetchone() is not None
+
+
 def fleet_key_reserved(db, key: str) -> bool:
     """Optional immutable fleet authority survives ordinary queue retention."""
     if not db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='managed_fleet_removals'").fetchone():
@@ -20,7 +40,10 @@ def require_fleet_queue_key(db, key, targets, subject, source, scope) -> None:
     if not fleet_key_reserved(db, key):
         return
     row = db.execute("SELECT * FROM managed_fleet_removals WHERE id=?", (key,)).fetchone()
-    if (row is not None and row["phase"] == "ADMITTING" and row["actor_subject"] == subject
+    promoting = (row is not None and fleet_waits_present(db) and db.execute(
+        "SELECT 1 FROM managed_fleet_waits WHERE id=? AND state='ADMITTING'", (key,),
+    ).fetchone() is not None)
+    if (row is not None and (row["phase"] == "ADMITTING" or promoting) and row["actor_subject"] == subject
             and source == "manual" and scope == "managed_fleet_removal"):
         intent = json.loads(row["payload_json"])
         expected = [(entry["device_id"], intent["ip"]) for entry in intent["targets"]]
@@ -40,7 +63,9 @@ def managed_state(db) -> dict | None:
     }
     try:
         names = {r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
-        if not names.intersection(expected) and "managed_fleet_removals" not in names:
+        if "managed_fleet_waits" in names and "managed_fleet_removals" not in names:
+            raise ValueError("Orphan fleet cleanup reservations")
+        if not names.intersection(expected) and not names.intersection({"managed_fleet_removals", "managed_fleet_waits"}):
             return None
         if not names.issuperset(expected):
             raise ValueError("Partial managed schema")

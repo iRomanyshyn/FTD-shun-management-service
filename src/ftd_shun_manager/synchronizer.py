@@ -14,6 +14,7 @@ from uuid import uuid4
 from .agent_client import AgentClient, AgentUnavailable
 from .agent_protocol import MAX_CYCLE_REMOVALS as MAX_CYCLE_MUTATIONS
 from .agent_protocol import AdditionResult
+from .managed_fleet_waits import ManagedFleetWaits
 from .managed_removals import ManagedRemovals
 from .managed_shuns import ManagedShuns
 from .operation_queue import QueueConflict, QueueFull
@@ -68,6 +69,7 @@ class Synchronizer:
         self.managed_removal_worker_enabled = managed_removal_worker_enabled
         self.managed_removals = ManagedRemovals(ManagedShuns(store), self.queue,
                                                worker_enabled=managed_removal_worker_enabled)
+        self.managed_fleet_waits = ManagedFleetWaits(store, self.queue)
         self._managed_removal_error: str | None = None
         self._lease_seconds = operation_timeout_seconds + interactive_min_interval_seconds + 30
         self._cycle_cutoff: int | None = None
@@ -302,7 +304,8 @@ class Synchronizer:
                 try:
                     # Exactly once before the cutoff; never materialize removal
                     # against an in-memory pre-ADD snapshot later in this cycle.
-                    self.managed_removals.advance_if_present(self.instance_id)
+                    self.managed_removals.advance_if_present(self.instance_id, limit=8)
+                    self.managed_fleet_waits.advance_if_present(self.instance_id, limit=8)
                 except (sqlite3.Error, ValueError):
                     self._managed_removal_error = "Managed cleanup handoff failed; mutations skipped for this cycle."
                     print(json.dumps({"event": "managed_shun.cleanup.worker_failed",
@@ -337,7 +340,7 @@ class Synchronizer:
             return True
         if self.managed_removal_worker_enabled and device_id is None:
             try:
-                return self.managed_removals.has_waiting()
+                return self.managed_removals.has_waiting() or self.managed_fleet_waits.has_waiting()
             except (sqlite3.Error, ValueError):
                 # A normal baseline cycle will surface the error; never spin.
                 return False

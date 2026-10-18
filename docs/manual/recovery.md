@@ -52,6 +52,7 @@ One transaction then performs:
 | RUNNING ADD or REMOVE | UNVERIFIED; uncertainty is preserved. |
 | Active request delegations | CANCELLED; no renewed deadline. |
 | WAITING_ADD / transitional cleanup | CANCELLED; no later promotion. |
+| Whole-scope fleet barrier, if explicitly initialized | CANCELLED with all reservations released; captured RUNNING ADD becomes UNVERIFIED as above, never replayed. |
 | Managed desired policy, if explicitly initialized | `restoration_suspended=1`; targets/authority retained, not adopted or erased. |
 | Optional ready-target fleet authority | Immutable root/retirement retained; its ordinary delegation/jobs are suspended as above, never recreated by replay. |
 | Shared executor | Durable `mutations_suspended=1`, lease cleared, 60-second cooldown. |
@@ -94,10 +95,12 @@ Queue initialization adds `operation_executor.mutations_suspended` with default
 0 to preserve ordinary behavior. Recovery can add that column to an existing
 queue database, but refuses absent queue or partial managed schemas. Pre-queue
 backups require a separately reviewed migration, not blind initialization here.
-The optional [fleet ledger](managed-fleet-removals.md) is never initialized by
-recovery. Orphaned fleet authority without its registry or a committed ADMITTING
+The optional [fleet ledger/barrier](managed-fleet-removals.md) is never initialized by
+recovery. Orphaned fleet authority without its registry or a committed root-ledger ADMITTING
 phase refuses recovery for inspection. Normal fleet admission commits ADMITTED
-only; do not automatically repair/replay inconsistent restored authority.
+only; do not automatically repair/replay inconsistent restored authority. A
+WAITING_ADD/transitional barrier is instead cancelled under the suspension
+transaction; it never resets the immutable root phase.
 
 Take a checked backup and retain paired API/Web images before upgrading. Keep
 additive tables and authority/tombstones on rollback; do not restore old device

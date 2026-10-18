@@ -3220,3 +3220,45 @@ Single-target ordered handoff remains distinct. Runtime controls, system-source/
 generation/claim cancellation, uncertainty/rearm, migration and scoped live
 validation still block combined execution/restoration. All lab gates remain off;
 no optional schema seed or device mutation is authorized by this amendment.
+
+### Ordered fleet cleanup barrier — 2026-10-18
+
+Extend offline fleet admission only through an explicit `ordered_wait` mode
+with a distinct canonical action digest. Existing ready-only payloads/replays
+retain their semantics. A QUEUED one-time ADD, disabled target or another waiting
+cleanup still conflicts the entire request. RUNNING ADD may instead produce one
+durable whole-scope WAITING_ADD barrier, atomically with desired retirement and
+the original actor/receipt/deadline. No target from that root is admitted to
+REMOVE until every captured predecessor has settled. Do not adopt observations,
+split roots into partial submissions or cancel in-flight commands.
+
+Explicit offline initialization may add `managed_fleet_waits`, linked to the
+immutable root ledger. Preserve exact predecessor IDs/device IDs and full frozen
+scope; reserve one pending slot per target and one active delegation per root
+within existing shared bounds/rate accounting. Reserve even ready/coalescible
+targets conservatively; release reservations only through atomic promotion or
+terminal settlement. New ADD and managed re-enable cannot bypass the barrier.
+Retain predecessor evidence while waiting independently of ordinary retention.
+
+Only the existing leased executor may advance bounded eligible roots before its
+cycle cutoff; one root promotes all targets or none. Still-running predecessors
+wait without head-of-line starvation. Preserve settled ADD uncertainty; never
+replay it or treat it as verified creation. An exact known pre-write deferral may
+cancel that same unsent predecessor, not independent queued work. Missing/
+inconsistent evidence, changed generation, disabled scope or failed admission
+settles ATTENTION; expiry settles EXPIRED under the original deadline. No
+automatic retry/rearm or retirement reversal. Owner Operator/Administrator or
+Administrator may cancel only WAITING_ADD; promotion/cancellation serialize.
+
+The default-off cleanup-worker flag gates both single and fleet barriers under
+one lease/cooldown, at most eight roots of each kind per cycle (sixteen total),
+before fresh device snapshots and ordinary FIFO execution. Unexpected errors
+skip cycle mutations while retaining monitoring. No startup/read/worker path
+initializes optional tables. Recovery cancels fleet waits/reservations together
+with ordinary work and suspends desired restoration, retaining immutable root
+authority and uncertainty. Older workers ignoring reservations remain unsafe.
+
+This is still offline admission/default-off integration, without HTTP/BFF
+execution, a live optional-schema migration or a new mutation authorization.
+Combined confirmation remains 503; system restoration/generation/claim hooks,
+uncertainty rearm/anti-churn and scoped live validation remain prerequisites.

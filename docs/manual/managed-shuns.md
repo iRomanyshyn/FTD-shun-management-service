@@ -167,8 +167,9 @@ backup, upgrade, restart and audit retention are not new device-write authority.
    retirement, protection warnings and observed/provenance distinctions.
    Read-only visibility, policy-only retirement/wait cancellation and frozen
    single/fleet removal review are implemented. The fleet union/comparison
-   prerequisite is now used by an offline ready-target atomic cleanup coordinator,
-   not connected to BFF/HTTP and without fleet ADD waiting. Managed-create/
+   prerequisite is now used by an offline atomic cleanup coordinator, with default
+   ready-only mode and separate explicitly bound whole-scope RUNNING-ADD waiting.
+   Neither is connected to BFF/HTTP. Managed-create/
    standing-mode confirmation remains pending; see
    [Frozen all-device scope](managed-removal-review.md#frozen-all-device-scope).
 3. Integrate ordered removal handoff, revocation/cancellation/protection races,

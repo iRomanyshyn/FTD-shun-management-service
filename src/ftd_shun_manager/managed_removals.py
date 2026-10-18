@@ -13,7 +13,7 @@ from ipaddress import IPv4Address
 from uuid import UUID, uuid5
 
 from .managed_intent import canonical_managed_removal
-from .managed_safety import fleet_key_reserved
+from .managed_safety import fleet_key_reserved, fleet_target_held
 from .managed_shuns import (
     ManagedConflict,
     ManagedShuns,
@@ -108,6 +108,8 @@ class ManagedRemovals:
                 raise QueueConflict("Device mutations are suspended for recovery; no cleanup was admitted.")
             if fleet_key_reserved(db, request_id):
                 raise ManagedConflict("Managed-fleet keys cannot acquire single-target removal semantics.")
+            if fleet_target_held(db, device_id, ip):
+                raise QueueConflict("Fleet cleanup is already waiting for this target; inspect its original request.")
             if any(db.execute(f"SELECT 1 FROM {table} WHERE id=?", (request_id,)).fetchone()
                    for table in ("operation_requests", "manual_import_batches", "managed_shun_requests")):
                 raise ManagedConflict("An existing operation key cannot acquire managed-removal semantics.")
@@ -247,10 +249,10 @@ class ManagedRemovals:
             return (not mutations_suspended(db) and self.queue._handoffs_present(db)
                     and db.execute("SELECT 1 FROM managed_removal_handoffs WHERE state='WAITING_ADD' LIMIT 1").fetchone() is not None)
 
-    def advance_if_present(self, owner: str) -> int:
+    def advance_if_present(self, owner: str, limit: int = 16) -> int:
         with self.store._connection() as db:
             present = self.queue._handoffs_present(db)
-        return self.advance(owner) if present else 0
+        return self.advance(owner, limit) if present else 0
 
     @staticmethod
     def _deadline(row):
