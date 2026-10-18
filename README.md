@@ -24,12 +24,12 @@ tab shows bounded fleet cleanup progress/outcomes and owner/Admin cancellation
 of waiting scopes, without treating admission or settled jobs as verified removal.
 No HTTP admission
 or live optional-schema initialization is enabled.
-Runtime combined device-removal admission, managed creation and desired restoration/
-controller integration remain pending.
-An [offline system restoration source](docs/manual/managed-restoration.md) now
+Runtime combined device-removal admission and managed creation/resume remain pending.
+A [default-off restoration controller](docs/manual/managed-restoration.md) now
 provides snapshot/generation-bound ADD authority, retained uncertainty/provenance
-and atomic revocation/queue/recovery hooks. Runtime discovery and dispatch remain
-unavailable; this is not automatic restoration enablement.
+and atomic revocation/queue/recovery hooks. Bounded complete-snapshot discovery
+and dispatch reuse the shared executor behind an independent false-by-default
+setting; policy/schema migration and live restoration are not enabled.
 Current imports remain one-time and all ADD gates stay
 disabled in the lab. Old imports are not auto-adopted and no live migration
 initializes the new registry yet.

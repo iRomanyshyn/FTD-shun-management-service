@@ -60,8 +60,13 @@ class Settings:
     import_admission_enabled: bool = False
     import_execution_enabled: bool = False
     managed_removal_worker_enabled: bool = False
+    managed_restoration_enabled: bool = False
 
     def __post_init__(self) -> None:
+        if type(self.managed_restoration_enabled) is not bool:
+            raise ValueError("managed restoration setting must be boolean")
+        if self.managed_restoration_enabled and not self.import_execution_enabled:
+            raise ValueError("managed restoration requires the API ADD execution gate")
         if self.managed_removal_worker_enabled and self.agent_mode != "socket":
             raise ValueError("managed removal worker requires socket agent mode")
         if self.import_execution_enabled and (
@@ -89,6 +94,9 @@ class Settings:
         managed_worker = environ.get("FTD_SHUN_MANAGED_REMOVAL_WORKER_ENABLED", "false")
         if managed_worker not in {"true", "false"}:
             raise ValueError("FTD_SHUN_MANAGED_REMOVAL_WORKER_ENABLED must be true or false")
+        restoration = environ.get("FTD_SHUN_MANAGED_RESTORATION_ENABLED", "false")
+        if restoration not in {"true", "false"}:
+            raise ValueError("FTD_SHUN_MANAGED_RESTORATION_ENABLED must be true or false")
         agent_timeout_seconds = int(environ.get("FTD_SHUN_AGENT_TIMEOUT_SECONDS", "45"))
         if not 5 <= agent_timeout_seconds <= 120:
             raise ValueError("FTD_SHUN_AGENT_TIMEOUT_SECONDS must be between 5 and 120")
@@ -127,4 +135,5 @@ class Settings:
             import_admission_enabled=import_admission == "true",
             import_execution_enabled=import_execution == "true",
             managed_removal_worker_enabled=managed_worker == "true",
+            managed_restoration_enabled=restoration == "true",
         )

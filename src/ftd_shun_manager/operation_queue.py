@@ -346,7 +346,8 @@ class OperationQueue:
             raise QueueConflict("idempotency key was already used for another request")
         return {"operation_id": request_id, "status": "accepted", "replayed": True}
 
-    def has_pending(self, device_id: int | None = None, *, addition_device_ids: frozenset[int] = frozenset()) -> bool:
+    def has_pending(self, device_id: int | None = None, *, addition_device_ids: frozenset[int] = frozenset(),
+                    managed_restoration_enabled: bool = False) -> bool:
         from .managed_restoration import attempt_for_job
 
         with self.store._connection() as db:
@@ -355,7 +356,8 @@ class OperationQueue:
             if not addition_device_ids:
                 return db.execute("""SELECT 1 FROM operation_jobs WHERE state='QUEUED'
                     AND action='REMOVE' AND (? IS NULL OR device_id=?) LIMIT 1""", (device_id, device_id)).fetchone() is not None
-            return any(row["action"] == "REMOVE" or (row["device_id"] in addition_device_ids and not attempt_for_job(db, row["id"]))
+            return any(row["action"] == "REMOVE" or (row["device_id"] in addition_device_ids
+                       and (managed_restoration_enabled or not attempt_for_job(db, row["id"])))
                        for row in db.execute("""SELECT id,action,device_id FROM operation_jobs
                            WHERE state='QUEUED' AND (? IS NULL OR device_id=?)""", (device_id, device_id)))
 
@@ -725,7 +727,7 @@ class OperationQueue:
         print(json.dumps({"event": "queue.request.cancelled", "request_id": request_id,
                           "actor_subject": subject}), flush=True)
 
-    def status(self, *, addition_device_ids: frozenset[int] = frozenset()) -> dict:
+    def status(self, *, addition_device_ids: frozenset[int] = frozenset(), managed_restoration_enabled: bool = False) -> dict:
         from .managed_restoration import SOURCE, attempt_for_job, present
 
         with self.store._connection() as db:
@@ -774,7 +776,8 @@ class OperationQueue:
                         and row["device_id"] in addition_device_ids and reason == "ADD execution is not enabled"):
                     reason = None  # Legacy placeholder, not a real deferral/error.
                 jobs.append({**dict(row), "ip": str(IPv4Address(row["ip"])), "reason": reason,
-                             "execution_enabled": not restoration and (row["action"] == "REMOVE" or row["device_id"] in addition_device_ids),
+                             "execution_enabled": (not restoration or managed_restoration_enabled)
+                             and (row["action"] == "REMOVE" or row["device_id"] in addition_device_ids),
                              "request_count": request_count, "requests": request_views})
             progress_filter = """FROM operation_requests r JOIN operation_links l ON l.request_id=r.id
                 JOIN operation_jobs j ON j.id=l.job_id

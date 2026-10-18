@@ -154,6 +154,8 @@ def refresh_metadata(refresh: object) -> dict[str, object]:
         "import_execution_enabled",
         "managed_removal_worker_enabled",
         "managed_removal_worker_error",
+        "managed_restoration",
+        "managed_restoration_error",
         "addition_device_count",
         "device_cycle",
         "priority_refresh_available",

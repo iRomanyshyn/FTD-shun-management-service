@@ -3516,6 +3516,79 @@ then scoped lab restoration lifecycle. Offline tests/package/default-off release
 do not establish live restoration/reboot/load/failure or production acceptance.
 No new infrastructure, service, published port or arbitrary CLI was added.
 
+## 2026-10-18 — Default-off snapshot discovery and shared system dispatch
+
+Connected standing-policy absence discovery to complete successful initial,
+priority and final snapshots, after reconciliation, with stable per-read UUIDs
+and UTC read start/completion. Added strict independent false-by-default
+`FTD_SHUN_MANAGED_RESTORATION_ENABLED`; ordinary ADD/cycles/large reads/profiles,
+agent gate and existing explicitly initialized/unsuspended authority still apply.
+No schema, policy adoption/grant/resume/rearm, extra executor/read, published
+port, CLI primitive or combined-removal confirmation is introduced.
+
+Discovery admits at most sixteen new jobs and performs sixty-four checks across
+an entire sweep. New jobs cannot bypass its pre-read cutoff or persisted >=60s
+cooldown. Retained last-admission ordering prioritizes never/least-served targets
+and devices across restarts without a new cursor/table. Source admission binds
+the assessed intent UUID so a same-millisecond retirement/regrant race cannot
+rebase evidence. Capacity/conflicts are holds, not successful restoration.
+Unexpected failures roll back source admission/audit and skip subsequent cycle
+mutations; monitoring/final reads continue when available. Background optional
+state failures do not kill the scheduler or cause an immediate retry loop.
+
+Managed UI/API expose controller configuration, current target holds, localized
+backoff deadlines, collapsed latest-sweep counts and sanitized failure warnings
+in the existing fixed-height slot. Counts describe visited devices, not global
+inventory or verified work. GET remains local/read-only/no-init/no-admission.
+Updated normative design, agent agreement, README, status, plan and manuals.
+
+Synthetic validation: all 705 Python tests pass (26.51 s), including 29 new
+discovery cases for default-off/no-init, complete read/cutoff/cooldown, repeated
+absence, restart fairness, budgets/backpressure, generation and lease races,
+failed reads, audit rollback preserving final monitoring, independent pending
+removal suppression on discovery failure, retained lost-result attention and
+read-only holds/configuration. One further read-only API/template case verifies
+enabled configuration without profile/schema grants and honestly labelled
+collapsed counts. Final full suite: **706 passed (26.35 s)**. Compileall/Ruff/
+JS syntax/diff pass. All 22 Chromium scenarios (23 reported tests) pass, including
+the fixed-height restoration-error warning (78.95 s runner). Networkless,
+read-only Python 3.12 built-package smokes with disposable SQLite and no live
+volumes/secrets/sockets pass: no startup migration even with the gate configured,
+complete snapshot discovery, cutoff/persisted cooldown, VERIFIED/new absence,
+retained lost-result latch, source idempotency/provenance/protected cancellation,
+optional BFF rendering and integrity/FK. No real remote calls.
+
+**Authorized lab deployment:** Preflight confirmed all gates off/zero profiles,
+optional schemas absent and queue eight VERIFIED/one NOOP with no pending/active
+shuns. Quiet Compose config/build pass. Retained paired images
+`deploy-api:before-managed-discovery-20261018t1700z` and matching Web tag. Created
+exclusive O_EXCL/O_NOFOLLOW 0600 SQLite-safe checked volume backup and private
+ignored host `.local/backups/state-before-managed-discovery-20261018T1700Z.sqlite3`
+(0700 directory). Stopped old API/Web before --no-deps recreation, no overlapping
+executor. Agent/Caddy/Authelia/env/inventory/secrets and Rust/wire unchanged.
+
+API `cbdea24dd521`, image
+`sha256:078ced6373c02dc32ab178e5c52d5b4204b4a2bcd054efd59acb5bccd9eb6213`;
+Web `a5193eeba8be`, image
+`sha256:58e9e9034ac0dffc25ae297182d247738f643f6017825ba3f598caa27c0a5a19`.
+Agent `9d1f50d361ca`, Caddy `9c8fdb3a7f21`, Authelia `76f3635ab737` unchanged.
+Full sqlite_master and all eleven non-executor tables including sequence
+metadata match backup; integrity ok/FK zero. Optional read endpoints remain
+initialized=false and create no managed/attempt/handoff/fleet schemas. Three
+Protected IPs, queue eight VERIFIED/one NOOP, no pending or active shuns and
+mutation pause unchanged. API ADD/admission/cleanup/controller off, agent ADD
+unset/source-default false, zero profiles. Anonymous Managed/status 401 and
+TLS-verified HTTPS 302 to authentication. Normal post-start v2 cycle at
+2026-10-18T17:03:28Z used two commands/zero removal/addition/mutation steps,
+8580 ms; next baseline 17:08:28Z/no error. No identity spoofing, authenticated
+control, source/policy seed, new job, refresh hint or direct RPC. Paired images
+and checked backups retained; no Rust change/build was required.
+
+Next: frozen standing grant and executable atomic combined cleanup, reviewed
+migration/resume/uncertainty resolution, then separately scoped live restoration
+and explicit retirement/no-readd acceptance. Disabled deployment and synthetic
+tests are not live reboot/restoration/load/failure or production validation.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

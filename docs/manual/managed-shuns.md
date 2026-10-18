@@ -3,11 +3,12 @@
 ## Status and decision
 
 **Registry foundation and read-only API/UI visibility implemented on 2026-10-17.
-Restoration and combined removal confirmation remain unimplemented/off.**
-The [offline system restoration source](managed-restoration.md) now implements
+Combined removal confirmation remains unimplemented; restoration is default-off.**
+The [experimental restoration controller](managed-restoration.md) now implements
 typed snapshot/intent-bound queue authority, claim/revocation/recovery hooks,
-retained uncertainty and occurrence-bound results. It is not connected to
-discovery or runtime dispatch and never initializes schemas on startup.
+retained uncertainty and occurrence-bound results. Bounded complete-snapshot
+discovery and shared dispatch require a separate disabled setting and all ADD
+gates; no startup initializes schemas or grants standing authority.
 The [removal handoff coordinator](managed-removal-handoffs.md) is implemented
 offline: atomic single-target retirement/cleanup and RUNNING-ADD settlement
 are tested. A default-off worker advances waits; separate
@@ -180,8 +181,9 @@ backup, upgrade, restart and audit retention are not new device-write authority.
 3. Integrate ordered removal handoff, revocation/cancellation/protection races,
    system queue admission and uncertain-outcome latch under independent gates.
    The offline system source/claim hooks and atomic retirement/protection/
-   recovery integration are now tested. Runtime discovery, standing-mode grant,
-   reviewed resume/rearm and full backlog integration are still unavailable.
+   recovery integration and default-off bounded runtime discovery are now tested.
+   Standing-mode grant, reviewed resume/rearm and executable combined controls
+   are still unavailable; hold/backoff and latest-sweep counts are read-only.
 4. Cover complete-versus-partial snapshots, reboot-like mass absence, unknown
    results, old-key replay after retirement, multiple users/instances, cutoff/
    backpressure, retention, backup restore and rollback using synthetic state.
@@ -201,7 +203,7 @@ requires an already initialized Store and adds:
 
 | Table | Role |
 | --- | --- |
-| `managed_shun_registry` | Global optimistic revision and `restoration_suspended=1` default. No resume path/controller exists yet. |
+| `managed_shun_registry` | Global optimistic revision and `restoration_suspended=1` default. No resume path; experimental controller stays separately gated. |
 | `managed_shun_targets` | One device/IP desired intent, UUID/generation, enabled/retired state, target revision, authorization reference and UTC dates. |
 | `managed_shun_requests` | Immutable original actor/roles, canonical intent/result and timestamp, independent of pruned queue/history. |
 

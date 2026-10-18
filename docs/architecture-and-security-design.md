@@ -3314,3 +3314,35 @@ not replay; verified creation records occurrence-bound system provenance, NOOP
 does not. Recovery cancels queued attempts, retains running uncertainty and
 suspends restoration. Old images ignoring this source must not execute pending
 system attempts. Synthetic validation is not live restoration acceptance.
+
+### Default-off managed discovery and shared dispatch — 2026-10-18
+
+An independent strict `FTD_SHUN_MANAGED_RESTORATION_ENABLED=false` switch may
+connect the existing system source to complete successful initial/priority/final
+snapshots and shared v3 claims. It requires the existing API ADD execution gate,
+socket/cycles/large-read mode and per-device addition profiles; the agent's own
+gate remains mandatory. This does not initialize policy/attempt schemas, grant
+standing authority, unsuspend policy, enable import intake or expose managed
+creation/combined confirmation/rearm. Deployment keeps every live gate off.
+
+Create fresh stable evidence once per actual read, retaining UTC read start/end;
+publish/reconcile the full snapshot before discovery. Never discover from failed,
+partial, deferred or cached reads. Jobs discovered after the frozen sweep cutoff
+wait for the next eligible cycle, never bypass FIFO or the persisted >=60s pause.
+Existing priority/final-read reserves and shared budgets remain unchanged.
+
+Bound new admission to sixteen jobs and sixty-four attempts per entire sweep.
+Assess at most the existing 1000 policy keys with bounded retained-ledger reads.
+Prefer never/least-recently admitted targets/devices using retained attempt times,
+so repeated boot-like absence on one device cannot starve another across restarts.
+No missing-policy-only wakeups or extra writer/reader; baseline discovers, admitted
+eligible jobs use the existing pending-work wakeup/cooldown. No churn rearm or
+uncertain-result replay. Expected holds/backpressure are visible states, not
+device-read failures; unexpected discovery errors stop cycle mutations while
+retaining complete monitoring/final reads and sanitized diagnostics.
+
+Read-only Managed UI/status reports configuration, bounded discovery counts and
+current hold reasons, separately from cached observed absence and verified work.
+Reads never admit work, renew evidence or fetch Cisco; partial optional state is
+unavailable, not empty. This increment is default-off integration tested with
+synthetic agents, not live restoration approval or production readiness.

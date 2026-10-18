@@ -1,12 +1,26 @@
 # Development Plan
 
-Last updated: 2026-10-17
+Last updated: 2026-10-18
 
 **Status: refresh/queue implemented; bounded removal sessions and priority reads experimental; parse-only import preview implemented, addition pending.** This document records
 the next product increments. It describes target behavior, not capabilities
 already available. See [Project Status](project-status.md) for delivery evidence
 and [Architecture and Security Design](architecture-and-security-design.md#74-approved-next-increment-queued-device-cycles-and-manual-imports)
 for the approved scope extension and unchanged security boundaries.
+
+## Default-off controller checkpoint — 2026-10-18
+
+Complete successful snapshots now feed bounded standing-policy discovery and
+shared dispatch behind `FTD_SHUN_MANAGED_RESTORATION_ENABLED=false`. Existing
+ADD/cycle/large-read/device gates still apply. New jobs wait behind the frozen
+cutoff and persisted cooldown; sixteen new jobs/sixty-four admission checks per
+sweep and retained-time fairness prevent a large missing set monopolizing it.
+Managed UI separates current holds/backoff from cached observation and verified
+outcomes. No extra executor, schema initialization, adoption, grant/resume/rearm
+or combined confirmation was enabled. Next: frozen standing-mode authorization
+and executable atomic cleanup controls, reviewed migration/resume/uncertainty
+resolution, then a newly scoped lab lifecycle. The historical checkpoints below
+describe their own delivery dates, not current feature availability.
 
 ## Latest requirement amendment — 2026-10-17
 

@@ -14,8 +14,10 @@ from uuid import uuid4
 from .agent_client import AgentClient, AgentUnavailable
 from .agent_protocol import MAX_CYCLE_REMOVALS as MAX_CYCLE_MUTATIONS
 from .agent_protocol import AdditionResult
+from .managed_discovery import ManagedDiscovery
 from .managed_fleet_waits import ManagedFleetWaits
 from .managed_removals import ManagedRemovals
+from .managed_restoration import CompleteSnapshot
 from .managed_shuns import ManagedShuns
 from .operation_queue import QueueConflict, QueueFull
 from .protected_policy import ProtectedPolicy
@@ -48,9 +50,12 @@ class Synchronizer:
         import_execution_enabled: bool = False,
         addition_device_ids: frozenset[int] = frozenset(),
         managed_removal_worker_enabled: bool = False,
+        managed_restoration_enabled: bool = False,
     ) -> None:
         if import_execution_enabled and not session_cycles_enabled:
             raise ValueError("import execution requires session cycles")
+        if type(managed_restoration_enabled) is not bool or (managed_restoration_enabled and not import_execution_enabled):
+            raise ValueError("managed restoration requires boolean configuration and API ADD execution")
         self.store = store
         self.agent = agent
         self.poll_interval_seconds = poll_interval_seconds
@@ -66,6 +71,10 @@ class Synchronizer:
         self._priority_pending = False
         self._priority_used = False
         self.queue = self.policy.queue
+        self.managed_restoration_enabled = managed_restoration_enabled
+        self.managed_discovery = ManagedDiscovery(store, self.queue, enabled=managed_restoration_enabled,
+                                                   addition_device_ids=self.addition_device_ids)
+        self._managed_restoration_error: str | None = None
         self.managed_removal_worker_enabled = managed_removal_worker_enabled
         self.managed_removals = ManagedRemovals(ManagedShuns(store), self.queue,
                                                worker_enabled=managed_removal_worker_enabled)
@@ -184,7 +193,10 @@ class Synchronizer:
             "last_retention_purge": self._last_retention_purge,
             "history_retention_error": self._last_retention_error,
             "devices": devices,
-            "queue": self.queue.status(addition_device_ids=self.addition_device_ids),
+            "queue": self.queue.status(addition_device_ids=self.addition_device_ids,
+                                       managed_restoration_enabled=self.managed_restoration_enabled),
+            "managed_restoration": deepcopy(self.managed_discovery.status()),
+            "managed_restoration_error": self._managed_restoration_error,
             "import_execution_enabled": self.import_execution_enabled,
             "managed_removal_worker_enabled": self.managed_removal_worker_enabled,
             "managed_removal_worker_error": self._managed_removal_error,
@@ -254,8 +266,16 @@ class Synchronizer:
         self._next_baseline_at = next_baseline
         self._next_baseline_refresh = _timestamp_after(int(self.queue.delay()) + 1)
         while True:
-            self.queue.expire_requests()
-            if self._has_pending():
+            try:
+                self.queue.expire_requests()
+                pending = self._has_pending()
+            except (sqlite3.Error, ValueError):
+                if not self.managed_restoration_enabled:
+                    raise
+                if not self._managed_restoration_error:
+                    self._restoration_failed()
+                pending = False  # Surface optional-state errors in the next baseline, never spin.
+            if pending:
                 due = min(next_baseline, monotonic() + self.queue.delay())
             else:
                 due = next_baseline
@@ -287,8 +307,15 @@ class Synchronizer:
         if not self.queue.claim_cycle(self.instance_id, self._lease_seconds):
             self._next_interactive_refresh = _timestamp_after(int(self.queue.delay()) + 1)
             return
-        self.queue.expire_requests()
-        self.queue.cancel_obsolete_policy()
+        self._managed_restoration_error = None
+        try:
+            self.queue.expire_requests()
+            self.queue.cancel_obsolete_policy()
+        except (sqlite3.Error, ValueError):
+            if not self.managed_restoration_enabled:
+                raise
+            self._restoration_failed()
+        self.managed_discovery.begin_cycle()
         self._activity.clear()
         self._refresh_in_progress = True
         self._cycle_id += 1
@@ -300,7 +327,7 @@ class Synchronizer:
         self._status_revision += 1
         try:
             self._managed_removal_error = None
-            if self.managed_removal_worker_enabled:
+            if self.managed_removal_worker_enabled and not self._managed_restoration_error:
                 try:
                     # Exactly once before the cutoff; never materialize removal
                     # against an in-memory pre-ADD snapshot later in this cycle.
@@ -336,7 +363,8 @@ class Synchronizer:
         return await asyncio.to_thread(function, *args)
 
     def _has_pending(self, device_id: int | None = None) -> bool:
-        if self.queue.has_pending(device_id, addition_device_ids=self.addition_device_ids):
+        if self.queue.has_pending(device_id, addition_device_ids=self.addition_device_ids,
+                                  managed_restoration_enabled=self.managed_restoration_enabled):
             return True
         if self.managed_removal_worker_enabled and device_id is None:
             try:
@@ -352,7 +380,13 @@ class Synchronizer:
         failures = 0
         successful_devices = 0
         self._last_error = None
-        for device in self.store.list_devices():
+        devices = self.store.list_devices()
+        if not self._mutations_blocked:
+            try:
+                devices = self.managed_discovery.ordered_devices(devices)
+            except (sqlite3.Error, ValueError):
+                self._restoration_failed()
+        for device in devices:
             if not device.enabled:
                 continue
             self._devices[device.id] = {
@@ -363,6 +397,7 @@ class Synchronizer:
             self._status_revision += 1
             cycle = None
             try:
+                read_started = self.queue._now()
                 if self.session_cycles_enabled:
                     self._active_device_id = device.id
                     self._priority_pending = self._priority_used = False
@@ -375,7 +410,9 @@ class Synchronizer:
                     snapshot = cycle.initial_snapshot
                 else:
                     snapshot = await self._agent_call(self.agent.list_shuns, device.id)
+                read_completed = self.queue._now()
                 self._publish_snapshot(device.id, snapshot)
+                self._discover_snapshot(device.id, snapshot, read_started, read_completed)
             except (AgentUnavailable, OSError, ValueError, sqlite3.Error) as error:
                 if cycle is not None:
                     cycle.abort()
@@ -452,8 +489,28 @@ class Synchronizer:
             self._next_interactive_refresh = _timestamp_after(self.interactive_min_interval_seconds)
         self.note_state_change()
 
+    @property
+    def _mutations_blocked(self):
+        return self._managed_restoration_error or self._managed_removal_error
+
+    def _restoration_failed(self):
+        self._managed_restoration_error = "Managed restoration failed; mutations skipped for this cycle."
+        self._status_revision += 1
+        print(json.dumps({"event": "managed_shun.discovery.failed", "reason": self._managed_restoration_error}), flush=True)
+
+    def _discover_snapshot(self, device_id, snapshot, started, completed):
+        if not self.managed_restoration_enabled or self._mutations_blocked:
+            return
+        evidence = CompleteSnapshot(str(uuid4()), device_id, started, completed, frozenset(entry.ip for entry in snapshot))
+        try:
+            if self.managed_discovery.discover(evidence, self.instance_id):
+                self.note_state_change()
+        except (sqlite3.Error, ValueError, TypeError, KeyError, AttributeError):
+            self._restoration_failed()
+        self._status_revision += 1
+
     def _admit_trusted(self, device_id: int, ips) -> None:
-        if self._managed_removal_error or self.queue.mutations_suspended():
+        if self._mutations_blocked or self.queue.mutations_suspended():
             return
         for ip in ips:
             if not self.queue.has_target(device_id, ip):
@@ -468,7 +525,7 @@ class Synchronizer:
             allowed = self.policy.enabled_ips()
             self._admit_trusted(device_id, sorted({entry.ip for entry in snapshot
                                if entry.ip in allowed}, key=int))
-            for _ in range(0 if self._managed_removal_error else MAX_CYCLE_MUTATIONS):
+            for _ in range(0 if self._mutations_blocked else MAX_CYCLE_MUTATIONS):
                 if self._priority_pending and not self._priority_used:
                     self._priority_pending = False
                     last = self._device_success_at.get(device_id)
@@ -476,7 +533,9 @@ class Synchronizer:
                         self._priority_used = True
                         self._device_cycle.update(action="priority_snapshot", priority_state="reading")
                         self._status_revision += 1
+                        read_started = self.queue._now()
                         snapshot = await self._agent_call(cycle.snapshot)
+                        read_completed = self.queue._now()
                         if snapshot is None:
                             self._device_cycle.update(priority_state="joining_final_snapshot",
                                                       budget_deferred=self._has_pending(device_id))
@@ -484,6 +543,9 @@ class Synchronizer:
                                               "device_id": device_id, "joining_final_snapshot": True}), flush=True)
                             break
                         self._publish_snapshot(device_id, snapshot)
+                        self._discover_snapshot(device_id, snapshot, read_started, read_completed)
+                        if self._mutations_blocked:
+                            break
                         allowed = self.policy.enabled_ips()
                         self._admit_trusted(device_id, sorted({entry.ip for entry in snapshot
                                            if entry.ip in allowed}, key=int))
@@ -491,7 +553,8 @@ class Synchronizer:
                     self._set_interactive_state("running")
                 cutoff = self._cycle_cutoff if self._cycle_cutoff is not None else self.queue.cutoff()
                 job = self.queue.claim_next_mutation(device_id, self.instance_id, cutoff,
-                                                    additions_enabled=device_id in self.addition_device_ids)
+                                                    additions_enabled=device_id in self.addition_device_ids,
+                                                    managed_restoration_enabled=self.managed_restoration_enabled)
                 if job is None:
                     break
                 target = IPv4Address(job["ip"])
@@ -531,11 +594,14 @@ class Synchronizer:
             if self._device_cycle["completed"] >= MAX_CYCLE_MUTATIONS and self._has_pending(device_id):
                 self._device_cycle["budget_deferred"] = True
             self._status_revision += 1
+            read_started = self.queue._now()
             snapshot = await self._agent_call(cycle.finish)
+            read_completed = self.queue._now()
             self._publish_snapshot(device_id, snapshot)
+            self._discover_snapshot(device_id, snapshot, read_started, read_completed)
             self._priority_pending = False
             self._device_cycle.update(action="completed", priority_state="satisfied")
-            return self._managed_removal_error
+            return self._mutations_blocked
         except (AgentUnavailable, OSError, ValueError, sqlite3.Error) as error:
             self._device_cycle["action"] = "failed"
             print(json.dumps({"event": "queue.cycle.failed", "device_id": device_id,
@@ -566,8 +632,8 @@ class Synchronizer:
         return True
 
     async def _queued_removal(self, device_id: int, snapshot, trusted_ips) -> str | None:
-        if self._managed_removal_error:
-            return self._managed_removal_error
+        if self._mutations_blocked:
+            return self._mutations_blocked
         try:
             # Policy discovery may join this cycle; user mutations admitted
             # after its cutoff wait for the next cycle.

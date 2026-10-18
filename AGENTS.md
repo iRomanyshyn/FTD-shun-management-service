@@ -97,10 +97,16 @@ Do not rewrite historical log entries except to correct an objective error; add 
   Protected automatic removal remains independent. An offline system restoration
   source now binds fresh complete snapshots, intent/generation/authorization and
   retained attempts to shared jobs without fake user roles/imports. Claim has a
-  separate default-false internal capability not supplied by runtime. Retirement/
+  separate default-false capability supplied only by the experimental restoration
+  controller. `FTD_SHUN_MANAGED_RESTORATION_ENABLED=false` remains the default;
+  enabling it also requires API ADD/cycles/large reads and explicit profiles,
+  existing optional schemas and unsuspended standing policy. Discovery uses only
+  complete successful fresh reads, bounds new work to 16 jobs/64 checks per sweep,
+  and never bypasses the frozen cutoff or >=60s cooldown. Startup/GET never
+  migrate, adopt or admit. All live gates remain off. Retirement/
   protection cancel unstarted system ADD atomically; RUNNING remains ordered.
   FAILED/UNVERIFIED latches survive queue retention and new generations; no rearm
-  or controller/resume/standing-grant route exists. No startup initializes its
+  or resume/standing-grant route exists. No startup initializes its
   optional attempt ledger. Follow docs/manual/managed-restoration.md; do not
   seed the ledger or enable dispatch/discovery in the lab as a smoke shortcut.
   Follow docs/manual/managed-controls.md. A default-off cleanup-worker hook may advance

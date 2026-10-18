@@ -2,6 +2,15 @@
 
 ## Offline managed-policy foundation
 
+`tests/test_managed_discovery.py` exercises default-off runtime integration on
+temporary SQLite with typed fake consoles: fresh initial/priority/final evidence,
+next-cycle cutoff/cooldown, duplicate suppression, per-sweep bounds, restart
+fairness across devices, generation races, backpressure, held configuration,
+failed reads, audit rollback with final monitoring and retained lost-result
+attention. No live schema, policy, secret, socket or FTD is used. Chromium also
+checks the fixed-height restoration-error warning. See
+[Managed Restoration](managed-restoration.md) for the independent gate and limits.
+
 `tests/test_managed_protection.py` exercises optional managed-state validation,
 enabled-intent counts, current-revision/acknowledgement checks before protection
 weakening, real all-role BFF forwarding, unchanged authority and no work hints.

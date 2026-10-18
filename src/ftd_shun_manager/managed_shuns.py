@@ -265,13 +265,17 @@ class ManagedShuns:
             return {"managed_policy_available": True, "managed_policy_initialized": state is not None,
                     "managed_policy_revision": state["revision"] if state is not None else 0}
 
-    def snapshot_if_present(self) -> dict:
+    def snapshot_if_present(self, *, restoration_context=None, restoration_now=None) -> dict:
         """Read-only published view: missing registry is explicit, partial schema is error."""
-        return {**self.snapshot(if_present=True), "controller_available": False, "read_only": True}
+        value = self.snapshot(if_present=True, restoration_context=restoration_context, restoration_now=restoration_now)
+        return {**value, "controller_available": restoration_context is not None, "read_only": True,
+                **({"controller_enabled": restoration_context.enabled} if restoration_context is not None else {})}
 
-    def snapshot(self, *, if_present: bool = False) -> dict:
+    def snapshot(self, *, if_present: bool = False, restoration_context=None, restoration_now=None) -> dict:
         """One consistent bounded view; observed presence is not creation proof."""
+        from .managed_discovery import describe
         from .managed_restoration import snapshot_targets
+        from .operation_queue import OperationQueue
 
         with self.store._connection() as db:
             db.execute("BEGIN")
@@ -290,6 +294,7 @@ class ManagedShuns:
             if len(rows) > MAX_MANAGED_TARGETS:
                 raise ManagedCapacity("Stored managed targets exceed this version's supported limit.")
             restoration = snapshot_targets(db)
+            holds = describe(db, rows, restoration_context, restoration_now or OperationQueue(self.store)._now()) if restoration_context is not None else {}
         entries = []
         metadata = {}
         for row in rows:
@@ -300,6 +305,7 @@ class ManagedShuns:
             del entry["payload_json"]
             entry.update(metadata[row["authorization_request_id"]])
             entry.update(restoration.get((row["device_id"], row["ip"]), {}))
+            entry.update(holds.get((row["device_id"], row["ip"]), {}))
             entry["ip"] = str(IPv4Address(row["ip"]))
             entry["actor_roles"] = json.loads(entry.pop("actor_roles_json"))
             for key in ("enabled", "device_enabled", "observed_present", "protected"):

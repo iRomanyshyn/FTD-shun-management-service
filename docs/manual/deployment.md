@@ -2,6 +2,15 @@
 
 ## Scope and current boundary
 
+The [experimental managed restoration controller](managed-restoration.md) is
+independently default-off (`FTD_SHUN_MANAGED_RESTORATION_ENABLED=false`). Updating
+API/Web does not initialize policy/attempt schemas or enable restoration. Retain
+paired images and a checked SQLite-safe private backup; keep ADD/controller/
+cleanup gates and explicit addition profiles unchanged in the current lab.
+Startup may execute already admitted eligible ordinary work. Verify no optional
+tables or new jobs were created by read-only smoke checks. Rollback with pending
+system work requires the recovery procedure, not an unaware older executor.
+
 The [queued ADD execution](import-execution.md) update rebuilds only API/Web
 with a fresh SQLite-safe backup and prior paired images. No new schema/agent
 format is introduced beyond the admission increment. Keep both API import gates

@@ -137,6 +137,7 @@ def create_app(
         import_execution_enabled=settings.import_execution_enabled,
         addition_device_ids=addition_device_ids,
         managed_removal_worker_enabled=settings.managed_removal_worker_enabled,
+        managed_restoration_enabled=settings.managed_restoration_enabled,
     )
     policy = synchronizer.policy
     managed_removals = synchronizer.managed_removals  # Optional schema; no startup initialization.
@@ -191,7 +192,8 @@ def create_app(
     @app.get("/api/v1/managed-shuns")
     def managed_shuns() -> dict:
         try:
-            return managed.snapshot_if_present()
+            return managed.snapshot_if_present(restoration_context=synchronizer.managed_discovery.context,
+                                               restoration_now=synchronizer.queue._now())
         except (sqlite3.DatabaseError, ManagedConflict, ManagedCapacity, ValueError, TypeError, KeyError) as error:
             raise HTTPException(503, "Managed shun registry is unavailable; no policy was changed.") from error
 

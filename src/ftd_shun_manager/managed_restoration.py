@@ -1,4 +1,4 @@
-"""Offline system ADD authority; no discovery loop, runtime gate or migration."""
+"""Snapshot-bound system ADD authority; no migration or standalone executor."""
 
 import json
 import sqlite3
@@ -190,8 +190,8 @@ class ManagedRestorations:
                     BEGIN SELECT RAISE(ABORT,'restoration outcome cannot be replayed'); END;
             """)
 
-    def admit_absence(self, snapshot: CompleteSnapshot, ip: IPv4Address, owner: str, *, enabled=False):
-        """Offline integration hook; runtime does not call it or supply capability."""
+    def admit_absence(self, snapshot: CompleteSnapshot, ip: IPv4Address, owner: str, *, enabled=False, expected_intent_id=None):
+        """Trusted integration hook; only explicit controller capability admits work."""
         if type(enabled) is not bool:
             raise ValueError("Restoration capability must be boolean.")
         if not enabled:
@@ -210,6 +210,8 @@ class ManagedRestorations:
             target = db.execute("SELECT * FROM managed_shun_targets WHERE device_id=? AND ip=?", (snapshot.device_id, ip.packed)).fetchone()
             if target is None:
                 raise QueueConflict("No explicit standing policy authorizes restoration.")
+            if expected_intent_id is not None and target["intent_id"] != expected_intent_id:
+                raise QueueConflict("Managed generation changed after discovery; no rebasing.")
             key = str(uuid5(UUID(target["intent_id"]), snapshot.id))
             old = db.execute("SELECT * FROM managed_restoration_attempts WHERE id=?", (key,)).fetchone()
             if old:

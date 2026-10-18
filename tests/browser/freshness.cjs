@@ -849,19 +849,20 @@ test("refresh interaction in real Chromium", { timeout: 120000 }, async (t) => {
         for (const width of [1100, 375]) {
           await page.call("Emulation.setDeviceMetricsOverride", { width, height: 800, deviceScaleFactor: 1, mobile: false });
           const baseline = await position();
-          for (const phase of ["refreshing", "error", "paused", "cleanup_error", "ready"]) {
+          for (const phase of ["refreshing", "error", "paused", "cleanup_error", "restoration_error", "ready"]) {
             status.refresh_in_progress = phase === "refreshing";
-            status.devices["1"].state = ["paused", "cleanup_error"].includes(phase) ? "ready" : phase;
+            status.devices["1"].state = ["paused", "cleanup_error", "restoration_error"].includes(phase) ? "ready" : phase;
             status.devices["1"].stale = phase === "error";
             status.last_error = phase === "error" ? "A long device failure. ".repeat(12) : null;
             status.queue.counts = phase === "error" ? { UNVERIFIED: 12345 } : {};
             status.queue.mutations_suspended = phase === "paused";
             status.managed_removal_worker_error = phase === "cleanup_error" ? "Managed cleanup handoff failed; mutations skipped for this cycle." : null;
+            status.managed_restoration_error = phase === "restoration_error" ? "Managed restoration failed; mutations skipped for this cycle." : null;
             status.status_revision += 1;
             await wake(page);
-            const label = { refreshing: "Refreshing", error: "Error", ready: "Current", paused: "Current", cleanup_error: "Current" }[phase];
+            const label = { refreshing: "Refreshing", error: "Error", ready: "Current", paused: "Current", cleanup_error: "Current", restoration_error: "Current" }[phase];
             await page.until(`document.querySelector('[data-device-status]').textContent.includes('${label}')`);
-            await page.until(`document.querySelector('[data-recovery-warning]').hidden === ${!["paused", "cleanup_error"].includes(phase)}`);
+            await page.until(`document.querySelector('[data-recovery-warning]').hidden === ${!["paused", "cleanup_error", "restoration_error"].includes(phase)}`);
             if (phase === "paused") assert.ok(await page.evaluate("document.querySelector('[data-recovery-warning]').textContent.includes('Monitoring continues')"));
             assert.equal(await position(), baseline, `${width}px viewport / ${phase} leaves search in place`);
           }

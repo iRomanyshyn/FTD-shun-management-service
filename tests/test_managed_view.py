@@ -69,7 +69,8 @@ def test_optional_api_read_does_not_initialize_adopt_or_mutate(lab):
                 view = await client.get("/api/v1/managed-shuns")
                 assert view.status_code == 200 and view.headers["cache-control"] == "no-store"
                 assert view.json() == {"initialized": False, "revision": 0, "restoration_suspended": True,
-                                       "limit": 1000, "entries": [], "read_only": True, "controller_available": False}
+                                       "limit": 1000, "entries": [], "read_only": True,
+                                       "controller_available": True, "controller_enabled": False}
                 status = (await client.get("/api/v1/status")).json()
                 assert status["managed_policy_revision"] == 0 and status["managed_policy_initialized"] is False
                 assert status["managed_policy_available"] is True
@@ -95,7 +96,8 @@ def test_bff_view_requires_auth_read_only_for_all_roles_and_escapes_metadata(lab
             assert response.status_code == 200 and response.headers["cache-control"] == "no-store"
             assert 'href="/managed-shuns" aria-current="page"' in response.text
             assert "Maintain presence" in response.text and "Not currently observed" in response.text
-            assert "Controller not implemented" in response.text and "Not recorded" in response.text
+            assert "Controller disabled" in response.text and "Not recorded" in response.text
+            assert "Experimental automatic restoration is disabled" in response.text
             assert "&lt;b&gt;Fixture&lt;/b&gt;" in response.text and "<script>not executable</script>" not in response.text
             assert "Alice (alice)" in response.text and f"v{__version__}" in response.text
             assert 'data-auto-request="false"' in response.text
@@ -147,3 +149,28 @@ def test_managed_status_and_views_report_changes_without_claiming_restoration(la
             assert (await client.get("/refresh-status")).json()["managed_policy_revision"] == 2
     asyncio.run(scenario())
     assert api.state.synchronizer.queue.status()["counts"] == {}
+
+
+def test_enabled_controller_metadata_is_readonly_and_summary_is_not_a_success_claim(lab):
+    store, api, _, _ = lab
+    grant(store)
+    settings = replace(Settings.from_environment(), database_path=store.path,
+                       device_inventory_path=None, agent_mode="socket", agent_cycles_enabled=True,
+                       large_snapshots_enabled=True, import_execution_enabled=True,
+                       managed_restoration_enabled=True)
+    enabled_api = create_app(settings, store)
+    before = store.list_events()
+    async def scenario():
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=enabled_api), base_url="http://internal") as client:
+            status = (await client.get("/api/v1/status")).json()
+            view = (await client.get("/api/v1/managed-shuns")).json()
+            assert view["controller_available"] and view["controller_enabled"]
+            assert view["entries"][0]["restoration_hold"] == "no_addition_profile"
+            html = web.templates.get_template("managed-shuns.html").render(
+                refresh=status, managed=view, identity={"roles": [], "subject": "viewer"})
+            assert "Latest discovery sweep — 0 / 16 new jobs admitted" in html
+            assert "not verified creation" in html and "No managed targets assessed yet" in html
+    asyncio.run(scenario())
+    assert store.list_events() == before and api.state.synchronizer.queue.status()["counts"] == {}
+    with store._connection() as db:
+        assert not db.execute("SELECT 1 FROM sqlite_master WHERE name='managed_restoration_attempts'").fetchone()

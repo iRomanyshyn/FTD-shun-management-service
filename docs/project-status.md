@@ -4,6 +4,40 @@ Last updated: 2026-10-18
 
 ## Current increment
 
+**Default-off complete-snapshot discovery and shared dispatch (2026-10-18).**
+`FTD_SHUN_MANAGED_RESTORATION_ENABLED=false` now controls the independent system
+capability. True requires existing API ADD/socket-cycle/large-read controls;
+explicit profiles, agent ADD and optional unsuspended standing authority remain
+mandatory. No migration/adoption/create/resume/rearm or executable combined
+confirmation is added. Initial/priority/final complete successful reads supply
+stable UTC proof only after full reconciliation. New work waits behind the
+frozen cutoff and persisted >=60s cooldown, with no extra reader or executor.
+
+Bounded to sixteen new jobs/sixty-four checks per sweep, existing 1000 policy
+keys/10000 retained attempts and durable least-recent-admission fairness across
+devices/restarts. Expected conflicts/capacity/backoff are holds; unexpected
+errors stop subsequent mutations while retaining monitoring/final reads and
+sanitized status. Managed shuns shows current hold/backoff and collapsed latest
+sweep counts, separately from cached absence, pending jobs and verified results.
+Reads never manufacture evidence or work. See [Managed Restoration](manual/managed-restoration.md).
+
+All 706 Python tests (29 discovery cases and a new enabled/read-only UI case),
+22 Chromium scenarios/23 reported tests, compileall/Ruff/JS syntax/diff and
+networkless Python 3.12 packaged lifecycle/BFF smoke pass. Deployed only API
+`cbdea24dd521` / Web `a5193eeba8be`; retained paired
+`before-managed-discovery-20261018t1700z` images and checked 0600 volume/private
+host `.local/backups/state-before-managed-discovery-20261018T1700Z.sqlite3`.
+Full schema/all eleven non-executor tables match backup; integrity/FK pass.
+Optional schemas absent, queue eight VERIFIED/one NOOP, no pending/active shuns,
+three Protected IPs unchanged. ADD/admission/cleanup/controller off, agent ADD
+unset/default false, zero profiles. Agent/Caddy/Authelia/env/inventory/secrets
+unchanged. Anonymous managed/status 401, TLS-verified HTTPS 302. Normal v2 cycle
+at 17:03:28Z: two reads/zero mutations/8580 ms, next 17:08:28Z/no error.
+No live fixture, source seed, control submission, hint, new job or direct RPC.
+This disabled deployment is not live restoration/reboot/load acceptance.
+Next: frozen standing grant and combined execution controls, reviewed migration/
+resume/uncertainty resolution, then a newly scoped lab restoration lifecycle.
+
 **Offline system restoration queue lifecycle (2026-10-18).** A separate standing
 policy source now creates deterministic snapshot/intent-bound ADD attempts under
 the shared lease, without impersonating users or creating import batches. It
@@ -1009,8 +1043,8 @@ Policy-only retirement/wait cancellation, frozen fleet scope/comparison and
 offline ready/ordered atomic fleet admission are now implemented. Bounded fleet
 status and owner/Admin waiting revocation are available. The offline standing
 system queue source, claim/generation/protection/revocation/uncertainty hooks are
-now tested; next connect bounded default-off complete-snapshot discovery and
-backlog, frozen standing grant/combined controls and reviewed resume/resolution
+now tested and bounded default-off complete-snapshot discovery/shared dispatch
+is connected. Next: frozen standing grant/combined controls and reviewed resume/resolution
 with uncertainty/rearm and anti-churn controls. Do not enable it by deriving
 policy from historical imports or by renewing old user jobs. Resolve controller
 anti-churn defaults and any expansion beyond initial registry bounds before live

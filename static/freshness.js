@@ -265,10 +265,10 @@
       const queueWarning = panel.querySelector("[data-queue-warning]");
       const recoveryWarning = panel.querySelector("[data-recovery-warning]");
       if (recoveryWarning) {
-        recoveryWarning.hidden = !queue.mutations_suspended && !status.managed_removal_worker_error;
+        recoveryWarning.hidden = !queue.mutations_suspended && !status.managed_removal_worker_error && !status.managed_restoration_error;
         recoveryWarning.textContent = queue.mutations_suspended
           ? "Recovery safety pause: device mutations and new jobs are suspended. Monitoring continues; offline review is required before resuming."
-          : (status.managed_removal_worker_error || "");
+          : (status.managed_removal_worker_error || status.managed_restoration_error || "");
       }
       if (queueWarning) {
         queueWarning.hidden = !attentionTotal;
