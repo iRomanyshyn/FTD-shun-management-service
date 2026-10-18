@@ -91,7 +91,10 @@ def test_normal_startup_and_reads_do_not_initialize_or_expose_fleet_admission(tm
     with store._connection() as db:
         assert not db.execute("SELECT 1 FROM sqlite_master WHERE name='managed_fleet_removals'").fetchone()
     assert all(route.methods == {"GET"} for route in app.routes if "managed-removal-scope" in route.path)
-    assert not any("fleet" in route.path for route in app.routes)
+    assert {(route.path, tuple(sorted(route.methods))) for route in app.routes if "fleet" in route.path} == {
+        ("/api/v1/managed-fleet-removals", ("GET",)),
+        ("/api/v1/managed-fleet-removals/{request_id}/cancel", ("POST",)),
+    }  # Observation/revocation only; no admission route.
 
 
 def test_whole_union_is_atomic_one_request_one_retirement_and_no_unmanaged_adoption(fleet, capsys):

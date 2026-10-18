@@ -433,7 +433,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if refresh.status_code != 200 or policy.status_code != 200:
             return render(request, "error.html", {"identity": identity,
                           "message": "Managed shun state is unavailable. No policy was changed."}, 503)
-        cleanup = None
+        cleanup, fleet_cleanup = None, None
         try:
             with api_client(settings) as client:
                 response = client.get("/api/v1/managed-removal-handoffs")
@@ -445,9 +445,22 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     cleanup = candidate
         except (httpx.HTTPError, ValueError, TypeError):
             pass  # Optional cleanup errors stay visible; never fabricate empty state.
+        try:
+            with api_client(settings) as client:
+                response = client.get("/api/v1/managed-fleet-removals")
+            if response.status_code == 200:
+                candidate = response.json()
+                if (isinstance(candidate, dict) and type(candidate.get("initialized")) is bool
+                        and isinstance(candidate.get("items"), list) and len(candidate["items"]) <= 20
+                        and isinstance(candidate.get("counts"), dict) and candidate.get("read_only") is True
+                        and candidate.get("admission_enabled") is False):
+                    fleet_cleanup = candidate
+        except (httpx.HTTPError, ValueError, TypeError):
+            pass
         return render(request, "managed-shuns.html", {
             "identity": identity, "refresh": refresh.json(), "managed": policy.json(),
             "handoffs": cleanup,
+            "fleet_cleanup": fleet_cleanup,
             "active_page": "managed", "auto_request": False,
         })
 
@@ -556,12 +569,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         require_managed_operator(identity)
         fields = await preview_form(request, allowed={"csrf"}, max_bytes=4096)
         require_csrf(request, fields.get("csrf", [""])[0])
-        return await run_in_threadpool(cancel_waiting_cleanup_request, request, request_id, identity)
+        return await run_in_threadpool(cancel_waiting_cleanup_request, request, request_id, identity, "managed-removal-handoffs")
 
-    def cancel_waiting_cleanup_request(request, request_id, identity):
+    @app.post("/managed-shuns/fleet-waits/{request_id}/cancel")
+    async def cancel_waiting_fleet_cleanup(request: Request, request_id: UUID) -> Response:
+        identity = identity_from_request(request, settings.development_auth)
+        require_managed_operator(identity)
+        fields = await preview_form(request, allowed={"csrf"}, max_bytes=4096)
+        require_csrf(request, fields.get("csrf", [""])[0])
+        return await run_in_threadpool(cancel_waiting_cleanup_request, request, request_id, identity, "managed-fleet-removals")
+
+    def cancel_waiting_cleanup_request(request, request_id, identity, resource):
         try:
             with api_client(settings) as client:
-                response = client.post(f"/api/v1/managed-removal-handoffs/{request_id}/cancel", json=identity.__dict__)
+                response = client.post(f"/api/v1/{resource}/{request_id}/cancel", json=identity.__dict__)
             if response.status_code == 200:
                 value = response.json()
                 if (not isinstance(value, dict) or value.get("status") != "cancelled"

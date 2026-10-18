@@ -19,7 +19,10 @@ An [offline ready-target fleet coordinator](docs/manual/managed-fleet-removals.m
 now atomically retires the reviewed scope and delegates cleanup. Default ready-only
 mode rejects unfinished ADD/disabled targets; a separate explicitly digested ordered
 mode reserves the whole scope behind RUNNING ADD under the original deadline.
-The default-off shared worker promotes complete roots only. No HTTP admission
+The default-off shared worker promotes complete roots only. The Managed shuns
+tab shows bounded fleet cleanup progress/outcomes and owner/Admin cancellation
+of waiting scopes, without treating admission or settled jobs as verified removal.
+No HTTP admission
 or live optional-schema initialization is enabled.
 Runtime combined device-removal admission, managed creation and desired restoration/
 controller integration remain pending.

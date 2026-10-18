@@ -50,7 +50,7 @@ print(templates.get_template(p["template"]).render(identity=Identity("test", "Te
     review=review, accepted=None, result=None, confirm_ip="", message=None, admission_enabled=p["refresh"].get("import_admission_enabled", False),
     retry_available=p["refresh"].get("import_admission_enabled", False), execution_enabled=False,
     frozen_view=p["template"] in ("import-confirm.html", "managed-remove-review.html", "managed-retirement-review.html"),
-    managed=p.get("managed"), handoffs=p.get("handoffs"),
+    managed=p.get("managed"), handoffs=p.get("handoffs"), fleet_cleanup=p.get("fleet_cleanup"),
     csrf_token="fixture-token", shuns=[shun], refresh=p["refresh"], search_query=p["query"],
     search_results=None, trusted_policy_ips=enabled_ips, disabled_policy_ips=disabled_ips, recent_events=p.get("history", {}).get("events", [event]),
     pagination=p.get("history", {}), anchored_history=bool(p.get("anchor")),
@@ -146,6 +146,7 @@ test("refresh interaction in real Chromium", { timeout: 120000 }, async (t) => {
   let managed = { initialized: false, revision: 0, entries: [], limit: 1000,
     restoration_suspended: true, controller_available: false, read_only: true };
   let handoffs = { initialized: false, counts: {}, items: [], display_limit: 20, read_only: true };
+  let fleetCleanup = { initialized: false, counts: {}, items: [], display_limit: 20, scope_display_limit: 5, read_only: true };
   let historyRows = [];
   let shunOrigins = [];
   const appendHistory = () => {
@@ -262,14 +263,20 @@ test("refresh interaction in real Chromium", { timeout: 120000 }, async (t) => {
       status.policy_revision = policy.revision;
       status.status_revision += 1;
       response.end(JSON.stringify(stamp()));
-    } else if (/^\/managed-shuns\/handoffs\/[^/]+\/cancel$/.test(url.pathname) && request.method === "POST") {
+    } else if (/^\/managed-shuns\/(handoffs|fleet-waits)\/[^/]+\/cancel$/.test(url.pathname) && request.method === "POST") {
       let body = "";
       for await (const chunk of request) body += chunk;
       assert.match(request.headers["content-type"], /^application\/x-www-form-urlencoded/);
       assert.equal(new URLSearchParams(body).get("csrf"), "fixture-token");
       managedCancelPosts += 1;
-      handoffs.items[0].state = "CANCELLED";
-      handoffs.counts = { CANCELLED: 1 };
+      if (url.pathname.includes("/fleet-waits/")) {
+        fleetCleanup.items[0].state = "CANCELLED";
+        fleetCleanup.items[0].active = false;
+        fleetCleanup.counts = { settled: 1 };
+      } else {
+        handoffs.items[0].state = "CANCELLED";
+        handoffs.counts = { CANCELLED: 1 };
+      }
       status.queue.revision += 1;
       status.data_revision += 1;
       status.status_revision += 1;
@@ -314,7 +321,7 @@ test("refresh interaction in real Chromium", { timeout: 120000 }, async (t) => {
         fleet_review: url.pathname === "/managed-shuns/fleet-removal-review",
         history, anchor: url.searchParams.get("anchor"),
         ...previewFields,
-        policy, managed, handoffs, template: url.pathname === "/" ? "index.html" : url.pathname === "/history" ? "history.html"
+        policy, managed, handoffs, fleet_cleanup: fleetCleanup, template: url.pathname === "/" ? "index.html" : url.pathname === "/history" ? "history.html"
           : url.pathname === "/protected-ips" ? "protected-ips.html" : url.pathname === "/imports" ? "import-preview.html"
             : url.pathname === "/imports/review" ? "import-confirm.html" : url.pathname === "/managed-shuns" ? "managed-shuns.html"
               : ["/managed-shuns/removal-review", "/managed-shuns/fleet-removal-review"].includes(url.pathname) ? "managed-remove-review.html"
@@ -1037,6 +1044,70 @@ test("refresh interaction in real Chromium", { timeout: 120000 }, async (t) => {
         assert.equal(postCount, hints);
         assert.equal(executionCount, executions);
       } finally { await page.close(); }
+    });
+    await t.test("fleet cleanup keeps outcomes honest, mobile spacing and wait cancellation without hints", async () => {
+      status = initial();
+      const hints = postCount;
+      const executions = executionCount;
+      const key = "00000000-0000-4000-8000-000000000003";
+      const item = { id: key, ip: "198.51.100.251", state: "WAITING_ADD", reason: null,
+        actor_subject: "test", actor_display_name: "<script>Fixture</script>",
+        target_count: 3, scope_sample: [{ device_id: 1, hostname: "synthetic-1" }],
+        requested_at: "2026-10-18T10:00:00Z", expires_at: "2026-10-18T10:15:00Z",
+        predecessor_total: 2, predecessor_counts: { RUNNING: 2 }, queue_request_state: null,
+        outcomes: {}, unknown_targets: 0, settled_targets: 0, verified: false, attention: false, active: true };
+      fleetCleanup = { ...fleetCleanup, initialized: true, counts: { active: 1 }, items: [item] };
+      const page = await connectPage(debugOrigin, `${origin}/managed-shuns`);
+      try {
+        await page.until("document.querySelector('#managed-fleet-state').textContent.includes('Waiting for all captured ADDs')");
+        assert.equal(await page.evaluate("document.querySelectorAll('#managed-fleet-state script').length"), 0);
+        assert.equal(await page.evaluate(`document.querySelector('#fleet-cancel-${key}').open`), false);
+        await page.evaluate(`document.querySelector('#fleet-cancel-${key}').open=true`);
+        status.queue.revision += 1;
+        await wake(page);
+        await page.until(`document.querySelector('#fleet-cancel-${key}').open`);
+        const cancellations = managedCancelPosts;
+        await page.evaluate("document.querySelector('#managed-fleet-state [data-managed-cancel-form] button').click()");
+        await page.until("document.querySelector('#managed-fleet-state').textContent.includes('Waiting cleanup cancelled')");
+        assert.equal(managedCancelPosts, cancellations + 1);
+        assert.equal(await page.evaluate("location.pathname"), "/managed-shuns");
+        assert.equal(await page.evaluate("Boolean(document.querySelector('#managed-fleet-state [data-managed-cancel-form]'))"), false);
+        assert.equal(await page.evaluate(`document.querySelector('#fleet-cleanup-${key}').open`), false);
+        Object.assign(item, { state: "ADMITTED", active: true, queue_request_state: "ACTIVE",
+          settled_targets: 1, outcomes: { VERIFIED: 1, QUEUED: 2 }, predecessor_counts: { UNVERIFIED: 1, NOOP: 1 } });
+        fleetCleanup.counts = { active: 1 };
+        status.queue.revision += 1;
+        await wake(page);
+        await page.until("document.querySelector('#managed-fleet-state progress')?.value===1");
+        assert.equal(await page.evaluate("document.querySelector('#managed-fleet-state progress').max"), 3);
+        assert.equal(await page.evaluate("document.querySelector('#managed-fleet-state .cleanup-state').dataset.cleanupState"), "active");
+        for (const width of [1100, 375]) {
+          await page.call("Emulation.setDeviceMetricsOverride", { width, height: 800, deviceScaleFactor: 1, mobile: width === 375 });
+          assert.equal(await page.evaluate("document.documentElement.scrollWidth<=window.innerWidth"), true);
+          assert.ok(await page.evaluate("document.querySelector('#managed-fleet-state progress').getBoundingClientRect().top-document.querySelector('.fleet-cleanup-progress label').getBoundingClientRect().bottom>=6"));
+        }
+        Object.assign(item, { active: false, settled_targets: 3, outcomes: { VERIFIED: 2, NOOP: 1 } });
+        status.queue.revision += 1;
+        await wake(page);
+        await page.until("document.querySelector('#managed-fleet-state').textContent.includes('Linked jobs settled — inspect outcomes')");
+        assert.equal(await page.evaluate("document.querySelector('#managed-fleet-state .cleanup-state').dataset.cleanupState"), "settled");
+        Object.assign(item, { verified: true, outcomes: { VERIFIED: 3 } });
+        status.queue.revision += 1;
+        await wake(page);
+        await page.until("document.querySelector('#managed-fleet-state').textContent.includes('All targets verified removed')");
+        assert.equal(await page.evaluate("document.querySelector('#managed-fleet-state .cleanup-state').dataset.cleanupState"), "verified");
+        Object.assign(item, { verified: false, outcomes: {}, unknown_targets: 3, settled_targets: 0, attention: true });
+        fleetCleanup.counts = { attention: 1 };
+        status.queue.revision += 1;
+        await wake(page);
+        await page.until("document.querySelector('#managed-fleet-state').textContent.includes('Queue history incomplete — outcome unknown')");
+        assert.equal(await page.evaluate("document.querySelector('#managed-fleet-state .cleanup-state').dataset.cleanupState"), "attention");
+        assert.equal(postCount, hints);
+        assert.equal(executionCount, executions);
+      } finally {
+        fleetCleanup = { ...fleetCleanup, initialized: false, counts: {}, items: [] };
+        await page.close();
+      }
     });
     await t.test("managed removal review stays frozen, non-executable and usable on mobile", async () => {
       status = initial();

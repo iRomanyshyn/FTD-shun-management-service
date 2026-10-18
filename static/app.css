@@ -120,6 +120,8 @@ th, td { border-bottom: 1px solid #8886; text-align: left; padding: .7rem .6rem;
 .cleanup-state[data-cleanup-state="active"] { color: #124979; background: #e1f0ff; }
 .cleanup-state[data-cleanup-state="verified"] { color: #135b2c; background: #dcf5e3; }
 .cleanup-record code { overflow-wrap: anywhere; }
+.fleet-cleanup-progress { display: grid; gap: .5rem; margin-block: .8rem; max-width: 32rem; }
+.fleet-cleanup-progress progress { width: 100%; }
 #managed-removal-preparation select { max-width: 100%; min-width: 0; font: inherit; }
 #managed-removal-preparation input { width: min(22rem, 100%); }
 #confirm-managed-ip { width: 14rem; }

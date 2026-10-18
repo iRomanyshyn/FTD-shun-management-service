@@ -1,0 +1,37 @@
+<section id="managed-fleet-state" data-live-region>
+<h2>Fleet cleanup</h2>
+{% if not fleet_cleanup %}
+<p class="preview-error" role="status">Fleet cleanup state is unavailable. This is not an empty queue; inspect service status/history before acting.</p>
+{% elif not fleet_cleanup.initialized %}
+<p>No fleet cleanup ledger has been initialized. Opening this page does not create one.</p>
+{% else %}
+<p class="preview-help">Admission is not verified removal. {% if fleet_cleanup.scheduler_integration_available %}Waiting scopes are checked at the start of eligible shared cycles.{% else %}The cleanup worker is disabled; waiting scopes do not advance.{% endif %} Original authorization deadlines still apply. Maintenance remains stopped.</p>
+<p>{% for state, count in fleet_cleanup.counts.items() %}{{ state | capitalize }}: {{ count }}{% if not loop.last %} · {% endif %}{% else %}No retained fleet cleanups.{% endfor %}</p>
+{% set phases = {'WAITING_ADD': 'Waiting for all captured ADDs', 'ATTENTION': 'Needs attention', 'EXPIRED': 'Authorization expired', 'CANCELLED': 'Waiting cleanup cancelled'} %}
+{% for item in fleet_cleanup['items'] %}
+{% set retained = not item.active and not item.attention %}
+{% if retained %}<details class="cleanup-record" id="fleet-cleanup-{{ item.id }}"><summary>Settled / retained fleet cleanup for {{ item.ip }}</summary>{% else %}<div class="cleanup-record" id="fleet-cleanup-{{ item.id }}">{% endif %}
+<p><a href="/shuns/{{ item.ip }}">{{ item.ip }}</a> · {{ item.target_count }} device(s)
+<span class="state-badge cleanup-state" data-cleanup-state="{{ 'attention' if item.attention else 'waiting' if item.state == 'WAITING_ADD' else 'verified' if item.verified else 'active' if item.active else 'settled' }}">{% if item.state in phases %}{{ phases[item.state] }}{% elif item.verified %}All targets verified removed{% elif item.unknown_targets %}Queue history incomplete — outcome unknown{% elif item.queue_request_state in ['CANCELLED', 'EXPIRED'] %}Delegation {{ item.queue_request_state | lower }} — inspect shared jobs{% elif item.active %}Removal in progress{% else %}Linked jobs settled — inspect outcomes{% endif %}</span></p>
+{% if item.reason %}<p class="policy-comment">{{ item.reason }}</p>{% endif %}
+{% if item.predecessor_total %}<p>Captured ADDs ({{ item.predecessor_total }}): {% for state, count in item.predecessor_counts.items() %}{{ state }}: {{ count }}{% if not loop.last %} · {% endif %}{% endfor %}. ADD settlement does not prove removal.</p>{% endif %}
+{% if item.state == 'ADMITTED' %}
+<div class="fleet-cleanup-progress"><label for="fleet-progress-{{ item.id }}">Linked REMOVE jobs settled: {{ item.settled_targets }} / {{ item.target_count }}</label>
+<progress id="fleet-progress-{{ item.id }}" value="{{ item.settled_targets }}" max="{{ item.target_count }}">{{ item.settled_targets }} / {{ item.target_count }}</progress></div>
+<p>{% for state, count in item.outcomes.items() %}{{ state }}: {{ count }}{% if not loop.last %} · {% endif %}{% endfor %}{% if item.unknown_targets %} · History unavailable for {{ item.unknown_targets }} target(s); no success is inferred.{% endif %}</p>
+{% if item.queue_request_state %}<p class="preview-help">Queue delegation: {{ item.queue_request_state }}. Shared jobs may continue under another user's authority even after this delegation is cancelled/expired.</p>{% endif %}
+{% endif %}
+<p class="preview-help">Original scope{% if item.target_count > fleet_cleanup.scope_display_limit %}, first {{ fleet_cleanup.scope_display_limit }} of {{ item.target_count }} targets only{% endif %}: {% for target in item.scope_sample %}{{ target.hostname }} ({{ target.device_id }}){% if not loop.last %}, {% endif %}{% endfor %}.</p>
+<p class="preview-help">Request <code>{{ item.id }}</code> · {{ item.actor_display_name }} ({{ item.actor_subject }}) · Requested <time class="local-timestamp" datetime="{{ item.requested_at }}">{{ item.requested_at }}</time> · Original deadline <time class="local-timestamp" datetime="{{ item.expires_at }}">{{ item.expires_at }}</time>.</p>
+{% if item.state == 'WAITING_ADD' and ('Operator' in identity.roles or 'Administrator' in identity.roles) and (item.actor_subject == identity.subject or 'Administrator' in identity.roles) %}
+<details id="fleet-cancel-{{ item.id }}"><summary>Cancel this waiting fleet cleanup</summary>
+<p>Cancel only this entire waiting removal scope. Running ADDs may finish and shuns may remain. Maintenance stays stopped. Admitted Queue work cannot be cancelled here.</p>
+<form method="post" action="/managed-shuns/fleet-waits/{{ item.id }}/cancel" data-managed-cancel-form>
+<input type="hidden" name="csrf" value="{{ csrf_token }}"><button type="submit">Cancel waiting fleet cleanup only</button>
+</form></details>
+{% endif %}
+{% if retained %}</details>{% else %}</div>{% endif %}
+{% endfor %}
+{% if fleet_cleanup['items'] %}<p class="preview-help">Showing at most {{ fleet_cleanup.display_limit }} roots, active/attention first. Counts include all retained roots. This bounded view does not delete or replay hidden records.</p>{% endif %}
+{% endif %}
+</section>

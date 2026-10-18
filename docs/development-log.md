@@ -3322,6 +3322,99 @@ claim and uncertainty/rearm/anti-churn integration plus fresh scoped live
 validation remain pending. No live ordered-cleanup, ADD or production acceptance
 is inferred from these synthetic/default-off release checks.
 
+## 2026-10-18 — Fleet status, waiting revocation and queue progress batch
+
+Implemented an optional read-only fleet-root view and separate waiting-only
+revocation endpoint/BFF control. No admission route, feature enablement, schema
+change or device-write path. The architecture amendment explicitly permits only
+observations/revocation; combined confirmation remains unconditional 503.
+
+`ManagedFleetState` reads counts, roots, captured ADD evidence and linked REMOVE
+outcomes in one SQLite read transaction. At most twenty roots are returned,
+active/attention first, with whole-ledger counts and a labelled five-target
+sample. Old ready-only ledgers need no migration. Unknown/partial/corrupt optional
+state is unavailable; pruned job evidence is explicitly unknown. Captured ADD,
+barrier, delegation state and linked jobs remain separate; a settled-jobs bar is
+not success, and only all-target matching VERIFIED REMOVE is green. Shared jobs
+may continue after a root delegation is cancelled/expired. Retained outcomes do
+not assert current device presence after later changes.
+
+Current owner Operator/Administrator or Administrator may cancel only WAITING_ADD.
+The strict private actor POST and CSRF-only URL-encoded BFF form serialize with
+promotion, append actual-canceller audit atomically and validate exact receipts.
+No running ADD/ordinary queue cancellation, authority renewal, retirement reversal
+or refresh hint. Repeated cancellation is audit-free; lost/malformed replies stay
+uncertain and retry the same root. Optional schema/authority checks precede
+revocation; startup/GET never initialize tables. Existing metadata revisions and
+single-submission controller update keyed regions/disclosures without navigating
+or replacing frozen forms. Completed records collapse, errors/waits stay visible,
+progress labels have explicit spacing, and scope/deadline text stays bounded.
+
+Added synthetic SQLite/ASGI coverage for current roles/CSRF/strict inputs,
+owner/Admin, cancellation/promotion conflict, unknown replies, audit rollback,
+optional absence/corruption, pruned history, independent delegation/job states,
+all terminal outcomes, concurrent read consistency, bounded roots/samples and
+no hints/work. Updated endpoint allowlist tests to allow only observational GET
+and waiting revocation, never fleet admission. Chromium checks live outcome/color
+changes, mobile spacing, disclosure retention and cancellation without navigation
+or device hints. Initial fixture issues (policy revision, reason binding and
+group spelling) were corrected without changing implementation safeguards.
+
+Updated architecture, agent agreement, status, README and relevant manuals.
+Validation: all **623 Python tests pass** (24.16 s), compileall/Ruff/diff/JS
+syntax pass and 244 relative file links resolve. Chromium's new fleet scenario
+passes alongside the existing suite (22 scenarios / 23 reported tests); a final
+rerun covers the exact release templates. No Rust/wire changes. A built Python
+3.12 package passes isolated networkless/read-only synthetic ASGI/SQLite smoke:
+no optional startup initialization, three-target waiting view, strict BFF input,
+waiting revocation/retry without extra audit, unchanged RUNNING ADD, no admission
+route/hints and integrity/FK. The existing unlocked dependency ranges resolved
+FastAPI 0.146.0/Starlette 1.9.0; this smoke is not a dependency-locking or
+production compatibility claim.
+
+Preflight of the authorized existing lab: no active work or optional tables,
+queue eight VERIFIED/one NOOP, three Protected IPs, ADD/admission/cleanup-worker
+off and zero eligible profiles. Paired old images retained as
+`deploy-api:before-fleet-controls-20261018t1552z` / matching Web tag. SQLite-safe,
+exclusive/no-symlink 0600 volume backup and checked private ignored host copy:
+`.local/backups/state-before-fleet-controls-20261018T1554Z.sqlite3` (0700 directory).
+Both copies pass integrity/FK. Quiet Compose validation and API/Web-only build
+pass. Authorized default-off deployment/check results follow below.
+Rust/wire and actual env/inventory/secrets
+are unchanged. No optional live fixture, new job, consumed test-address reuse
+or standing desired authority is authorized by this batch.
+
+**Final browser/release result:** The exact release templates pass all 22
+Chromium scenarios (23 reported tests), without JavaScript exceptions (85.87 s
+suite). Stopped/recreated only API/Web with --no-deps, no overlapping executor.
+API `0e22c10a595d`, image
+`sha256:596c28eced77b63dc20920635612f3da230368bf18ade06aa3a7a89695f34a5f`;
+Web `302264c35e6d`, image
+`sha256:f81af6a735457d9835560f3cb0d79571a73465e6d4ce7b52f213fef37c5c8698`.
+Agent `9d1f50d361ca`, Caddy `9c8fdb3a7f21`, Authelia `76f3635ab737` unchanged.
+
+Full sqlite_master and all eleven non-executor tables match the checked backup;
+integrity ok/FK errors zero. Queue eight VERIFIED/one NOOP, no pending/active
+shuns, three Protected IPs, pause unchanged. Actual API import admission/execution
+and cleanup-worker gates remain off; agent ADD setting is absent, which source
+explicitly defaults to false, and inventory has zero addition profiles. No env,
+inventory or secret edits. Repeated optional GETs (including the new fleet view)
+return initialized=false without creating tables. Anonymous Managed/status and
+waiting-cancel/combined-confirm paths return 401; TLS-verified HTTPS returns 302
+to authentication. No real Web identity was spoofed, no authenticated control
+submitted and no optional data seeded. Post-check script table/route naming and
+explicit-versus-default flag assumptions were corrected with read-only checks;
+these were checker errors, not runtime failures or grounds for changing settings.
+
+Normal post-start v2 read cycle completed at 2026-10-18T15:54:42Z, two commands,
+zero removal/addition/mutation steps, 8586 ms; next baseline 15:59:42Z/no error.
+No hint, direct agent RPC or new live mutation. Paired rollback images and checked
+volume/private-host backups retained. Final compileall/Ruff/JS syntax/diff and
+relative links pass. Fleet status/revocation is synthetically validated, **not**
+live managed/fleet write acceptance. Combined admission, standing restoration/
+generation/claim cancellation, uncertainty/rearm/anti-churn, reviewed migration
+and separately scoped live validation remain pending; all live gates stay off.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

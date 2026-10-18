@@ -77,6 +77,14 @@ upstream flag claims enablement. Tests never call the coordinator from Web or
 admit live work. Chromium checks frozen token/input/focus and handoff color/state
 updates using local fixture rendering only. See [Managed Removal Review](managed-removal-review.md).
 
+`tests/test_managed_fleet_controls.py` covers optional fleet status, whole-scope
+counts/bounded samples, consistent read transactions, outcome/progress semantics,
+pruned/invalid evidence, current owner/Admin/CSRF, strict actor/forms, uncertain
+reply retry, audit rollback and cancellation/promotion conflict. No optional
+startup migration or device write is used. The Chromium fixture checks mobile
+spacing, live revision updates, keyed disclosure preservation and revocation
+without navigation or Cisco refresh hints. See [Managed Controls](managed-controls.md).
+
 Browser confirmation tests in `test_import_review.py` use synthetic ASGI/SQLite
 only. They cover frozen exclusions/targets, escaped metadata, current trusted
 identity/role and CSRF, unknown fields/counts, subject/cookie/expiry binding,

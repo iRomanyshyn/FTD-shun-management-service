@@ -3262,3 +3262,22 @@ This is still offline admission/default-off integration, without HTTP/BFF
 execution, a live optional-schema migration or a new mutation authorization.
 Combined confirmation remains 503; system restoration/generation/claim hooks,
 uncertainty rearm/anti-churn and scoped live validation remain prerequisites.
+
+### Fleet cleanup visibility and waiting revocation — 2026-10-18
+
+Permit optional private read-only fleet-root status and authenticated Web display
+without initializing schemas or renewing authority. Bound retained display to
+twenty roots, active/attention first, with a labelled five-target scope sample.
+Keep barrier state, predecessor settlement, queue delegation and linked REMOVE
+outcomes separate. Admission is not verification; missing/pruned history is
+unknown, not success or zero work. Show green verification only when every
+original target has a matching VERIFIED REMOVE. Read errors must remain visible.
+
+A separate cancellation endpoint may revoke only an existing WAITING_ADD root,
+under a current owner Operator/Administrator or Administrator, serialized with
+promotion. Require current trusted identity, strict CSRF-only Web input and a
+validated private receipt; repeated cancellation is audit-free. It must not
+cancel ADD, ordinary queue work, reverse retirement, request refresh or enable
+admission/restoration. GET, polling and cancellation never create optional
+schemas. Combined admission/confirmation stays unavailable; this amendment
+does not authorize live fixtures, migration or enabling any device-write gate.

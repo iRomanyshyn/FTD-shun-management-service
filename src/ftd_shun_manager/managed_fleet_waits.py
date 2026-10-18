@@ -7,7 +7,7 @@ from math import ceil
 from uuid import UUID
 
 from .managed_intent import canonical_managed_fleet_removal
-from .managed_safety import fleet_waits_present
+from .managed_safety import ManagedStateUnavailable, fleet_waits_present, managed_state
 from .managed_shuns import _require_operator
 from .operation_queue import QueueConflict, QueueFull, stamp
 from .safety import mutations_suspended
@@ -195,6 +195,9 @@ class ManagedFleetWaits:
         _require_operator(subject, roles)
         with self.store._connection() as db:
             db.execute("BEGIN IMMEDIATE")
+            managed_state(db)
+            if not fleet_waits_present(db):
+                raise ManagedStateUnavailable("Fleet cleanup evidence is unavailable; no cancellation was confirmed.")
             row = db.execute("""SELECT w.*,r.payload_json,r.actor_subject FROM managed_fleet_waits w
                 JOIN managed_fleet_removals r ON r.id=w.id WHERE w.id=?""", (key,)).fetchone()
             if row is None or (row["actor_subject"] != subject and "Administrator" not in roles):

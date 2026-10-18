@@ -9,7 +9,7 @@ enable ADD or resume restoration. A GET or review preparation changes nothing.
 | Action | Effect | Does not do |
 | --- | --- | --- |
 | Stop maintaining — policy only | Retire one exact reviewed device/IP intent under the registry revision. | Remove a shun, cancel one-time jobs/running ADD/separate cleanup, re-enable policy. |
-| Cancel waiting cleanup | Cancel the owner's (or Administrator's) WAITING_ADD removal handoff. | Cancel its ADD, remove a shun, cancel a job already admitted to Queue, resume maintenance. |
+| Cancel waiting cleanup | Cancel the owner's (or Administrator's) single-target handoff or whole fleet WAITING_ADD barrier. | Cancel its ADD, remove a shun, cancel a job already admitted to Queue, resume maintenance. |
 
 These are not the combined **Stop maintenance and queue removal** workflow.
 That separate [preparatory review](managed-removal-review.md) still always
@@ -97,6 +97,56 @@ request, authority renewal or cleanup is created. Audit/log success occurs only
 after commit and the real cancelling actor is recorded.
 
 ## Internal interfaces and security
+
+### Fleet cleanup status and cancellation
+
+**Managed shuns → Fleet cleanup** observes the optional retained fleet ledger in
+one consistent read transaction. It does not initialize either fleet table.
+Ready-only ledgers without a barrier table remain readable. Missing/partial or
+malformed optional evidence produces an explicit unavailable warning, not an
+empty-state fallback. Other managed information can remain visible if only this
+optional read fails. Ordinary device monitoring is independent.
+
+The view displays at most 20 roots, active first then attention, with counts
+across all retained roots. Original scope samples are labelled and limited to
+five hostnames/IDs per root; they are not a new scope selection or confirmation.
+Completed/retained entries are collapsed; waiting/attention stays visible.
+The existing metadata/queue revisions update this region without navigation,
+device refresh hints or replacing frozen review forms. Open keyed disclosures
+are retained. Dates use the browser's local timezone.
+
+Keep the following evidence separate:
+
+- Captured predecessor ADD states, including UNVERIFIED and unavailable history.
+- WAITING_ADD versus admission into the ordinary Queue under the original deadline.
+- The root delegation's ACTIVE/CANCELLED/EXPIRED state, independently of shared jobs.
+- Linked REMOVE outcomes and a **settled jobs**, not successful-removal, progress bar.
+
+Only matching VERIFIED REMOVE jobs for **all** original targets yield green
+**All targets verified removed**. NOOP, RECONCILED_ABSENT, cancellation and a
+fully filled progress bar do not prove a verified write. A cancelled/expired
+delegation may still have shared queued/running jobs under another user's
+authority. Missing/pruned history is explicitly unknown; old receipts never
+recreate it. The display describes retained outcomes, not current device
+presence after later changes.
+
+A current owner Operator/Administrator or Administrator may open **Cancel this
+waiting fleet cleanup**, then explicitly revoke the entire WAITING_ADD barrier.
+This uses the same single-submission controller/native redirect as single-target
+cancellation. It never cancels captured ADD, already-admitted queue work or
+independent jobs; it never re-enables retired policy. Promotion wins → 409 and no
+change; cancellation wins → no promotion. Repeating a confirmed cancellation is
+audit-free. It remains available with worker disabled/during mutation pause.
+
+`GET /api/v1/managed-fleet-removals` is optional read-only status.
+`POST /api/v1/managed-fleet-removals/{UUID}/cancel` accepts only a strict current
+actor. BFF `POST /managed-shuns/fleet-waits/{UUID}/cancel` accepts URL-encoded CSRF
+only, rechecks current authentication/role and validates the exact private
+receipt. No user-supplied actor, targets, action or mode. Permission, state and
+audit update share the SQLite write transaction; errors roll back. Unknown
+replies are not reported as success: inspect state, then retry only that same
+root. Neither endpoint admits work, renews deadlines, initializes optional state
+or enables the combined confirmation (still 503).
 
 `POST /api/v1/managed-shuns/retire` accepts one strict device/IP/revision/digest/
 reason body plus current actor and a canonical UUID `Idempotency-Key`. Action is

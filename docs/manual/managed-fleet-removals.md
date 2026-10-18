@@ -141,7 +141,9 @@ Owner Operator/Administrator or an Administrator may `cancel_waiting()` while
 WAITING_ADD; repeated CANCELLED is an audit-free no-op. Cancellation serializes
 with promotion: once ADMITTED it conflicts and does not silently cancel ordinary
 queue work. The running ADD, original receipt and retirement remain unchanged.
-These internal controls are not yet exposed as executable Web actions.
+This revocation-only control is now exposed in the authenticated Web view;
+see [fleet status and cancellation](managed-controls.md#fleet-cleanup-status-and-cancellation).
+It does not expose fleet admission or create a waiting barrier.
 
 The existing default-off `FTD_SHUN_MANAGED_REMOVAL_WORKER_ENABLED` flag gates
 shared-worker promotion of both kinds. Once per cycle, after lease recovery and
@@ -189,7 +191,7 @@ conflicts, concurrent same/different keys, immutable authority, namespaces,
 retention/replay/new generations, original deadline, queue coalescing/lease/
 cutoff and checked offline recovery. No live Cisco write is exercised.
 
-Before connecting confirmation, complete executable fleet controls/visibility, system-source/
+Before connecting confirmation, complete system-source/
 generation/claim cancellation, uncertainty handling and reviewed migration/live
 fixture validation. No amount of synthetic/default-off deployment evidence
 enables those paths or authorizes new FTD mutations.

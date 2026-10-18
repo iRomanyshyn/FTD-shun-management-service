@@ -103,7 +103,9 @@ Do not rewrite historical log entries except to correct an objective error; add 
   resume only. Older images ignore that pause; follow docs/manual/recovery.md.
   Do not seed pending handoffs or enable the worker in the lab without scoped
   approval and remaining executable controls/protection/fleet validation. All live gates
-  remain off; UI/queue integration, reviewed migration and a separately approved
+  remain off; bounded fleet status and waiting-only Web revocation are available,
+  but combined admission stays unavailable. System/protection/uncertainty integration,
+  reviewed migration and a separately approved
   live fixture are still required.
 - On 2026-10-16 the operator separately approved the one-address service
   experiment on lab device 1/fpr1010-lab: unused TEST-NET 198.51.100.251,

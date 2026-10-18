@@ -4,6 +4,42 @@ Last updated: 2026-10-18
 
 ## Current increment
 
+**Fleet cleanup visibility, revocation and honest queue progress (2026-10-18).**
+Optional private GET and Managed shuns now display at most 20 retained fleet
+roots, active/attention first, with whole-ledger counts and labelled five-target
+scope samples. Captured ADD settlement, barrier state, queue delegation and
+linked REMOVE outcomes remain distinct. The progress bar counts settled jobs,
+not successful writes; green requires every original target VERIFIED. NOOP,
+RECONCILED_ABSENT, cancelled authority and missing/pruned history are not verified
+removal. Completed records collapse; read errors/uncertainty stay visible.
+
+Current owner Operator/Administrator or Administrator may cancel a whole waiting
+scope through a strict private actor endpoint/CSRF-only BFF form. Promotion wins
+→ 409, no ordinary job cancellation. Repeated confirmed cancellation is audit-free;
+lost/malformed replies stay uncertain. No ADD cancellation, retirement reversal,
+new work, authority renewal or refresh hint. Existing metadata/queue revisions
+update regions without navigation or replacing frozen forms. No schema change,
+startup initialization or gate enablement; old ready-only ledgers remain readable.
+See [Managed Controls](manual/managed-controls.md#fleet-cleanup-status-and-cancellation).
+All 623 Python tests, 22 Chromium scenarios (23 reported tests), compileall,
+Ruff, JS syntax, diff checks and 244 relative file links pass. Python 3.12
+networkless built-package smoke validates the optional view and strict BFF
+revocation without live mounts/devices. Deployed API `0e22c10a595d` / Web
+`302264c35e6d`, retaining paired `before-fleet-controls-20261018t1552z` images
+and checked 0600 volume/private host SQLite backup
+`.local/backups/state-before-fleet-controls-20261018T1554Z.sqlite3`.
+Schema/all eleven non-executor tables match backup; integrity/FK pass. Optional
+schemas remain absent; no pending work, queue eight VERIFIED/one NOOP, zero
+active shuns. ADD/admission/cleanup-worker remain off (agent ADD unset/default
+false), zero addition profiles. Agent/Caddy/Authelia and env/inventory/secrets
+unchanged. Anonymous GET/control paths reject 401; TLS-verified HTTPS redirects
+302. Normal post-start v2 cycle at 15:54:42Z: two reads/zero mutations/8586 ms,
+next baseline 15:59:42Z/no error. No live control, seed, hint or new job.
+See deployment details/limitations in the development log.
+Combined admission stays unconditional 503; restoration/system-generation and
+uncertainty/rearm integration, reviewed migration and fresh scoped live acceptance
+remain prerequisites. The current lab has no optional fleet fixture.
+
 **Explicit ordered fleet cleanup barrier (2026-10-18).** Separate canonical
 `ordered_wait=True` mode now captures RUNNING ADDs and atomically retires/reserves
 the whole reviewed scope. Default ready-only payloads/replays are unchanged;
@@ -925,8 +961,9 @@ isolated registry/authorization/revision/retention foundation, preparatory
 visibility/reviews, offline atomic retirement/removal handoff, composite
 recovery controls and default-off shared-worker integration are implemented.
 Policy-only retirement/wait cancellation, frozen fleet scope/comparison and
-offline ready-target atomic fleet admission are now implemented; next complete
-executable fleet controls/visibility, combined confirmation and protection/system
+offline ready/ordered atomic fleet admission are now implemented. Bounded fleet
+status and owner/Admin waiting revocation are available; next complete
+combined confirmation prerequisites and protection/system
 hooks, followed by bounded default-off desired reconciliation
 with uncertainty/rearm and anti-churn controls. Do not enable it by deriving
 policy from historical imports or by renewing old user jobs. Resolve controller

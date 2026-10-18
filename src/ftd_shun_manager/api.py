@@ -19,6 +19,7 @@ from .agent_client import (
 from .config import Settings
 from .import_preview import MAX_DEVICES, MAX_ROWS, classify_targets
 from .inventory import load_devices
+from .managed_fleet_state import ManagedFleetState
 from .managed_safety import ManagedStateUnavailable, require_ordinary_removal
 from .managed_scope import ManagedRemovalScopes
 from .managed_shuns import ManagedCapacity, ManagedConflict, ManagedShuns
@@ -246,6 +247,29 @@ def create_app(
             raise HTTPException(503, "Cleanup cancellation was not confirmed; inspect current state before retrying.") from error
         if changed:
             synchronizer.note_state_change()
+        return {"status": "cancelled", "request_id": str(request_id), "changed": changed,
+                "maintenance_reenabled": False, "add_cancelled": False}
+
+    @app.get("/api/v1/managed-fleet-removals")
+    def managed_fleet_removals() -> dict:
+        try:
+            return ManagedFleetState(store, worker_enabled=settings.managed_removal_worker_enabled).snapshot_if_present()
+        except (sqlite3.DatabaseError, ValueError, TypeError, KeyError, AttributeError) as error:
+            raise HTTPException(503, "Fleet cleanup state is unavailable; nothing was submitted.") from error
+
+    @app.post("/api/v1/managed-fleet-removals/{request_id}/cancel")
+    def cancel_managed_fleet_wait(request_id: UUID, actor: ManagedControlActor) -> dict:
+        try:
+            changed = synchronizer.managed_fleet_waits.cancel_waiting(
+                str(request_id), actor.subject, actor.display_name, tuple(actor.roles))
+        except PermissionError as error:
+            raise HTTPException(403, str(error)) from error
+        except QueueConflict as error:
+            raise HTTPException(409, str(error)) from error
+        except (sqlite3.DatabaseError, ValueError, TypeError, KeyError) as error:
+            raise HTTPException(503, "Fleet cancellation was not confirmed; inspect current state before retrying.") from error
+        if changed:
+            synchronizer.note_state_change()  # Local revocation, never a refresh hint.
         return {"status": "cancelled", "request_id": str(request_id), "changed": changed,
                 "maintenance_reenabled": False, "add_cancelled": False}
 
