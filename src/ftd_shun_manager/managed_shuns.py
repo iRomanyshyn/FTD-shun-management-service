@@ -140,6 +140,9 @@ class ManagedShuns:
 
     def _apply(self, db, request_id, action, targets, revision, protected_revision,
                subject, display_name, roles, payload):
+        from .managed_restoration import cancel_obsolete, key_reserved
+        from .operation_queue import OperationQueue
+
         previous = db.execute("SELECT * FROM managed_shun_requests WHERE id=?", (request_id,)).fetchone()
         if previous:
             if previous["actor_subject"] != subject or previous["payload_json"] != payload:
@@ -147,6 +150,8 @@ class ManagedShuns:
             return {**json.loads(previous["result_json"]), "replayed": True}
         if action == "MAINTAIN" and mutations_suspended(db):
             raise ManagedConflict("New managed authority is suspended for recovery; retirement remains available.")
+        if key_reserved(db, request_id):
+            raise ManagedConflict("Restoration keys cannot authorize a new managed policy.")
         if fleet_key_reserved(db, request_id):
             raise ManagedConflict("Managed-fleet keys cannot authorize another policy operation.")
         # A key from the one-time namespace cannot acquire standing semantics.
@@ -236,6 +241,7 @@ class ManagedShuns:
                                       "enabled": bool(row["enabled"]), "action": action,
                                       "managed_revision": current + 1}, timestamp=timestamp)
         db.execute("UPDATE managed_shun_registry SET revision=? WHERE id=1", (current + 1,))
+        cancel_obsolete(db, OperationQueue(self.store))  # Same transaction as retirement, never cancel RUNNING ADD.
         return result
 
     @staticmethod
@@ -265,8 +271,11 @@ class ManagedShuns:
 
     def snapshot(self, *, if_present: bool = False) -> dict:
         """One consistent bounded view; observed presence is not creation proof."""
+        from .managed_restoration import snapshot_targets
+
         with self.store._connection() as db:
             db.execute("BEGIN")
+            managed_state(db)
             state = self._registry_state(db, if_present=if_present)
             if state is None:
                 return {"initialized": False, "revision": 0, "restoration_suspended": True,
@@ -280,6 +289,7 @@ class ManagedShuns:
                 ORDER BY m.device_id,m.ip LIMIT ?""", (MAX_MANAGED_TARGETS + 1,)).fetchall()
             if len(rows) > MAX_MANAGED_TARGETS:
                 raise ManagedCapacity("Stored managed targets exceed this version's supported limit.")
+            restoration = snapshot_targets(db)
         entries = []
         metadata = {}
         for row in rows:
@@ -289,6 +299,7 @@ class ManagedShuns:
                 metadata[row["authorization_request_id"]] = {key: data[key] for key in ("label", "reason")}
             del entry["payload_json"]
             entry.update(metadata[row["authorization_request_id"]])
+            entry.update(restoration.get((row["device_id"], row["ip"]), {}))
             entry["ip"] = str(IPv4Address(row["ip"]))
             entry["actor_roles"] = json.loads(entry.pop("actor_roles_json"))
             for key in ("enabled", "device_enabled", "observed_present", "protected"):

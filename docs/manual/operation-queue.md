@@ -243,6 +243,16 @@ replay is allowed. See the [ordered contract](managed-fleet-removals.md#ordered-
 
 ## Backup, restore, and rollback
 
+The optional [system restoration source](managed-restoration.md) reuses jobs/
+links/lease/cutoff with distinct standing authority, never a renewed manual
+request or fake import batch. Runtime claims remain default-held. Retirement/
+protection atomically cancel unstarted system ADD; combined offline cleanup may
+supersede that system job only, while independent QUEUED imports still conflict.
+RUNNING restoration uses the existing ordered barrier. Retained outcomes/
+attention/provenance and root/job namespace survive completed queue pruning.
+Generic cancellation cannot cancel this source; stop maintenance explicitly.
+No startup initialization, controller or live source enablement is included.
+
 Take a SQLite-safe backup before starting the first queue-enabled API. Rebuild
 API and Web together, then reload browser tabs once: the write contract is now
 `202`, and forms require an idempotency key. The current agent stays compatible.

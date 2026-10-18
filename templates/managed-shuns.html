@@ -16,9 +16,9 @@
 <td>{{ entry.hostname }}<br><a href="/shuns/{{ entry.ip }}">{{ entry.ip }}</a></td>
 <td><span class="state-badge {{ 'policy-enabled' if entry.enabled else '' }}">{{ 'Maintain presence' if entry.enabled else 'Stopped' }}</span><br>Generation {{ entry.generation }}</td>
 <td><span class="state-badge">{{ 'Observed present' if entry.observed_present else 'Not currently observed' }}</span><br>Presence is not proof of service creation.</td>
-<td>{% if not entry.enabled %}Maintenance stopped{% elif entry.protected %}<strong>Blocked by Protected IP</strong>{% elif not entry.device_enabled %}<strong>Device disabled</strong>{% else %}Controller not implemented{% endif %}</td>
+<td>{% if not entry.enabled %}Maintenance stopped{% elif entry.protected %}<strong>Blocked by Protected IP</strong>{% elif not entry.device_enabled %}<strong>Device disabled</strong>{% elif entry.restoration_attention %}<strong class="preview-error">Restoration needs reviewed resolution</strong>{% else %}Controller not implemented{% endif %}{% if entry.restoration_state %}<br>Last attempt: {{ entry.restoration_state }} (generation {{ entry.restoration_generation }}).{% if entry.restoration_state in ['QUEUED', 'RUNNING'] %}<br>Automatic discovery/dispatch integration is unavailable.{% endif %}{% endif %}</td>
 <td>{{ entry.actor_display_name }} ({{ entry.actor_subject }})<br><time class="local-timestamp" datetime="{{ entry.authorized_at }}">{{ entry.authorized_at }}</time>{% if entry.label %}<br>{{ entry.label }}{% endif %}{% if entry.reason %}<div class="policy-comment">{{ entry.reason }}</div>{% endif %}</td>
-<td>Not recorded</td>
+<td>{% if entry.last_verified_restoration_at %}<time class="local-timestamp" datetime="{{ entry.last_verified_restoration_at }}">{{ entry.last_verified_restoration_at }}</time>{% else %}Not recorded{% endif %}</td>
 </tr>{% endfor %}
 </tbody></table></div>
 {% elif managed.initialized %}<p>No managed targets. Nothing is scheduled for restoration.</p>{% endif %}

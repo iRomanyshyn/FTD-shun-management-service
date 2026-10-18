@@ -15,6 +15,7 @@ These manuals describe the first implementation increment. The service is safe t
 | [Import Preview](import-preview.md) | Non-executable paste parsing, local-state classification, supported syntax, limits and the pending ADD release gate. |
 | [Browser Import Review](import-review.md) | Frozen exact-target confirmation, identity/CSRF, bounded ephemeral drafts, same-key retry, default-off admission and rollback. |
 | [Managed Shuns](managed-shuns.md) | Registry foundation and read-only visibility, lifecycle/storage bounds and planned managed confirmation/shared-worker restoration; no controller. |
+| [Managed Restoration](managed-restoration.md) | Offline system ADD authority, snapshot/generation binding, retained uncertainty/provenance, revocation and queue/recovery hooks; no runtime controller. |
 | [Managed Removal Handoffs](managed-removal-handoffs.md) | Offline atomic retirement, waiting cleanup, original authorization, ordered settlement and remaining runtime/recovery gates. |
 | [Atomic Fleet Removal](managed-fleet-removals.md) | Offline ready/explicit ordered whole-scope retirement/cleanup, reservation barrier, original deadline, cancellation, rollback and shared-worker integration. |
 | [Managed Removal Review](managed-removal-review.md) | Non-executable single/fleet frozen scopes, observational union/CAS prerequisite, read-only handoff visibility, session limits and deployment checks. |

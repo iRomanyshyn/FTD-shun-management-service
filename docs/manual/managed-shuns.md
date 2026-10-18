@@ -4,6 +4,10 @@
 
 **Registry foundation and read-only API/UI visibility implemented on 2026-10-17.
 Restoration and combined removal confirmation remain unimplemented/off.**
+The [offline system restoration source](managed-restoration.md) now implements
+typed snapshot/intent-bound queue authority, claim/revocation/recovery hooks,
+retained uncertainty and occurrence-bound results. It is not connected to
+discovery or runtime dispatch and never initializes schemas on startup.
 The [removal handoff coordinator](managed-removal-handoffs.md) is implemented
 offline: atomic single-target retirement/cleanup and RUNNING-ADD settlement
 are tested. A default-off worker advances waits; separate
@@ -144,9 +148,10 @@ outcomes to pretend they authorized future maintenance.
 
 The explicit registry initializer now provides empty additive policy tables,
 authorization/request ledger and optimistic revisions. It is not called by
-normal API/Store startup. Job/policy generation linkage, atomic retirement/
-protection hooks and independent default-off desired reconciliation control
-remain unimplemented. All existing ADD gates/device profiles remain mandatory.
+normal API/Store startup. Job/policy generation linkage and retirement/protection
+hooks are implemented in the separate offline source. Discovery/controller,
+managed admission, resolution/rearm and runtime capability wiring remain pending.
+All existing ADD gates/device profiles remain mandatory.
 The separate default-off cleanup-worker setting does not enable restoration;
 see [Managed Removal Handoffs](managed-removal-handoffs.md).
 
@@ -174,6 +179,9 @@ backup, upgrade, restart and audit retention are not new device-write authority.
    [Frozen all-device scope](managed-removal-review.md#frozen-all-device-scope).
 3. Integrate ordered removal handoff, revocation/cancellation/protection races,
    system queue admission and uncertain-outcome latch under independent gates.
+   The offline system source/claim hooks and atomic retirement/protection/
+   recovery integration are now tested. Runtime discovery, standing-mode grant,
+   reviewed resume/rearm and full backlog integration are still unavailable.
 4. Cover complete-versus-partial snapshots, reboot-like mass absence, unknown
    results, old-key replay after retirement, multiple users/instances, cutoff/
    backpressure, retention, backup restore and rollback using synthetic state.
@@ -292,8 +300,10 @@ monitoring stays available. When a registry exists, desired maintenance,
 stopped state, observed presence, protection and disabled-device blocking are
 separate columns. A missing shun is not labelled pending restoration when no
 controller exists. Authorization is escaped/localized with timezone; Last
-verified restoration is **Not recorded**, never inferred from an import or
-NOOP. The controller-unavailable notice remains visible regardless of the
+verified restoration is **Not recorded** unless an optional system ledger
+retains a verified creation; it is never inferred from an import or NOOP.
+Retained attempt/attention remains distinct from current presence, including
+attention from an older generation. The controller-unavailable notice remains visible regardless of the
 registry's stored suspension flag. No route/key from device inventory is exposed.
 
 Cheap status fields publish `managed_policy_available`,

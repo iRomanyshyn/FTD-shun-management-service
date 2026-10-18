@@ -91,6 +91,13 @@ the existing feature gates; backup recovery is not device-write authorization.
 
 ## Migration and rollback
 
+Recovery also understands the optional [system restoration ledger](managed-restoration.md).
+Queued attempts become CANCELLED and RUNNING attempts become retained UNVERIFIED
+under the same transaction/audit as ordinary jobs. A lost lease/result never
+replays ADD. Partial/orphan pending evidence refuses recovery; no optional table
+is initialized or repaired. Ordinary resume does not clear attempt latches or
+resume desired policy. Do not start an older image against pending system work.
+
 Queue initialization adds `operation_executor.mutations_suspended` with default
 0 to preserve ordinary behavior. Recovery can add that column to an existing
 queue database, but refuses absent queue or partial managed schemas. Pre-queue

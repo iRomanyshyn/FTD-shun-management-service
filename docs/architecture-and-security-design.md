@@ -3281,3 +3281,36 @@ cancel ADD, ordinary queue work, reverse retirement, request refresh or enable
 admission/restoration. GET, polling and cancellation never create optional
 schemas. Combined admission/confirmation stays unavailable; this amendment
 does not authorize live fixtures, migration or enabling any device-write gate.
+
+### Offline system restoration queue source — 2026-10-18
+
+Permit an isolated trusted coordinator to derive a bounded ADD attempt from an
+explicit enabled managed intent and fresh complete successful absence evidence.
+Use the ordinary jobs, links, lease, FIFO/cutoff and budgets, but a distinct
+`system:managed-shun-policy` actor with no captured user roles or import batch.
+Retain immutable intent/generation/authorization, snapshot and job linkage in an
+explicit optional attempt ledger (10000 keys, no recycling). Never initialize it
+on startup, reads or worker paths. No HTTP admission, discovery/controller loop,
+resume/rearm route, live migration or new gate enablement is included.
+
+Each system delegation lasts at most 900 seconds; its source is current standing
+policy, not renewal of a user's expired request. Deterministic intent/snapshot
+keys coalesce discoveries; old keys remain reserved after queue pruning. Require
+snapshot start after policy authorization/latest completed attempt, age at most
+120 seconds, and no matching interface. Bound one active attempt per pair,
+minimum 300 seconds between attempts and three attempts per pair per rolling
+hour across generations. FAILED/UNVERIFIED latches survive ordinary retention
+and new generations; no automatic retry/rearm is permitted.
+
+Claim requires a separate explicit default-false internal restoration capability
+in addition to existing ADD capability, current generation/enabled intent,
+unpaused queue/unsuspended registry, enabled device, no protection or waiting
+cleanup and unexpired delegation. Runtime callers do not supply that capability.
+Do not coalesce system and one-time authority. Retirement/protection atomically
+cancel unstarted system jobs; RUNNING ADD remains running and must settle before
+ordered removal. Composite cleanup may supersede only its own unstarted system
+restoration, never an independent queued import. Lost lease/result is attention,
+not replay; verified creation records occurrence-bound system provenance, NOOP
+does not. Recovery cancels queued attempts, retains running uncertainty and
+suspends restoration. Old images ignoring this source must not execute pending
+system attempts. Synthetic validation is not live restoration acceptance.

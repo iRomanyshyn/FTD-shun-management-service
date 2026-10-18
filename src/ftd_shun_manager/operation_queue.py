@@ -161,12 +161,14 @@ class OperationQueue:
         return count
 
     def _event(self, db, event: str, request, job, details: dict | None = None) -> None:
+        from .managed_restoration import SOURCE, attempt_for_job
+
         imported = db.execute("SELECT 1 FROM manual_import_batches WHERE id=?", (request["id"],)).fetchone()
         self.store._insert_event(
             db, event, job["device_id"], IPv4Address(job["ip"]), None,
             request["actor_subject"], request["actor_display_name"],
             tuple(json.loads(request["actor_roles_json"])), request["id"],
-            {"operation_id": job["id"], "source": "manual_import" if imported else request["source"],
+            {"operation_id": job["id"], "source": SOURCE if attempt_for_job(db, job["id"]) else "manual_import" if imported else request["source"],
              "action": dict(job).get("action", "REMOVE"), **(details or {})},
             stamp(self._now()),
         )
@@ -253,6 +255,10 @@ class OperationQueue:
             return {"operation_id": request_id, "status": "accepted", "replayed": True}, []
         if mutations_suspended(db):
             raise QueueConflict("Device mutations are suspended for recovery; no new work was admitted.")
+        from .managed_restoration import attempt_for_job, key_reserved
+
+        if key_reserved(db, request_id):
+            raise QueueConflict("Restoration keys cannot acquire another operation's authority.")
         require_fleet_queue_key(db, request_id, targets, subject, source, scope)
         if self._handoffs_present(db):
             handoff = db.execute("SELECT * FROM managed_removal_handoffs WHERE id=?", (request_id,)).fetchone()
@@ -302,6 +308,8 @@ class OperationQueue:
             job = db.execute("""SELECT * FROM operation_jobs WHERE device_id=? AND ip=?
                 AND state IN ('QUEUED','RUNNING')""", (device_id, ip.packed)).fetchone()
             coalesced = job is not None
+            if job is not None and attempt_for_job(db, job["id"]):
+                raise QueueConflict("System restoration cannot coalesce with independent one-time work.")
             if job is not None and job["action"] != action:
                 raise QueueConflict("Opposite ADD/REMOVE work already exists for this device/IP; no targets were queued.")
             if job is None:
@@ -339,14 +347,16 @@ class OperationQueue:
         return {"operation_id": request_id, "status": "accepted", "replayed": True}
 
     def has_pending(self, device_id: int | None = None, *, addition_device_ids: frozenset[int] = frozenset()) -> bool:
+        from .managed_restoration import attempt_for_job
+
         with self.store._connection() as db:
             if mutations_suspended(db):
                 return False
             if not addition_device_ids:
                 return db.execute("""SELECT 1 FROM operation_jobs WHERE state='QUEUED'
                     AND action='REMOVE' AND (? IS NULL OR device_id=?) LIMIT 1""", (device_id, device_id)).fetchone() is not None
-            return any(row["action"] == "REMOVE" or row["device_id"] in addition_device_ids
-                       for row in db.execute("""SELECT action,device_id FROM operation_jobs
+            return any(row["action"] == "REMOVE" or (row["device_id"] in addition_device_ids and not attempt_for_job(db, row["id"]))
+                       for row in db.execute("""SELECT id,action,device_id FROM operation_jobs
                            WHERE state='QUEUED' AND (? IS NULL OR device_id=?)""", (device_id, device_id)))
 
     def has_target(self, device_id: int, ip: IPv4Address) -> bool:
@@ -383,13 +393,16 @@ class OperationQueue:
             self._cancel_obsolete_policy(db)
 
     def _cancel_obsolete_policy(self, db) -> None:
+        from .managed_restoration import cancel_obsolete
+
+        cancel_obsolete(db, self)
         for job in db.execute("""SELECT j.* FROM operation_jobs j JOIN protected_ips p ON p.ip=j.ip
             WHERE j.action='ADD' AND j.state='QUEUED' AND p.enabled=1""").fetchall():
             self._finish(db, job, "FAILED", "Protected IP enabled before addition; no write was sent")
         rows = db.execute("""SELECT r.*,j.id AS job_id,j.device_id,j.ip
             FROM operation_requests r JOIN operation_links l ON l.request_id=r.id
             JOIN operation_jobs j ON j.id=l.job_id
-            WHERE r.source='trusted_policy' AND r.state='ACTIVE' AND j.state='QUEUED'
+            WHERE r.source='trusted_policy' AND r.state='ACTIVE' AND j.state='QUEUED' AND j.action='REMOVE'
               AND NOT EXISTS (SELECT 1 FROM protected_ips p WHERE p.ip=j.ip AND p.enabled=1)""").fetchall()
         for request in rows:
             job = {"id": request["job_id"], "device_id": request["device_id"], "ip": request["ip"]}
@@ -454,17 +467,24 @@ class OperationQueue:
     def claim_removal(self, device_id: int, owner: str, cutoff: int) -> dict | None:
         return self._claim_mutation(device_id, owner, cutoff, "REMOVE")
 
-    def claim_next_mutation(self, device_id: int, owner: str, cutoff: int, *, additions_enabled: bool = False) -> dict | None:
+    def claim_next_mutation(self, device_id: int, owner: str, cutoff: int, *, additions_enabled: bool = False,
+                            managed_restoration_enabled: bool = False) -> dict | None:
         """One atomic FIFO claim; the leased scheduler supplies device capability."""
-        return self._claim_mutation(device_id, owner, cutoff, None if additions_enabled else "REMOVE")
+        return self._claim_mutation(device_id, owner, cutoff, None if additions_enabled else "REMOVE",
+                                    managed_restoration_enabled=managed_restoration_enabled)
 
-    def claim_addition(self, device_id: int, owner: str, cutoff: int, *, execution_enabled: bool = False) -> dict | None:
+    def claim_addition(self, device_id: int, owner: str, cutoff: int, *, execution_enabled: bool = False,
+                       managed_restoration_enabled: bool = False) -> dict | None:
         """Explicit ADD-only domain hook; defaults disabled."""
         if not execution_enabled:
             return None
-        return self._claim_mutation(device_id, owner, cutoff, "ADD")
+        return self._claim_mutation(device_id, owner, cutoff, "ADD", managed_restoration_enabled=managed_restoration_enabled)
 
-    def _claim_mutation(self, device_id: int, owner: str, cutoff: int, action: str | None) -> dict | None:
+    def _claim_mutation(self, device_id: int, owner: str, cutoff: int, action: str | None, *, managed_restoration_enabled=False) -> dict | None:
+        from .managed_restoration import ACTOR, attempt_for_job, record_result, validate_binding
+
+        if type(managed_restoration_enabled) is not bool:
+            raise ValueError("Restoration capability must be boolean.")
         with self.store._connection() as db:
             db.execute("BEGIN IMMEDIATE")
             if mutations_suspended(db):
@@ -481,15 +501,22 @@ class OperationQueue:
             jobs = db.execute("""SELECT * FROM operation_jobs
                 WHERE device_id=? AND state='QUEUED' AND (? IS NULL OR action=?) AND (seq<=? OR EXISTS (
                     SELECT 1 FROM operation_links l JOIN operation_requests r ON r.id=l.request_id
-                    WHERE l.job_id=operation_jobs.id AND r.source='trusted_policy' AND r.state='ACTIVE'))
+                    WHERE l.job_id=operation_jobs.id AND r.source='trusted_policy' AND r.state='ACTIVE'
+                        AND operation_jobs.action='REMOVE'))
                 ORDER BY seq""", (device_id, action, action, cutoff)).fetchall()
             for job in jobs:
                 job_action = job["action"]
+                restoration = attempt_for_job(db, job["id"])
+                if restoration:
+                    validate_binding(db, restoration, job)
+                    if not managed_restoration_enabled:
+                        continue
                 requests = db.execute("""SELECT r.* FROM operation_requests r
                     JOIN operation_links l ON l.request_id=r.id
                     WHERE l.job_id=? AND r.state='ACTIVE' AND r.expires_at>?
-                      AND EXISTS(SELECT 1 FROM manual_import_batches b WHERE b.id=r.id)=?""",
-                    (job["id"], stamp(self._now()), int(job_action == "ADD")),
+                      AND (EXISTS(SELECT 1 FROM manual_import_batches b WHERE b.id=r.id)=?
+                          OR (r.id=? AND r.actor_subject=? AND r.source='trusted_policy'))""",
+                    (job["id"], stamp(self._now()), int(job_action == "ADD"), restoration["id"] if restoration else None, ACTOR),
                 ).fetchall()
                 device = db.execute("SELECT enabled FROM devices WHERE id=?", (device_id,)).fetchone()
                 if device is None or not device["enabled"]:
@@ -503,13 +530,20 @@ class OperationQueue:
                     continue
                 db.execute("UPDATE operation_jobs SET state='RUNNING',started_at=?,dispatch_kind=? WHERE id=?",
                            (stamp(self._now()), job_action, job["id"]))
+                if restoration:
+                    record_result(db, self.store, job, "RUNNING", stamp(self._now()))
                 for request in requests:
                     self._event(db, "SHUN_OPERATION_RUNNING", request, job)
                 self._bump(db)
+                if restoration and (executor["lease_until"] <= stamp(self._now())
+                                    or not any(request["expires_at"] > stamp(self._now()) for request in requests)):
+                    raise QueueConflict("Restoration lease or delegation expired during claim.")
                 return {**dict(job), "state": "RUNNING", "dispatch_kind": job_action}
         return None
 
     def _finish(self, db, job, state: str, reason: str | None = None) -> None:
+        from .managed_restoration import record_result
+
         current = stamp(self._now())
         db.execute("UPDATE operation_jobs SET state=?,completed_at=?,reason=? WHERE id=?",
                    (state, current, reason, job["id"]))
@@ -523,6 +557,7 @@ class OperationQueue:
                 self._event(db, "SHUN_ADD_FAILED" if job["action"] == "ADD" else
                             "SHUN_TRUSTED_AUTO_REMOVE_FAILED" if request["source"] == "trusted_policy"
                             else "SHUN_REMOVE_FAILED", request, job, {"reason": reason, "outcome": state})
+        record_result(db, self.store, job, state, current, reason)
         self._bump(db)
 
     def defer_removal(self, job_id: str, owner: str) -> None:
@@ -534,6 +569,8 @@ class OperationQueue:
         self._defer_mutation(job_id, owner, "ADD")
 
     def _defer_mutation(self, job_id: str, owner: str, action: str) -> None:
+        from .managed_restoration import record_result
+
         with self.store._connection() as db:
             db.execute("BEGIN IMMEDIATE")
             job = db.execute("SELECT * FROM operation_jobs WHERE id=?", (job_id,)).fetchone()
@@ -542,6 +579,7 @@ class OperationQueue:
                 raise QueueConflict("operation ownership lost")
             db.execute("""UPDATE operation_jobs SET state='QUEUED',started_at=NULL,dispatch_kind=NULL,
                 reason='Deferred before write: session budget exhausted' WHERE id=?""", (job_id,))
+            record_result(db, self.store, job, "QUEUED", stamp(self._now()), "Exact pre-write deferral")
             requests = db.execute("""SELECT r.* FROM operation_requests r JOIN operation_links l
                 ON l.request_id=r.id WHERE l.job_id=? AND r.state='ACTIVE'""", (job_id,)).fetchall()
             for request in requests:
@@ -598,6 +636,8 @@ class OperationQueue:
 
     def finish_addition(self, job_id: str, owner: str, result: AdditionResult | str, *, reason: str | None = None) -> str:
         """Commit an exact worker result; return persisted state, not assumed success."""
+        from .managed_restoration import SOURCE, attempt_for_job
+
         interface = None
         if isinstance(result, AdditionResult):
             if type(result.created) is not bool or (not result.created and result.interface is not None):
@@ -620,6 +660,7 @@ class OperationQueue:
                 raise QueueConflict("addition ownership or executor lease lost")
             requests = db.execute("""SELECT r.* FROM operation_requests r JOIN operation_links l ON l.request_id=r.id
                 JOIN manual_import_batches b ON b.id=r.id WHERE l.job_id=? AND r.state='ACTIVE'""", (job_id,)).fetchall()
+            source = SOURCE if attempt_for_job(db, job_id) else "manual_import"
             if state == "VERIFIED":
                 if db.execute("SELECT 1 FROM shun_state WHERE device_id=? AND ip=? AND active=1",
                               (job["device_id"], job["ip"])).fetchone():
@@ -645,7 +686,7 @@ class OperationQueue:
                     self._event(db, "SHUN_ADD_NOOP", request, job, {"created": False})
             self._finish(db, job, state, reason)
         print(json.dumps({"event": "queue.addition.completed", "operation_id": job_id,
-                          "source": "manual_import", "state": state, "device_id": job["device_id"],
+                          "source": source, "state": state, "device_id": job["device_id"],
                           "ip": str(IPv4Address(job["ip"])), "interface": interface if state == "VERIFIED" else None}), flush=True)
         return state
 
@@ -685,6 +726,8 @@ class OperationQueue:
                           "actor_subject": subject}), flush=True)
 
     def status(self, *, addition_device_ids: frozenset[int] = frozenset()) -> dict:
+        from .managed_restoration import SOURCE, attempt_for_job, present
+
         with self.store._connection() as db:
             # Counts and independently selected groups must describe one snapshot.
             db.execute("BEGIN")
@@ -702,6 +745,7 @@ class OperationQueue:
             jobs = []
             target_counts = {}
             for row in rows:
+                restoration = attempt_for_job(db, row["id"])
                 query = """SELECT r.id,r.actor_subject,r.actor_display_name,r.source,r.state,r.expires_at
                     FROM operation_requests r JOIN operation_links l ON l.request_id=r.id WHERE l.job_id=?"""
                 live = db.execute(query + " AND r.state='ACTIVE' AND r.expires_at>? LIMIT 2000",
@@ -714,7 +758,7 @@ class OperationQueue:
                 for request in selected:
                     view = dict(request)
                     if row["action"] == "ADD":
-                        view["source"] = "manual_import"
+                        view["source"] = SOURCE if restoration else "manual_import"
                     # Do not materialize a 1000-target canonical payload for
                     # every shared job/actor. Count immutable linked targets
                     # once per displayed request within this read snapshot.
@@ -730,14 +774,15 @@ class OperationQueue:
                         and row["device_id"] in addition_device_ids and reason == "ADD execution is not enabled"):
                     reason = None  # Legacy placeholder, not a real deferral/error.
                 jobs.append({**dict(row), "ip": str(IPv4Address(row["ip"])), "reason": reason,
-                             "execution_enabled": row["action"] == "REMOVE" or row["device_id"] in addition_device_ids,
+                             "execution_enabled": not restoration and (row["action"] == "REMOVE" or row["device_id"] in addition_device_ids),
                              "request_count": request_count, "requests": request_views})
             progress_filter = """FROM operation_requests r JOIN operation_links l ON l.request_id=r.id
                 JOIN operation_jobs j ON j.id=l.job_id
                 WHERE r.state='ACTIVE' AND j.state IN ('QUEUED','RUNNING')"""
             progress_count = db.execute("SELECT COUNT(DISTINCT r.id) " + progress_filter).fetchone()[0]
-            progress_requests = db.execute("""SELECT DISTINCT r.id,r.actor_subject,r.actor_display_name,
-                CASE WHEN EXISTS(SELECT 1 FROM manual_import_batches b WHERE b.id=r.id)
+            system_case = "WHEN EXISTS(SELECT 1 FROM managed_restoration_attempts a WHERE a.id=r.id) THEN 'managed_shun_policy'" if present(db) else ""
+            progress_requests = db.execute(f"""SELECT DISTINCT r.id,r.actor_subject,r.actor_display_name,
+                CASE {system_case} WHEN EXISTS(SELECT 1 FROM manual_import_batches b WHERE b.id=r.id)
                 THEN 'manual_import' ELSE r.source END AS source,r.requested_at """ + progress_filter + " ORDER BY r.requested_at,r.id LIMIT 20").fetchall()
             request_progress = []
             for request in progress_requests:

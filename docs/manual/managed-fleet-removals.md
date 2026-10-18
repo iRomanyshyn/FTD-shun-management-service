@@ -103,6 +103,10 @@ retires all enabled desired members and reserves the **entire** frozen scope in
 one WAITING_ADD root. No ready member of that root receives early cleanup. An
 unstarted QUEUED one-time ADD, disabled device or another waiting single/fleet
 cleanup conflicts the whole request; do not silently cancel or omit it.
+The offline [system restoration source](managed-restoration.md) is distinct:
+its QUEUED ADD can be cancelled atomically by retiring that same enabled intent
+before whole-scope removal admission. A late failure restores both; it does not
+relax the conflict for independent imports or permit partial fleet writes.
 
 Reservations count one pending slot per reviewed target and one active request
 per root, together with existing jobs/single waits under the 1000/2000 bounds.

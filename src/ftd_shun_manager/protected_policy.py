@@ -35,6 +35,7 @@ class ProtectedPolicy:
                     "system:policy-migration", "Policy migration", (), None,
                     {"name": "Migrated address", "enabled": True}))
             db.execute("UPDATE protected_policy SET legacy_imported=1,revision=revision+1 WHERE id=1")
+            self.queue._cancel_obsolete_policy(db)  # Initial legacy protection has the same atomic priority as UI edits.
         for log in logs:
             print(json.dumps(log), flush=True)
 

@@ -85,6 +85,14 @@ startup migration or device write is used. The Chromium fixture checks mobile
 spacing, live revision updates, keyed disclosure preservation and revocation
 without navigation or Cisco refresh hints. See [Managed Controls](managed-controls.md).
 
+`tests/test_managed_restoration.py` covers the offline system queue source with
+disposable SQLite/typed outcomes: snapshot freshness/pre-write exclusion,
+generation/source binding, default-held claims, cutoff/capacity, concurrency,
+provenance/NOOP, backoff/churn, retained uncertainty, retirement/protection/
+recovery, ordered cleanup and late audit/lease rollback. No live source schema,
+controller, discovery, dispatch or rearm is enabled by these tests. See
+[Managed Restoration](managed-restoration.md).
+
 Browser confirmation tests in `test_import_review.py` use synthetic ASGI/SQLite
 only. They cover frozen exclusions/targets, escaped metadata, current trusted
 identity/role and CSRF, unknown fields/counts, subject/cookie/expiry binding,

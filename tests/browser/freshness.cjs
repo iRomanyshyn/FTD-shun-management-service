@@ -1020,6 +1020,18 @@ test("refresh interaction in real Chromium", { timeout: 120000 }, async (t) => {
         status.status_revision += 1;
         await wake(page);
         await page.until("document.querySelector('#managed-shun-state').textContent.includes('Maintenance stopped')");
+        Object.assign(managed.entries[0], { enabled: true, protected: false, restoration_attention: true,
+          restoration_state: "UNVERIFIED", restoration_generation: 1, last_verified_restoration_at: null });
+        status.queue.revision += 1;
+        await wake(page);
+        await page.until("document.querySelector('#managed-shun-state').textContent.includes('Restoration needs reviewed resolution')");
+        assert.ok(await page.evaluate("document.querySelector('#managed-shun-state').textContent.includes('Last attempt: UNVERIFIED')"));
+        assert.ok(await page.evaluate("document.querySelector('#managed-shun-state').textContent.includes('Not recorded')"));
+        managed.entries[0].last_verified_restoration_at = "2026-10-18T10:00:00Z";
+        status.queue.revision += 1;
+        await wake(page);
+        await page.until("Boolean(document.querySelector('#managed-shun-state time[datetime=\"2026-10-18T10:00:00Z\"]')?.textContent.match(/GMT|UTC/))");
+        Object.assign(managed.entries[0], { enabled: false, protected: true, restoration_attention: false });
         handoffs = { initialized: true, counts: { WAITING_ADD: 1 }, display_limit: 20, items: [
           { id: "00000000-0000-4000-8000-000000000002", device_hostname: "lab-ftd", ip: "198.51.100.251",
             actor_subject: "test", actor_display_name: "<script>Fixture</script>", state: "WAITING_ADD",

@@ -94,8 +94,15 @@ Do not rewrite historical log entries except to correct an objective error; add 
   acknowledgement atomically; dirty forms retain that revision. Unknown optional
   state is not zero. Ordinary manual removal is guarded against enabled policy,
   including missing fleet targets, and MAINTAIN rejects pending/running removal.
-  Protected automatic removal remains independent; system restoration claim/
-  generation hooks are not implemented by these admission barriers.
+  Protected automatic removal remains independent. An offline system restoration
+  source now binds fresh complete snapshots, intent/generation/authorization and
+  retained attempts to shared jobs without fake user roles/imports. Claim has a
+  separate default-false internal capability not supplied by runtime. Retirement/
+  protection cancel unstarted system ADD atomically; RUNNING remains ordered.
+  FAILED/UNVERIFIED latches survive queue retention and new generations; no rearm
+  or controller/resume/standing-grant route exists. No startup initializes its
+  optional attempt ledger. Follow docs/manual/managed-restoration.md; do not
+  seed the ledger or enable dispatch/discovery in the lab as a smoke shortcut.
   Follow docs/manual/managed-controls.md. A default-off cleanup-worker hook may advance
   existing waits under the shared lease before its cycle cutoff; it does not
   enable admission, ADD or restoration and never initializes optional schemas.

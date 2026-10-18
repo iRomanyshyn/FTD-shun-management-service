@@ -65,7 +65,7 @@ def managed_state(db) -> dict | None:
         names = {r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
         if "managed_fleet_waits" in names and "managed_fleet_removals" not in names:
             raise ValueError("Orphan fleet cleanup reservations")
-        if not names.intersection(expected) and not names.intersection({"managed_fleet_removals", "managed_fleet_waits"}):
+        if not names.intersection(expected) and not names.intersection({"managed_fleet_removals", "managed_fleet_waits", "managed_restoration_attempts"}):
             return None
         if not names.issuperset(expected):
             raise ValueError("Partial managed schema")

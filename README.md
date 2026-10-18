@@ -26,6 +26,10 @@ No HTTP admission
 or live optional-schema initialization is enabled.
 Runtime combined device-removal admission, managed creation and desired restoration/
 controller integration remain pending.
+An [offline system restoration source](docs/manual/managed-restoration.md) now
+provides snapshot/generation-bound ADD authority, retained uncertainty/provenance
+and atomic revocation/queue/recovery hooks. Runtime discovery and dispatch remain
+unavailable; this is not automatic restoration enablement.
 Current imports remain one-time and all ADD gates stay
 disabled in the lab. Old imports are not auto-adopted and no live migration
 initializes the new registry yet.

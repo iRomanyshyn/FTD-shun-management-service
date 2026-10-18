@@ -13,6 +13,8 @@ from ipaddress import IPv4Address
 from pathlib import Path
 from uuid import uuid4
 
+from .managed_restoration import present as restorations_present
+from .managed_restoration import record_result
 from .managed_safety import fleet_waits_present
 from .operation_queue import stamp
 from .safety import mutations_suspended
@@ -61,6 +63,7 @@ def apply_recovery_control(db, store: Store, action: str, actor: str, *, now: da
             raise ValueError("Fleet waiting cleanup without root authority; review the backup.")
         if "managed_fleet_waits" in tables:
             fleet_waits_present(db)  # Refuse orphan/partial evidence before any cancellation.
+        restorations_present(db)  # Optional authority must be structurally known before recovery changes.
         columns = {row[1] for row in db.execute("PRAGMA table_info(operation_executor)")}
         if "mutations_suspended" not in columns:
             db.execute("ALTER TABLE operation_executor ADD COLUMN mutations_suspended INTEGER NOT NULL DEFAULT 0 CHECK(mutations_suspended IN (0,1))")
@@ -93,6 +96,7 @@ def apply_recovery_control(db, store: Store, action: str, actor: str, *, now: da
                 outcome = "UNVERIFIED" if job["state"] == "RUNNING" else "CANCELLED"
                 db.execute("UPDATE operation_jobs SET state=?,completed_at=?,reason=? WHERE id=?",
                            (outcome, timestamp, reason, job["id"]))
+                record_result(db, store, job, outcome, timestamp, reason)
                 result["running_unverified" if outcome == "UNVERIFIED" else "queued_cancelled"] += 1
                 store._insert_event(db, "SHUN_OPERATION_RECOVERY_SUSPENDED", job["device_id"],
                                     IPv4Address(job["ip"]), None, subject,

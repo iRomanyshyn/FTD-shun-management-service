@@ -18,6 +18,7 @@ from .managed_intent import (
     canonical_managed_fleet_removal,
     canonical_managed_fleet_scope,
 )
+from .managed_restoration import attempt_for_job, key_reserved
 from .managed_safety import (
     fleet_key_reserved,
     fleet_target_held,
@@ -143,11 +144,13 @@ class ManagedFleetRemovals:
             job = db.execute("""SELECT * FROM operation_jobs WHERE device_id=? AND ip=?
                     AND action='ADD' AND state IN ('QUEUED','RUNNING')""", (device_id, ip.packed)).fetchone()
             if job is not None:
-                if not ordered_wait or job["state"] != "RUNNING":
+                queued_restoration = job["state"] == "QUEUED" and attempt_for_job(db, job["id"])
+                if not queued_restoration and (not ordered_wait or job["state"] != "RUNNING"):
                     raise QueueConflict("Fleet scope has unfinished ADD; no changes were applied. QUEUED ADD requires explicit cancellation; RUNNING ADD requires ordered mode.")
-                if job["dispatch_kind"] != "ADD":
+                if not queued_restoration and job["dispatch_kind"] != "ADD":
                     raise QueueConflict("RUNNING ADD has inconsistent dispatch evidence; no changes were applied.")
-                predecessors.append({"job_id": job["id"], "device_id": device_id})
+                if not queued_restoration:
+                    predecessors.append({"job_id": job["id"], "device_id": device_id})
             if fleet_target_held(db, device_id, ip):
                 raise QueueConflict("Fleet scope already has waiting cleanup; inspect its original request.")
             if self.queue._handoffs_present(db) and db.execute("""SELECT 1 FROM managed_removal_handoffs
@@ -211,6 +214,8 @@ class ManagedFleetRemovals:
 
     @staticmethod
     def _key_used(db, key):
+        if key_reserved(db, key):
+            return True
         tables = ["operation_requests", "manual_import_batches", "managed_shun_requests"]
         if db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='managed_removal_handoffs'").fetchone():
             tables.append("managed_removal_handoffs")

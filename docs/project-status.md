@@ -4,6 +4,51 @@ Last updated: 2026-10-18
 
 ## Current increment
 
+**Offline system restoration queue lifecycle (2026-10-18).** A separate standing
+policy source now creates deterministic snapshot/intent-bound ADD attempts under
+the shared lease, without impersonating users or creating import batches. It
+reuses jobs/links/FIFO/cutoff/capacity and bounded 900-second system delegations;
+there is no discovery loop, runtime dispatch capability, HTTP admission, live
+migration or new `.env` enablement. Normal callers keep the separate internal
+restoration capability false and optional initialization is explicit/offline only.
+
+Fresh complete UTC absence must postdate policy/latest relevant completed work;
+stale/pre-write/partial/failed/present observations cannot authorize restoration.
+Claims recheck source linkage, generation/revision, device/protection/cleanup,
+suspension, delegation and lease. Duplicate discovery cannot multiply pending
+work or coalesce system/manual authority. Initial bounds: 10000 retained attempts,
+300-second per-pair gap, three per rolling hour across generations. FAILED/
+UNVERIFIED remains attention after queue retention/new generations; no automatic
+rearm, new ID or lease recovery clears it. Exact pre-write deferral preserves
+the same job/deadline. Only VERIFIED retains actual occurrence provenance; NOOP
+does not. Optional Managed shuns reads expose attempts/attention/verified dates
+with timezone while the controller-unavailable notice remains truthful.
+
+Retirement, Protected-IP edits/initial legacy protection and composite recovery
+now cancel queued system work atomically; RUNNING remains ordered/uncertain.
+Offline single/fleet cleanup can supersede only its queued system ADD, not
+independent one-time imports. Late admission/audit failures roll back everything.
+Ordinary recovery resume never resumes standing enforcement or clears latches.
+See [Managed Restoration](manual/managed-restoration.md). Validation and disabled
+lab rollout results follow in the log. Runtime discovery/backlog, frozen managed
+grant/combined controls, reviewed resume/resolution and a scoped live lifecycle
+remain the next integration work; no existing import/history is adopted.
+
+All 676 Python tests (53 new source cases), 22 Chromium scenarios (23 reported
+tests), compileall/Ruff/JS syntax/diff and 253 relative file links pass. Built
+Python 3.12 networkless synthetic lifecycle/BFF smoke passes with no live mounts.
+Deployed API `955caa56f971` / Web `3cef0e149401`; paired rollback images
+`before-restoration-source-20261018t1634z` and checked 0600 volume/private host
+`.local/backups/state-before-restoration-source-20261018T1636Z.sqlite3` retained.
+Schema and all eleven non-executor tables match backup; integrity/FK pass,
+optional schemas remain absent, queue eight VERIFIED/one NOOP, no pending or
+active shuns. Actual ADD/admission/cleanup-worker off, agent ADD unset/default
+false, zero profiles; env/inventory/secrets and agent/Caddy/Authelia unchanged.
+Anonymous managed/status/control routes 401, verified HTTPS 302. Normal v2 cycle
+at 16:37:31Z: two reads/zero mutations/8623 ms; next baseline 16:42:31Z/no error.
+No live source seed, control submission, hint, new job or direct agent RPC.
+This is disabled integration evidence, not live managed restoration acceptance.
+
 **Fleet cleanup visibility, revocation and honest queue progress (2026-10-18).**
 Optional private GET and Managed shuns now display at most 20 retained fleet
 roots, active/attention first, with whole-ledger counts and labelled five-target
@@ -962,9 +1007,10 @@ visibility/reviews, offline atomic retirement/removal handoff, composite
 recovery controls and default-off shared-worker integration are implemented.
 Policy-only retirement/wait cancellation, frozen fleet scope/comparison and
 offline ready/ordered atomic fleet admission are now implemented. Bounded fleet
-status and owner/Admin waiting revocation are available; next complete
-combined confirmation prerequisites and protection/system
-hooks, followed by bounded default-off desired reconciliation
+status and owner/Admin waiting revocation are available. The offline standing
+system queue source, claim/generation/protection/revocation/uncertainty hooks are
+now tested; next connect bounded default-off complete-snapshot discovery and
+backlog, frozen standing grant/combined controls and reviewed resume/resolution
 with uncertainty/rearm and anti-churn controls. Do not enable it by deriving
 policy from historical imports or by renewing old user jobs. Resolve controller
 anti-churn defaults and any expansion beyond initial registry bounds before live

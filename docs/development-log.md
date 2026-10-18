@@ -3415,6 +3415,107 @@ live managed/fleet write acceptance. Combined admission, standing restoration/
 generation/claim cancellation, uncertainty/rearm/anti-churn, reviewed migration
 and separately scoped live validation remain pending; all live gates stay off.
 
+## 2026-10-18 — Offline system restoration authority and lifecycle
+
+Implemented the standing system ADD source as an offline integration increment,
+not a runtime controller. Explicit optional attempt initialization only; no new
+environment switch, HTTP admission, discovery loop, live seed or dispatcher call.
+All deployed ADD/cleanup-worker gates and device profiles remain unchanged.
+
+`ManagedRestorations` derives one request key per intent/snapshot, requiring
+explicit managed authorization, fresh complete UTC absence after relevant policy/
+operation timestamps, current lease, unpaused/unsuspended enabled target and no
+protection/cleanup/conflicting or uncertain job. It inserts one ordinary ADD job/
+link with an independent 900-second system delegation, empty captured roles and
+retained immutable policy/generation/snapshot/authorization linkage. No expired
+manual authority renewal, fake import batch or system/manual coalescing. Existing
+shared capacity/FIFO/cutoff and budgets remain; default runtime capability holds
+the source and does not wake a second executor. Admission rechecks lease and
+freshness before commit; claim validates exact linkage/current authority and
+checks expiry again before returning dispatch ownership.
+
+The retained 10000-key optional ledger survives queue/history pruning and
+reserves request/job keys across namespaces. Initial domain defaults are 300s
+between attempts and at most three per pair/rolling hour across generations.
+FAILED/UNVERIFIED latches never clear through new IDs/generations/observations or
+lease recovery; reviewed resolution/rearm is not implemented. Exact pre-write
+deferral preserves the same authority/deadline. VERIFIED alone records actual
+occurrence/interface/date; NOOP never claims creation/import ownership. Terminal
+evidence is immutable. System audit includes original policy/snapshot/job and
+managed/protected revisions, not invented current user roles.
+
+Registry retirement, Protected-IP edits/initial legacy import and offline
+recovery now atomically cancel only queued system work. Running ADD can finish
+and remains covered by explicit ordered cleanup; it is never falsely cancelled.
+Single/fleet composite removal may supersede its unstarted system restoration,
+while independent queued imports still conflict. Late queue/audit failure rolls
+back retirement, cancellation and removal together. Recovery retains RUNNING
+uncertainty and keeps restoration suspended on ordinary resume. Partial/orphan
+optional evidence fails closed instead of being initialized or repaired.
+
+Managed shuns reads optionally show retained attempt/attention across generations
+and last verified restoration with localized timezone, while still warning that
+the controller is unavailable. Queue metadata labels the system source honestly
+and exposes no generic cancel for it. New source/manuals, architecture, agent
+agreement, status, README and relevant queue/recovery/fleet procedures updated.
+
+Validation uses disposable SQLite, typed synthetic outcomes and localhost browser
+fixtures, never live source initialization or FTD mutation. Results, built-package
+smoke and authorized default-off API/Web deployment checks follow below.
+
+**Validation/build result:** all 676 Python tests pass (27.13 s), including 53
+new system-source cases. Compileall/Ruff/diff/JS syntax pass. All 22 Chromium
+scenarios (23 reported tests) pass without JavaScript exceptions (72.70 s suite),
+including live optional attention and timezone-labelled verified dates. Synthetic
+fixture cycle advancement was corrected to release/claim the lease across the
+persisted cooldown, not renew an already expired lease; no product guard was
+weakened to make a test pass.
+
+Built Python 3.12 package smoke passes in a networkless/read-only disposable
+container with no live mounts/secrets/socket. It verifies no optional startup
+tables, default-held system authority, original-key replay, VERIFIED occurrence
+without imported provenance, fresh later absence, retained UNVERIFIED latch,
+Protected-IP cancellation, optional BFF rendering and integrity/FK. No remote
+command is dispatched. Existing unlocked dependency ranges resolved FastAPI
+0.146.0/Starlette 1.9.0; this is not dependency-locking/production acceptance.
+
+Authorized lab preflight: no pending jobs/optional schemas, queue eight VERIFIED/
+one NOOP, ADD/admission/cleanup-worker off, zero addition profiles. Quiet Compose
+validation/API-Web build pass. Retained paired pre-release images:
+`deploy-api:before-restoration-source-20261018t1634z` / matching Web tag. Checked
+exclusive/no-symlink 0600 SQLite-safe volume backup plus private ignored host
+`.local/backups/state-before-restoration-source-20261018T1636Z.sqlite3` (0700 dir);
+both pass integrity/FK. Actual env/inventory/secrets and agent/wire unchanged.
+Stopping/recreating only the sole API/Web pair with --no-deps; deployment checks
+follow. No controller/worker gate, live policy/schema seed or new mutation.
+
+**Deployment result:** Stopped/recreated only the sole API/Web pair with
+--no-deps; no overlapping executor. API `955caa56f971`, image
+`sha256:8f4472bb4229ae4d225628ba2c0d3016495c92a747517a234328185d0ddb17a4`;
+Web `3cef0e149401`, image
+`sha256:486a8e3ebede4d6283a69bdc34ce910ad13223bccc88829f276ac30a65b545a4`.
+Agent `9d1f50d361ca`, Caddy `9c8fdb3a7f21`, Authelia `76f3635ab737` unchanged.
+Full sqlite_master and all eleven non-executor tables match checked backup;
+integrity ok/FK errors zero. Queue remains eight VERIFIED/one NOOP, no pending
+or active shuns, three Protected IPs and mutation pause unchanged. Actual API
+ADD/admission/cleanup-worker off, agent ADD unset/source-default false, zero
+eligible profiles. Env/inventory/secrets and Rust/wire unchanged.
+
+Repeated optional GETs return initialized=false and create no registry, attempt,
+handoff or fleet table. Anonymous Managed/status and revocation/combined-control
+routes return 401; TLS-verified HTTPS redirects 302 to authentication. No live
+Web identity spoofing, authenticated control, optional source/policy seed, new
+job, hint or direct agent call. Normal post-start v2 cycle at
+2026-10-18T16:37:31Z: two commands, zero removal/addition/mutation steps, 8623 ms;
+next baseline 16:42:31Z/no error. Paired images and checked private backups retained.
+Final compileall/Ruff/JS syntax/diff pass; 253 relative file links resolve.
+
+Next: connect bounded default-off complete-snapshot discovery/backlog, frozen
+standing-mode grant/combined controls and reviewed resume/uncertainty resolution,
+then scoped lab restoration lifecycle. Offline tests/package/default-off release
+do not establish live restoration/reboot/load/failure or production acceptance.
+No new infrastructure, service, published port or arbitrary CLI was added.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

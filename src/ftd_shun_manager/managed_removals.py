@@ -13,6 +13,7 @@ from ipaddress import IPv4Address
 from uuid import UUID, uuid5
 
 from .managed_intent import canonical_managed_removal
+from .managed_restoration import attempt_for_job, key_reserved
 from .managed_safety import fleet_key_reserved, fleet_target_held
 from .managed_shuns import (
     ManagedConflict,
@@ -113,6 +114,8 @@ class ManagedRemovals:
             if any(db.execute(f"SELECT 1 FROM {table} WHERE id=?", (request_id,)).fetchone()
                    for table in ("operation_requests", "manual_import_batches", "managed_shun_requests")):
                 raise ManagedConflict("An existing operation key cannot acquire managed-removal semantics.")
+            if key_reserved(db, request_id):
+                raise ManagedConflict("Restoration keys cannot authorize another cleanup.")
             if db.execute("SELECT COUNT(*) FROM managed_removal_handoffs").fetchone()[0] >= MAX_HANDOFF_RECORDS:
                 raise QueueFull("Managed removal ledger is full; no changes were applied.")
             if db.execute("SELECT 1 FROM managed_removal_handoffs WHERE device_id=? AND ip=? AND state='WAITING_ADD'",
@@ -128,7 +131,7 @@ class ManagedRemovals:
             job = db.execute("SELECT * FROM operation_jobs WHERE device_id=? AND ip=? AND state IN ('QUEUED','RUNNING')",
                              (device_id, ip.packed)).fetchone()
             waiting = job is not None and job["action"] == "ADD" and job["state"] == "RUNNING"
-            if job is not None and job["action"] == "ADD" and not waiting:
+            if job is not None and job["action"] == "ADD" and not waiting and not attempt_for_job(db, job["id"]):
                 raise QueueConflict("Unstarted one-time ADD conflicts; cancel it explicitly before removal.")
             current = self.queue._now()
             if self.queue._pending_count(db) + int(waiting) > 1000:
