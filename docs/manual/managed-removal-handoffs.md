@@ -1,12 +1,12 @@
-# Managed Removal Handoffs — Offline Integration Contract
+# Managed Removal Handoffs — Atomic Coordinator Contract
 
 ## Current boundary
 
 Implemented on 2026-10-17 as an internal coordinator in `managed_removals.py`,
-**not connected to admission HTTP/Web forms**. A separately gated shared-worker
-hook is now implemented, default off. Optional GET
-visibility and [preparatory Web reviews](managed-removal-review.md) are now
-implemented; combined confirmation cannot execute or call this coordinator.
+now connected to independently default-off [combined admission](managed-cleanup.md).
+A separately gated shared-worker hook is implemented, default off. Optional GET
+visibility and frozen Web reviews never admit work; explicit confirmation alone
+may call the coordinator when both admission/worker configuration permits it.
 Separate owner/Administrator waiting-cancel controls are available without
 admitting device work; see [Managed Controls](managed-controls.md). Normal API/Store/queue
 startup does not initialize it. Do not initialize or call it against the lab/
@@ -20,7 +20,8 @@ extend this single-target handoff into fleet ordered waiting. A separate
 and admits a complete scope in default ready-only mode. Its separate explicit
 ordered mode now reserves the whole scope behind RUNNING ADD; it never loops
 this single-target coordinator or commits partial fleet cleanup. Both remain
-offline, without HTTP admission or live schema initialization.
+separate coordinators, with default-off device/fleet HTTP admission and no live
+schema initialization.
 
 ## Atomic admission and durable authority
 
@@ -30,14 +31,16 @@ and a 1–900-second cleanup authorization. Its digest differs from policy-only
 RETIRE or import; it is confirmation binding, not authentication.
 
 `ManagedRemovals.admit()` requires current non-blank Operator/Administrator,
-canonical UUID and matching digest. One `BEGIN IMMEDIATE` transaction checks
+canonical UUID and matching digest. HTTP also supplies exact reviewed intent/
+generation, checked both on new admission and historical replay. One `BEGIN IMMEDIATE` transaction checks
 replay/namespaces/revisions/limits, retires the intent and either queues removal
 or reserves `WAITING_ADD` against the exact already-RUNNING ADD. It never cancels
 a running command or creates a second active device/IP job. Unstarted one-time
 ADD conflicts: cancel it explicitly first. Disabled devices can be stopped via
 policy-only retirement, but this coordinator does not admit their cleanup.
 Failure rolls back root authority, retirement, queue/reservation and audit;
-accepted logs are emitted only after commit.
+accepted logs are emitted only after commit. Original deadline is rechecked
+before commit even for a waiting/ready plan; late expiry rolls the whole plan back.
 
 Explicit initialization adds `managed_removal_handoffs`: immutable actor/roles,
 canonical review/result, original dates/deadline, intent/generation, predecessor
@@ -111,9 +114,10 @@ uncertain settlement, lease recovery, deadlines/cancellation, shared limits,
 namespaces, generations, pruning, immutable authority and SQLite backup. This
 is not live Cisco, session, load or production evidence.
 
-Before runtime use, complete executable combined confirmation,
-all-device scope union, protection/system cancellation and reviewed fixture
-validation. Shared-worker wake/advance/expiry is tested with synthetic state;
+Default-off executable confirmation, all-device scope union and protection/
+system cancellation now have synthetic coverage. Reviewed migration/resume/
+uncertainty resolution and scoped fixture validation remain before live use.
+Shared-worker wake/advance/expiry is tested with synthetic state;
 it is not enabled in the lab and no handoffs are seeded there. Take a checked SQLite-safe backup and retain paired images
 before an approved schema rollout. Do not drop authority/tombstones to revert.
 

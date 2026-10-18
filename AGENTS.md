@@ -72,10 +72,14 @@ Do not rewrite historical log entries except to correct an objective error; add 
   convert old imports/history into standing authority, renew expired user
   requests or replay uncertain ADD. The isolated registry foundation is now
   implemented; optional read-only API/UI visibility does not initialize or
-  authorize policy. Single-target removal admission remains offline-only;
+  authorize policy. Single-target/fleet cleanup now have default-off admission;
   its optional waiting-cleanup schema is not initialized by startup. Read-only
-  visibility/preparatory combined-removal reviews never invoke admission;
-  combined-removal confirmation is unconditionally unavailable. Separate frozen
+  visibility/review preparation never invoke admission. Confirmation requires
+  the independent default-off `FTD_SHUN_MANAGED_REMOVAL_ADMISSION_ENABLED` gate,
+  socket mode/shared cleanup worker and explicit
+  existing schemas. All live gates remain off. Follow docs/manual/managed-cleanup.md.
+  Exact single intent/generation and full frozen fleet scope are rechecked;
+  ready-only never silently becomes ordered waiting. Separate frozen
   fleet reviews read the observed/enabled-managed union with a transactional
   scope-comparison prerequisite. An offline ready-target fleet coordinator now
   retires enabled targets and admits one whole-scope REMOVE transaction; it
@@ -83,13 +87,19 @@ Do not rewrite historical log entries except to correct an objective error; add 
   A separately digested explicit ordered mode now reserves the whole scope
   behind captured RUNNING ADDs, preserving original deadlines and uncertainty;
   QUEUED one-time ADD still conflicts. Its optional retained authority/barrier
-  tables are never initialized by startup. No HTTP admission exists. A default-off
+  tables are never initialized by startup. Strict fixed device/fleet private
+  admission routes use those coordinators; no arbitrary action/scope. A default-off
   shared worker advances at most eight single/eight fleet roots before cutoff;
   no second executor or partial root promotion. Never simulate atomic fleet
   writes by looping over the single-target coordinator. Separate
   policy-only RETIRE and owner/Administrator waiting-cleanup cancellation are
   supported local revocation controls; neither admits device work nor cancels
-  independent one-time jobs or a RUNNING ADD. No create/re-enable/resume route.
+  independent one-time jobs or a RUNNING ADD. A separate frozen single-pair
+  standing grant now has default-off policy-only MAINTAIN admission behind
+  `FTD_SHUN_MANAGED_POLICY_ADMISSION_ENABLED=false`, requiring explicit consent,
+  profiles and existing optional registry/attempt schemas. It never migrates,
+  adopts observations/imports, wakes work or clears attention. Old-key replay
+  cannot re-enable policy. Follow docs/manual/managed-grants.md. No resume route.
   Protected-IP weakening checks matching intents and reviewed managed revision/
   acknowledgement atomically; dirty forms retain that revision. Unknown optional
   state is not zero. Ordinary manual removal is guarded against enabled policy,
@@ -106,7 +116,7 @@ Do not rewrite historical log entries except to correct an objective error; add 
   migrate, adopt or admit. All live gates remain off. Retirement/
   protection cancel unstarted system ADD atomically; RUNNING remains ordered.
   FAILED/UNVERIFIED latches survive queue retention and new generations; no rearm
-  or resume/standing-grant route exists. No startup initializes its
+  or resume route exists; standing admission remains disabled in the lab. No startup initializes its
   optional attempt ledger. Follow docs/manual/managed-restoration.md; do not
   seed the ledger or enable dispatch/discovery in the lab as a smoke shortcut.
   Follow docs/manual/managed-controls.md. A default-off cleanup-worker hook may advance
@@ -117,7 +127,7 @@ Do not rewrite historical log entries except to correct an objective error; add 
   Do not seed pending handoffs or enable the worker in the lab without scoped
   approval and remaining executable controls/protection/fleet validation. All live gates
   remain off; bounded fleet status and waiting-only Web revocation are available,
-  but combined admission stays unavailable. System/protection/uncertainty integration,
+  but combined admission stays disabled. Reviewed resume/uncertainty resolution,
   reviewed migration and a separately approved
   live fixture are still required.
 - On 2026-10-16 the operator separately approved the one-address service

@@ -11,14 +11,16 @@ These manuals describe the first implementation increment. The service is safe t
 | [Operation Queue](operation-queue.md) | Queued removal, progress/cancellation, limits, lease recovery, migration, backup restore, and rollback. |
 | [Offline Recovery](recovery.md) | Checked backup, durable mutation pause, composite queue/policy suspension and reviewed ordinary resume. |
 | [Managed Controls](managed-controls.md) | Frozen policy-only retirement, bounded single/fleet cleanup status and owner/Admin waiting cancellation; no device-write admission. |
+| [Combined Managed Cleanup](managed-cleanup.md) | Default-off atomic device/fleet retirement/cleanup, explicit ordered waiting, original-key receipts and rollout. |
 | [Protected IPs](protected-ips.md) | Shared authenticated policy editor, concurrency, one-time legacy import, audit, backup and rollback. |
 | [Import Preview](import-preview.md) | Non-executable paste parsing, local-state classification, supported syntax, limits and the pending ADD release gate. |
 | [Browser Import Review](import-review.md) | Frozen exact-target confirmation, identity/CSRF, bounded ephemeral drafts, same-key retry, default-off admission and rollback. |
-| [Managed Shuns](managed-shuns.md) | Registry foundation and read-only visibility, lifecycle/storage bounds and planned managed confirmation/shared-worker restoration; no controller. |
-| [Managed Restoration](managed-restoration.md) | Offline system ADD authority, snapshot/generation binding, retained uncertainty/provenance, revocation and queue/recovery hooks; no runtime controller. |
-| [Managed Removal Handoffs](managed-removal-handoffs.md) | Offline atomic retirement, waiting cleanup, original authorization, ordered settlement and remaining runtime/recovery gates. |
-| [Atomic Fleet Removal](managed-fleet-removals.md) | Offline ready/explicit ordered whole-scope retirement/cleanup, reservation barrier, original deadline, cancellation, rollback and shared-worker integration. |
-| [Managed Removal Review](managed-removal-review.md) | Non-executable single/fleet frozen scopes, observational union/CAS prerequisite, read-only handoff visibility, session limits and deployment checks. |
+| [Managed Shuns](managed-shuns.md) | Registry foundation, lifecycle/storage bounds, standing consent and independently gated restoration. |
+| [Standing Managed Policy](managed-grants.md) | Frozen one-pair standing consent, default-off policy-only admission, retries/revocation and unchanged live gates. |
+| [Managed Restoration](managed-restoration.md) | Default-off bounded snapshot discovery/shared dispatch, retained uncertainty/provenance and queue/recovery hooks. |
+| [Managed Removal Handoffs](managed-removal-handoffs.md) | Atomic retirement, waiting cleanup, original authorization, ordered settlement and gated admission/worker integration. |
+| [Atomic Fleet Removal](managed-fleet-removals.md) | Ready/explicit ordered whole-scope retirement/cleanup, reservation barrier, original deadline, cancellation and gated integration. |
+| [Managed Removal Review](managed-removal-review.md) | Frozen device/fleet scopes, default-off confirmation, observational union/CAS and handoff visibility. |
 | [Import Admission](import-admission.md) | Default-off private staging, ADD/REMOVE conflicts, immutable occurrence provenance, additive migration and rollback; no executable import. |
 | [Import Execution](import-execution.md) | Independent default-off scheduler gate, per-device v3, common FIFO/budgets, priority reads, no-replay recovery and disabled-mode rollout. |
 | [One-Address Service Validation](single-address-service-validation.md) | Scoped runbook and recorded one-fixture VERIFIED/NOOP/cleanup evidence, idempotent replay and restored gates; new tests require new approval. |

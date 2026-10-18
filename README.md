@@ -7,7 +7,7 @@ The governing specification is the [Architecture and Security Design](docs/archi
 Next requirement: [managed manual-shun restoration](docs/manual/managed-shuns.md)
 after confirmed disappearance/reboot, while explicit service removal stops
 maintenance. Its registry foundation and read-only Managed shuns tab are
-implemented, including non-executable frozen reviews. Composite
+implemented, with frozen reviews and separately gated confirmation. Composite
 [offline recovery controls](docs/manual/recovery.md) and a default-off shared
 cleanup-worker hook are implemented. [Revocation controls](docs/manual/managed-controls.md)
 now support policy-only stop-maintaining and waiting-cleanup cancellation.
@@ -15,16 +15,21 @@ Protected-IP weakening requires reviewed acknowledgement when managed intents
 exist; ordinary removal cannot silently bypass enabled maintenance.
 The [frozen fleet review](docs/manual/managed-removal-review.md#frozen-all-device-scope)
 includes observed and maintained-but-missing targets without submitting work.
-An [offline ready-target fleet coordinator](docs/manual/managed-fleet-removals.md)
+A [whole-scope fleet coordinator](docs/manual/managed-fleet-removals.md)
 now atomically retires the reviewed scope and delegates cleanup. Default ready-only
 mode rejects unfinished ADD/disabled targets; a separate explicitly digested ordered
 mode reserves the whole scope behind RUNNING ADD under the original deadline.
 The default-off shared worker promotes complete roots only. The Managed shuns
 tab shows bounded fleet cleanup progress/outcomes and owner/Admin cancellation
 of waiting scopes, without treating admission or settled jobs as verified removal.
-No HTTP admission
-or live optional-schema initialization is enabled.
-Runtime combined device-removal admission and managed creation/resume remain pending.
+No live admission or optional-schema initialization is enabled in the lab.
+Policy resume remains pending. [Combined cleanup](docs/manual/managed-cleanup.md)
+now has separately default-off device/fleet admission: atomic retirement plus
+cleanup, with explicit whole-scope waiting behind RUNNING ADD. Preparation/receipt
+is not verified removal, and startup never initializes optional schemas.
+A separate [single-target standing review](docs/manual/managed-grants.md) supports
+policy-only MAINTAIN behind default-off admission, with explicit recurring
+consent and original-key retry. It never initializes policy or queues a command.
 A [default-off restoration controller](docs/manual/managed-restoration.md) now
 provides snapshot/generation-bound ADD authority, retained uncertainty/provenance
 and atomic revocation/queue/recovery hooks. Bounded complete-snapshot discovery

@@ -3,7 +3,7 @@
 import hashlib
 import secrets
 import time
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from ipaddress import IPv4Address
 from threading import Lock
@@ -60,6 +60,11 @@ class ManagedRemovalReview:
     digest: str
     scope: str = "device"
 
+    def payload(self):
+        return {"device_id": self.device_id, "ip": str(self.ip), "managed_revision": self.managed_revision,
+                "intent_id": self.intent_id, "generation": self.generation, "ttl_seconds": self.ttl_seconds,
+                "reason": self.reason, "confirmation_digest": self.digest}
+
 
 @dataclass(frozen=True)
 class ManagedFleetTarget:
@@ -91,6 +96,15 @@ class ManagedFleetRemovalReview:
     reason: str
     digest: str
     scope: str = "fleet"
+    ordered_wait: bool = False
+
+    def payload(self):
+        return {"reviewed": {"ip": str(self.ip), "managed_initialized": self.managed_initialized,
+                             "managed_revision": self.managed_revision, "protected_revision": self.protected_revision,
+                             "protected": self.protected, "targets": [asdict(target) for target in self.targets],
+                             "scope_digest": self.scope_digest},
+                "ttl_seconds": self.ttl_seconds, "reason": self.reason, "ordered_wait": self.ordered_wait,
+                "confirmation_digest": self.digest}
 
 
 class ManagedRemovalReviews:
@@ -114,18 +128,19 @@ class ManagedRemovalReviews:
                           maintenance_enabled=entry["enabled"], ttl_seconds=ttl_seconds, reason=reason.strip(), digest=digest)
 
     def prepare_fleet(self, subject: str, cookie: str, view: dict, ip: IPv4Address,
-                      ttl_seconds: int, reason: str = "") -> ManagedFleetRemovalReview:
+                      ttl_seconds: int, reason: str = "", *, ordered_wait: bool = False) -> ManagedFleetRemovalReview:
         scope = {key: value for key, value in view.items()
                  if key not in {"scope_digest", "execution_available", "read_only"}}
         _, scope_digest = canonical_managed_fleet_scope(scope)
         if view.get("scope_digest") != scope_digest or str(ip) != scope["ip"]:
             raise ValueError("Fleet view does not match the requested scope.")
-        _, digest = canonical_managed_fleet_removal(scope, ttl_seconds, reason)
+        _, digest = canonical_managed_fleet_removal(scope, ttl_seconds, reason, ordered_wait=ordered_wait)
         return self._save(ManagedFleetRemovalReview, subject, cookie,
                           ip=ip, managed_revision=scope["managed_revision"], managed_initialized=scope["managed_initialized"],
                           protected_revision=scope["protected_revision"], protected=scope["protected"],
                           targets=tuple(ManagedFleetTarget(**row) for row in sorted(scope["targets"], key=lambda row: row["device_id"])),
-                          scope_digest=scope_digest, ttl_seconds=ttl_seconds, reason=reason.strip(), digest=digest)
+                          scope_digest=scope_digest, ttl_seconds=ttl_seconds, reason=reason.strip(), digest=digest,
+                          ordered_wait=ordered_wait)
 
     def _save(self, review_type, subject, cookie, **fields):
         if not subject.strip() or not cookie:
@@ -152,3 +167,29 @@ class ManagedRemovalReviews:
                     or not secrets.compare_digest(review.cookie_hash, hashlib.sha256(cookie.encode()).hexdigest())):
                 raise ReviewUnavailable("Managed review expired or belongs to another session. Inspect current state before preparing another.")
             return review
+
+
+def validate_removal_receipt(review, value):
+    """Validate historical admission, never infer current execution from a receipt."""
+    expected = {"operation_id", "status", "replayed"}
+    if (not isinstance(value, dict) or value.get("operation_id") != review.request_id
+            or value.get("status") != "accepted" or type(value.get("replayed")) is not bool):
+        raise ValueError("Invalid cleanup receipt")
+    if review.scope == "device":
+        expected.add("waiting_for_add")
+        if type(value.get("waiting_for_add")) is not bool:
+            raise ValueError("Invalid single-target cleanup receipt")
+    else:
+        expected.update({"target_count", "retired_targets", "managed_revision"})
+        retired = sum(target.maintenance_enabled for target in review.targets)
+        for key, count in (("target_count", len(review.targets)), ("retired_targets", retired),
+                           ("managed_revision", review.managed_revision + int(retired > 0))):
+            if type(value.get(key)) is not int or value[key] != count:
+                raise ValueError("Invalid fleet cleanup receipt")
+        if review.ordered_wait:
+            expected.add("waiting_for_add")
+            if type(value.get("waiting_for_add")) is not bool:
+                raise ValueError("Invalid ordered cleanup receipt")
+    if set(value) != expected:
+        raise ValueError("Unexpected cleanup receipt fields")
+    return value

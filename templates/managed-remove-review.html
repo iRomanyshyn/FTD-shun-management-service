@@ -2,7 +2,9 @@
 {% block content %}
 <h1>Review stop maintenance and remove</h1>
 {% if refresh %}{% include "refresh-panel.html" %}{% endif %}
-<p class="policy-warning"><strong>Preparatory review only — execution is unavailable.</strong> No policy change or device operation has been submitted. Executable cleanup admission and protection/fleet integration remain incomplete. Use the separate policy-only review to stop maintaining without removal.</p>
+{% set disabled_scope = review.scope == 'fleet' and (review.targets | rejectattr('device_enabled') | list) %}
+{% set admission = removal_admission_enabled and refresh and refresh.managed_removal_admission_enabled and refresh.managed_removal_worker_enabled and not disabled_scope %}
+<p class="policy-warning"><strong>{% if admission %}Atomic local admission — not verified removal.{% else %}Preparatory review only — execution is unavailable.{% endif %}</strong> Confirmation stops the reviewed maintenance and admits a cleanup plan atomically, or changes neither. No command runs in this request. Use policy-only retirement if you do not want cleanup.</p>
 {% if message %}<p class="preview-error" role="alert">{{ message }}</p>{% endif %}
 {% if review.scope == 'fleet' %}
 <p>This frozen fleet scope contains <strong>{{ review.targets | length }} exact device/IP targets</strong>: current local shuns plus enabled maintained targets, including missing observations. It does not include unrelated inventory or stopped-and-missing targets. No fresh Cisco query has been made.</p>
@@ -15,9 +17,10 @@
 <td>{% if target.intent_id %}<code>{{ target.intent_id }}</code> / {{ target.generation }}{% else %}No managed intent; no adoption{% endif %}</td>
 </tr>{% endfor %}
 </tbody></table></div>
-<p>Future combined execution must retire the entire reviewed scope and admit cleanup atomically, or do neither. A running ADD must settle first. This preparatory review cannot execute that transaction.</p>
+<p>The entire reviewed scope is admitted together, or none of it. This does not promise atomic device changes across FTDs.</p>
+<p><strong>{{ 'Ordered mode: wait for all captured RUNNING ADDs before admitting any target to removal.' if review.ordered_wait else 'Ready-only mode: a RUNNING ADD conflicts; it will not silently become ordered waiting.' }}</strong> QUEUED one-time ADD must be cancelled separately. Expiry/failure never restarts maintenance.</p>
 {% else %}
-<p>This action would stop maintenance for <strong>one exact device/IP target</strong>, including when it is not currently observed, and request removal through the existing queue. It would not affect other devices. A running ADD would finish before separately authorized cleanup; expiry or failure would not turn maintenance back on.</p>
+<p>This action stops maintenance for <strong>one exact device/IP target</strong>, including when it is not currently observed, and requests removal through the existing queue. It does not affect other devices. A running ADD finishes before separate cleanup under the original deadline; expiry or failure never turns maintenance back on.</p>
 {% endif %}
 <dl class="import-review-metadata">
 {% if review.scope != 'fleet' %}
@@ -26,25 +29,32 @@
 <dt>Retained local observation</dt><dd>{{ 'Observed present' if review.observed_present else 'Not currently observed' }}; not a fresh Cisco query</dd>
 <dt>Maintenance</dt><dd>{{ 'Enabled' if review.maintenance_enabled else 'Already stopped' }}</dd>
 {% else %}
-<dt>Scope binding</dt><dd><code>{{ review.scope_digest }}</code> — future admission must reject changed targets, never silently rebase</dd>
+<dt>Scope binding</dt><dd><code>{{ review.scope_digest }}</code> — changed targets are rejected, never silently rebased</dd>
 <dt>Protected-IP revision</dt><dd>{{ review.protected_revision }}</dd>
 {% endif %}
 <dt>IPv4 address</dt><dd>{{ review.ip }}</dd>
-<dt>Managed revision</dt><dd>{{ review.managed_revision }} — future admission must recheck it atomically</dd>
+<dt>Managed revision</dt><dd>{{ review.managed_revision }} — rechecked atomically for a new request</dd>
 <dt>Protected IP</dt><dd>{{ 'Enabled protection takes priority' if review.protected else 'Not protected by an enabled entry' }}</dd>
 <dt>Reason</dt><dd>{{ review.reason or 'Not supplied' }}</dd>
 <dt>Review expires</dt><dd><time class="local-timestamp" datetime="{{ review.expires_at }}">{{ review.expires_at }}</time></dd>
-<dt>Prospective cleanup lifetime</dt><dd>{{ review.ttl_seconds }} seconds from future admission, not extended while waiting. This review grants no authority.</dd>
-<dt>Reserved request / retry key</dt><dd><code>{{ review.request_id }}</code> — ephemeral review only; no database request exists</dd>
+<dt>Cleanup lifetime</dt><dd>{{ review.ttl_seconds }} seconds from original admission, never extended by waiting/retry. Preparation alone grants no authority.</dd>
+<dt>Request / retry key</dt><dd><code>{{ review.request_id }}</code> — reuse this frozen review after an unknown response; do not create replacement work</dd>
 </dl>
-<form method="post" action="/managed-shuns/removal-confirm" class="import-confirm-form">
+{% if result %}
+<section aria-label="Cleanup admission receipt"><h2>Cleanup plan accepted — not verified removal</h2>
+<p>{{ 'Original-key receipt replay; no new work or policy change.' if result.replayed else 'The original request stopped the reviewed maintenance and admitted cleanup together.' }}</p>
+{% if result.waiting_for_add %}<p><strong>Waiting for ADD settlement.</strong> No in-flight ADD was cancelled. {{ 'All reviewed devices wait together; no ready member receives early cleanup.' if review.scope == 'fleet' else 'The captured command must settle first.' }} Cleanup keeps its original expiry.</p>{% else %}<p>Delegated to the existing Queue. Verification, no-op, expiry and uncertain outcomes are reported separately.</p>{% endif %}
+<p>This receipt describes original admission, not current policy after later changes or current execution. Inspect <a href="/managed-shuns">Managed shuns / cleanup status</a> and Queue; retry never retires a newer generation or requeues a completed plan.</p></section>
+{% else %}
+<form method="post" action="/managed-shuns/removal-confirm" class="import-confirm-form managed-grant-form">
 <input type="hidden" name="csrf" value="{{ csrf_token }}">
 <input type="hidden" name="review" value="{{ review.token }}">
 <label for="confirm-managed-ip">Type {{ review.ip }} to confirm {{ 'this frozen fleet scope' if review.scope == 'fleet' else 'this single target' }}</label>
-<input id="confirm-managed-ip" name="confirm_ip" autocomplete="off" inputmode="decimal" required>
-<button type="submit" disabled>Stop maintenance and queue removal — unavailable</button>
+<input id="confirm-managed-ip" name="confirm_ip" value="{{ confirm_ip }}" autocomplete="off" inputmode="decimal" required>
+<button type="submit"{% if not admission %} disabled{% endif %}>Stop maintenance and queue removal{{ ' — unavailable' if not admission else '' }}</button>
 </form>
-<p class="preview-help">This frozen review is bound to your subject and CSRF cookie, expires within ten minutes and is lost on Web restart. Status updates cannot change its target, token or typed confirmation. Editing the DOM or submitting directly cannot enable execution.</p>
+{% endif %}
+<p class="preview-help">This frozen review is bound to your subject and CSRF cookie, expires within ten minutes and is lost on Web restart. Status updates cannot change its targets, ordered choice, token or typed confirmation. Admission is independently default-off; DOM edits do not enable it. After uncertainty, inspect original state before preparing another review.</p>
 <a href="/managed-shuns">Back to Managed shuns</a>
 {% if refresh %}<script src="/static/freshness.js" defer></script>{% endif %}
 {% endblock %}

@@ -8,7 +8,7 @@ from uuid import UUID, uuid4
 
 import uvicorn
 from fastapi import FastAPI, HTTPException, Query, Request, status
-from pydantic import BaseModel, ConfigDict, Field, StrictBool
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, field_validator
 
 from .agent_client import (
     AgentClient,
@@ -19,6 +19,7 @@ from .agent_client import (
 from .config import Settings
 from .import_preview import MAX_DEVICES, MAX_ROWS, classify_targets
 from .inventory import load_devices
+from .managed_fleet_removals import ManagedFleetRemovals
 from .managed_fleet_state import ManagedFleetState
 from .managed_safety import ManagedStateUnavailable, require_ordinary_removal
 from .managed_scope import ManagedRemovalScopes
@@ -57,6 +58,64 @@ class ManagedRetirementRequest(BaseModel):
     managed_revision: int = Field(strict=True, ge=0)
     confirmation_digest: str = Field(pattern=r"^[0-9a-f]{64}$")
     reason: str = Field(default="", max_length=500)
+
+
+class ManagedGrantRequest(ManagedRetirementRequest):
+    protected_revision: int = Field(strict=True, ge=0)
+    maintain_present: StrictBool
+    label: str = Field(default="", max_length=100)
+
+    @field_validator("ip", mode="before")
+    @classmethod
+    def canonical_ip(cls, value):
+        if not isinstance(value, str) or str(IPv4Address(value)) != value:
+            raise ValueError("Standing grants require an exact canonical IPv4 string.")
+        return value
+
+
+class ManagedDeviceCleanupRequest(ManagedRetirementRequest):
+    intent_id: str = Field(pattern=r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+    generation: int = Field(strict=True, ge=1)
+    ttl_seconds: int = Field(strict=True, ge=1, le=900)
+
+    @field_validator("ip", mode="before")
+    @classmethod
+    def canonical_ip(cls, value):
+        if not isinstance(value, str) or str(IPv4Address(value)) != value:
+            raise ValueError("Cleanup requires an exact canonical IPv4 string.")
+        return value
+
+
+class ManagedFleetCleanupTarget(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    device_id: int = Field(strict=True, ge=1, le=65535)
+    hostname: str = Field(min_length=1, max_length=255)
+    device_enabled: StrictBool
+    observed_present: StrictBool
+    maintenance_enabled: StrictBool
+    intent_id: str | None
+    generation: int | None = Field(strict=True, ge=1)
+
+
+class ManagedFleetCleanupScope(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    ip: str = Field(min_length=7, max_length=15)
+    managed_initialized: StrictBool
+    managed_revision: int = Field(strict=True, ge=0)
+    protected_revision: int = Field(strict=True, ge=0)
+    protected: StrictBool
+    targets: list[ManagedFleetCleanupTarget] = Field(min_length=1, max_length=1000)
+    scope_digest: str = Field(pattern=r"^[0-9a-f]{64}$")
+
+
+class ManagedFleetCleanupRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    actor: ManagedControlActor
+    reviewed: ManagedFleetCleanupScope
+    confirmation_digest: str = Field(pattern=r"^[0-9a-f]{64}$")
+    ttl_seconds: int = Field(strict=True, ge=1, le=900)
+    reason: str = Field(default="", max_length=500)
+    ordered_wait: StrictBool = False
 
 
 class ImportPreviewRequest(BaseModel):
@@ -116,7 +175,7 @@ def create_app(
     settings = settings or Settings.from_environment()
     store = store or Store(settings.database_path)
     store.initialize()
-    managed = ManagedShuns(store)  # Optional read only; never initialize policy here.
+    managed = ManagedShuns(store)  # Optional registry; never initialize policy here.
     addition_device_ids = set()
     if settings.device_inventory_path:
         for device, host_key in load_devices(settings.device_inventory_path):
@@ -182,6 +241,8 @@ def create_app(
             "agent_mode": settings.agent_mode,
             "large_snapshots_enabled": settings.large_snapshots_enabled,
             "import_admission_enabled": settings.import_admission_enabled,
+            "managed_policy_admission_enabled": settings.managed_policy_admission_enabled,
+            "managed_removal_admission_enabled": settings.managed_removal_admission_enabled,
             **synchronizer.status(),
             **managed_metadata,
             "policy_revision": policy_state["revision"],
@@ -228,6 +289,81 @@ def create_app(
             raise HTTPException(503, "Policy retirement was not confirmed. Retry the original review; do not create a new request.") from error
         if not result["replayed"]:
             synchronizer.note_state_change()  # Metadata only; never signal device work.
+        return result
+
+    @app.post("/api/v1/managed-shuns/maintain")
+    def grant_managed_shun(change: ManagedGrantRequest, request: Request) -> dict:
+        require_operator(change.actor)
+        if not settings.managed_policy_admission_enabled:
+            raise HTTPException(503, "Standing policy admission is disabled. This attempt changed nothing; inspect any earlier outcome.")
+        if change.maintain_present is not True:
+            raise HTTPException(422, "Explicit standing-authority acknowledgement is required.")
+        try:
+            result = managed.grant_reviewed(
+                request.headers.get("Idempotency-Key", ""), change.device_id, change.ip,
+                change.managed_revision, change.protected_revision, change.confirmation_digest,
+                change.actor.subject, change.actor.display_name, tuple(change.actor.roles),
+                addition_device_ids=addition_device_ids, label=change.label, reason=change.reason)
+        except PermissionError as error:
+            raise HTTPException(403, str(error)) from error
+        except ManagedStateUnavailable as error:
+            raise HTTPException(503, str(error)) from error
+        except (ManagedConflict, ManagedCapacity) as error:
+            raise HTTPException(409, str(error)) from error
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from error
+        except sqlite3.DatabaseError as error:
+            raise HTTPException(503, "Standing policy outcome is unknown. Retry the original review/key.") from error
+        if not result["replayed"]:
+            synchronizer.note_state_change()  # Policy receipt only; no queue job or device hint.
+        return result
+
+    def require_cleanup_admission(actor, ttl):
+        require_operator(actor)
+        if not settings.managed_removal_admission_enabled:
+            raise HTTPException(503, "Combined cleanup admission is disabled. This attempt changed nothing; inspect any earlier outcome.")
+        if ttl > min(900, settings.sensitive_action_max_age_seconds):
+            raise HTTPException(422, "Cleanup lifetime exceeds the configured sensitive-action maximum.")
+
+    def cleanup_error(error):
+        if isinstance(error, PermissionError):
+            return HTTPException(403, str(error))
+        if isinstance(error, ManagedStateUnavailable):
+            return HTTPException(503, "Managed cleanup state is unavailable; no new plan was confirmed.")
+        if isinstance(error, (ManagedConflict, ManagedCapacity, QueueConflict)):
+            return HTTPException(409, str(error))
+        if isinstance(error, QueueFull):
+            return HTTPException(429, str(error))
+        if isinstance(error, sqlite3.DatabaseError):
+            return HTTPException(503, "Cleanup outcome is unknown. Inspect current state; retry the original review/key.")
+        return HTTPException(422, str(error))
+
+    @app.post("/api/v1/managed-removals/device", status_code=202)
+    def admit_managed_device_cleanup(change: ManagedDeviceCleanupRequest, request: Request) -> dict:
+        require_cleanup_admission(change.actor, change.ttl_seconds)
+        try:
+            result = managed_removals.admit(
+                request.headers.get("Idempotency-Key", ""), change.device_id, change.ip, change.managed_revision,
+                change.confirmation_digest, change.actor.subject, change.actor.display_name, tuple(change.actor.roles),
+                change.ttl_seconds, change.reason, expected_intent_id=change.intent_id, expected_generation=change.generation)
+        except (PermissionError, ValueError, sqlite3.DatabaseError) as error:
+            raise cleanup_error(error) from error
+        if not result["replayed"]:
+            synchronizer.signal_work()
+        return result
+
+    @app.post("/api/v1/managed-removals/fleet", status_code=202)
+    def admit_managed_fleet_cleanup(change: ManagedFleetCleanupRequest, request: Request) -> dict:
+        require_cleanup_admission(change.actor, change.ttl_seconds)
+        try:
+            result = ManagedFleetRemovals(managed, synchronizer.queue).admit(
+                request.headers.get("Idempotency-Key", ""), change.reviewed.model_dump(), change.confirmation_digest,
+                change.actor.subject, change.actor.display_name, tuple(change.actor.roles), change.ttl_seconds,
+                change.reason, ordered_wait=change.ordered_wait)
+        except (PermissionError, ValueError, sqlite3.DatabaseError) as error:
+            raise cleanup_error(error) from error
+        if not result["replayed"]:
+            synchronizer.signal_work()
         return result
 
     @app.get("/api/v1/managed-removal-handoffs")

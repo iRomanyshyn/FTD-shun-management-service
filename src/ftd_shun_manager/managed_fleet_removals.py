@@ -1,4 +1,4 @@
-"""Offline atomic fleet retirement/cleanup admission; no HTTP or startup hook.
+"""Atomic fleet retirement/cleanup; optional schemas and default-off HTTP admission.
 
 Explicit ordered mode may reserve the entire scope behind captured RUNNING ADD.
 Default ready-only semantics and receipts are unchanged. No desired restoration.

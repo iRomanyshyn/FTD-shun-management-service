@@ -4,7 +4,7 @@
 {% include "refresh-panel.html" %}
 <p>Desired shun presence is separate from observed device state. This page reads retained local data only; it does not query Cisco or adopt existing shuns.</p>
 <section id="managed-shun-state" data-live-region>
-<p class="policy-warning"><strong>{% if managed.controller_available %}Experimental automatic restoration is {{ 'enabled' if managed.controller_enabled else 'disabled' }}.{% else %}Automatic restoration is not implemented.{% endif %}</strong> Operators may stop maintaining policy or cancel their waiting cleanup. Creation, re-enable, policy resume and combined device-removal admission remain unavailable; the combined removal review cannot execute.</p>
+<p class="policy-warning"><strong>{% if managed.controller_available %}Experimental automatic restoration is {{ 'enabled' if managed.controller_enabled else 'disabled' }}.{% else %}Automatic restoration is not implemented.{% endif %}</strong> Operators may review a standing grant, stop maintaining policy or cancel waiting cleanup. Standing grants and combined cleanup require independent admission gates and explicit migration. Policy resume remains unavailable.</p>
 {% if not managed.initialized %}
 <p>The managed registry has not been initialized. Existing imports remain one-time; no historical shun has been converted into maintained policy.</p>
 {% else %}
@@ -31,6 +31,19 @@
 {% elif managed.initialized %}<p>No managed targets. Nothing is scheduled for restoration.</p>{% endif %}
 <p class="preview-help">Enabled Protected IPs take priority over desired presence. Stopped policy never restarts from old request replay. Future restoration requires explicit standing authorization; old imports and SSH-created shuns are not adopted automatically.</p>
 </section>
+{% if 'Operator' in identity.roles or 'Administrator' in identity.roles %}
+<details id="managed-grant-preparation"><summary>Maintain one device/IP — persistent policy</summary>
+<p>Separate explicit consent, not a one-time import or adoption of an existing shun. Saving requires enabled standing admission and existing policy/evidence schemas. Preview changes nothing.</p>
+<form method="post" action="/managed-shuns/grant-review" class="import-confirm-form managed-grant-form">
+<input type="hidden" name="csrf" value="{{ csrf_token }}">
+<label for="grant-device">Device</label><select id="grant-device" name="device_id" required><option value="">Choose one device</option>
+{% for device_id, device in refresh.devices.items() %}{% if device.state != 'disabled' %}<option value="{{ device_id }}">{{ device.hostname }}</option>{% endif %}{% endfor %}</select>
+<label for="grant-ip">Exact IPv4 address</label><input id="grant-ip" name="ip" autocomplete="off" inputmode="decimal" required>
+<label for="grant-label">Label (optional)</label><input id="grant-label" name="label" maxlength="100" autocomplete="off">
+<label for="grant-reason">Reason (optional)</label><input id="grant-reason" name="reason" maxlength="500" autocomplete="off">
+<button type="submit">Review standing maintenance</button>
+</form></details>
+{% endif %}
 <section id="managed-retirement-preparation" data-live-region>
 {% set maintained = managed.entries | selectattr('enabled') | list %}
 {% if managed.initialized and maintained and ('Operator' in identity.roles or 'Administrator' in identity.roles) %}
@@ -67,13 +80,14 @@
 {% endif %}
 </section>
 {% if 'Operator' in identity.roles or 'Administrator' in identity.roles %}
-<details id="managed-fleet-review-preparation"><summary>Preview all-device removal scope — no execution</summary>
-<p>Review one IPv4 across the union of current shuns and maintained targets, including missing observations and disabled devices. No policy change or queue request is submitted.</p>
-<form method="post" action="/managed-shuns/fleet-removal-review" class="import-confirm-form">
+<details id="managed-fleet-review-preparation"><summary>Review all-device removal scope</summary>
+<p>Review one IPv4 across the union of current shuns and maintained targets, including missing observations and disabled devices. Preparation submits no policy change or queue request.</p>
+<form method="post" action="/managed-shuns/fleet-removal-review" class="import-confirm-form managed-grant-form">
 <input type="hidden" name="csrf" value="{{ csrf_token }}">
 <label for="fleet-review-ip">IPv4 address</label><input id="fleet-review-ip" name="ip" inputmode="decimal" autocomplete="off" required>
 <label for="fleet-review-reason">Reason (optional)</label><input id="fleet-review-reason" name="reason" maxlength="500" autocomplete="off">
-<button type="submit">Review fleet scope — unavailable for execution</button>
+<label class="policy-checkbox"><input type="checkbox" name="ordered_wait" value="yes"> Allow the whole scope to wait for already RUNNING ADDs; no target is removed early. Unstarted one-time ADD still conflicts.</label>
+<button type="submit">Review frozen fleet scope</button>
 </form></details>
 {% endif %}
 {% include "managed-removal-state.html" %}

@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Review standing shun maintenance</h1>
+{% if refresh %}{% include "refresh-panel.html" %}{% endif %}
+<p class="policy-warning"><strong>Persistent policy, not a one-time import.</strong> This authorizes the service to add this shun after a fresh complete read confirms it is missing, and restore it after later disappearance, until you explicitly stop maintaining it. SSH deletion alone does not stop this policy. Enabled Protected IPs always win.</p>
+{% if message %}<p class="preview-error" role="alert">{{ message }}</p>{% endif %}
+<dl class="import-review-metadata">
+<dt>Exact target</dt><dd>{{ review.hostname }} ({{ review.device_id }}) · {{ review.ip }}</dd>
+<dt>Standing mode</dt><dd>Maintain present until explicitly stopped</dd>
+<dt>Previous intent</dt><dd>{% if review.intent_id %}Stopped generation {{ review.generation }} · <code>{{ review.intent_id }}</code>. Confirmation authorizes a new generation, not replay of old work.{% else %}No existing managed intent; no observed shun is adopted.{% endif %}</dd>
+<dt>Managed / Protected-IP revisions</dt><dd>{{ review.managed_revision }} / {{ review.protected_revision }} — rechecked atomically</dd>
+<dt>Label / reason</dt><dd>{{ review.label or 'Not supplied' }} / {{ review.reason or 'Not supplied' }}</dd>
+<dt>Review expires</dt><dd><time class="local-timestamp" datetime="{{ review.expires_at }}">{{ review.expires_at }}</time></dd>
+<dt>Policy request / retry key</dt><dd><code>{{ review.request_id }}</code></dd>
+</dl>
+<p>Local retained state only; no fresh Cisco query. Saving policy does not queue an immediate command, resume suspended policy or enable ADD. Execution requires the separately enabled controller, device profile and all ADD gates.</p>
+{% if result %}
+<section aria-label="Standing policy receipt"><h2>Standing policy recorded</h2>
+<p>One target authorized at saved registry revision {{ result.managed_revision }}. {{ 'Original-key replay; no new policy was applied.' if result.replayed else 'No command or queue job was submitted by this confirmation.' }}</p>
+<p>This is a historical policy receipt, not verified creation or proof the policy is still enabled. Inspect Managed shuns for current state; an old-key retry never re-enables retired policy.</p></section>
+{% else %}
+{% set available = review.initialized and refresh and refresh.managed_policy_admission_enabled %}
+{% if not review.initialized %}<p class="policy-warning">Policy was not initialized when this review was prepared. Explicit migration and a new review are required; this review cannot be confirmed.</p>{% elif not available %}<p class="policy-warning">Standing policy admission is disabled or unavailable. This does not negate an earlier policy receipt or resolve an unknown outcome.</p>{% endif %}
+<form method="post" action="/managed-shuns/grant-confirm" class="import-confirm-form managed-grant-form">
+<input type="hidden" name="csrf" value="{{ csrf_token }}"><input type="hidden" name="review" value="{{ review.token }}">
+<label for="confirm-grant-ip">Type {{ review.ip }} to confirm this exact target</label>
+<input id="confirm-grant-ip" name="confirm_ip" value="{{ confirm_ip }}" autocomplete="off" inputmode="decimal" required>
+<label class="policy-checkbox"><input type="checkbox" name="maintain_present" value="yes"{% if acknowledged %} checked{% endif %} required> I authorize recurring additions until I explicitly stop maintaining this target.</label>
+<button type="submit"{% if not available %} disabled{% endif %}>Save standing maintenance policy</button>
+</form>
+{% endif %}
+<p class="preview-help">Frozen to your subject and CSRF cookie, at most ten minutes. Unknown replies require inspecting current state and explicit retry of this same review/key. Expiry or Web restart loses the review, not proof of a saved policy.</p>
+<a href="/managed-shuns">Back to Managed shuns</a>
+<script src="/static/freshness.js" defer></script>
+{% endblock %}

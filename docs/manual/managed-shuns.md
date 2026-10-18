@@ -1,19 +1,23 @@
-# Managed Shuns — Registry Foundation and Planned Restoration
+# Managed Shuns — Standing Policy and Gated Restoration
 
 ## Status and decision
 
 **Registry foundation and read-only API/UI visibility implemented on 2026-10-17.
-Combined removal confirmation remains unimplemented; restoration is default-off.**
+Combined cleanup admission and restoration are independently default-off.**
 The [experimental restoration controller](managed-restoration.md) now implements
 typed snapshot/intent-bound queue authority, claim/revocation/recovery hooks,
 retained uncertainty and occurrence-bound results. Bounded complete-snapshot
 discovery and shared dispatch require a separate disabled setting and all ADD
-gates; no startup initializes schemas or grants standing authority.
+gates; no startup initializes schemas or grants standing authority. Separate
+[frozen single-target consent](managed-grants.md) now supports policy-only grants
+behind disabled admission, without adopting observations or queuing a command.
 The [removal handoff coordinator](managed-removal-handoffs.md) is implemented
 offline: atomic single-target retirement/cleanup and RUNNING-ADD settlement
 are tested. A default-off worker advances waits; separate
 [revocation controls](managed-controls.md) support policy-only retirement and
-waiting cancellation. No runtime route admits a managed device write.
+waiting cancellation. [Combined cleanup](managed-cleanup.md) now connects frozen
+device/fleet confirmation to atomic coordination behind a separate gate; HTTP
+never executes a device command. No actual lab gate or migration is enabled.
 The operator requested re-adding manually added shuns when they disappear,
 for example after FTD reboot. This replaces the former one-time-only target
 requirement. The deployed [import workflow](import-review.md) is still one-time
@@ -150,8 +154,9 @@ outcomes to pretend they authorized future maintenance.
 The explicit registry initializer now provides empty additive policy tables,
 authorization/request ledger and optimistic revisions. It is not called by
 normal API/Store startup. Job/policy generation linkage and retirement/protection
-hooks are implemented in the separate offline source. Discovery/controller,
-managed admission, resolution/rearm and runtime capability wiring remain pending.
+hooks, bounded default-off discovery/shared dispatch and single-pair standing
+admission are implemented. Reviewed migration/resume, resolution/rearm, bulk
+managed admission and executable combined removal remain pending.
 All existing ADD gates/device profiles remain mandatory.
 The separate default-off cleanup-worker setting does not enable restoration;
 see [Managed Removal Handoffs](managed-removal-handoffs.md).
@@ -175,15 +180,17 @@ backup, upgrade, restart and audit retention are not new device-write authority.
    single/fleet removal review are implemented. The fleet union/comparison
    prerequisite is now used by an offline atomic cleanup coordinator, with default
    ready-only mode and separate explicitly bound whole-scope RUNNING-ADD waiting.
-   Neither is connected to BFF/HTTP. Managed-create/
-   standing-mode confirmation remains pending; see
+   Cleanup coordinators now have default-off frozen BFF/HTTP admission. Single-pair standing
+   consent has separate default-off admission; bulk managed confirmation remains
+   pending. See [Standing policy](managed-grants.md) and
    [Frozen all-device scope](managed-removal-review.md#frozen-all-device-scope).
 3. Integrate ordered removal handoff, revocation/cancellation/protection races,
    system queue admission and uncertain-outcome latch under independent gates.
    The offline system source/claim hooks and atomic retirement/protection/
    recovery integration and default-off bounded runtime discovery are now tested.
-   Standing-mode grant, reviewed resume/rearm and executable combined controls
-   are still unavailable; hold/backoff and latest-sweep counts are read-only.
+   Single-target standing consent/admission is now separately default-off;
+   reviewed resume/rearm and bulk managed grants remain unavailable. Combined
+   cleanup remains disabled in the lab; hold/backoff and latest-sweep counts are read-only.
 4. Cover complete-versus-partial snapshots, reboot-like mass absence, unknown
    results, old-key replay after retirement, multiple users/instances, cutoff/
    backpressure, retention, backup restore and rollback using synthetic state.

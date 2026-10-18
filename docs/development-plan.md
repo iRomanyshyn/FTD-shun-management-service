@@ -16,9 +16,13 @@ ADD/cycle/large-read/device gates still apply. New jobs wait behind the frozen
 cutoff and persisted cooldown; sixteen new jobs/sixty-four admission checks per
 sweep and retained-time fairness prevent a large missing set monopolizing it.
 Managed UI separates current holds/backoff from cached observation and verified
-outcomes. No extra executor, schema initialization, adoption, grant/resume/rearm
-or combined confirmation was enabled. Next: frozen standing-mode authorization
-and executable atomic cleanup controls, reviewed migration/resume/uncertainty
+outcomes. A separate frozen single-target standing review now supports default-off
+policy-only admission with typed IP/recurring consent and original-key retry.
+No extra executor, schema initialization, adoption, live grant/resume/rearm
+or live combined confirmation was enabled. Combined device/fleet admission now
+connects to the existing atomic coordinators behind an independent default-off
+gate; explicit ordered-mode review never silently changes ready-only semantics.
+Next: bulk standing-mode authorization and reviewed migration/resume/uncertainty
 resolution, then a newly scoped lab lifecycle. The historical checkpoints below
 describe their own delivery dates, not current feature availability.
 

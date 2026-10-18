@@ -9,8 +9,11 @@ of the cleanup-worker setting. True requires API ADD execution, socket cycles
 and large snapshots; explicit eligible device profiles and the independent agent
 ADD gate are also mandatory. Import admission remains a separate control, not
 standing authority. Existing optional schemas, explicitly authorized standing
-targets and an unsuspended registry are required. No HTTP managed-create,
-re-enable/resume/rearm or executable combined-removal route exists.
+targets and an unsuspended registry are required. Separate
+[policy-only standing consent](managed-grants.md) has default-off admission;
+it does not resume the registry or create a queue job. No policy resume/rearm
+route exists. Combined cleanup has separately default-off
+[atomic admission](managed-cleanup.md), without resuming maintenance.
 
 Normal startup, reads, worker and recovery never initialize its optional table.
 The current lab remains default-off and uninitialized: deploying the package
@@ -160,8 +163,8 @@ Deployments of this disabled integration retain paired API/Web images and a
 checked SQLite-safe backup. Agent/wire protocol is unchanged. Verify unchanged
 gates/profiles, absent optional tables, stable policy/jobs, ordinary read cycles
 and anonymous rejection; do not submit a live fixture merely for smoke testing.
-Before a future approved migration, complete frozen managed-create/
-combined controls, capabilities, resolution/rearm/backlog visibility and a scoped
+Before a future approved migration, complete reviewed policy
+resume/uncertainty resolution, bulk managed admission if required and a scoped
 lab lifecycle. Never roll back to an image unaware of pending system authority,
 drop its ledger or restore old enabled policy to undo software changes.
 

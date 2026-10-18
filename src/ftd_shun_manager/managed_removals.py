@@ -1,4 +1,4 @@
-"""Offline managed removal coordination; optional reads, no admission/scheduler hook.
+"""Atomic managed cleanup; admission and shared-worker hooks are independently gated.
 
 One reviewed device/IP at a time. Initialize only an isolated database until the
 managed UI, migration and scheduler integration gates have been completed.
@@ -86,13 +86,18 @@ class ManagedRemovals:
 
     def admit(self, request_id: str, device_id: int, ip: IPv4Address, managed_revision: int,
               confirmation_digest: str, subject: str, display_name: str, roles: tuple[str, ...],
-              ttl_seconds: int = 900, reason: str = "") -> dict:
+              ttl_seconds: int = 900, reason: str = "", *, expected_intent_id=None, expected_generation=None) -> dict:
         _require_operator(subject, roles)
         try:
             if str(UUID(request_id)) != request_id:
                 raise ValueError("Non-canonical UUID")
         except (ValueError, TypeError, AttributeError) as error:
             raise ValueError("An explicit canonical UUID request key is required.") from error
+        if (expected_intent_id is not None or expected_generation is not None) and (
+            not isinstance(expected_intent_id, str) or str(UUID(expected_intent_id)) != expected_intent_id
+            or type(expected_generation) is not int or expected_generation < 1
+        ):
+            raise ValueError("An exact reviewed intent and generation are required together.")
         payload, digest = canonical_managed_removal(device_id, ip, managed_revision, ttl_seconds, reason)
         if (not isinstance(confirmation_digest, str) or not confirmation_digest.isascii()
                 or not hmac.compare_digest(digest, confirmation_digest)):
@@ -102,7 +107,9 @@ class ManagedRemovals:
             db.execute("BEGIN IMMEDIATE")
             old = db.execute("SELECT * FROM managed_removal_handoffs WHERE id=?", (request_id,)).fetchone()
             if old:
-                if old["actor_subject"] != subject or old["payload_json"] != payload:
+                if (old["actor_subject"] != subject or old["payload_json"] != payload
+                        or (expected_intent_id is not None and old["intent_id"] != expected_intent_id)
+                        or (expected_generation is not None and old["generation"] != expected_generation)):
                     raise ManagedConflict("Request key was already used for another managed removal.")
                 return {**json.loads(old["result_json"]), "replayed": True}
             if mutations_suspended(db):
@@ -125,6 +132,9 @@ class ManagedRemovals:
                                 (device_id, ip.packed)).fetchone()
             if target is None:
                 raise ManagedConflict("Target is not managed; use ordinary removal.")
+            if ((expected_intent_id is not None and target["intent_id"] != expected_intent_id)
+                    or (expected_generation is not None and target["generation"] != expected_generation)):
+                raise ManagedConflict("Reviewed managed generation changed; no cleanup was admitted.")
             device = db.execute("SELECT enabled FROM devices WHERE id=?", (device_id,)).fetchone()
             if device is None or not device[0]:
                 raise ManagedConflict("Device is disabled; stop maintenance separately without queuing cleanup.")
@@ -163,6 +173,8 @@ class ManagedRemovals:
             row = db.execute("SELECT * FROM managed_removal_handoffs WHERE id=?", (request_id,)).fetchone()
             self._event(db, row, "MANAGED_SHUN_REMOVAL_ADMITTED")
             self.queue._bump(db)
+            if self.queue._now() >= current + timedelta(seconds=ttl_seconds):
+                raise QueueConflict("Cleanup authorization expired during admission; nothing was committed.")
         for entry in logs:
             print(json.dumps(entry), flush=True)
         print(json.dumps({"event": "managed_shun.removal.admitted", "request_id": request_id,

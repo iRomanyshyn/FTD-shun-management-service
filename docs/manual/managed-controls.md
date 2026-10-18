@@ -12,9 +12,10 @@ enable ADD or resume restoration. A GET or review preparation changes nothing.
 | Cancel waiting cleanup | Cancel the owner's (or Administrator's) single-target handoff or whole fleet WAITING_ADD barrier. | Cancel its ADD, remove a shun, cancel a job already admitted to Queue, resume maintenance. |
 
 These are not the combined **Stop maintenance and queue removal** workflow.
-That separate [preparatory review](managed-removal-review.md) still always
-rejects execution with 503. No managed creation/adoption/re-enable/resume route
-exists. The controller remains unavailable, the cleanup-worker flag defaults
+That separate [combined review](managed-cleanup.md) now has independently
+default-off admission and is not enabled by these revocation controls. A separate [standing grant](managed-grants.md) now
+has default-off policy-only admission; no adoption/resume or device creation
+confirmation exists. The restoration controller and cleanup-worker flags default
 off and no managed policy/handoff tables have been initialized in the lab.
 Do not seed live data to demonstrate controls or reuse the consumed ADD fixture.
 
@@ -44,9 +45,9 @@ Current Operator/Administrator, session binding and CSRF are checked again.
 A new request atomically checks the global registry revision, retires policy
 and appends actor-attributed audit. It can run during a recovery mutation pause.
 Unstarted one-time imports/removals and running commands keep their original
-authority: inspect **Queue** separately if you also want cancellation. Future
-system restoration cancellation must be integrated atomically before releasing
-that controller; this action is not a shortcut around its remaining gates.
+authority: inspect **Queue** separately if you also want cancellation. Unstarted
+system restoration cancellation is integrated atomically; this action is not
+a shortcut around the controller's remaining gates.
 
 The result is a **policy receipt**, not verified device removal or a claim about
 the latest policy generation. Same-key replay returns the original receipt
@@ -146,7 +147,7 @@ receipt. No user-supplied actor, targets, action or mode. Permission, state and
 audit update share the SQLite write transaction; errors roll back. Unknown
 replies are not reported as success: inspect state, then retry only that same
 root. Neither endpoint admits work, renews deadlines, initializes optional state
-or enables the combined confirmation (still 503).
+or enables combined admission (independently default-off).
 
 `POST /api/v1/managed-shuns/retire` accepts one strict device/IP/revision/digest/
 reason body plus current actor and a canonical UUID `Idempotency-Key`. Action is
@@ -173,7 +174,7 @@ no restoration. Real Chromium uses only localhost fixtures to check the frozen
 review, desktop/mobile layout and AJAX cancellation without navigation/hints.
 This is not live managed-policy or device-write acceptance.
 
-No new schema or environment switch. Retain paired API/Web images and a checked
+These revocation actions add no schema or enablement switch. Retain paired API/Web images and a checked
 SQLite backup; stop/recreate only the sole API/Web pair. API startup may run
 already admitted ordinary queue/policy work. Keep actual gates/inventory/secrets
 unchanged, do not seed optional tables or submit live control actions for smoke

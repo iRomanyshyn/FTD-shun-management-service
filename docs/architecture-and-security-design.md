@@ -3346,3 +3346,80 @@ current hold reasons, separately from cached observed absence and verified work.
 Reads never admit work, renew evidence or fetch Cisco; partial optional state is
 unavailable, not empty. This increment is default-off integration tested with
 synthetic agents, not live restoration approval or production readiness.
+
+### Frozen single-target standing grant — 2026-10-18
+
+Permit explicit policy-only MAINTAIN admission for one configured device/IPv4
+behind independent strict `FTD_SHUN_MANAGED_POLICY_ADMISSION_ENABLED=false`.
+This supersedes the previous no-standing-grant-route boundary only for this
+operation. It does not initialize schemas, resume policy, enable ADD/controller,
+adopt old observations/imports, clear attention or enable combined removal.
+Use existing optional registry/attempt evidence and all transactional policy
+checks; known unfinished/uncertain pair work conflicts. Require an explicit
+addition-capable device profile even when execution is held. The setting itself
+requires socket mode; it is not an execution gate.
+
+Prepare a separately bounded immutable subject/CSRF-cookie-bound review with
+exact pair/hostname, old intent/generation if any, managed/protected revisions,
+normalized label/reason, standing mode, canonical digest and original UUID.
+Use the existing ten-minute/sensitive-age, five-per-subject/256-global bounds
+in a separate grant cache. Review is local-only/no-init/no-hint; uninitialized
+policy can be inspected but that frozen review cannot be confirmed later.
+Confirmation requires current Operator/Administrator, CSRF, exact typed IPv4
+and explicit standing-authority acknowledgement. Do not accept browser actor,
+target, action, revision or digest fields. Same-review retries preserve all
+frozen fields/key; unknown replies remain unknown, never auto-submitted/rebased.
+
+The private policy API rechecks its gate, current role, canonical explicit key,
+acknowledgement, schema/capability, revisions, protection, recovery pause,
+observed adoption, cleanup/conflicting work and capacity under one transaction.
+An exact previous request may return its historical receipt without applying
+authority again; current roles/gate remain required. New or explicitly retired
+policy receives an intent/generation through the existing registry, never old
+one-time semantics. A policy receipt is not queued/verified device creation.
+No queue insertion or immediate wake/read occurs: only later complete evidence
+may create system work through the already gated controller. Policy-only RETIRE
+and guarded ordinary removal remain separate available controls until atomic
+combined confirmation is separately released. Keep live gates/schemas unchanged;
+synthetic admission tests and disabled rollout do not authorize a live grant.
+
+### Default-off combined cleanup confirmation — 2026-10-18
+
+Connect frozen single/fleet reviews to the existing atomic coordinators only
+behind strict `FTD_SHUN_MANAGED_REMOVAL_ADMISSION_ENABLED=false`. True requires
+socket mode and the existing cleanup worker enabled, so new ordered waits are
+not knowingly admitted without promotion capability. This supersedes earlier
+unconditional-503/no-HTTP statements for combined confirmation only. It does
+not enable any live gate, initialize optional tables or grant ADD/restoration.
+New private endpoints fix device or fleet RETIRE_AND_REMOVE semantics, validate
+strict canonical pair/scope/intent-generation/digest/TTL/current actor and
+explicit canonical UUID. No generic action, CLI, policy source or free-form
+route. Cap TTL by 900 seconds and the configured sensitive-action maximum.
+
+Single admission binds reviewed intent/generation in its write transaction
+and original-key replay; new retirement/cancellation/root/cleanup admission
+remain atomic. Recheck the original deadline before committing even a ready
+or waiting single-target plan. Fleet uses one whole-scope coordinator, never
+loops per-target admissions. Default ready-only still rejects RUNNING ADD;
+an explicit preparation checkbox freezes ordered mode and its distinct digest.
+All original members wait behind captured RUNNING ADDs, under the same original
+deadline. QUEUED independent ADD still conflicts; no silent target omission,
+rebase, partial retirement, in-flight cancellation or uncertain ADD replay.
+
+Require current Operator/Administrator, CSRF, frozen session/token/expiry and
+exact typed IP. Confirmation accepts no browser actor/scope/mode/digest fields.
+Both local BFF configuration and private API capability must permit submission;
+upstream status alone cannot enable it. Retain the original key/body, typed IP
+and ordered choice after unknown replies; no auto retry, new key or shrinking
+scope. Validate exact scope-specific receipts. Historical replay cannot stop
+a newer policy generation, requeue or renew authority; do not call it current
+execution status. A valid receipt remains valid if optional status later fails.
+
+Show accepted/waiting as plans, not verified removal, and link existing Queue/
+handoff/fleet visibility. Only new accepted work signals the same leased worker;
+never call FTD from HTTP, bypass cutoff/cooldown, initialize optional schemas,
+grant new policy or change protection. Expiry/cancellation/failure never resumes
+maintenance. Disabled admission after uncertainty says only that this attempt
+was not submitted, not that an earlier attempt failed. Retain checked backups
+and paired images; keep all live gates/schemas unchanged. Synthetic tests and
+disabled deployment do not authorize a live cleanup fixture or migration.

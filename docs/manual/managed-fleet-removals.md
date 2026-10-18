@@ -1,13 +1,13 @@
-# Atomic Fleet Removal — Offline Coordinator
+# Atomic Fleet Removal — Whole-Scope Coordinator
 
 ## Boundary and prerequisites
 
 `ManagedFleetRemovals` in `managed_fleet_removals.py` implements **atomic local
-admission**, not atomic changes across Cisco devices. It is an internal offline
-integration stage with no HTTP/CLI admission route, BFF call, startup migration
-or enable switch. The combined review still returns 503. Do not call it against
+admission**, not atomic changes across Cisco devices. It now has independently
+default-off HTTP/BFF admission through [combined cleanup](managed-cleanup.md),
+without startup migration. Disabled admission still returns 503. Do not call it against
 the lab database, initialize its tables there or reuse the consumed live fixture.
-All ADD/cleanup-worker gates stay off; restoration is not implemented.
+All live admission/ADD/cleanup/controller gates stay off.
 
 It consumes the [frozen fleet scope](managed-removal-review.md#frozen-all-device-scope)
 for one IPv4: the exact union of active local observations and enabled managed
@@ -21,7 +21,7 @@ bound **ordered** mode now supports a whole-scope barrier behind RUNNING ADD;
 see [Ordered cleanup](#ordered-cleanup). Do not drop the conflicting target or loop over
 single-target admissions/commits to simulate atomicity. The independent
 [single-target handoff](managed-removal-handoffs.md) remains available only
-within its existing offline integration boundary.
+under its separate exact-pair contract and shared admission gate.
 
 ## Admission and durable receipt
 
@@ -75,7 +75,7 @@ promise cross-device rollback or physical exactly-once execution.
 Ordinary queue cancellation acts on the one root delegation, preserving any
 other users' coalesced REMOVE authority. No failure/cancellation/expiry reverses
 desired retirement. A later explicit re-enable requires its own current policy
-authorization; there is still no browser re-enable or restoration controller.
+authorization; separate standing admission/controller gates remain mandatory.
 
 Original-key replay, after current role and canonical body checks, precedes
 current scope/revision/recovery-pause/ledger-limit checks. It returns the original
@@ -94,8 +94,9 @@ ADMITTING barrier; the immutable root phase is never reset.
 
 The internal caller must explicitly select `ordered_wait=True` and supply the
 matching `stop_maintenance_and_remove_ordered` canonical digest. Ready-only
-payloads/old-key replays do not acquire these semantics. No BFF/HTTP/CLI route
-selects this mode, and current combined browser confirmation still returns 503.
+payloads/old-key replays do not acquire these semantics. The BFF selects this
+mode only through the explicit preparation checkbox and matching frozen digest;
+default-off combined confirmation otherwise returns 503.
 This is not permission to initialize or seed policy/waits on the live lab.
 
 A RUNNING ADD may be captured by its exact job/device IDs. Admission atomically

@@ -2,6 +2,24 @@
 
 ## Offline managed-policy foundation
 
+`tests/test_managed_cleanup_admission.py` covers the gated HTTP/BFF connection to
+single/fleet coordinators using synthetic SQLite/ASGI: ready/ordered whole-scope
+semantics, late audit/deadline rollback, generation/scope CAS, historical replay,
+independent conflicting jobs, role/CSRF/strict body/capability checks, original
+unknown-reply retry and no per-target fleet commits. Chromium checks enabled/
+disabled/blocked review, immutable ordered choice, input/focus/native validation
+and mobile spacing without commands or refresh hints. See
+[Combined Managed Cleanup](managed-cleanup.md); no lab fixture/gate is initialized.
+
+`tests/test_managed_grants.py` uses disposable SQLite/ASGI for explicit single-pair
+standing consent, default-off policy admission without queue/wakeup, profiles/
+schema/role/CSRF/revision/protection/conflicting-work checks, old-key replay after
+retirement, retained failure non-rearm, concurrent idempotency, audit rollback,
+cache/session bounds and lost/malformed reply retry. Chromium tests frozen
+token/typed IP/checkbox/focus, native validation and mobile layout without hints.
+See [Standing Managed Policy](managed-grants.md); tests never initialize a lab
+fixture, enable a live gate or send an FTD command.
+
 `tests/test_managed_discovery.py` exercises default-off runtime integration on
 temporary SQLite with typed fake consoles: fresh initial/priority/final evidence,
 next-cycle cutoff/cooldown, duplicate suppression, per-sweep bounds, restart

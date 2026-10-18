@@ -1,14 +1,16 @@
-# Managed Removal Review — Preparatory UI Only
+# Managed Removal Review — Frozen Scopes and Gated Confirmation
 
 ## Current scope
 
 The Managed shuns page exposes retained policy and optional cleanup state.
 Separate [revocation controls](managed-controls.md) now support policy-only
-retirement and waiting cancellation; they cannot execute this combined review.
+retirement and waiting cancellation; they remain distinct from combined cleanup.
 Operator/Administrator users can prepare a **single-target** or **frozen fleet**
-stop-maintenance-and-remove review. **Execution is unavailable:** preparation is not retirement,
-queue admission or a device operation. There is no environment switch to enable
-this form. ADD and automatic restoration remain disabled under their own gates.
+stop-maintenance-and-remove review. Preparation is not retirement, queue
+admission or a device operation. [Combined cleanup](managed-cleanup.md) now has
+independently default-off admission, requiring socket mode, enabled shared cleanup
+worker and existing optional schemas. Both BFF configuration and API capability
+must permit confirmation. ADD/restoration stay under their own gates.
 
 In the current lab the managed/handoff tables are absent, so no retained-policy
 single-target controls appear. Fleet review can still show existing observed
@@ -26,21 +28,23 @@ from retained managed policy and optionally supply a bounded plain-text reason.
 - observed-versus-missing state, maintenance and enabled protection;
 - reason, proposed cleanup lifetime, reserved request UUID and review expiry.
 
-The page explains the intended future effect: stop maintenance for this target
+The page explains the explicit effect: stop maintenance for this target
 only, then use ordinary verified queue removal. A running ADD must settle first;
 expired/cancelled/failed cleanup must not restart maintenance. Missing observation
 does not remove the target from the review, and presence does not prove service
 creation. This is not an all-device review or fresh Cisco query.
 
-The confirm button is disabled. Direct `POST /managed-shuns/removal-confirm`
-still checks current role, CSRF, review binding/expiry and exact typed IP, then
-returns **503 Execution unavailable without contacting admission**. Changing
-HTML or upstream status flags cannot enable it. No private admission POST exists.
-The review grants no durable authority and is not an accepted queue request.
+The confirm button is disabled by default. Direct confirmation rechecks current
+role, CSRF, review binding/expiry and exact typed IP. Disabled local admission
+returns 503 without a private admission call; status/DOM edits alone cannot
+enable it. When independently enabled, strict private device/fleet endpoints
+invoke the existing atomic coordinators. A validated receipt describes original
+admission, not verified removal; unknown replies keep the original scope/key.
+Preparation still grants no durable authority. See [Combined Cleanup](managed-cleanup.md).
 
 ## Frozen all-device scope
 
-Open **Managed shuns → Preview all-device removal scope — no execution** and
+Open **Managed shuns → Review all-device removal scope** and
 enter one exact IPv4 plus an optional reason. This preparatory form works without
 an initialized registry if current observed shuns exist. It does not submit the
 ordinary removal form or request a Cisco refresh.
@@ -65,18 +69,19 @@ interfaces do not change device-level membership. The separate fleet action
 digest also binds cleanup lifetime and reason; it cannot be reused as a
 single-target or policy-only action. Fleet/single reviews share the existing
 five-per-subject/256-global combined-review cache and immutable session/TTL rules.
-Confirmation uses the same exact typed IP and always returns 503, with no
-admission call even if upstream advertises enablement. Status polling never
+Confirmation uses the same exact typed IP and independently gated admission.
+Status/DOM edits alone cannot enable it. Status polling never
 changes a frozen scope; prepare a new review only after inspecting new state.
 
 `ManagedRemovalScopes.require_current(db, reviewed)` is an internal comparison
 prerequisite, not an authorization interface. It re-reads and compares within
 the caller's transaction and rejects scope changes without commits, audit or
 queue work. The [offline ready-target coordinator](managed-fleet-removals.md)
-now uses it for atomic retirement/admission, but is not connected to this BFF
-and defaults to refusing unfinished ADD/waiting cleanup. Separate explicitly
-bound ordered mode now supports a whole-scope RUNNING-ADD barrier, but no browser
-review/admission route enables it. Never loop over single-target admissions to
+now uses it for atomic retirement/admission behind default-off HTTP admission
+and defaults to refusing unfinished ADD/waiting cleanup. The explicit preparation
+checkbox binds ordered mode into the immutable review/digest, enabling a
+whole-scope RUNNING-ADD barrier only when admission is separately enabled.
+Never loop over single-target admissions to
 simulate fleet atomicity or silently change a ready-only review into ordered mode.
 Existing ordinary device/fleet removal behavior is unchanged.
 
@@ -95,7 +100,8 @@ Status polling continues on the initial review page, but its frozen target,
 token, typed IP and focus are not fetched/replaced after a revision change.
 There is no automatic submission, reclassification, retry or authority renewal.
 Reload/back/restart may lose the ephemeral review; inspect current state before
-preparing another. A disabled confirmation response also remains non-executable.
+preparing another. Unknown responses retain typed IP and original key. No
+automatic retry or replacement intention is created.
 
 ## Read-only cleanup visibility
 
@@ -116,7 +122,7 @@ credentials are not exposed. Existing queue revisions drive local updates
 without refresh hints or device queries.
 
 The view reports the cleanup-worker flag (default off), separately from
-unconditionally unavailable combined-removal admission. GET display never
+independently default-off combined-removal admission. GET display never
 advances/cancels handoffs. The separate owner/Administrator waiting-cancel POST
 is documented in [Managed Controls](managed-controls.md).
 See [the coordinator contract](managed-removal-handoffs.md).
@@ -124,8 +130,8 @@ See [the coordinator contract](managed-removal-handoffs.md).
 ## Validation and rollout
 
 Synthetic ASGI/SQLite tests cover identity/CSRF, strict fields/scope/count limits,
-cookie/expiry/restart/capacity binding, immutable review data, unconditional
-execution refusal, optional schema/error handling, escaped admission/outcomes
+cookie/expiry/restart/capacity binding, immutable review data, default-off
+refusal, atomic admission/replay, optional schema/error handling, escaped admission/outcomes
 and no database/queue/audit changes. Chromium exercises frozen token/input/focus,
 revision-driven waiting/attention/verified displays and 375px layout without
 execution or extra Cisco hints.
@@ -139,9 +145,8 @@ handoff tables, disabled ADD, unchanged state/queue/policy aggregates, ordinary
 healthy reads, anonymous 401 and a TLS-verified Authelia redirect. Revert paired
 images without restoring old state if necessary; do not drop authority tables.
 
-Before any execution release, connect the frozen all-device scope to atomic
-multi-target retirement/handoff admission, protection/system cancellation and
-target uncertainty handling. Visible revocation/cancellation is implemented. The
-default-off shared-worker hook and [composite recovery controls](recovery.md)
-have synthetic coverage, not live acceptance. The preparatory
-POSTs and GET resource do not waive those gates or authorize a live mutation.
+Frozen single/fleet confirmation, atomic coordination, protection/system
+cancellation, uncertainty handling, shared-worker and composite recovery have
+synthetic coverage, not live acceptance. Reviewed migration/resume/resolution
+and scoped live validation remain before enablement. Review preparation/GET or
+a default-off deployment do not waive those gates or authorize a live mutation.

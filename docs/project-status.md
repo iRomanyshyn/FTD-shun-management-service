@@ -4,6 +4,77 @@ Last updated: 2026-10-18
 
 ## Current increment
 
+**Combined cleanup batch: device, fleet, ordered confirmation (2026-10-18).**
+Frozen reviews now connect to the existing atomic coordinators behind independent
+strict `FTD_SHUN_MANAGED_REMOVAL_ADMISSION_ENABLED=false`. True requires socket
+mode/shared cleanup worker. Device admission binds reviewed intent/generation;
+fleet admission checks the entire union/CAS once, never per-target commits.
+An explicit preparation checkbox freezes ordered mode/digest; ready-only never
+silently acquires waiting. All scope members wait behind captured RUNNING ADD,
+with no early cleanup; QUEUED independent ADD still conflicts. No HTTP-to-FTD,
+schema initialization, live gate/profile change or ADD/restoration enablement.
+
+Single retirement/root/queue/unsent system cancellation remain atomic, including
+new late-expiry rollback before commit. Fleet retains whole-scope rollback and
+original deadlines. UI validates exact historical receipts, distinguishes
+accepted/waiting from verification, preserves key/body/typed IP/choice after
+unknown replies and never renews/rekeys/rebases. Both BFF configuration and API
+capability must permit submission; new work alone signals the existing worker.
+Current role/CSRF/strict scope/TTL/generation and sensitive-age cap are enforced.
+See [Combined Managed Cleanup](manual/managed-cleanup.md).
+
+All 811 Python tests pass (60 new admission cases), 24 Chromium scenarios/25
+reported tests, compileall/Ruff/JS syntax/diff and 279 relative file links pass.
+Networkless/read-only Python 3.12 packaged BFF/device/fleet ordered-barrier and
+standing-grant compatibility smokes pass, with synthetic state only. Deployed
+only API `78c1a0968df4` / Web `cce7282a7280`; paired
+`before-combined-cleanup-20261018t1740z` images and checked 0600 volume/private
+`.local/backups/state-before-combined-cleanup-20261018T1740Z.sqlite3` retained.
+Full schema/all eleven non-executor tables match backup after normal baseline;
+integrity/FK pass, optional schemas absent. Queue eight VERIFIED/one NOOP,
+no pending/active shuns and three Protected IPs unchanged. All actual admission/
+ADD/cleanup/controller gates remain off, zero profiles; env/inventory/secrets/
+agent/Caddy/Authelia unchanged. Anonymous managed/status/review/confirm 401 and
+TLS-verified HTTPS 302. Normal v2 cycle at 17:44:47Z: two reads/zero mutations/
+8747 ms, next 17:49:47Z/no error. No live seed, control, job, hint or direct RPC.
+This is disabled rollout evidence, not live managed cleanup/restoration acceptance.
+Next: reviewed migration/policy resume/uncertainty resolution and bulk standing
+consent, then a newly scoped live lifecycle. No consumed fixture is reused.
+
+**Frozen single-target standing consent (2026-10-18).** Managed shuns now offers
+a separate one-device/IPv4 persistent-policy review. Typed IP plus explicit
+recurring-authority acknowledgement, current Operator/Admin and CSRF are
+required. Frozen subject/cookie-bound scope/revisions/metadata/digest/UUID
+survive explicit retry, not polling reconstruction. Uninitialized preview is
+inspectable but cannot become confirmable after migration. Separate strict
+`FTD_SHUN_MANAGED_POLICY_ADMISSION_ENABLED=false` controls policy-only MAINTAIN;
+requires socket mode, explicit device profile and existing registry/attempt
+schemas. No initialization, adoption, resume/rearm, initial ADD/queue insertion
+or work hint. Single-pair grant/re-enable is explicit, not old import semantics.
+
+Admission atomically rechecks revisions, device/protection/recovery/cleanup,
+pending/running/uncertain work, retained failures and capacity; policy/audit
+commit together. Original-key replay after retirement never re-enables it.
+Unknown replies retain original review/key/consent, no auto retry/new intention.
+Controller/agent/API ADD and migration remain separately off; combined removal
+is still unconditional 503. See [Standing Managed Policy](manual/managed-grants.md).
+All 751 Python tests pass (45 new cases), 23 Chromium scenarios/24 reported tests,
+compileall/Ruff/JS syntax/diff and 268 relative file links pass. Python 3.12
+networkless read-only packaged grant/BFF and restoration smokes pass without
+live mounts/secrets/device calls. Default-off API/Web rollout checks follow in
+the development log: deployed API `5c5c74dfa5fe` / Web `ce7d541859e5`, paired
+`before-standing-grant-20261018t1718z` images and checked 0600 volume/private
+`.local/backups/state-before-standing-grant-20261018T1718Z.sqlite3` retained.
+Full schema/all eleven non-executor tables match backup after normal baseline;
+integrity/FK pass. Optional schemas absent, no pending/active shuns, queue eight
+VERIFIED/one NOOP and three Protected IPs unchanged. New standing-admission and
+all ADD/controller/cleanup gates off, zero profiles; actual env/inventory/secrets
+and agent/Caddy/Authelia unchanged. Anonymous grant review/confirm/Managed/status
+401, TLS-verified HTTPS 302. Normal v2 cycle at 17:23:02Z: two reads/zero mutations/
+8502 ms, next 17:28:02Z/no error. No live grant, seed, hint, job or direct RPC.
+Next: reviewed migration/resume/uncertainty
+resolution and bulk standing consent, then separately scoped live acceptance.
+
 **Default-off complete-snapshot discovery and shared dispatch (2026-10-18).**
 `FTD_SHUN_MANAGED_RESTORATION_ENABLED=false` now controls the independent system
 capability. True requires existing API ADD/socket-cycle/large-read controls;
@@ -35,7 +106,7 @@ unchanged. Anonymous managed/status 401, TLS-verified HTTPS 302. Normal v2 cycle
 at 17:03:28Z: two reads/zero mutations/8580 ms, next 17:08:28Z/no error.
 No live fixture, source seed, control submission, hint, new job or direct RPC.
 This disabled deployment is not live restoration/reboot/load acceptance.
-Next: frozen standing grant and combined execution controls, reviewed migration/
+Next: bulk managed grants and combined execution controls, reviewed migration/
 resume/uncertainty resolution, then a newly scoped lab restoration lifecycle.
 
 **Offline system restoration queue lifecycle (2026-10-18).** A separate standing
@@ -1044,7 +1115,8 @@ offline ready/ordered atomic fleet admission are now implemented. Bounded fleet
 status and owner/Admin waiting revocation are available. The offline standing
 system queue source, claim/generation/protection/revocation/uncertainty hooks are
 now tested and bounded default-off complete-snapshot discovery/shared dispatch
-is connected. Next: frozen standing grant/combined controls and reviewed resume/resolution
+is connected. Single-target standing consent has default-off admission. Next:
+bulk managed grants and reviewed resume/resolution
 with uncertainty/rearm and anti-churn controls. Do not enable it by deriving
 policy from historical imports or by renewing old user jobs. Resolve controller
 anti-churn defaults and any expansion beyond initial registry bounds before live

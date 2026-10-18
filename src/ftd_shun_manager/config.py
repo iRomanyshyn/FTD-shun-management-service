@@ -61,8 +61,20 @@ class Settings:
     import_execution_enabled: bool = False
     managed_removal_worker_enabled: bool = False
     managed_restoration_enabled: bool = False
+    managed_policy_admission_enabled: bool = False
+    managed_removal_admission_enabled: bool = False
 
     def __post_init__(self) -> None:
+        if type(self.managed_removal_admission_enabled) is not bool:
+            raise ValueError("managed removal admission setting must be boolean")
+        if self.managed_removal_admission_enabled and (
+            self.agent_mode != "socket" or self.managed_removal_worker_enabled is not True
+        ):
+            raise ValueError("managed removal admission requires socket mode and the cleanup worker")
+        if type(self.managed_policy_admission_enabled) is not bool:
+            raise ValueError("managed policy admission setting must be boolean")
+        if self.managed_policy_admission_enabled and self.agent_mode != "socket":
+            raise ValueError("managed policy admission requires socket agent mode")
         if type(self.managed_restoration_enabled) is not bool:
             raise ValueError("managed restoration setting must be boolean")
         if self.managed_restoration_enabled and not self.import_execution_enabled:
@@ -97,6 +109,12 @@ class Settings:
         restoration = environ.get("FTD_SHUN_MANAGED_RESTORATION_ENABLED", "false")
         if restoration not in {"true", "false"}:
             raise ValueError("FTD_SHUN_MANAGED_RESTORATION_ENABLED must be true or false")
+        managed_admission = environ.get("FTD_SHUN_MANAGED_POLICY_ADMISSION_ENABLED", "false")
+        if managed_admission not in {"true", "false"}:
+            raise ValueError("FTD_SHUN_MANAGED_POLICY_ADMISSION_ENABLED must be true or false")
+        removal_admission = environ.get("FTD_SHUN_MANAGED_REMOVAL_ADMISSION_ENABLED", "false")
+        if removal_admission not in {"true", "false"}:
+            raise ValueError("FTD_SHUN_MANAGED_REMOVAL_ADMISSION_ENABLED must be true or false")
         agent_timeout_seconds = int(environ.get("FTD_SHUN_AGENT_TIMEOUT_SECONDS", "45"))
         if not 5 <= agent_timeout_seconds <= 120:
             raise ValueError("FTD_SHUN_AGENT_TIMEOUT_SECONDS must be between 5 and 120")
@@ -136,4 +154,6 @@ class Settings:
             import_execution_enabled=import_execution == "true",
             managed_removal_worker_enabled=managed_worker == "true",
             managed_restoration_enabled=restoration == "true",
+            managed_policy_admission_enabled=managed_admission == "true",
+            managed_removal_admission_enabled=removal_admission == "true",
         )

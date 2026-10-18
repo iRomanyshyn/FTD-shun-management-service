@@ -81,7 +81,7 @@ def add(fleet, device, running=False):
     return key
 
 
-def test_normal_startup_and_reads_do_not_initialize_or_expose_fleet_admission(tmp_path, monkeypatch):
+def test_normal_startup_and_reads_do_not_initialize_or_enable_fleet_admission(tmp_path, monkeypatch):
     monkeypatch.delenv("FTD_SHUN_TRUSTED_AUTO_REMOVE_IPS", raising=False)
     store = Store(tmp_path / "normal.db")
     app = create_app(replace(Settings.from_environment(), database_path=store.path,
@@ -94,7 +94,9 @@ def test_normal_startup_and_reads_do_not_initialize_or_expose_fleet_admission(tm
     assert {(route.path, tuple(sorted(route.methods))) for route in app.routes if "fleet" in route.path} == {
         ("/api/v1/managed-fleet-removals", ("GET",)),
         ("/api/v1/managed-fleet-removals/{request_id}/cancel", ("POST",)),
-    }  # Observation/revocation only; no admission route.
+        ("/api/v1/managed-removals/fleet", ("POST",)),
+    }  # Admission route exists but its independent gate defaults off.
+    assert app.state.synchronizer.managed_removal_worker_enabled is False
 
 
 def test_whole_union_is_atomic_one_request_one_retirement_and_no_unmanaged_adoption(fleet, capsys):

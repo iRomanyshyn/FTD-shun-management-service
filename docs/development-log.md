@@ -3589,6 +3589,179 @@ migration/resume/uncertainty resolution, then separately scoped live restoration
 and explicit retirement/no-readd acceptance. Disabled deployment and synthetic
 tests are not live reboot/restoration/load/failure or production validation.
 
+## 2026-10-18 — Frozen single-target standing consent and policy-only admission
+
+Added a collapsed one-device/IPv4 standing-policy form, frozen immutable review
+and explicit typed-IP/recurring-authority confirmation. This is separate from
+one-time imports, device creation and policy-only retirement. It uses a separate
+bounded cache with the existing subject/cookie hash, TTL, five-per-subject/
+256-global mechanics. Frozen labels/metadata are escaped; inputs/checkbox/focus
+are preserved through polling and unknown replies. A preview prepared with
+uninitialized policy cannot become confirmable after later migration.
+
+New strict false-by-default `FTD_SHUN_MANAGED_POLICY_ADMISSION_ENABLED` permits
+only one-pair policy MAINTAIN on the private API, with current role, explicit
+canonical key, standing acknowledgement and fixed canonical action/mode. Requires
+socket mode, explicit addition profile and existing optional registry/attempt
+schemas. Inside one transaction, reject changed revisions/protection/devices,
+recovery pause, observed adoption, enabled intent, cleanup or unfinished/uncertain
+pair work and retained failure. Registry/audit/key updates are atomic; success
+logs follow commit. No queue insertion, immediate refresh/wakeup, initialization,
+adoption, resume/rearm or ADD/gate enablement. Combined confirmation remains 503.
+
+An exact old request returns its historical receipt, not new authority: replay
+after retirement cannot re-enable it. Lost/malformed replies keep the same key,
+body and consent for explicit retry; no automatic submission/reclassification.
+Updated normative design, agent agreement, status, plan, README and structured
+grant/related manuals. No Rust/wire/dependency/schema/service changes.
+
+Validation: all **750 Python tests pass (32.61 s)**, including 44 grant cases for
+API/BFF consent/roles/CSRF/strict bodies, gates/profiles/no-init, transactional
+state conflicts, original-key retry/retirement/new generation, retained failure
+non-rearm, audit rollback/no success log, concurrent idempotency, cache/session/
+purpose/expiry bounds and no job/wakeup. One further case verifies gate-disable
+after a committed lost reply: disabled admission never implies the earlier
+policy was unsaved. Final **751 tests pass (30.80 s)**. Compileall/Ruff/JS syntax/
+diff and 268 relative file links pass. All 23 Chromium scenarios (24 reported
+tests) pass (85.77 s runner), including frozen token/typed IP/checkbox/focus,
+required native consent and 375px layout without hints/writes. The initial
+new browser scenario found its synthetic route missing from the fixture allowlist;
+registering that route corrected the harness, not product guards.
+
+Final built Python 3.12 networkless/read-only synthetic package smoke passes:
+standing gate configured without startup schemas, explicit isolated migration,
+BFF recurring consent, committed lost reply, same-key historical receipt after
+retirement without re-enable, no queue/request/attempt/wakeup/refresh hint and
+integrity/FK. The shared-restoration packaged lifecycle also passes complete
+read/cutoff/cooldown, verified restoration and retained lost-result attention.
+No live mounts, credentials, sockets or remote commands were supplied.
+
+Authorized lab preflight confirms absent optional schemas, no pending/active
+shuns, queue eight VERIFIED/one NOOP, three Protected IPs and all gates off/zero
+profiles. Retained paired `before-standing-grant-20261018t1718z` API/Web image
+tags. Quiet Compose config/build pass. Checked exclusive O_EXCL/O_NOFOLLOW 0600
+SQLite-safe volume backup and ignored private host copy
+`.local/backups/state-before-standing-grant-20261018T1718Z.sqlite3` (0700 dir).
+Stopping/recreating only API/Web with --no-deps after validation, no overlapping
+executor. No live optional seed, grant, control, hint, job or gate change.
+Deployment results follow.
+
+**Deployment result:** Recreated only sole API/Web with --no-deps, no overlapping
+executor. API `5c5c74dfa5fe`, image
+`sha256:4363c5357bb10344c604b789cfe32280eb8c7124081bd4368480880fc562d604`;
+Web `ce7d541859e5`, image
+`sha256:570a82084e14fed4abaeb594c923470474e1d046cfbd3c90c4378632942a4579`.
+Agent `9d1f50d361ca`, Caddy `9c8fdb3a7f21`, Authelia `76f3635ab737` unchanged.
+Full sqlite_master/all eleven non-executor tables including sequence metadata
+match checked backup; integrity/FK pass. Optional reads remain initialized=false,
+no managed/attempt/handoff/fleet table or new job. Queue eight VERIFIED/one NOOP,
+no pending/active shuns, three Protected IPs and recovery pause unchanged. New
+standing admission, ADD/admission/cleanup/controller gates off and zero profiles;
+env/inventory/secrets/Rust/wire unchanged. Anonymous Managed/status/new grant
+review and confirm reject 401, verified HTTPS redirects 302 to Authelia. No live
+identity spoofing, authenticated control, grant/seed/job/hint or direct agent RPC.
+Paired images and private checked backups retained. Ordinary baseline observation
+follows below; persisted cooldown is not bypassed to accelerate verification.
+
+Normal post-start v2 baseline completed at 2026-10-18T17:23:02Z, two commands,
+zero removal/addition/mutation steps, 8502 ms; next 17:28:02Z/no error. Rechecked
+schema and every non-executor table against backup after the read, unchanged.
+Final compileall/Ruff/diff pass. No startup migration/new authority was introduced
+by the disabled rollout. This is package/deployment evidence, not live standing
+grant/restoration/reboot or production acceptance. Next: executable atomic
+combined cleanup and reviewed migration/resume/uncertainty resolution, then bulk
+standing consent and a newly scoped live lifecycle. No existing experiment
+authorization was reused.
+
+## 2026-10-18 — Combined cleanup batch: device, fleet and ordered confirmation
+
+Connected frozen single/fleet reviews to their existing atomic coordinators
+behind strict default-off `FTD_SHUN_MANAGED_REMOVAL_ADMISSION_ENABLED`, requiring
+socket mode and the shared cleanup worker. Fixed private device/fleet routes
+accept exact typed scope/current actor/canonical key/digest/TTL only. Device
+admission rechecks reviewed intent/generation, including replay; fleet compares
+the complete frozen union under its existing write transaction and never loops
+single-target commits. The preparation checkbox explicitly freezes ordered
+mode and its distinct digest. Ready-only does not gain waiting automatically;
+ordered roots hold all targets behind captured RUNNING ADD with no early member
+cleanup. Independent QUEUED ADD still conflicts.
+
+Added strict historical receipt validation and honest accepted/waiting display,
+original-key/body retry with retained typed IP/ordered scope, unknown-response
+handling (including wrong success HTTP status), current role/CSRF/configuration
+and sensitive-age cap. Only newly accepted plans signal the existing worker;
+no refresh hint, direct RPC, alternate executor, automatic retry/rekey/rebase,
+schema initialization, policy resume or ADD/restoration enablement. Disabled
+admission never disproves an earlier unknown accepted plan. Single-target late
+expiry is now rechecked before commit so ready/waiting root/retirement/queue/
+audit roll back together instead of accepting already-expired authority.
+
+Updated normative design, agent agreement, structured combined-cleanup manual,
+review/coordinator/standing/recovery-related operator boundaries, README, plan
+and status. No Rust/wire/schema/service/dependency changes or live test authority.
+
+Validation: **811 Python tests pass (34.93 s)**, including 60 new HTTP/BFF cases:
+single/fleet ready and ordered lifecycle, mixed observed-only scope/no adoption,
+protection/scope/generation changes, pending independent work, recovery pause,
+disabled devices, role/CSRF/strict fields/caps, cache/frozen retry, malformed/lost
+receipt, repeated original key after new generation, concurrent same/different
+users, no per-target fleet commits, atomic queued-system cancellation/audit
+rollback, late ready/waiting expiry and missing schemas/no migration. Existing
+offline source/queue/coordinator/recovery suites remain green. Compileall/Ruff/
+JS syntax/diff pass. All 24 Chromium scenarios/25 reported tests pass (98.49 s
+runner), including enabled device/ready/ordered reviews, disabled-scope blocking,
+native validation, frozen token/choice/input/focus, retained draft checkbox and
+375px spacing, without refresh hints or device mutations. Packaged integration
+and authorized default-off API/Web rollout checks follow.
+
+Final Python 3.12 networkless/read-only built-package smoke passes with no live
+mounts/secrets/device sockets. It checks no optional startup schemas even with
+admission configured, isolated initialization, BFF single committed lost reply/
+original receipt replay, explicit ordered mixed managed/observed-only fleet,
+no early removal, UNVERIFIED ADD preserved, all three cleanup jobs materialized
+together under original expiry, no observation adoption and integrity/FK.
+Standing-grant compatibility/lost-reply/retirement smoke also passes. All 279
+relative file links resolve; compileall/Ruff/JS syntax/diff pass.
+
+Authorized lab preflight: optional schemas absent, queue eight VERIFIED/one
+NOOP, no pending/active shuns, three Protected IPs, all gates off/zero profiles.
+Quiet Compose config/build pass. Retained paired
+`deploy-api:before-combined-cleanup-20261018t1740z` and matching Web tag. Exclusive
+O_EXCL/O_NOFOLLOW 0600 SQLite-safe volume backup plus ignored private host copy
+`.local/backups/state-before-combined-cleanup-20261018T1740Z.sqlite3` (0700 dir)
+pass integrity/FK. Stopping/recreating only sole API/Web with --no-deps, no
+overlapping executor. Actual env/inventory/secrets/agent/gates unchanged; no live
+schema seed, grant/cleanup control, new job, hint or direct RPC was submitted.
+Deployment observations follow.
+
+**Deployment result:** Stopped/recreated only API/Web with --no-deps, without
+overlapping executors. API `78c1a0968df4`, image
+`sha256:28c00563bdbca068873241cd888af585a640127c8ffded8e6c84a37b3a9fed3f`;
+Web `cce7282a7280`, image
+`sha256:208dab764faeecfdafc3ae5668bb5220058bb9d7b9a43184729c7c99f449476c`.
+Agent `9d1f50d361ca`, Caddy `9c8fdb3a7f21`, Authelia `76f3635ab737` unchanged.
+Full sqlite_master and all eleven non-executor tables including sequence metadata
+match checked backup, including after the ordinary baseline; integrity/FK pass.
+Repeated optional GETs remain initialized=false and create no managed/attempt/
+handoff/fleet table. Queue eight VERIFIED/one NOOP, no pending/active shuns,
+three Protected IPs and recovery pause unchanged. New combined/standing/import
+admission, API ADD, cleanup worker and controller off, agent ADD source-default
+false, zero addition profiles. Actual env/inventory/secrets/Rust/wire unchanged.
+
+Anonymous Managed/status/device review/fleet review/confirmation reject 401;
+TLS-verified HTTPS redirects 302 to authentication. Preserved persisted cooldown,
+no verification refresh hint. Normal post-start v2 read at
+2026-10-18T17:44:47Z: two commands, zero removal/addition/mutation steps, 8747 ms;
+next baseline 17:49:47Z/no error. No live identity spoofing, authenticated control,
+schema/fixture/policy seed, new job or direct RPC. Paired images/private backups
+retained. Final compileall/Ruff/JS syntax/diff pass.
+
+Next: reviewed optional migration, desired-policy resume/uncertainty resolution
+and bulk standing consent, followed by separately scoped live acceptance.
+Default-off implementation/package/deployment is not approval to enable gates,
+initialize a fixture, reuse the consumed one-address authorization or claim
+live managed cleanup/restoration/reboot/load/production validation.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

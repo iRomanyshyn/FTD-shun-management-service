@@ -32,8 +32,9 @@ from .import_preview import (
     summarize_preview,
 )
 from .import_review import ImportReviews, ReviewUnavailable
+from .managed_grant_review import ManagedGrantReviews
 from .managed_retirement_review import ManagedRetirementReviews
-from .managed_review import ManagedRemovalReviews
+from .managed_review import ManagedRemovalReviews, validate_removal_receipt
 
 PROJECT_ROOT = Path(os.environ.get("FTD_SHUN_ASSET_ROOT", Path(__file__).resolve().parents[2]))
 templates = Jinja2Templates(directory=str(PROJECT_ROOT / "templates"))
@@ -156,6 +157,8 @@ def refresh_metadata(refresh: object) -> dict[str, object]:
         "managed_removal_worker_error",
         "managed_restoration",
         "managed_restoration_error",
+        "managed_policy_admission_enabled",
+        "managed_removal_admission_enabled",
         "addition_device_count",
         "device_cycle",
         "priority_refresh_available",
@@ -182,6 +185,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     reviews = ImportReviews(settings.sensitive_action_max_age_seconds)
     managed_reviews = ManagedRemovalReviews(settings.sensitive_action_max_age_seconds)
     retirement_reviews = ManagedRetirementReviews(settings.sensitive_action_max_age_seconds)
+    grant_reviews = ManagedGrantReviews(settings.sensitive_action_max_age_seconds)
     app.mount("/static", StaticFiles(directory=str(PROJECT_ROOT / "static")), name="static")
 
     @app.middleware("http")
@@ -470,6 +474,102 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if not {"Operator", "Administrator"}.intersection(identity.roles):
             raise HTTPException(403, "Operator role required for managed controls.")
 
+    def grant_view(request, identity, review, refresh=None, *, result=None, message=None,
+                   confirm_ip="", acknowledged=False, status_code=200):
+        return render(request, "managed-grant-review.html", {
+            "identity": identity, "review": review, "refresh": refresh, "result": result, "message": message,
+            "confirm_ip": confirm_ip, "acknowledged": acknowledged, "active_page": "managed",
+            "auto_request": False, "frozen_view": True,
+        }, status_code)
+
+    @app.post("/managed-shuns/grant-review", response_class=HTMLResponse)
+    async def prepare_grant(request: Request):
+        identity = identity_from_request(request, settings.development_auth)
+        require_managed_operator(identity)
+        fields = await preview_form(request, allowed={"csrf", "device_id", "ip", "label", "reason"}, max_bytes=16384)
+        require_csrf(request, fields.get("csrf", [""])[0])
+        try:
+            raw = fields.get("device_id", [""])[0]
+            device, ip = int(raw), IPv4Address(fields.get("ip", [""])[0])
+            if raw != str(device) or not 1 <= device <= 65535:
+                raise ValueError("Invalid device ID")
+        except ValueError as error:
+            raise HTTPException(422, "Choose one exact device and IPv4 address.") from error
+        return await run_in_threadpool(prepare_grant_review, request, identity, device, ip,
+                                       fields.get("label", [""])[0], fields.get("reason", [""])[0])
+
+    def prepare_grant_review(request, identity, device, ip, label, reason):
+        try:
+            with api_client(settings) as client:
+                state = client.get("/api/v1/status")
+                policy = client.get("/api/v1/managed-shuns")
+                classification = client.post("/api/v1/import-preview", json={"ips": [str(ip)], "device_ids": [device]})
+            if classification.status_code == 422:
+                raise ReviewUnavailable("Select one enabled configured device; no standing review was prepared.")
+            if state.status_code != 200 or policy.status_code != 200 or classification.status_code != 200:
+                raise httpx.RequestError("Local grant state unavailable")
+            if not isinstance(state.json(), dict):
+                raise TypeError("Invalid status")
+            review = grant_reviews.prepare(identity.subject, request.cookies.get("ftd_shun_csrf", ""),
+                                           policy.json(), classification.json(), device, ip, label, reason)
+            return grant_view(request, identity, review, state.json())
+        except ReviewUnavailable as error:
+            raise HTTPException(409, str(error)) from error
+        except (ValueError, TypeError, KeyError, AttributeError) as error:
+            raise HTTPException(422, "Invalid standing-review data; no policy was saved.") from error
+        except httpx.HTTPError as error:
+            raise HTTPException(503, "Standing review is unavailable; no policy was saved.") from error
+
+    @app.post("/managed-shuns/grant-confirm", response_class=HTMLResponse)
+    async def confirm_grant(request: Request):
+        identity = identity_from_request(request, settings.development_auth)
+        require_managed_operator(identity)
+        fields = await preview_form(request, allowed={"csrf", "review", "confirm_ip", "maintain_present"}, max_bytes=4096)
+        require_csrf(request, fields.get("csrf", [""])[0])
+        try:
+            review = grant_reviews.get(fields.get("review", [""])[0], identity.subject,
+                                       request.cookies.get("ftd_shun_csrf", ""))
+        except ReviewUnavailable as error:
+            raise HTTPException(409, str(error)) from error
+        if fields.get("confirm_ip", [""])[0] != str(review.ip) or fields.get("maintain_present", [""])[0] != "yes":
+            raise HTTPException(422, "Type the exact IPv4 and acknowledge maintenance until explicitly stopped.")
+        if not review.initialized:
+            return grant_view(request, identity, review, message="Policy was uninitialized at review time. Explicit migration and a new review are required.",
+                              confirm_ip=str(review.ip), acknowledged=True, status_code=503)
+        return await run_in_threadpool(save_grant, request, identity, review)
+
+    def save_grant(request, identity, review):
+        result, message, code, state = None, None, 200, None
+        try:
+            with api_client(settings) as client:
+                response = client.get("/api/v1/status")
+                if response.status_code != 200 or not isinstance(response.json(), dict):
+                    raise httpx.RequestError("Grant status unavailable")
+                state = response.json()
+                if state.get("managed_policy_admission_enabled") is not True:
+                    return grant_view(request, identity, review, state, message="Standing policy admission is disabled; this attempt was not submitted. Earlier attempts may have saved policy; inspect Managed shuns/history.",
+                                      confirm_ip=str(review.ip), acknowledged=True, status_code=503)
+                response = client.post("/api/v1/managed-shuns/maintain", headers={"Idempotency-Key": review.request_id},
+                                       json={"actor": identity.__dict__, "device_id": review.device_id, "ip": str(review.ip),
+                                             "managed_revision": review.managed_revision, "protected_revision": review.protected_revision,
+                                             "label": review.label, "reason": review.reason, "confirmation_digest": review.digest,
+                                             "maintain_present": True})
+                value = response.json()
+                if response.status_code != 200:
+                    detail = value.get("detail") if isinstance(value, dict) else None
+                    message, code = detail if isinstance(detail, str) else "Standing policy request was rejected; inspect current state.", response.status_code
+                else:
+                    if (not isinstance(value, dict) or value.get("status") != "policy_saved" or value.get("operation_id") != review.request_id
+                            or type(value.get("changed_targets")) is not int or value["changed_targets"] != 1
+                            or type(value.get("managed_revision")) is not int or value["managed_revision"] != review.managed_revision+1
+                            or type(value.get("replayed")) is not bool):
+                        raise ValueError("Invalid standing policy receipt")
+                    result = value
+        except (httpx.HTTPError, ValueError, TypeError):
+            message, code = "Standing policy outcome is unknown. Inspect Managed shuns/history; retry this same review/key, not a new request.", 503
+        return grant_view(request, identity, review, state, result=result, message=message,
+                          confirm_ip=str(review.ip), acknowledged=True, status_code=code)
+
     def retirement_view(request, identity, review, refresh=None, *, result=None, message=None,
                         confirm_ip="", status_code=200):
         return render(request, "managed-retirement-review.html", {
@@ -595,9 +695,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(503, "Cleanup cancellation was not confirmed; inspect the handoff state before retrying.") from error
         return queued_result(request, response, "/managed-shuns")
 
-    def managed_review_view(request, identity, review, refresh, *, message=None, status_code=200):
+    def managed_review_view(request, identity, review, refresh, *, message=None, result=None,
+                            confirm_ip="", status_code=200):
         return render(request, "managed-remove-review.html", {
-            "identity": identity, "review": review, "refresh": refresh, "message": message,
+            "identity": identity, "review": review, "refresh": refresh, "message": message, "result": result,
+            "confirm_ip": confirm_ip, "removal_admission_enabled": settings.managed_removal_admission_enabled,
             "active_page": "managed", "auto_request": False, "frozen_view": True,
         }, status_code)
 
@@ -644,16 +746,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def prepare_managed_fleet_removal(request: Request) -> HTMLResponse:
         identity = identity_from_request(request, settings.development_auth)
         require_managed_operator(identity)
-        fields = await preview_form(request, allowed={"csrf", "ip", "reason"}, max_bytes=16384)
+        fields = await preview_form(request, allowed={"csrf", "ip", "reason", "ordered_wait"}, max_bytes=16384)
         require_csrf(request, fields.get("csrf", [""])[0])
         try:
             ip = IPv4Address(fields.get("ip", [""])[0])
+            if fields.get("ordered_wait", [""])[0] not in {"", "yes"}:
+                raise ValueError("Invalid ordered waiting choice")
         except ValueError as error:
             raise HTTPException(422, "Enter one exact IPv4 address for fleet review.") from error
         return await run_in_threadpool(prepare_managed_fleet_review, request, identity, ip,
-                                       fields.get("reason", [""])[0])
+                                       fields.get("reason", [""])[0], fields.get("ordered_wait", [""])[0] == "yes")
 
-    def prepare_managed_fleet_review(request, identity, ip, reason):
+    def prepare_managed_fleet_review(request, identity, ip, reason, ordered_wait=False):
         try:
             with api_client(settings) as client:
                 response = client.get(f"/api/v1/managed-removal-scope/{ip}")
@@ -665,6 +769,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             review = managed_reviews.prepare_fleet(
                 identity.subject, request.cookies.get("ftd_shun_csrf", ""), response.json(), ip,
                 min(900, settings.sensitive_action_max_age_seconds), reason,
+                ordered_wait=ordered_wait,
             )
             state = refresh.json()
             if not isinstance(state, dict):
@@ -690,11 +795,40 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(409, str(error)) from error
         if fields.get("confirm_ip", [""])[0] != str(review.ip):
             raise HTTPException(422, "Type the exact IPv4 address shown in the review.")
-        # Deliberately no admission call, even if upstream status advertises a flag.
-        # Recovery, shared-worker and fleet/protection gates remain incomplete.
-        return managed_review_view(request, identity, review, None,
-                                   message="Execution is unavailable. No policy change or queue request was submitted.",
-                                   status_code=503)
+        if not settings.managed_removal_admission_enabled:
+            return managed_review_view(request, identity, review, None, confirm_ip=str(review.ip),
+                                       message="Combined admission is disabled. No policy change or queue request was submitted by this attempt. Inspect any earlier unknown outcome.",
+                                       status_code=503)
+        return await run_in_threadpool(submit_managed_cleanup, request, identity, review)
+
+    def submit_managed_cleanup(request, identity, review):
+        state, result, message, code = None, None, None, 200
+        try:
+            with api_client(settings) as client:
+                response = client.get("/api/v1/status")
+                if response.status_code != 200 or not isinstance(response.json(), dict):
+                    raise httpx.RequestError("Cleanup capability unavailable")
+                state = response.json()
+                if (state.get("managed_removal_admission_enabled") is not True
+                        or state.get("managed_removal_worker_enabled") is not True):
+                    return managed_review_view(request, identity, review, state, confirm_ip=str(review.ip),
+                        message="Combined admission/worker is disabled. This attempt was not submitted; inspect any earlier unknown outcome.", status_code=503)
+                response = client.post(f"/api/v1/managed-removals/{review.scope}",
+                                       headers={"Idempotency-Key": review.request_id},
+                                       json={"actor": identity.__dict__, **review.payload()})
+                value = response.json()
+                if response.status_code == 202:
+                    result = validate_removal_receipt(review, value)
+                else:
+                    if response.status_code < 400:
+                        raise ValueError("Unexpected cleanup response status")
+                    detail = value.get("detail") if isinstance(value, dict) else None
+                    message = detail if isinstance(detail, str) else "Cleanup request was rejected; inspect the original plan."
+                    code = response.status_code if response.status_code >= 400 else 503
+        except (httpx.HTTPError, ValueError, TypeError):
+            message, code = "Cleanup outcome is unknown. Inspect Queue/Managed shuns/history, then retry this same review/key; do not prepare replacement work.", 503
+        return managed_review_view(request, identity, review, state, result=result, message=message,
+                                   confirm_ip=str(review.ip), status_code=code)
 
     @app.get("/protected-ips", response_class=HTMLResponse)
     def protected_ips(request: Request) -> HTMLResponse:

@@ -109,6 +109,11 @@ th, td { border-bottom: 1px solid #8886; text-align: left; padding: .7rem .6rem;
 /* Frozen import review stays separate from live, replaceable observation regions. */
 .import-confirm-form { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; margin-block: 1.25rem; }
 .import-confirm-form input:not([type="hidden"]) { width: 6rem; }
+.managed-grant-form { display: grid; grid-template-columns: minmax(0, 1fr); max-width: 42rem; }
+.managed-grant-form input:not([type="hidden"]):not([type="checkbox"]), .managed-grant-form select { width: 100%; box-sizing: border-box; }
+.managed-grant-form .policy-checkbox { display: flex; align-items: flex-start; gap: .6rem; }
+.managed-grant-form input[type="checkbox"] { width: auto; flex-shrink: 0; }
+.managed-grant-form button { justify-self: start; }
 .import-review-targets { max-height: 28rem; overflow: auto; margin-block: 1rem; }
 .import-review-metadata dd { margin-bottom: .6rem; overflow-wrap: anywhere; }
 .import-result { border-inline-start: .3rem solid #087f5b; padding: .75rem; }

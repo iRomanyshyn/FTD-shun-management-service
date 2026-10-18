@@ -2,6 +2,19 @@
 
 ## Scope and current boundary
 
+[Combined managed cleanup](managed-cleanup.md) has independent disabled admission
+(`FTD_SHUN_MANAGED_REMOVAL_ADMISSION_ENABLED=false`), requiring socket mode and
+the separate cleanup worker. It does not initialize single/fleet authority tables
+or enable ADD/restoration. Keep all actual gates/profile/inventory/secrets
+unchanged in the current lab; read-only rollout checks must not submit a fixture.
+
+The [standing-grant workflow](managed-grants.md) adds only independently gated
+policy admission (`FTD_SHUN_MANAGED_POLICY_ADMISSION_ENABLED=false`). API/Web
+rollout does not migrate/seed optional schemas, queue ADD or unsuspend policy.
+Keep this gate off alongside all existing ADD/controller/cleanup gates in the
+current lab. Existing frozen browser drafts are lost on Web replacement; inspect
+Managed/history before preparing another review after uncertainty.
+
 The [experimental managed restoration controller](managed-restoration.md) is
 independently default-off (`FTD_SHUN_MANAGED_RESTORATION_ENABLED=false`). Updating
 API/Web does not initialize policy/attempt schemas or enable restoration. Retain

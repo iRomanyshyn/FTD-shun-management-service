@@ -72,9 +72,10 @@ def test_registry_is_opt_in_and_normal_application_does_not_initialize_it(tmp_pa
         assert not db.execute("SELECT name FROM sqlite_master WHERE name LIKE 'managed_shun_%'").fetchall()
     assert {route.path for route in app.routes if "managed" in route.path} == {
         "/api/v1/managed-shuns", "/api/v1/managed-removal-handoffs",
-        "/api/v1/managed-shuns/retire", "/api/v1/managed-removal-handoffs/{request_id}/cancel",
+        "/api/v1/managed-shuns/retire", "/api/v1/managed-shuns/maintain", "/api/v1/managed-removal-handoffs/{request_id}/cancel",
         "/api/v1/managed-removal-scope/{ip}",
         "/api/v1/managed-fleet-removals", "/api/v1/managed-fleet-removals/{request_id}/cancel",
+        "/api/v1/managed-removals/device", "/api/v1/managed-removals/fleet",
     }
     assert next(route for route in app.routes if route.path == "/api/v1/managed-shuns").methods == {"GET"}
     assert app.state.synchronizer.queue.status()["counts"] == {}
