@@ -36,12 +36,13 @@ through the independently gated controller. See [Managed Restoration](managed-re
    verified creation. Inspect current Managed holds/Queue/History separately.
    With controller off or registry suspended the saved policy cannot execute.
 
-Only one pair per review is currently supported; no paste/list mode or implicit
-fleet expansion. Other page updates preserve a draft device/IP. Preparation
+This single-pair form does not accept lists or expand fleet scope. The separate
+[address-list workflow](managed-batch-grants.md) freezes an explicitly selected,
+all-or-nothing batch with recurring consent; it is not a one-time import.
+Other page updates preserve a draft device/IP. Preparation
 revalidates the configured device, and the API rechecks all state atomically.
 No caller chooses a CLI interface or command. SSH-created/old imported entries
-are not automatically adopted. A future bulk managed workflow needs its own
-explicit frozen scope, capacity and authorization design.
+are not automatically adopted.
 
 ## Atomicity, retry and revocation
 

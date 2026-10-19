@@ -11,6 +11,8 @@ These manuals describe the first implementation increment. The service is safe t
 | [Operation Queue](operation-queue.md) | Queued removal, progress/cancellation, limits, lease recovery, migration, backup restore, and rollback. |
 | [Offline Recovery](recovery.md) | Checked backup, durable mutation pause, composite queue/policy suspension and reviewed ordinary resume. |
 | [Offline Managed Maintenance](managed-maintenance.md) | Explicit empty-schema migration, exact-state five-minute review and separate policy resume; no live activation or uncertainty override. |
+| [Offline Attention Inspection](managed-attention.md) | Read-only retained uncertainty/cleanup report, evidence provenance, bounded snapshot-bound pagination and planned resolution boundaries. |
+| [Offline Incident Abandonment](managed-abandonment.md) | Explicit closure-ledger migration, reviewed restoration-policy abandonment, immutable receipts and retained no-replay latches. |
 | [Managed Controls](managed-controls.md) | Frozen policy-only retirement, bounded single/fleet cleanup status and owner/Admin waiting cancellation; no device-write admission. |
 | [Combined Managed Cleanup](managed-cleanup.md) | Default-off atomic device/fleet retirement/cleanup, explicit ordered waiting, original-key receipts and rollout. |
 | [Protected IPs](protected-ips.md) | Shared authenticated policy editor, concurrency, one-time legacy import, audit, backup and rollback. |
@@ -18,6 +20,7 @@ These manuals describe the first implementation increment. The service is safe t
 | [Browser Import Review](import-review.md) | Frozen exact-target confirmation, identity/CSRF, bounded ephemeral drafts, same-key retry, default-off admission and rollback. |
 | [Managed Shuns](managed-shuns.md) | Registry foundation, lifecycle/storage bounds, standing consent and independently gated restoration. |
 | [Standing Managed Policy](managed-grants.md) | Frozen one-pair standing consent, default-off policy-only admission, retries/revocation and unchanged live gates. |
+| [Standing Address Lists](managed-batch-grants.md) | Paste/device selection, frozen 100-row review and atomic default-off recurring policy for up to 1000 exact pairs; no immediate commands. |
 | [Managed Restoration](managed-restoration.md) | Default-off bounded snapshot discovery/shared dispatch, retained uncertainty/provenance and queue/recovery hooks. |
 | [Managed Removal Handoffs](managed-removal-handoffs.md) | Atomic retirement, waiting cleanup, original authorization, ordered settlement and gated admission/worker integration. |
 | [Atomic Fleet Removal](managed-fleet-removals.md) | Ready/explicit ordered whole-scope retirement/cleanup, reservation barrier, original deadline, cancellation and gated integration. |

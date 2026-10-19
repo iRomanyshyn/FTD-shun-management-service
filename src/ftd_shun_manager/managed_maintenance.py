@@ -48,8 +48,8 @@ def _owned(objects):
             or row[2] in TABLES]
 
 
-@lru_cache(maxsize=1)
-def _expected_schema():
+@lru_cache(maxsize=2)
+def _expected_schema(with_closures=False):
     # Generate the contract from the same trusted DDL, without a file or Store startup.
     with closing(sqlite3.connect(":memory:")) as db:
         db.row_factory = sqlite3.Row
@@ -57,7 +57,21 @@ def _expected_schema():
         db.execute("CREATE TABLE operation_executor(id INTEGER PRIMARY KEY)")
         db.execute("INSERT INTO operation_executor VALUES (1)")
         _initialize(db, Store(Path("/unused-managed-schema-contract")))
+        if with_closures:
+            from .managed_closures import initialize
+
+            initialize(db)
         return _owned(_objects(db))
+
+
+def recognized_schema(db):
+    """Both optional versions are explicit; never infer partial state is empty."""
+    from .managed_closures import present as closures_present
+
+    owned = _owned(_objects(db))
+    if owned != _expected_schema() and owned != _expected_schema(True):
+        raise ValueError("Exact complete managed schema required; partial or changed schema needs separate review.")
+    return closures_present(db)
 
 
 def _hash(value):
@@ -78,7 +92,7 @@ def review(db, action, *, reviewed_at=None, now=None):
     """Caller owns a read snapshot or write transaction; this function never writes."""
     if not db.in_transaction:
         raise ValueError("Review requires a caller-owned transaction.")
-    if action not in {"initialize", "resume-policy"}:
+    if action not in {"initialize", "resume-policy", "enable-closures"}:
         raise ValueError("Unsupported managed maintenance action.")
     current = _time(now or datetime.now(UTC))
     issued = _time(reviewed_at or current)
@@ -88,8 +102,10 @@ def review(db, action, *, reviewed_at=None, now=None):
     owned = _owned(objects)
     if action == "initialize" and owned:
         raise ValueError("Existing or partial managed schema; initialization never repairs or adopts it.")
-    if action == "resume-policy" and owned != _expected_schema():
-        raise ValueError("Exact complete managed schema required; partial or changed schema needs separate review.")
+    if action != "initialize":
+        with_closures = recognized_schema(db)
+        if action == "enable-closures" and with_closures:
+            raise ValueError("Closure ledger is already initialized; no implicit repair or replay.")
     executor = db.execute("SELECT revision,owner,lease_until,next_eligible_at,mutations_suspended FROM operation_executor WHERE id=1").fetchone()
     protection = db.execute("SELECT * FROM protected_policy WHERE id=1").fetchone()
     if executor is None or protection is None or executor["mutations_suspended"] not in (0, 1):
@@ -101,14 +117,14 @@ def review(db, action, *, reviewed_at=None, now=None):
         blockers.append("Executor lease remains; settle RPCs and use offline recovery first.")
     if pending:
         blockers.append("Pending jobs remain; use offline recovery first.")
-    if bool(executor["mutations_suspended"]) != (action == "initialize"):
+    if bool(executor["mutations_suspended"]) != (action != "resume-policy"):
         blockers.append("Initialization requires the ordinary pause; policy resume requires reviewed ordinary resume first.")
     state = {"schema": objects, "executor": dict(executor), "protection": dict(protection),
              "protected_ips": [list(row) for row in db.execute("SELECT * FROM protected_ips ORDER BY ip")],
              "devices": [list(row) for row in db.execute("SELECT * FROM devices ORDER BY id")],
              "pending_jobs": pending, "uncertain_jobs": uncertain}
     targets = []
-    if action == "resume-policy":
+    if action != "initialize":
         registry = managed_state(db)
         if registry is None or not present(db):
             raise ValueError("Managed evidence is unavailable.")
@@ -118,11 +134,13 @@ def review(db, action, *, reviewed_at=None, now=None):
             if len(rows) > limit:
                 raise ValueError("Managed state exceeds this version's capacity.")
             state[table] = [dict(row) for row in rows]
+        if with_closures:
+            state["managed_incident_closures"] = [dict(row) for row in db.execute("SELECT * FROM managed_incident_closures ORDER BY id")]
         if not registry["restoration_suspended"]:
             blockers.append("Desired restoration is not suspended.")
-        if uncertain or db.execute("SELECT 1 FROM managed_restoration_attempts WHERE state IN ('QUEUED','RUNNING','FAILED','UNVERIFIED') LIMIT 1").fetchone():
+        if action == "resume-policy" and (uncertain or db.execute("SELECT 1 FROM managed_restoration_attempts WHERE state IN ('QUEUED','RUNNING','FAILED','UNVERIFIED') LIMIT 1").fetchone()):
             blockers.append("Pending or uncertain restoration/work requires separate resolution; resume never rearms it.")
-        if (db.execute("SELECT 1 FROM managed_removal_handoffs WHERE state IN ('WAITING_ADD','ADMITTING','ATTENTION') LIMIT 1").fetchone()
+        if action == "resume-policy" and (db.execute("SELECT 1 FROM managed_removal_handoffs WHERE state IN ('WAITING_ADD','ADMITTING','ATTENTION') LIMIT 1").fetchone()
                 or db.execute("SELECT 1 FROM managed_fleet_waits WHERE state IN ('WAITING_ADD','ADMITTING','ATTENTION') LIMIT 1").fetchone()
                 or db.execute("SELECT 1 FROM managed_fleet_removals WHERE phase!='ADMITTED' LIMIT 1").fetchone()):
             blockers.append("Unfinished or attention cleanup requires separate resolution.")
@@ -141,14 +159,19 @@ def review(db, action, *, reviewed_at=None, now=None):
                 payload["managed_revision"], payload["policy_revision"], payload["label"], payload["reason"])
             if canonical != row["payload_json"] or [row["device_id"], ip] not in payload["targets"]:
                 raise ValueError("Enabled target lacks matching retained standing authority.")
-            if current <= datetime.fromisoformat(row["updated_at"]):
+            if action == "resume-policy" and current <= datetime.fromisoformat(row["updated_at"]):
                 blockers.append("Policy time is not before resume time; review clock/state first.")
-            if not row["device_enabled"] or row["protected"]:
+            if action == "resume-policy" and (not row["device_enabled"] or row["protected"]):
                 blockers.append("Enabled targets include disabled devices or protected addresses; retire/review them first.")
             targets.append({key: row[key] for key in ("device_id", "hostname", "intent_id", "generation", "authorization_request_id", "actor_subject")}
                            | {"ip": ip, "label": payload["label"], "reason": payload["reason"]})
-        if not targets:
+        if not targets and action == "resume-policy":
             blockers.append("No enabled standing targets to resume.")
+        # Schema-only migration does not require healthy/enabled targets.
+        if action == "enable-closures" and any(db.execute(
+                f"SELECT 1 FROM {table} WHERE state IN ('QUEUED','RUNNING','WAITING_ADD','ADMITTING') LIMIT 1").fetchone()
+                for table in ("managed_restoration_attempts", "managed_removal_handoffs", "managed_fleet_waits")):
+            blockers.append("Pending managed work must be suspended before closure migration.")
     state_digest = _hash(state)
     timestamp = stamp(issued)
     return {"action": action, "reviewed_at": timestamp, "expires_at": stamp(issued + timedelta(minutes=5)),
@@ -174,6 +197,12 @@ def apply_reviewed(db, store, action, actor, reviewed_at, digest, *, now=None):
             if _owned(_objects(db)) != _expected_schema():
                 raise ValueError("Managed schema contract mismatch; migration rolled back.")
             result = {"action": action, "managed_revision": 0, "restoration_suspended": True, "enabled_targets": 0}
+        elif action == "enable-closures":
+            from .managed_closures import initialize
+
+            initialize(db)
+            recognized_schema(db)
+            result = {"action": action, "restoration_suspended": True, "enabled_targets": len(frozen["targets"])}
         else:
             revision = db.execute("SELECT revision FROM managed_shun_registry WHERE id=1").fetchone()[0] + 1
             # Not a new grant: retain intent/generation/authorized_at and every immutable request.
@@ -182,7 +211,9 @@ def apply_reviewed(db, store, action, actor, reviewed_at, digest, *, now=None):
             db.execute("UPDATE managed_shun_registry SET revision=?,restoration_suspended=0 WHERE id=1", (revision,))
             result = {"action": action, "managed_revision": revision, "restoration_suspended": False,
                       "enabled_targets": len(frozen["targets"]), "absence_not_before": barrier}
-        store._insert_event(db, "MANAGED_SCHEMA_INITIALIZED" if action == "initialize" else "MANAGED_POLICY_RESUMED",
+        event = {"initialize": "MANAGED_SCHEMA_INITIALIZED", "enable-closures": "MANAGED_CLOSURES_INITIALIZED",
+                 "resume-policy": "MANAGED_POLICY_RESUMED"}[action]
+        store._insert_event(db, event,
                             None, None, None, subject, "Offline managed maintenance", (), str(uuid4()),
                             {**result, "reviewed_at": frozen["reviewed_at"], "state_digest": frozen["state_digest"]}, timestamp)
         if datetime.now(UTC) >= reviewed_at + timedelta(minutes=5) and now is None:
@@ -197,7 +228,8 @@ def apply_reviewed(db, store, action, actor, reviewed_at, digest, *, now=None):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Offline managed schema/policy control; stop API/Web and settle RPCs first.")
-    parser.add_argument("action", choices=("review-initialize", "initialize", "review-resume", "resume-policy"))
+    parser.add_argument("action", choices=("review-initialize", "initialize", "review-resume", "resume-policy", "attention",
+                                          "review-enable-closures", "enable-closures", "review-abandon", "abandon"))
     parser.add_argument("--database", type=Path, required=True)
     parser.add_argument("--actor", required=True)
     parser.add_argument("--backup", type=Path)
@@ -205,8 +237,21 @@ def main(argv=None):
     parser.add_argument("--review-digest")
     parser.add_argument("--confirm-offline", action="store_true")
     parser.add_argument("--confirm-reviewed", action="store_true")
+    parser.add_argument("--page", type=int, default=1, help="Attention report page (100 cases)")
+    parser.add_argument("--snapshot-digest", help="Attention snapshot from page 1, required for subsequent pages")
+    parser.add_argument("--case-id", help="Original restoration:UUID incident, only for abandonment")
+    parser.add_argument("--request-id", help="Original canonical abandonment UUID from review")
+    parser.add_argument("--reason", help="Required abandonment reason")
+    parser.add_argument("--confirm-ip", help="Type the reviewed exact IPv4 for abandonment")
     args = parser.parse_args(argv)
-    readonly = args.action.startswith("review-")
+    readonly = args.action.startswith("review-") or args.action == "attention"
+    abandonment = args.action in {"review-abandon", "abandon"}
+    if abandonment and (not args.case_id or not args.reason or (args.action == "abandon" and not (args.request_id and args.confirm_ip))):
+        parser.error("Abandonment requires case/reason; confirmation also needs original request ID and typed IPv4.")
+    if not abandonment and any(value is not None for value in (args.case_id, args.request_id, args.reason, args.confirm_ip)):
+        parser.error("Case/request/reason/typed-IP options are only valid for abandonment.")
+    if args.action != "attention" and (args.page != 1 or args.snapshot_digest is not None):
+        parser.error("Pagination/snapshot options are only valid for attention inspection.")
     if not args.confirm_offline or (not readonly and not (args.confirm_reviewed and args.backup and args.reviewed_at and args.review_digest)):
         parser.error("Explicit offline confirmation is required; writes also require backup and reviewed timestamp/digest/confirmation.")
     try:
@@ -219,14 +264,34 @@ def main(argv=None):
                 db.execute("BEGIN")
                 if db.execute("PRAGMA quick_check").fetchone()[0] != "ok" or db.execute("PRAGMA foreign_key_check").fetchall():
                     raise ValueError("Database integrity checks failed.")
-                result = review(db, "initialize" if args.action == "review-initialize" else "resume-policy")
+                if args.action == "attention":
+                    from .managed_attention import attention_report
+
+                    result = attention_report(db, page=args.page, snapshot_digest=args.snapshot_digest)
+                elif args.action == "review-abandon":
+                    from .managed_abandonment import prepare
+
+                    result = prepare(db, args.request_id or str(uuid4()), args.case_id, args.actor, args.reason)
+                else:
+                    action = {"review-initialize": "initialize", "review-resume": "resume-policy",
+                              "review-enable-closures": "enable-closures"}[args.action]
+                    result = review(db, action)
         else:
             issued = _time(datetime.fromisoformat(args.reviewed_at))
-            result = checked_offline(args.database, args.backup, lambda db, store:
-                                     apply_reviewed(db, store, args.action, args.actor, issued, args.review_digest))
+            if args.action == "abandon":
+                from .managed_abandonment import apply
+
+                result = checked_offline(args.database, args.backup, lambda db, store:
+                    apply(db, store, args.request_id, args.case_id, args.actor, args.reason,
+                          issued, args.review_digest, args.confirm_ip))
+            else:
+                result = checked_offline(args.database, args.backup, lambda db, store:
+                                         apply_reviewed(db, store, args.action, args.actor, issued, args.review_digest))
     except (OSError, ValueError, TypeError, KeyError, sqlite3.Error) as error:
         parser.exit(2, f"Managed maintenance refused: {error}. Any created backup was retained.\n")
-    print(json.dumps({"event": "maintenance.managed.review" if readonly else "maintenance.managed.committed", **result}), flush=True)
+    event = ("maintenance.managed.attention" if args.action == "attention" else
+             "maintenance.managed.review" if readonly else "maintenance.managed.committed")
+    print(json.dumps({"event": event, **result}), flush=True)
     return 0
 
 

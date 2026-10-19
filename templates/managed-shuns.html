@@ -32,6 +32,7 @@
 <p class="preview-help">Enabled Protected IPs take priority over desired presence. Stopped policy never restarts from old request replay. Future restoration requires explicit standing authorization; old imports and SSH-created shuns are not adopted automatically.</p>
 </section>
 {% if 'Operator' in identity.roles or 'Administrator' in identity.roles %}
+<p><a href="/managed-shuns/bulk">Maintain an address list — persistent batch policy</a></p>
 <details id="managed-grant-preparation"><summary>Maintain one device/IP — persistent policy</summary>
 <p>Separate explicit consent, not a one-time import or adoption of an existing shun. Saving requires enabled standing admission and existing policy/evidence schemas. Preview changes nothing.</p>
 <form method="post" action="/managed-shuns/grant-review" class="import-confirm-form managed-grant-form">

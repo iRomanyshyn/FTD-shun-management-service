@@ -1,8 +1,111 @@
 # Project Status
 
-Last updated: 2026-10-18
+Last updated: 2026-10-19
 
 ## Current increment
+
+**Standing address-list workflow (2026-10-19).** Managed shuns now links to a
+separate pasted-list form with explicit devices and recurring, not one-time,
+consent. Exact-token parsing rejects the whole input on invalid/ambiguous/
+unsupported rows, counts duplicates and freezes the complete address/device
+product (1–1000 pairs, up to 64 devices). Separate session/CSRF-bound reviews
+page by 100 through POST, preserve count/checkbox/draft during status changes
+and never request Cisco refresh. Protected/observed/enabled/conflicting members
+are not silently omitted or adopted.
+
+The fixed private `maintain-batch` route uses the existing default-off standing
+gate and one whole-scope transaction, not repeated single-target admissions.
+Profiles, exact revisions/digest, current role/consent, optional schemas,
+protection, recovery/cleanup/uncertainty/abandonment and total capacity are
+rechecked. One request/all policy/audit commit together or not at all. No queue
+job, import provenance, wakeup, schema initialization or policy resume occurs.
+Unknown replies retain the original frozen key/body; replay returns the old
+receipt without re-enabling retired targets. Receipt is not verified creation.
+See [Standing Address Lists](manual/managed-batch-grants.md).
+
+All 973 Python tests pass (43 batch cases), compileall/Ruff/diff pass; real
+Chromium passes 26 scenarios (27 tests including the parent). Installed Python
+3.12 image smoke verifies policy-only save, retirement/non-reenable replay,
+templates and zero queue/import work in a networkless disposable container.
+Validated API/Web were deployed to the authorized lab with matching rollback
+images and a checked private SQLite-API backup. Agent/Caddy/Authelia unchanged;
+all admission/ADD/controller/cleanup gates and profiles remain off, all optional
+managed tables remain absent. No live grant, migration, fixture or device write
+was submitted. Existing queue remains 8 VERIFIED/1 NOOP, Protected IPs 3, active
+shuns 0; schema and 11 non-executor tables match the backup. Anonymous new Web
+routes return 401 and verified HTTPS returns the normal 302 authentication
+redirect. See the development log for exact artifacts and post-start monitoring.
+The first normal post-start snapshot succeeded at `2026-10-19T09:08:43Z` with
+no reported error and unchanged retained state; no manual refresh was requested.
+
+Remaining release boundary: separately approved managed migration/lifecycle and
+bulk/load/reboot acceptance, ordinary/fleet uncertainty resolution and safe
+unrelated-policy resume. The standing workflow is delivered default-off, not
+general live ADD/restoration or production readiness. The earlier checkpoints
+below retain their own historical delivery state/next steps.
+
+**Offline restoration-incident abandonment batch (2026-10-19).** Implemented
+three linked controls: separately reviewed optional closure-ledger migration,
+five-minute/original-UUID/typed-IP abandonment of one FAILED/UNVERIFIED restoration
+case, and report/runtime retained-decision guards. Base managed initialization
+still creates seven tables; startup/GET/inspection never adds the eighth ledger.
+Both exact schema versions are recognized; partial/orphan/unknown state refuses.
+Migration requires ordinary/desired pauses, no lease/pending work, checked private
+SQLite backup and atomic DDL/audit. No history is adopted into decisions.
+
+Abandonment freezes original attempt plus current target intent/generation and
+retained state, requires a reason/current maintenance actor and retires enabled
+policy atomically with immutable minimal evidence/receipt/audit. Original jobs,
+attempts, outcomes/consent and already-retired dates remain unchanged. Same-key
+replay returns only the old receipt, including after expiry; mismatched/changed
+scope never rekeys/rebases. Overlapping cleanup blocks single-pair closure;
+ordinary/fleet cases are not supported. Abandoned pairs reject MAINTAIN and
+restoration; closure IDs cannot gain other authority. Attention shows a separate
+decision/count without hiding original failures or treating them as verified.
+Recovery retains/validates decisions. **No latch reset or resume exception:**
+retained failures still block policy resume, including unrelated healthy policy.
+See [Incident Abandonment](manual/managed-abandonment.md).
+
+All 930 Python tests pass (38 new abandonment cases), compileall/Ruff/diff pass.
+Final-source wheel builds; installed CLI/help and isolated maintenance/attention/
+abandonment package checks pass. Structured manuals/plan/agreement updated.
+No actual lab migration, closure, new authority/job/device mutation or deployment
+performed; env/inventory/secrets and gates unchanged. Runtime guard code and
+offline commands must use matching current images before any future authorized
+migration. No UI restart is needed for this source/package-only batch.
+Next: separately designed ordinary/fleet incident handling and safe unrelated-
+policy resume without releasing abandoned pairs, bulk standing consent and a
+newly approved live managed lifecycle. Production/restoration acceptance remains pending.
+
+**Read-only offline attention inspection (2026-10-19).** The managed maintenance
+CLI now has `attention`: retained ordinary UNVERIFIED ADD/REMOVE, immutable
+FAILED/UNVERIFIED restoration and device/fleet ATTENTION cleanup in one report.
+Matching restoration queue rows are not double counted. Cases distinguish
+retained/pruned/inconsistent related jobs, original versus current generation,
+current maintenance/protection/device state and explicitly cached observations
+that are not write verification. Pending queue/managed work, recovery pauses and
+leases are separate. Fleet output has an exact original count and five-target
+sample, or honest inconsistent/unknown scope; no raw payload/error/comment/key.
+
+Pages contain at most 100 cases with a stable order. Later pages require the
+same retained-context digest; changed data refuses/restarts instead of silently
+skipping cases. The digest is read consistency only, never write confirmation.
+Optional absence is explicit/null; partial/unknown/over-capacity schema or orphan
+pending system evidence refuses. Reads use SQLite read-only mode, no constructor/
+startup migration, backup, audit append, latch resolution, policy change, work
+hint, queue/RPC, new authority or gate/profile change. The report scans retained
+context and is offline diagnostics, not a new Web polling API.
+See [Attention Inspection](manual/managed-attention.md).
+
+All 892 Python tests pass (40 new inspection cases); compileall/Ruff/diff pass.
+Final-source wheel builds, its installed entry point/help resolves and all 81
+attention/maintenance tests pass against the isolated installed package. No
+Web/Rust/protocol/Compose/schema or actual lab state/deployment changed; nothing
+needs restarting for this tool. Executable uncertainty resolution/rearm remains
+unavailable. The structured manual records the next design: durable exact-case
+decisions, first explicit abandonment/retirement without replay, separate later
+authorization and whole-fleet/retention/recovery safeguards. Bulk standing consent
+and separately approved live migration/lifecycle remain pending.
 
 **Reviewed offline managed migration and policy resume (2026-10-18).** New
 `ftd-shun-managed-maintenance` provides read-only `review-initialize` /

@@ -39,7 +39,10 @@ def attempt_for_job(db, job_id):
 
 
 def key_reserved(db, key):
-    return present(db) and db.execute("SELECT 1 FROM managed_restoration_attempts WHERE id=? OR job_id=?", (key, key)).fetchone() is not None
+    from .managed_closures import key_reserved as closure_key_reserved
+
+    return (closure_key_reserved(db, key) or (present(db) and db.execute(
+        "SELECT 1 FROM managed_restoration_attempts WHERE id=? OR job_id=?", (key, key)).fetchone() is not None))
 
 
 def validate_binding(db, attempt, job):
@@ -94,6 +97,8 @@ def record_result(db, store, job, state, timestamp, reason=None):
 
 
 def authority_valid(db, attempt):
+    from .managed_closures import pair_abandoned
+
     row = db.execute("""SELECT t.*,d.enabled AS device_enabled,r.restoration_suspended
         FROM managed_shun_targets t JOIN devices d ON d.id=t.device_id
         CROSS JOIN managed_shun_registry r WHERE r.id=1 AND t.device_id=? AND t.ip=?""",
@@ -103,6 +108,7 @@ def authority_valid(db, attempt):
             and row["revision"] == attempt["target_revision"]
             and row["authorization_request_id"] == attempt["authorization_request_id"]
             and not mutations_suspended(db)
+            and not pair_abandoned(db, attempt["device_id"], IPv4Address(attempt["ip"]))
             and not db.execute("SELECT 1 FROM managed_restoration_attempts WHERE device_id=? AND ip=? AND state IN ('FAILED','UNVERIFIED')",
                                (attempt["device_id"], attempt["ip"])).fetchone()
             and not db.execute("SELECT 1 FROM protected_ips WHERE ip=? AND enabled=1", (attempt["ip"],)).fetchone()
@@ -220,6 +226,10 @@ class ManagedRestorations:
                         or ip in snapshot.present_ips):
                     raise QueueConflict("Snapshot key was reused for different evidence.")
                 return {"operation_id": key, "status": "accepted", "replayed": True}
+            from .managed_closures import key_reserved as closure_key_reserved
+
+            if closure_key_reserved(db, key):
+                raise QueueConflict("Incident closure keys cannot acquire restoration authority.")
             current = self.queue._now()
             if (snapshot.started_at.utcoffset() != timedelta(0) or snapshot.completed_at.utcoffset() != timedelta(0)
                     or snapshot.started_at > snapshot.completed_at or snapshot.completed_at > current

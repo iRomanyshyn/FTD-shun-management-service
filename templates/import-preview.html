@@ -3,6 +3,7 @@
 <h1>Blocklist import preview</h1>
 {% include "refresh-panel.html" %}
 <p class="preview-boundary"><strong>Preview only — this step never queues work.</strong> Nothing is sent to FTD. Operators may prepare a separate exact-target review; admission and device execution remain independently gated and disabled by default.</p>
+{% if 'Operator' in identity.roles or 'Administrator' in identity.roles %}<p>Need automatic restoration instead of a one-time import? Use the separate <a href="/managed-shuns/bulk">standing-policy list workflow</a>.</p>{% endif %}
 <form id="import-preview-form" method="post" action="/imports" class="import-form">
 <input type="hidden" name="csrf" value="{{ csrf_token }}">
 <label for="batch-label">Batch label (optional)</label><input id="batch-label" name="label" value="{{ batch_label }}" maxlength="100">

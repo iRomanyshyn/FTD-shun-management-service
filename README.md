@@ -27,6 +27,13 @@ An [offline managed maintenance tool](docs/manual/managed-maintenance.md) now
 provides explicitly reviewed atomic empty-schema initialization and separate
 resume of existing standing policy, with checked backups and no uncertainty
 override. It has not been invoked on the lab; no HTTP resume exists.
+Its [read-only attention report](docs/manual/managed-attention.md) now identifies
+retained uncertainty and cleanup incidents, with 100-case snapshot-bound pages;
+inspection never clears a latch or authorizes retry.
+A separate [offline abandonment workflow](docs/manual/managed-abandonment.md)
+now records an immutable decision and retires current maintenance for one failed/
+uncertain restoration case. Original outcomes/latches and all execution gates
+remain unchanged; ordinary/fleet resolution and rearm are not enabled.
 [Combined cleanup](docs/manual/managed-cleanup.md)
 now has separately default-off device/fleet admission: atomic retirement plus
 cleanup, with explicit whole-scope waiting behind RUNNING ADD. Preparation/receipt
@@ -34,6 +41,10 @@ is not verified removal, and startup never initializes optional schemas.
 A separate [single-target standing review](docs/manual/managed-grants.md) supports
 policy-only MAINTAIN behind default-off admission, with explicit recurring
 consent and original-key retry. It never initializes policy or queues a command.
+A separate [standing address-list workflow](docs/manual/managed-batch-grants.md)
+accepts pasted IPv4 text and explicit devices, freezes up to 1000 exact pairs
+with 100-row review pages, and saves the whole recurring policy or none of it.
+Its policy admission uses the same default-off gate; preview is not execution.
 A [default-off restoration controller](docs/manual/managed-restoration.md) now
 provides snapshot/generation-bound ADD authority, retained uncertainty/provenance
 and atomic revocation/queue/recovery hooks. Bounded complete-snapshot discovery

@@ -114,6 +114,13 @@ work and retained attempt outcomes separately. GET never fetches Cisco, admits
 work or initializes optional state. Partial optional state is unavailable, not
 empty. Metadata exposes bounded counts and sanitized errors, not raw CLI output.
 Reviewed uncertainty resolution/rearm remains unavailable.
+The separate offline [Attention Inspection](managed-attention.md) report now
+combines retained latches/ordinary uncertainty/cleanup attention, without changing
+outcomes, policy or current controller capability.
+An explicitly migrated [abandonment ledger](managed-abandonment.md) can record
+offline revocation of current maintenance for a restoration incident. It keeps
+original FAILED/UNVERIFIED outcomes/latches and blocks subsequent MAINTAIN and
+restoration for the pair; it is not rearm or a policy-resume exception.
 
 Exact pre-write deferral reuses the same job/deadline. Unknown reply or lost lease
 becomes retained UNVERIFIED, never an automatically replayed ADD. A future

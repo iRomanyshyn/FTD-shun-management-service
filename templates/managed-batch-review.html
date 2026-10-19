@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Review standing-policy batch</h1>
+{% if refresh %}{% include "refresh-panel.html" %}{% endif %}
+<p class="policy-warning"><strong>Persistent policy, not a one-time import.</strong> You authorize recurring additions for the exact frozen pairs below, including restoration after disappearance, until explicitly stopped. SSH deletion does not stop maintenance. Protected IPs take priority.</p>
+{% if message %}<p class="preview-error" role="alert">{{ message }}</p>{% endif %}
+<dl class="import-review-metadata">
+<dt>Exact scope</dt><dd><strong>{{ review.targets | length }} device/IP pairs</strong> · {{ review.duplicate_count }} duplicate input rows deduplicated · {{ review.ignored_lines }} blank/comment lines ignored</dd>
+<dt>Managed / Protected-IP revisions</dt><dd>{{ review.managed_revision }} / {{ review.protected_revision }} — all pairs rechecked atomically</dd>
+<dt>Label / reason</dt><dd>{{ review.label or 'Not supplied' }} / {{ review.reason or 'Not supplied' }}</dd>
+<dt>Review expires</dt><dd><time class="local-timestamp" datetime="{{ review.expires_at }}">{{ review.expires_at }}</time></dd>
+<dt>Policy request / retry key</dt><dd><code>{{ review.request_id }}</code></dd>
+</dl>
+<p>All or nothing. No protected/observed/conflicting target is silently omitted. Local cached data only; saving does not queue an immediate command, query Cisco, resume policy or enable execution gates.</p>
+{% if result %}<section aria-label="Standing batch receipt"><h2>Standing batch policy recorded</h2>
+<p>{{ result.changed_targets }} pairs authorized at historical registry revision {{ result.managed_revision }}. {{ 'Original-key replay; no policy was applied again.' if result.replayed else 'No command or queue job was submitted by this confirmation.' }}</p>
+<p>This receipt is not verified creation or proof policy is still enabled. Inspect current Managed shuns, Queue and History separately.</p></section>{% endif %}
+<h2>Frozen targets</h2>
+<p>Page {{ page }} of {{ pages }} · at most 100 pairs per page. Changing pages does not reconstruct the batch.</p>
+<div class="table-scroll"><table aria-label="Frozen standing batch targets"><thead><tr><th>Device</th><th>IPv4</th><th>Previous policy</th></tr></thead><tbody>
+{% for target in page_targets %}<tr data-standing-target><td>{{ target.hostname }} ({{ target.device_id }})</td><td>{{ target.ip }}</td><td>{% if target.intent_id %}Stopped generation {{ target.generation }} · <code>{{ target.intent_id }}</code>{% else %}No prior managed intent; no observed shun adopted{% endif %}</td></tr>{% endfor %}
+</tbody></table></div>
+{% if not result %}
+{% if not review.initialized %}<p class="policy-warning">Policy was uninitialized at preparation. This review cannot become confirmable after migration; inspect state and prepare a new review.</p>{% elif not admission_available %}<p class="policy-warning">Standing admission is disabled or unavailable. This attempt cannot negate an earlier saved or unknown outcome.</p>{% endif %}
+<form method="post" action="/managed-shuns/bulk-confirm" class="import-confirm-form managed-grant-form" id="standing-batch-confirm">
+<input type="hidden" name="csrf" value="{{ csrf_token }}"><input type="hidden" name="review" value="{{ review.token }}">
+<label for="confirm-batch-count">Type {{ review.targets | length }} to confirm the exact device/IP pair count</label>
+<input id="confirm-batch-count" name="confirm_count" value="{{ confirm_count }}" inputmode="numeric" pattern="{{ review.targets | length }}" autocomplete="off" required>
+<label class="policy-checkbox"><input type="checkbox" name="maintain_present" value="yes"{% if acknowledged %} checked{% endif %} required> I authorize recurring additions for all {{ review.targets | length }} pairs until I explicitly stop maintaining them.</label>
+<button type="submit"{% if not review.initialized or not admission_available %} disabled{% endif %}>Save entire standing-policy batch</button>
+{% if pages > 1 %}<div class="pagination-controls" aria-label="Frozen batch pages">
+<button type="submit" name="page" value="{{ page-1 }}" formaction="/managed-shuns/bulk-review-page" formnovalidate{% if page == 1 %} disabled{% endif %}>Previous 100</button>
+<button type="submit" name="page" value="{{ page+1 }}" formaction="/managed-shuns/bulk-review-page" formnovalidate{% if page == pages %} disabled{% endif %}>Next 100</button>
+</div>{% endif %}
+</form>{% endif %}
+<p class="preview-help">Frozen to your subject and CSRF cookie. Inspect unknown outcomes, then explicitly retry this same review/key. Do not create a new key, silently reduce scope or change standing consent into a one-time import.</p>
+<p><a href="/managed-shuns">Current Managed shuns</a> · <a href="/managed-shuns/bulk">Prepare a different batch (inspect earlier outcomes first)</a></p>
+<script src="/static/freshness.js" defer></script>
+{% endblock %}

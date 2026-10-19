@@ -3822,6 +3822,220 @@ Next: uncertainty resolution/rearm design and bulk standing consent, then a new
 approved managed lifecycle; this is not live restoration/reboot/load/rollback
 or production acceptance. Never reuse the consumed one-address authorization.
 
+## 2026-10-19 — Offline retained attention inspection and resolution boundary
+
+Added the non-executable `attention` action to the managed maintenance CLI and
+a separate read-only report module. It unifies retained ordinary UNVERIFIED
+ADD/REMOVE, immutable FAILED/UNVERIFIED restoration attempts and single/fleet
+ATTENTION cleanup. Matching retained restoration jobs are not counted twice;
+inconsistent pair/action/outcome remains explicit and does not hide another
+ordinary uncertain operation. Retained/pruned/not-applicable job evidence,
+original authorization/intent/generation, current policy/protection/device state
+and cached active-interface count/last-seen timestamps remain distinct. A later
+generation, retirement or cache observation does not clear a failure latch or
+prove an unknown write succeeded. Captured single-cleanup predecessor is labelled
+ADD, not falsely represented as completed REMOVE. Fleet reports preserve exact
+scope count with five sampled targets; malformed/count-mismatched scope is unknown,
+not an inferred smaller set. No raw CLI/errors/comments/payloads/keys escape.
+
+Separate pending queue/system/single/fleet counts and inconsistent fleet admission
+phases explain non-terminal resume blockers. Optional absence yields explicit
+null component state; partial/changed/over-capacity schema, invalid metadata or
+missing pending restoration evidence refuses inspection. CLI requires the same
+offline/RPC-settlement assertion and existing absolute path, opens SQLite mode=ro
+and never creates a missing DB. It requires no backup because it writes nothing.
+No schema initialization, audit append, retirement/resume, latch resolution,
+queue insertion, work hint, delegation renewal, configuration/profile enablement
+or agent/network/device operation occurs.
+
+Bounded 100-case pages use original request time/source/ID stable ordering.
+Subsequent pages require a SHA-256 snapshot of retained evidence and policy/
+queue/protection/device/observation context. Changed context refuses instead of
+silently rebasing/skipping cases. Streaming fingerprints bound Python collection
+memory, but still scan retained context: this is not a cheap live polling API.
+Digest is a read-consistency token, not an executable review/permission.
+
+Updated normative design, repository agreement, structured Attention Inspection
+manual, recovery/maintenance/restoration/development manuals, README and plan.
+Recorded planned resolution separately: exact-case evidence review, first
+explicit abandonment/retirement with a durable decision separate from unchanged
+outcomes, and no implicit new authorization/rearm. Whole-fleet and retention/
+restore/audit semantics remain prerequisites. No resolution table/action or
+resume exception is implemented in this increment.
+
+Validation: all 892 Python tests pass (36.12 s final run; earlier run 37.41 s),
+including 40 new disposable SQLite cases: optional absence/partial/capacity,
+strict read-only connection/no changes, all incident sources, pruning/dedup/
+generation/inconsistency, protected/cached context, 1000-member fleet five-target
+sample, malformed/count mismatch, pending state, 205-case three-page consistency,
+changed context, strict arguments, missing file and CLI/no-backup behavior.
+Compileall, Ruff and git diff --check pass. Built the final-source wheel with
+temporary isolated build dependencies; installed only into a temporary directory,
+compared both changed/new Python modules byte-for-byte with source and verified
+the console entry point/help. All 81 attention/maintenance tests also pass from
+that installed package. Relative documentation links resolve.
+
+No browser assets, Rust/agent protocol, Compose, schema or dependency bounds
+changed. No actual lab database/env/inventory/secrets, migration, resume, fixture,
+identity spoof, new queue job, device call or deployment was touched. Existing
+services/images remain in place; no restart is required for offline diagnostics.
+This is not executable uncertainty resolution, live recovery/restoration or
+production acceptance; all feature-specific lab authorization limits remain.
+
+## 2026-10-19 — Explicit offline abandonment batch and retained revocation guards
+
+Implemented three linked increments after read-only attention: (1) separate
+reviewed optional ledger migration; (2) exact restoration-incident abandonment;
+(3) retained decision reporting and cross-authority/runtime protection. Added a
+normative amendment and structured Incident Abandonment manual; updated current
+status/plan/agreement, maintenance/recovery/restoration/attention/contributor
+manuals and README. Preserved the pre-existing dirty attention increment.
+
+The new optional managed_incident_closures ledger retains at most 10000 immutable
+receipts, minimal original evidence, maintenance actor/reason and reviewed/closed
+UTC dates. It references the retained attempt, not expirable queue jobs. Immutable
+update/delete triggers prevent outcome/receipt/key recycling. Base initialization
+still creates seven tables. review-enable-closures/enable-closures add the eighth
+only to the exact base schema, requiring both pauses/no pending work/lease,
+five-minute state confirmation and a checked exclusive 0600 SQLite backup.
+DDL/contract/audit failure rolls back. Reads/startup never initialize it; both
+explicit schema versions are recognized and unknown/orphan closure state refuses.
+
+review-abandon/abandon support only one retained FAILED/UNVERIFIED restoration
+case, binding original canonical request UUID, operator, printable bounded reason,
+five-minute exact state, original attempt and current target intent/generation;
+confirmation requires typed IPv4. Quiescent ordinary/desired pauses and settled
+RPC assertion remain mandatory. Overlapping single/fleet attention or pending
+work refuses instead of partially handling a fleet. Pruned terminal jobs remain
+explicit; inconsistent retained pair/action/outcome refuses. Changed scope,
+clock, device, protection or cached observation never silently rebases.
+
+One transaction retires current enabled maintenance, increments registry revision,
+retains evidence/receipt and appends MANAGED_RESTORATION_ABANDONED under a trusted
+maintenance actor with empty directory roles. Original consent/intent/generation,
+jobs/attempts/outcomes and already retired dates stay unchanged. Same original-key
+retry, including after expiry, returns only the historical receipt; no later
+generation is retired and no authority renewed. Distinct-key races cannot create
+a second decision. Audit/late-expiry failure rolls back even if caught externally.
+MAINTAIN/restoration reject abandoned pairs and queue/policy/cleanup/restoration
+namespaces reserve closure IDs; old grant replay cannot re-enable policy. Recovery
+validates and retains optional revocation state. Attention keeps failures/latches
+visible with a separate abandonment receipt and count, no raw reason/error/CLI.
+
+Important limit: this abandons maintenance, not the unknown device outcome.
+No FAILED/UNVERIFIED latch is reset, no policy-resume exception is implemented,
+and no ordinary/device/fleet incident resolution, rearm, ADD, REMOVE, delegation,
+wake, HTTP action, feature gate or device profile is enabled. Unrelated healthy
+policy resume remains blocked by the existing global recovery checks; that
+requires its own durable-resolution design, not deleting evidence or ignoring
+closed cases.
+
+Validation: final full suite 930 passed (39.21 s), with 38 new abandonment cases;
+maintenance/attention/abandonment subset 119 passed. Tests use synthetic standing
+authority/shared queue hooks and disposable SQLite only. Covered migration/no
+implicit initialization, private checked backup, immutable receipt/evidence,
+failed/uncertain outcomes, original-key concurrency/replay, original consent/job/
+attempt preservation, stale/future/late-expired review, reason/typed IP, namespace
+guards, changed policy/protection/device/cache/generation, quiescence, overlapping
+cleanup, pruned/inconsistent evidence, full ledger and caught audit/DDL rollback.
+Early test runs exposed timestamp-order/clock and monkeypatched-capacity fixture
+assumptions; fixtures corrected without relaxing production clock/capacity checks.
+Compileall, Ruff and git diff --check pass. Built the final-source wheel using
+temporary isolated build dependencies, installed only in a temporary directory,
+verified eight changed/new source modules byte-for-byte and console entry point/
+help. Installed-package subset results and final documentation checks follow.
+
+No actual lab database, env, inventory, secrets, schema migration/closure, live
+identity, new job/hint/RPC/device command or deployment was touched. No Web assets,
+Rust/wire, Compose or dependency bounds changed. Existing services remain in
+place; future authorized ledger activation requires matching current API/Web
+code and a reviewed rollback plan. Never drop decisions or use an older writer
+that ignores them. This is not live closure/recovery/restoration/reboot/load or
+production acceptance, nor permission to reuse the consumed one-address fixture.
+
+Final package checks: all 119 abandonment/attention/maintenance cases pass from
+the isolated installed wheel (including the explicit policy-namespace replay
+guard); all 38 abandonment cases also pass directly. All 313 relative file links
+resolve. Final compileall, Ruff and diff checks pass. No live rollout performed.
+
+## 2026-10-19 — Pasted standing-policy batch and lab UI rollout
+
+Delivered a user-facing list workflow: Managed shuns and one-time Import preview
+link to a separate **Maintain an address list** form. It explicitly selects
+devices and freezes the full exact-address/device product, recurring consent,
+metadata/revisions/prior intent and original UUID. Shared 1 MiB parser counts
+duplicates but refuses all invalid/ambiguous/unsupported input without silent
+filtering; scope is bounded to 1000 pairs/64 devices and registry tombstones
+still count. Frozen POST pages show 100 pairs, retain typed count/checkbox and
+never reclassify or submit. Drafts/frozen forms survive status updates, native
+validation and mobile layout are exercised, and tokens never enter URLs.
+
+Added strict fixed private `POST /api/v1/managed-shuns/maintain-batch` behind the
+existing default-off standing gate. BFF requires both local/upstream capability,
+current role/CSRF, exact pair count and recurring consent. The coordinator
+reuses one whole-scope transaction/canonical MAINTAIN, not single-target commits;
+current profiles/revisions/protection/observed adoption/recovery/cleanup/retained
+uncertainty/abandonment/capacity guards remain. Policy/request/audit commit all
+or none, without queue jobs, imports, hints, migrations or resume. Single grants
+reuse the coordinator without changing their wire/body contract. Unknown/lost/
+malformed replies keep the original review/key; retired-policy replay returns
+only the historical receipt, never new authority or a verified-creation claim.
+Architecture, manuals, contributor agreement, README, status and plan updated.
+
+Validation: final full Python suite **973 passed** (42.73 s), including 43 new
+batch cases; previous single-grant/registry subset 72 passed. Covered max1000
+atomic admission, last-member conflicts, late-audit rollback, concurrency, strict
+fields/role/CSRF/count/consent, stale revisions, cache/session/capacity, lost and
+malformed receipts, disabled current capability/frozen uninitialized review,
+retired-key non-reenable and unchanged queue/import/suspension. Chromium **26
+scenarios / 27 tests passed** (91.93 s), including 102-pair pagination/frozen
+consent and preserved untruncated paste draft. An initial assertion expected
+literal “1 MiB” after the dynamic counter rendered localized bytes; corrected
+the fixture expectation, not production limits. Compileall/Ruff/diff pass.
+New images build/install the wheel under Python 3.12; a networkless read-only
+container with disposable SQLite verifies packaged templates, whole-batch save,
+retirement, same-key observational replay and zero queue/import work. Initial
+smoke calls were corrected to use the explicit optional registry-view API.
+
+Authorized lab rollout replaced **only API/Web**, stopping the sole pair before
+replacement with `--no-deps --no-build`; no overlapping executor. Retained tags
+`ftd-shun-api:rollback-20261019-standing-batch` and
+`ftd-shun-web:rollback-20261019-standing-batch` identify prior paired images
+`28c00563bdbc` / `208dab764fae`. New API container `7249a1aab2b9`, image
+`70a7c1bad1b2f11618094db0a94f1b92276178e11073f2d6b9542e3970852fc3`;
+Web `a05fdbb829c9`, image
+`5325a1d3487c0ee64410d0fc741a19dc037564fc0ad1a12ae7425c3653f8573a`.
+Agent `9d1f50d361ca`, Caddy `9c8fdb3a7f21`, Authelia `76f3635ab737` unchanged.
+Exact image identities, not the unchanged development footer `v0.1.0`, identify
+this build. No dependency bounds, Rust, protocol, Compose or service ports changed.
+
+Exclusive SQLite-API backup is
+`/var/lib/ftd-shun-manager/before-standing-batch-20261019T0904.sqlite3` (0600),
+also copied into ignored private
+`.local/backups/standing-batch-20261019T0904/state.sqlite3` (0600, directory0700).
+Integrity/FK and schema/all11 non-executor-table digests match pre/post rollout;
+queue8 VERIFIED/1 NOOP, no pending work, Protected IPs3, active shuns0. An initial
+post-backup check expected a nonexistent top-level restoration status flag;
+corrected the check to verify its Settings flag, without recreating/overwriting
+the backup or changing configuration. All actual admission/ADD/controller/
+cleanup gates remain false, addition profiles0, optional managed/attempt/handoff/
+fleet/closure tables absent, recovery pause unchanged. Anonymous GET/form POST
+checks of all four new BFF routes return401; verified TLS Caddy request returns
+302 to authentication. No spoofed live identity, grant, schema migration, seed,
+new test job, refresh hint, live ADD/REMOVE or production action performed.
+An initial status had null last-success until its first normal baseline
+completed. Follow-up confirmed a successful normal read at
+`2026-10-19T09:08:43Z`, no reported error and the same checked schema/stable data;
+no manual refresh was requested. Final compileall/Ruff/diff checks pass.
+
+This delivers default-off batch policy consent, not live bulk/restoration/reboot/
+load acceptance. Further activation requires separately scoped migration/policy/
+device-test approval; retained ordinary/fleet uncertainty resolution and safe
+unrelated-policy resume remain pending. Do not submit a live batch as smoke,
+reuse the consumed fixture, delete latches or run older writers against future
+managed/closure authority. Use current recovery/maintenance procedures before
+any future authorized migration or downgrade.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

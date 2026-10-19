@@ -100,12 +100,31 @@ Do not rewrite historical log entries except to correct an objective error; add 
   profiles and existing optional registry/attempt schemas. It never migrates,
   adopts observations/imports, wakes work or clears attention. Old-key replay
   cannot re-enable policy. Follow docs/manual/managed-grants.md. No HTTP resume route.
+  A separate pasted-list standing workflow freezes at most 1000 exact pairs/64
+  devices with explicit recurring consent and 100-row POST review pages. Its
+  fixed MAINTAIN batch route uses the same default-off gate and one whole-scope
+  transaction, never a single-target admission loop. Invalid/conflicting members
+  reject the entire scope; original-key retries never re-enable retired policy.
+  It does not initialize schemas, adopt imports, queue/hint work or permit lab
+  grants. Follow docs/manual/managed-batch-grants.md.
   Separate offline managed maintenance now supports reviewed atomic empty-schema
   initialization and existing-policy resume, with checked backups, exact-state
   five-minute digests and a fresh-read barrier. It never adopts observations,
   resets uncertainty, creates/re-enables intent, renews requests, queues work or
   changes gates. Never invoke migration/resume on the lab without separately
   scoped activation approval. Follow docs/manual/managed-maintenance.md.
+  The offline `attention` report is read-only and snapshot-bound, combines
+  retained uncertainty/cleanup cases with honest missing/inconsistent evidence,
+  and never resolves a latch, writes audit, initializes state or permits retry.
+  Follow docs/manual/managed-attention.md. Separate offline restoration-incident
+  abandonment now has its own explicitly reviewed optional ledger migration and
+  five-minute/original-key/typed-IP confirmation. It records immutable minimal
+  evidence/receipt, retires current policy and retains original outcomes/latches.
+  No rearm, resume exception, ordinary/fleet resolution or live activation is
+  enabled. Abandoned pairs cannot receive MAINTAIN/restoration, and closure keys
+  cannot gain other authority; original receipts remain observational. Base
+  initialization/startup/GET never creates the ledger. Do not invoke migration/
+  abandonment in the lab without scoped approval. Follow docs/manual/managed-abandonment.md.
   Protected-IP weakening checks matching intents and reviewed managed revision/
   acknowledgement atomically; dirty forms retain that revision. Unknown optional
   state is not zero. Ordinary manual removal is guarded against enabled policy,

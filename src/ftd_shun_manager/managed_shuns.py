@@ -105,29 +105,40 @@ class ManagedShuns:
     def grant_reviewed(self, request_id, device_id, ip, revision, protected_revision, digest,
                        subject, display_name, roles, *, addition_device_ids=frozenset(), label="", reason=""):
         """Policy-only single-pair admission. No migration, queue insertion or wakeup."""
+        return self.grant_batch_reviewed(request_id, [(device_id, ip)], revision, protected_revision, digest,
+                                         subject, display_name, roles, addition_device_ids=addition_device_ids,
+                                         label=label, reason=reason)
+
+    def grant_batch_reviewed(self, request_id, targets, revision, protected_revision, digest,
+                             subject, display_name, roles, *, addition_device_ids=frozenset(), label="", reason=""):
+        """One whole-scope policy transaction, never per-target admission/queue work."""
         from .managed_restoration import present
         from .managed_safety import ManagedStateUnavailable
 
         _require_operator(subject, roles)
+        targets, _, _ = canonical_managed_change("MAINTAIN", targets, revision, protected_revision, label, reason)
+        if len({device for device, _ in targets}) > 64:
+            raise ValueError("Select at most 64 distinct devices.")
         with self.store._connection() as db:
             db.execute("BEGIN IMMEDIATE")
             if managed_state(db) is None:
                 raise ManagedStateUnavailable("Managed policy is not initialized; explicit migration is required.")
             previous = db.execute("SELECT 1 FROM managed_shun_requests WHERE id=?", (request_id,)).fetchone()
             if not previous:
-                if device_id not in addition_device_ids:
+                if any(device not in addition_device_ids for device, _ in targets):
                     raise ManagedConflict("An explicit addition-capable device profile is required.")
                 if not present(db):
                     raise ManagedStateUnavailable("Restoration evidence is not initialized; no policy was saved.")
-                if db.execute("SELECT 1 FROM managed_shun_targets WHERE device_id=? AND ip=? AND enabled=1",
-                              (device_id, ip.packed)).fetchone():
-                    raise ManagedConflict("Target is already maintained; inspect current holds instead.")
-                if (db.execute("""SELECT 1 FROM operation_jobs WHERE device_id=? AND ip=?
-                        AND state IN ('QUEUED','RUNNING','UNVERIFIED')""", (device_id, ip.packed)).fetchone()
-                        or db.execute("""SELECT 1 FROM managed_restoration_attempts WHERE device_id=? AND ip=?
-                            AND state IN ('FAILED','UNVERIFIED')""", (device_id, ip.packed)).fetchone()):
-                    raise ManagedConflict("Unfinished or uncertain work requires resolution before a standing grant.")
-            result = self.apply_change(db, request_id, "MAINTAIN", [(device_id, ip)], revision,
+                for device_id, ip in targets:
+                    if db.execute("SELECT 1 FROM managed_shun_targets WHERE device_id=? AND ip=? AND enabled=1",
+                                  (device_id, ip.packed)).fetchone():
+                        raise ManagedConflict("Target is already maintained; inspect current holds instead.")
+                    if (db.execute("""SELECT 1 FROM operation_jobs WHERE device_id=? AND ip=?
+                            AND state IN ('QUEUED','RUNNING','UNVERIFIED')""", (device_id, ip.packed)).fetchone()
+                            or db.execute("""SELECT 1 FROM managed_restoration_attempts WHERE device_id=? AND ip=?
+                                AND state IN ('FAILED','UNVERIFIED')""", (device_id, ip.packed)).fetchone()):
+                        raise ManagedConflict("Unfinished or uncertain work requires resolution before a standing grant.")
+            result = self.apply_change(db, request_id, "MAINTAIN", targets, revision,
                                        protected_revision, digest, subject, display_name, roles, label, reason)
         if not result["replayed"]:
             print(json.dumps({"event": "managed_shun.policy.changed", "request_id": request_id,
@@ -208,6 +219,10 @@ class ManagedShuns:
         for device_id, ip in targets:
             old = db.execute("SELECT * FROM managed_shun_targets WHERE device_id=? AND ip=?", (device_id, ip.packed)).fetchone()
             if action == "MAINTAIN":
+                from .managed_closures import pair_abandoned
+
+                if pair_abandoned(db, device_id, ip):
+                    raise ManagedConflict("Maintenance was explicitly abandoned for this pair; no rearm is available.")
                 if fleet_target_held(db, device_id, ip, attention=True):
                     raise ManagedConflict("Fleet cleanup is waiting or needs attention; do not re-enable maintenance.")
                 if (legacy_queue and db.execute("""SELECT 1 FROM operation_jobs WHERE device_id=? AND ip=?

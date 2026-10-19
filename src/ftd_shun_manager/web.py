@@ -32,6 +32,7 @@ from .import_preview import (
     summarize_preview,
 )
 from .import_review import ImportReviews, ReviewUnavailable
+from .managed_batch_review import ManagedBatchReviews, parse_standing_list, validate_batch_receipt
 from .managed_grant_review import ManagedGrantReviews
 from .managed_retirement_review import ManagedRetirementReviews
 from .managed_review import ManagedRemovalReviews, validate_removal_receipt
@@ -186,6 +187,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     managed_reviews = ManagedRemovalReviews(settings.sensitive_action_max_age_seconds)
     retirement_reviews = ManagedRetirementReviews(settings.sensitive_action_max_age_seconds)
     grant_reviews = ManagedGrantReviews(settings.sensitive_action_max_age_seconds)
+    batch_grant_reviews = ManagedBatchReviews(settings.sensitive_action_max_age_seconds)
     app.mount("/static", StaticFiles(directory=str(PROJECT_ROOT / "static")), name="static")
 
     @app.middleware("http")
@@ -481,6 +483,155 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "confirm_ip": confirm_ip, "acknowledged": acknowledged, "active_page": "managed",
             "auto_request": False, "frozen_view": True,
         }, status_code)
+
+    def batch_form_view(request, identity, *, text="", selected=(), label="", reason="", message=None, code=200):
+        state, devices = None, []
+        try:
+            with api_client(settings) as client:
+                status_response = client.get("/api/v1/status")
+                device_response = client.get("/api/v1/import-devices")
+            if status_response.status_code != 200 or device_response.status_code != 200:
+                raise ValueError("Local state unavailable")
+            state, devices = status_response.json(), device_response.json()
+            if not isinstance(state, dict) or not isinstance(devices, list):
+                raise TypeError("Invalid local state")
+        except (httpx.HTTPError, ValueError, TypeError):
+            message, code = "Local state is unavailable. Input is retained; nothing was saved.", 503
+        return render(request, "managed-batch-form.html", {
+            "identity": identity, "refresh": state, "devices": devices, "source_text": text,
+            "selected_devices": selected, "batch_label": label, "batch_reason": reason,
+            "message": message, "active_page": "managed", "auto_request": False, "frozen_view": True,
+        }, code)
+
+    def batch_review_view(request, identity, review, state=None, *, page=1, result=None, message=None,
+                          confirm_count="", acknowledged=False, code=200):
+        pages = (len(review.targets) + 99) // 100
+        if not 1 <= page <= pages:
+            raise HTTPException(422, "Select a page within the frozen batch.")
+        return render(request, "managed-batch-review.html", {
+            "identity": identity, "review": review, "refresh": state, "result": result, "message": message,
+            "page": page, "pages": pages, "page_targets": review.targets[(page-1)*100:page*100],
+            "confirm_count": confirm_count, "acknowledged": acknowledged,
+            "admission_available": bool(settings.managed_policy_admission_enabled and state
+                                       and state.get("managed_policy_admission_enabled") is True),
+            "active_page": "managed", "auto_request": False, "frozen_view": True,
+        }, code)
+
+    @app.get("/managed-shuns/bulk", response_class=HTMLResponse)
+    def standing_batch_form(request: Request):
+        identity = identity_from_request(request, settings.development_auth)
+        require_managed_operator(identity)
+        return batch_form_view(request, identity)
+
+    @app.post("/managed-shuns/bulk-review", response_class=HTMLResponse)
+    async def standing_batch_review(request: Request):
+        identity = identity_from_request(request, settings.development_auth)
+        require_managed_operator(identity)
+        fields = await preview_form(request, allowed={"csrf", "text", "device_ids", "label", "reason"})
+        require_csrf(request, fields.get("csrf", [""])[0])
+        return await run_in_threadpool(prepare_standing_batch, request, identity, fields)
+
+    def prepare_standing_batch(request, identity, fields):
+        text, label, reason = (fields.get(key, [""])[0] for key in ("text", "label", "reason"))
+        selected = []
+        try:
+            raw = fields.get("device_ids", [])
+            selected = [int(device) for device in raw]
+            if any(str(device) != value for device, value in zip(selected, raw, strict=True)):
+                raise ValueError("Use the explicit device checkboxes.")
+            parsed = parse_standing_list(text, selected)
+            with api_client(settings) as client:
+                status_response = client.get("/api/v1/status")
+                policy = client.get("/api/v1/managed-shuns")
+                classification = client.post("/api/v1/import-preview", json={"ips": parsed["ips"], "device_ids": selected})
+            if classification.status_code == 422:
+                raise ReviewUnavailable("Select currently enabled configured devices; no scope was prepared.")
+            if any(response.status_code != 200 for response in (status_response, policy, classification)):
+                raise httpx.RequestError("Local batch state unavailable")
+            state = status_response.json()
+            if not isinstance(state, dict):
+                raise TypeError("Invalid local status")
+            review = batch_grant_reviews.prepare(identity.subject, request.cookies.get("ftd_shun_csrf", ""),
+                policy.json(), classification.json(), parsed, selected, label, reason)
+            return batch_review_view(request, identity, review, state)
+        except (ValueError, TypeError, KeyError, AttributeError) as error:
+            message = str(error) if isinstance(error, ValueError) else "Invalid batch review data; no policy was saved."
+            return batch_form_view(request, identity, text=text, selected=selected, label=label, reason=reason,
+                                   message=message, code=413 if len(text.encode("utf-8")) > MAX_TEXT_BYTES else 422)
+        except httpx.HTTPError:
+            return batch_form_view(request, identity, text=text, selected=selected, label=label, reason=reason,
+                                   message="Batch review is unavailable. Nothing was saved.", code=503)
+
+    async def standing_batch_fields(request, *, paginate=False):
+        identity = identity_from_request(request, settings.development_auth)
+        require_managed_operator(identity)
+        allowed = {"csrf", "review", "confirm_count", "maintain_present"} | ({"page"} if paginate else set())
+        fields = await preview_form(request, allowed=allowed, max_bytes=4096)
+        require_csrf(request, fields.get("csrf", [""])[0])
+        try:
+            review = batch_grant_reviews.get(fields.get("review", [""])[0], identity.subject, request.cookies.get("ftd_shun_csrf", ""))
+        except ReviewUnavailable as error:
+            raise HTTPException(409, str(error)) from error
+        return identity, review, fields
+
+    @app.post("/managed-shuns/bulk-review-page", response_class=HTMLResponse)
+    async def standing_batch_page(request: Request):
+        identity, review, fields = await standing_batch_fields(request, paginate=True)
+        raw = fields.get("page", [""])[0]
+        if raw not in {str(page) for page in range(1, (len(review.targets)+99)//100+1)}:
+            raise HTTPException(422, "Select a frozen review page.")
+        return await run_in_threadpool(batch_page_view, request, identity, review, int(raw),
+                                       fields.get("confirm_count", [""])[0], fields.get("maintain_present", [""])[0] == "yes")
+
+    def batch_page_view(request, identity, review, page, confirm_count, acknowledged):
+        state, message, code = None, None, 200
+        try:
+            with api_client(settings) as client:
+                response = client.get("/api/v1/status")
+            if response.status_code != 200 or not isinstance(response.json(), dict):
+                raise ValueError("Status unavailable")
+            state = response.json()
+        except (httpx.HTTPError, ValueError, TypeError):
+            message, code = "Current admission status is unavailable; frozen scope and confirmation fields are retained.", 503
+        # Metadata only: never reparse/reclassify scope, hint Cisco or admit work.
+        return batch_review_view(request, identity, review, state, page=page, message=message, code=code,
+                                 confirm_count=confirm_count, acknowledged=acknowledged)
+
+    @app.post("/managed-shuns/bulk-confirm", response_class=HTMLResponse)
+    async def standing_batch_confirm(request: Request):
+        identity, review, fields = await standing_batch_fields(request)
+        if fields.get("confirm_count", [""])[0] != str(len(review.targets)) or fields.get("maintain_present", [""])[0] != "yes":
+            raise HTTPException(422, "Type the exact device/IP pair count and acknowledge recurring maintenance.")
+        return await run_in_threadpool(save_standing_batch, request, identity, review)
+
+    def save_standing_batch(request, identity, review):
+        result, message, code, state = None, None, 200, None
+        try:
+            if not review.initialized or not settings.managed_policy_admission_enabled:
+                raise ReviewUnavailable("Standing admission is disabled or this review predates initialization. This attempt was not submitted; inspect any earlier outcome.")
+            with api_client(settings) as client:
+                response = client.get("/api/v1/status")
+                if response.status_code != 200 or not isinstance(response.json(), dict):
+                    raise httpx.RequestError("Batch status unavailable")
+                state = response.json()
+                if state.get("managed_policy_admission_enabled") is not True:
+                    raise ReviewUnavailable("Standing admission is disabled; this attempt was not submitted. Inspect any earlier outcome.")
+                response = client.post("/api/v1/managed-shuns/maintain-batch", headers={"Idempotency-Key": review.request_id},
+                                       json={**review.payload(), "actor": identity.__dict__})
+                value = response.json()
+                if response.status_code == 200:
+                    result = validate_batch_receipt(review, value)
+                elif response.status_code in {403, 409, 422}:
+                    detail = value.get("detail") if isinstance(value, dict) else None
+                    message, code = detail if isinstance(detail, str) else "Batch was rejected; inspect current policy.", response.status_code
+                else:
+                    raise httpx.RequestError("Batch outcome unconfirmed")
+        except ReviewUnavailable as error:
+            message, code = str(error), 503
+        except (httpx.HTTPError, ValueError, TypeError, KeyError):
+            message, code = "Batch policy outcome is unknown. Inspect Managed shuns/history, then explicitly retry this same review/key; never rekey or shrink the batch.", 503
+        return batch_review_view(request, identity, review, state, result=result, message=message,
+                                 confirm_count=str(len(review.targets)), acknowledged=True, code=code)
 
     @app.post("/managed-shuns/grant-review", response_class=HTMLResponse)
     async def prepare_grant(request: Request):

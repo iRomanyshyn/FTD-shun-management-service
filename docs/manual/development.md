@@ -20,6 +20,15 @@ token/typed IP/checkbox/focus, native validation and mobile layout without hints
 See [Standing Managed Policy](managed-grants.md); tests never initialize a lab
 fixture, enable a live gate or send an FTD command.
 
+`tests/test_managed_batch_grants.py` covers the separate address-list standing
+workflow: exact-token parsing/deduplication, full device/address product,
+1000-pair admission, strict bodies, one-transaction rejection/late-audit rollback,
+concurrent keys, replay after retirement, immutable 100-row pages, session/role/
+CSRF/count/checkbox checks and unknown-reply original-key retry. Chromium checks
+untruncated drafts and frozen consent through status changes plus mobile layout.
+All admission fixtures are synthetic, with no agent connection or lab schema/
+policy activation. See [Standing Address Lists](managed-batch-grants.md).
+
 `tests/test_managed_discovery.py` exercises default-off runtime integration on
 temporary SQLite with typed fake consoles: fresh initial/priority/final evidence,
 next-cycle cutoff/cooldown, duplicate suppression, per-sweep bounds, restart
@@ -102,6 +111,20 @@ no adoption, five-minute state digests, private checked backups, uncertainty/
 cleanup/clock/protection holds, original authority preservation and new snapshot
 barriers. No live database, environment settings, inventory or agent is used.
 See [Offline Managed Maintenance](managed-maintenance.md).
+
+`tests/test_managed_attention.py` covers read-only retained incident inspection:
+no-init/no-audit, explicit absent/partial state, pruning versus inconsistent
+evidence, restoration/queue deduplication, generation/protection/cached context,
+bounded fleet samples, separate pending state, stable 100-case pages and changed
+snapshot refusal. All fixtures are disposable SQLite; no device/agent/runtime
+startup is used. See [Attention Inspection](managed-attention.md).
+
+`tests/test_managed_abandonment.py` covers explicit optional closure migration,
+quiescent five-minute/typed confirmation, immutable evidence/receipt, atomic
+retirement/audit rollback, original-key concurrency/replay, pruned/inconsistent
+evidence, generation/protection/cache conflicts, late expiry and persistent
+MAINTAIN/key guards. Fixtures use synthetic source authority and disposable
+SQLite only; no agent or live state. See [Incident Abandonment](managed-abandonment.md).
 
 `tests/test_managed_review.py` covers the optional GET and non-executable Web
 review: authentication/current role/CSRF, strict fields/scope/reason, immutable

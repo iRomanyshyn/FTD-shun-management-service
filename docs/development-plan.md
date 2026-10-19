@@ -1,12 +1,41 @@
 # Development Plan
 
-Last updated: 2026-10-18
+Last updated: 2026-10-19
 
 **Status: refresh/queue implemented; bounded removal sessions and priority reads experimental; parse-only import preview implemented, addition pending.** This document records
 the next product increments. It describes target behavior, not capabilities
 already available. See [Project Status](project-status.md) for delivery evidence
 and [Architecture and Security Design](architecture-and-security-design.md#74-approved-next-increment-queued-device-cycles-and-manual-imports)
 for the approved scope extension and unchanged security boundaries.
+
+## Standing address-list checkpoint — 2026-10-19
+
+The separate pasted-list workflow now freezes the full explicitly selected
+address/device product (up to 1000 pairs/64 devices), pages review by 100 and
+requires typed pair count plus recurring consent. One atomic policy admission
+under the existing default-off standing gate replaces no old one-time imports,
+queues no commands, and never migrates/resumes policy. Whole-scope conflicts
+refuse without silent filtering; unknown outcomes preserve the original key.
+See [Standing Address Lists](manual/managed-batch-grants.md).
+Next: separately scoped managed migration/lifecycle acceptance and ordinary/fleet
+incident resolution. No live migration, batch authority or device test is
+authorized by deploying the disabled code. Earlier checkpoints record their
+historical next steps, not current availability.
+
+## Attention inspection checkpoint — 2026-10-19
+
+The offline managed CLI now provides read-only retained uncertainty/cleanup
+inspection, separate pending-work counters and bounded snapshot-bound pages.
+It preserves missing/inconsistent evidence and does not resolve/rearm anything.
+An explicit optional ledger/offline abandonment workflow now records a durable
+decision and retires current restoration-policy targets, retaining all outcomes/
+latches and no-rearm guards. It is not invoked on the lab. Next define resolution
+for ordinary/fleet incidents and whether/how unrelated healthy policy can resume
+without releasing closed-pair latches. Keep original outcomes/keys immutable; separate
+any later new authorization from incident acknowledgment. Whole-fleet and
+retention/recovery semantics must be settled before executable resolution.
+See [Attention Inspection](manual/managed-attention.md). Bulk standing consent
+and a separately scoped live managed lifecycle remain later work.
 
 ## Default-off controller checkpoint — 2026-10-18
 

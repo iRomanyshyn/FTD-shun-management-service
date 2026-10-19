@@ -35,6 +35,12 @@ class ManagedGrantReviews(ManagedRemovalReviews):
     """Reuse session/TTL/bounds mechanics, with a separate cache and typed consent."""
 
     def prepare(self, subject, cookie, policy, classification, device_id, ip, label="", reason=""):
+        return self._save(ManagedGrantReview, subject, cookie,
+                          **self.validate(policy, classification, device_id, ip, label, reason))
+
+    @staticmethod
+    def validate(policy, classification, device_id, ip, label="", reason=""):
+        """Pure pair validation, shared by single and whole-batch reviews."""
         if (type(policy["initialized"]) is not bool or type(policy["revision"]) is not int
                 or policy["revision"] < 0 or (not policy["initialized"] and policy["revision"] != 0)):
             raise ValueError("Invalid managed registry view.")
@@ -65,11 +71,10 @@ class ManagedGrantReviews(ManagedRemovalReviews):
                 raise ReviewUnavailable("This target is already maintained; inspect its current holds instead.")
             if old.get("restoration_attention"):
                 raise ReviewUnavailable("Retained restoration attention requires reviewed resolution, not a new grant.")
-        return self._save(ManagedGrantReview, subject, cookie, device_id=device_id, ip=ip,
-                          hostname=devices[0]["hostname"], managed_revision=policy["revision"],
-                          protected_revision=classification["policy_revision"], initialized=policy["initialized"],
-                          intent_id=old["intent_id"] if old else None, generation=old["generation"] if old else None,
-                          enabled=old["enabled"] if old else False, label=label.strip(), reason=reason.strip(), digest=digest)
+        return {"device_id": device_id, "ip": ip, "hostname": devices[0]["hostname"], "managed_revision": policy["revision"],
+                "protected_revision": classification["policy_revision"], "initialized": policy["initialized"],
+                "intent_id": old["intent_id"] if old else None, "generation": old["generation"] if old else None,
+                "enabled": old["enabled"] if old else False, "label": label.strip(), "reason": reason.strip(), "digest": digest}
 
     def get(self, token, subject, cookie):
         review = super().get(token, subject, cookie)

@@ -129,6 +129,27 @@ class ImportTarget(BaseModel):
     ip: IPv4Address
 
 
+class ManagedBatchTarget(ImportTarget):
+    @field_validator("ip", mode="before")
+    @classmethod
+    def canonical_ip(cls, value):
+        if not isinstance(value, str) or str(IPv4Address(value)) != value:
+            raise ValueError("Standing grants require exact canonical IPv4 strings.")
+        return value
+
+
+class ManagedBatchGrantRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    actor: ManagedControlActor
+    targets: list[ManagedBatchTarget] = Field(min_length=1, max_length=1000)
+    managed_revision: int = Field(strict=True, ge=0)
+    protected_revision: int = Field(strict=True, ge=0)
+    confirmation_digest: str = Field(pattern=r"^[0-9a-f]{64}$")
+    maintain_present: StrictBool
+    label: str = Field(default="", max_length=100)
+    reason: str = Field(default="", max_length=500)
+
+
 class ImportAdmissionRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     actor: Actor
@@ -289,6 +310,36 @@ def create_app(
             raise HTTPException(503, "Policy retirement was not confirmed. Retry the original review; do not create a new request.") from error
         if not result["replayed"]:
             synchronizer.note_state_change()  # Metadata only; never signal device work.
+        return result
+
+    @app.post("/api/v1/managed-shuns/maintain-batch")
+    def grant_managed_batch(change: ManagedBatchGrantRequest, request: Request) -> dict:
+        require_operator(change.actor)
+        if not settings.managed_policy_admission_enabled:
+            raise HTTPException(503, "Standing policy admission is disabled. This attempt changed nothing; inspect any earlier outcome.")
+        if change.maintain_present is not True:
+            raise HTTPException(422, "Explicit standing-authority acknowledgement is required.")
+        pairs = [(target.device_id, target.ip) for target in change.targets]
+        if len({device for device, _ in pairs}) > MAX_DEVICES:
+            raise HTTPException(422, "Select at most 64 distinct devices; no policy was saved.")
+        try:
+            result = managed.grant_batch_reviewed(
+                request.headers.get("Idempotency-Key", ""), pairs, change.managed_revision,
+                change.protected_revision, change.confirmation_digest, change.actor.subject,
+                change.actor.display_name, tuple(change.actor.roles), addition_device_ids=addition_device_ids,
+                label=change.label, reason=change.reason)
+        except PermissionError as error:
+            raise HTTPException(403, str(error)) from error
+        except ManagedStateUnavailable as error:
+            raise HTTPException(503, str(error)) from error
+        except (ManagedConflict, ManagedCapacity) as error:
+            raise HTTPException(409, str(error)) from error
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from error
+        except sqlite3.DatabaseError as error:
+            raise HTTPException(503, "Standing batch outcome is unknown. Retry the original review/key.") from error
+        if not result["replayed"]:
+            synchronizer.note_state_change()
         return result
 
     @app.post("/api/v1/managed-shuns/maintain")

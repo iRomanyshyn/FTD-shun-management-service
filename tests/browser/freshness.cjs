@@ -19,6 +19,7 @@ from ftd_shun_manager.managed_review import ManagedRemovalReviews
 from ftd_shun_manager.managed_intent import canonical_managed_fleet_scope
 from ftd_shun_manager.managed_retirement_review import ManagedRetirementReviews
 from ftd_shun_manager.managed_grant_review import ManagedGrantReviews
+from ftd_shun_manager.managed_batch_review import ManagedBatchReviews, parse_standing_list
 from ipaddress import IPv4Address
 from ftd_shun_manager.web import Identity, templates
 p = json.load(sys.stdin)
@@ -51,11 +52,19 @@ if p["template"] == "managed-grant-review.html":
     classification = dict(policy_revision=1, addresses=[dict(ip="198.51.100.252", protected=False,
         devices=[dict(id=1, hostname="lab-ftd", already_shunned=False)])])
     review = ManagedGrantReviews().prepare("test", "fixture-token", p["managed"], classification, 1, IPv4Address("198.51.100.252"), "Fixture", "Synthetic only")
+if p["template"] == "managed-batch-review.html":
+    parsed = parse_standing_list("\\n".join(f"198.18.0.{i}" for i in range(1, 103)), [1])
+    classification = dict(policy_revision=1, addresses=[dict(ip=ip, protected=False,
+        devices=[dict(id=1, hostname="lab-ftd", already_shunned=False)]) for ip in parsed["ips"]])
+    review = ManagedBatchReviews().prepare("test", "fixture-token", p["managed"], classification, parsed, [1], "Fixture", "Synthetic only")
 print(templates.get_template(p["template"]).render(identity=Identity("test", "Test Operator", ("Operator",)),
     review=review, accepted=None, result=None, confirm_ip="", message=None, admission_enabled=p["refresh"].get("import_admission_enabled", False),
     retry_available=p["refresh"].get("import_admission_enabled", False), execution_enabled=False,
     removal_admission_enabled=p["refresh"].get("managed_removal_admission_enabled", False),
-    frozen_view=p["template"] in ("import-confirm.html", "managed-remove-review.html", "managed-retirement-review.html", "managed-grant-review.html"),
+    frozen_view=p["template"] in ("import-confirm.html", "managed-remove-review.html", "managed-retirement-review.html", "managed-grant-review.html", "managed-batch-form.html", "managed-batch-review.html"),
+    admission_available=p["refresh"].get("managed_policy_admission_enabled", False),
+    page=1, pages=2, page_targets=review.targets[:100] if p["template"] == "managed-batch-review.html" else [],
+    confirm_count="", acknowledged=False, import_text_limit=1048576,
     managed=p.get("managed"), handoffs=p.get("handoffs"), fleet_cleanup=p.get("fleet_cleanup"),
     csrf_token="fixture-token", shuns=[shun], refresh=p["refresh"], search_query=p["query"],
     search_results=None, trusted_policy_ips=enabled_ips, disabled_policy_ips=disabled_ips, recent_events=p.get("history", {}).get("events", [event]),
@@ -65,8 +74,8 @@ print(templates.get_template(p["template"]).render(identity=Identity("test", "Te
     source_text=p.get("source_text", ""), batch_label=p.get("label", ""), batch_reason=p.get("reason", ""),
     selected_devices=[1] if p.get("submitted") else [], preview=preview, preview_error=None,
     devices=[dict(id=1,hostname="lab-ftd",enabled=True),dict(id=2,hostname="disabled-ftd",enabled=False)],
-    active_page="managed" if p["template"] in ("managed-shuns.html", "managed-remove-review.html", "managed-retirement-review.html", "managed-grant-review.html") else "imports" if p["template"] == "import-preview.html" else "protected" if p["template"] == "protected-ips.html" else "history" if p["template"] == "history.html" else "shuns",
-    auto_request=p["template"] not in ("protected-ips.html", "history.html", "import-preview.html", "import-confirm.html", "managed-shuns.html", "managed-remove-review.html", "managed-retirement-review.html", "managed-grant-review.html")))
+    active_page="managed" if p["template"] in ("managed-shuns.html", "managed-remove-review.html", "managed-retirement-review.html", "managed-grant-review.html", "managed-batch-form.html", "managed-batch-review.html") else "imports" if p["template"] == "import-preview.html" else "protected" if p["template"] == "protected-ips.html" else "history" if p["template"] == "history.html" else "shuns",
+    auto_request=p["template"] not in ("protected-ips.html", "history.html", "import-preview.html", "import-confirm.html", "managed-shuns.html", "managed-remove-review.html", "managed-retirement-review.html", "managed-grant-review.html", "managed-batch-form.html", "managed-batch-review.html")))
 `;
 
 const initial = () => ({
@@ -298,7 +307,7 @@ test("refresh interaction in real Chromium", { timeout: 120000 }, async (t) => {
       confirmationPosts += 1;
       response.setHeader("Content-Type", "text/html");
       response.end("<p>Fixture admission received; no device work</p>");
-    } else if (["/", "/history", "/protected-ips", "/imports", "/imports/review", "/managed-shuns", "/managed-shuns/removal-review", "/managed-shuns/fleet-removal-review", "/managed-shuns/retirement-review", "/managed-shuns/grant-review"].includes(url.pathname) || url.pathname.startsWith("/shuns/")) {
+    } else if (["/", "/history", "/protected-ips", "/imports", "/imports/review", "/managed-shuns", "/managed-shuns/removal-review", "/managed-shuns/fleet-removal-review", "/managed-shuns/retirement-review", "/managed-shuns/grant-review", "/managed-shuns/bulk", "/managed-shuns/bulk-review"].includes(url.pathname) || url.pathname.startsWith("/shuns/")) {
       pageReads += 1;
       let previewFields = {};
       if (url.pathname === "/imports/review") previewFields = {
@@ -333,7 +342,9 @@ test("refresh interaction in real Chromium", { timeout: 120000 }, async (t) => {
             : url.pathname === "/imports/review" ? "import-confirm.html" : url.pathname === "/managed-shuns" ? "managed-shuns.html"
               : ["/managed-shuns/removal-review", "/managed-shuns/fleet-removal-review"].includes(url.pathname) ? "managed-remove-review.html"
                 : url.pathname === "/managed-shuns/retirement-review" ? "managed-retirement-review.html"
-                  : url.pathname === "/managed-shuns/grant-review" ? "managed-grant-review.html" : "detail.html" };
+                  : url.pathname === "/managed-shuns/grant-review" ? "managed-grant-review.html"
+                    : url.pathname === "/managed-shuns/bulk" ? "managed-batch-form.html"
+                      : url.pathname === "/managed-shuns/bulk-review" ? "managed-batch-review.html" : "detail.html" };
       response.setHeader("Content-Type", "text/html; charset=utf-8");
       response.end(execFileSync("python3", ["-c", renderScript], {
         cwd: root, input: JSON.stringify(payload), encoding: "utf8",
@@ -1306,6 +1317,64 @@ test("refresh interaction in real Chromium", { timeout: 120000 }, async (t) => {
           assert.ok(await page.evaluate("document.querySelector('[name=maintain_present]').getBoundingClientRect().width<40"));
           assert.ok(await page.evaluate("document.querySelector('.managed-grant-form button').getBoundingClientRect().top>document.querySelector('#confirm-grant-ip').getBoundingClientRect().bottom"));
         }
+        assert.equal(postCount, hints);
+        assert.equal(executionCount, executions);
+      } finally { await page.close(); }
+    });
+    await t.test("standing batch freezes 102 pairs, count/consent and responsive paged review without hints", async () => {
+      status = initial();
+      managed.initialized = true;
+      status.managed_policy_admission_enabled = true;
+      const hints = postCount;
+      const executions = executionCount;
+      const page = await connectPage(debugOrigin, `${origin}/managed-shuns/bulk-review`);
+      try {
+        assert.equal(await page.evaluate("document.querySelectorAll('[data-standing-target]').length"), 100);
+        assert.ok(await page.evaluate("document.body.textContent.includes('102 device/IP pairs')"));
+        assert.ok(await page.evaluate("document.body.textContent.includes('Page 1 of 2')"));
+        const key = await page.evaluate("document.querySelector('input[name=review]').value");
+        assert.equal(await page.evaluate("document.querySelector('#standing-batch-confirm').checkValidity()"), false);
+        await page.evaluate("document.querySelector('#confirm-batch-count').value='101'; document.querySelector('[name=maintain_present]').checked=true");
+        assert.equal(await page.evaluate("document.querySelector('#standing-batch-confirm').checkValidity()"), false);
+        await page.evaluate("document.querySelector('#confirm-batch-count').value='102'; document.querySelector('#confirm-batch-count').focus()");
+        assert.equal(await page.evaluate("document.querySelector('#standing-batch-confirm').checkValidity()"), true);
+        const reads = pageReads;
+        status.data_revision += 1;
+        status.status_revision += 1;
+        status.managed_policy_admission_enabled = false;
+        await wake(page);
+        await delay(300);
+        assert.equal(pageReads, reads);
+        assert.equal(await page.evaluate("document.querySelector('input[name=review]').value"), key);
+        assert.equal(await page.evaluate("document.querySelector('#confirm-batch-count').value"), "102");
+        assert.equal(await page.evaluate("document.querySelector('[name=maintain_present]').checked"), true);
+        assert.equal(await page.evaluate("document.activeElement.id"), "confirm-batch-count");
+        for (const width of [1100, 375]) {
+          await page.call("Emulation.setDeviceMetricsOverride", { width, height: 800, deviceScaleFactor: 1, mobile: width === 375 });
+          assert.equal(await page.evaluate("document.documentElement.scrollWidth<=window.innerWidth"), true);
+          assert.ok(await page.evaluate("document.querySelector('[name=maintain_present]').getBoundingClientRect().width<40"));
+          assert.ok(await page.evaluate("document.querySelector('.managed-grant-form button').getBoundingClientRect().top>document.querySelector('#confirm-batch-count').getBoundingClientRect().bottom"));
+        }
+        assert.equal(postCount, hints);
+        assert.equal(executionCount, executions);
+      } finally { await page.close(); }
+    });
+    await t.test("standing paste draft survives refresh without truncation or hidden execution", async () => {
+      status = initial();
+      const hints = postCount;
+      const executions = executionCount;
+      const page = await connectPage(debugOrigin, `${origin}/managed-shuns/bulk`);
+      try {
+        await page.evaluate("document.querySelector('#blocklist-text').value='198.51.100.10 # Office'; document.querySelector('#blocklist-text').dispatchEvent(new Event('input', {bubbles:true})); document.querySelector('#blocklist-text').focus()");
+        const reads = pageReads;
+        status.data_revision += 1;
+        status.status_revision += 1;
+        await wake(page);
+        await delay(300);
+        assert.equal(pageReads, reads);
+        assert.equal(await page.evaluate("document.querySelector('#blocklist-text').value"), "198.51.100.10 # Office");
+        assert.equal(await page.evaluate("document.querySelector('#blocklist-text').hasAttribute('maxlength')"), false);
+        assert.ok(await page.evaluate("document.querySelector('#paste-size').textContent.includes((1048576).toLocaleString())"));
         assert.equal(postCount, hints);
         assert.equal(executionCount, executions);
       } finally { await page.close(); }

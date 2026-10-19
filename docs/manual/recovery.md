@@ -85,6 +85,12 @@ Resume refuses if mutations are not paused, pending jobs/waits remain or a
 managed registry is not restoration-suspended. It clears **only** the ordinary
 mutation pause. Cancelled jobs/delegations/handoffs never restart; uncertain
 results are not requeued. This command never resumes desired restoration.
+The read-only [Attention Inspection](managed-attention.md) report can identify
+retained uncertain operations/system attempts and cleanup cases before review;
+it does not resolve them or change recovery controls.
+Optional [abandonment receipts](managed-abandonment.md) remain retained during
+recovery; their schema must be known. Suspension/ordinary resume never removes
+decisions, re-enables abandoned pairs or clears original failure latches.
 The separate [Offline Managed Maintenance](managed-maintenance.md) tool can
 resume already authorized standing policy after its own frozen review/backup,
 with services still stopped; it never resolves/rearms uncertain writes.

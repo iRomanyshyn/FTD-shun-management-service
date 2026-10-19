@@ -3453,3 +3453,89 @@ cannot authorize ADD. Do not enqueue/wake work or change ordinary pause, setting
 profiles or execution gates. Ordinary recovery resume continues to leave desired
 restoration paused. No HTTP resume route, live migration, live policy activation
 or new device-write authorization is implied.
+
+### Offline attention inspection — 2026-10-19
+
+Provide read-only offline diagnostics before implementing uncertainty resolution.
+Combine retained ordinary UNVERIFIED operations, FAILED/UNVERIFIED restoration
+attempts and single/fleet ATTENTION cleanup, without counting a matching retained
+restoration job twice. Keep pending work separate from terminal attention.
+Show missing/pruned or inconsistent evidence explicitly; cached presence/absence
+is not verification. Old generations retain their pair-wide failure latch.
+Optional managed state is absent or exactly recognized, never silently repaired
+or treated as empty when partial. Permit ordinary-only inspection without it.
+
+Return at most 100 cases per page and five sampled fleet targets. Bind subsequent
+pages to a digest of the retained cases and relevant policy/observation context;
+refuse a changed snapshot rather than silently skipping cases. This digest is a
+read-consistency check, not an executable confirmation. Exclude raw CLI/errors,
+comments, credentials and full import/fleet payloads from output. Inspection
+does not initialize schema, append audit, retire policy, resolve a latch, resume,
+enqueue, renew authority, signal work, change gates or contact FTD. No live
+activation or new write authorization is implied.
+
+### Reviewed abandonment of restoration incidents — 2026-10-19
+
+Permit a separate optional immutable closure ledger and trusted-host offline
+ABANDON_MAINTENANCE for one FAILED/UNVERIFIED restoration attempt. This is
+revocation/operational acknowledgment, not resolution of the unknown device
+outcome. Original attempts/jobs remain unchanged and their restoration latches
+still block policy resume. No rearm, new grant, retry, device command or HTTP
+admission is added. Ordinary and device/fleet cleanup incidents are not closable
+through this single-pair operation; reject overlapping waiting/attention cleanup.
+
+Initialize the closure ledger only through its own reviewed offline migration
+on the exact existing seven-table managed schema. Require ordinary and desired
+pauses, settled RPCs/executor and no pending work. Use checked exclusive backup,
+five-minute exact-state confirmation and atomic DDL/audit rollback. Normal startup,
+GET, base managed initialization and attention inspection never create it.
+
+Abandonment requires original canonical request UUID, maintenance actor, exact
+restoration case, nonblank bounded reason, five-minute reviewed state and typed
+IPv4. Bind both the attempt's original generation and current target intent/
+generation, including historical-generation cases. Atomically retain minimal
+immutable evidence and receipt, retire current enabled policy and append audit;
+never fabricate directory roles or adopt observations as proof. Preserve already
+retired target dates, original authorization, job results and queue contents.
+Exact original-key replay returns its receipt without renewed authority or
+retiring later policy; mismatched reuse, stale/unknown replies never rebase.
+
+Retain closure IDs and pair-wide abandonment independently of history retention.
+Block later MAINTAIN and restoration for that pair, even a new generation; old
+grant receipts remain observational. Reserve closure request IDs across other
+authority namespaces. Attention reports show abandonment separately from the
+unchanged failure/latch; a closed operational case is not VERIFIED, an executable
+resolution or permission to resume. Unknown/partial closure state fails closed.
+No live migration/abandonment or consumed-fixture reuse is authorized by shipping
+this implementation.
+
+### Frozen batch standing-policy consent — 2026-10-19
+
+Extend explicitly reviewed MAINTAIN consent to 1–1000 distinct device/IPv4 pairs
+selected from at most 64 enabled configured devices. Use a separate paste/review
+workflow, never reinterpret a one-time import or old history as standing policy.
+Reuse the bounded exact-token parser; duplicate IPs are explicitly deduplicated,
+but any invalid/ambiguous/unsupported row rejects preparation rather than silently
+discarding it. Freeze the entire selected address/device product, revisions,
+hostnames/prior intents, metadata, original UUID and recurring consent. Any
+protected/observed/already enabled/uncertain/abandoned member rejects the batch;
+never silently shrink scope or loop single-pair admission transactions.
+
+Require current Operator/Administrator, CSRF, session-bound ten-minute-or-shorter
+review, exact typed pair count and explicit recurring-authority checkbox. Use a
+separate bounded review cache and POST-only 100-row frozen pagination; do not put
+tokens/source in URLs or reconstruct scope during polling. Preserve confirmation
+fields and original key/body after unknown replies. An uninitialized review
+cannot become confirmable after migration. Raw pasted source is not retained in
+the review/authority/audit, and a review digest is not permission by itself.
+
+Expose a fixed strict private batch-policy endpoint behind the existing default-
+off standing-admission gate, with both local BFF setting and API capability needed
+for submission. Recheck every profile, revision, protection, enabled device,
+observed adoption, work/cleanup/uncertainty/abandonment and capacity in one SQLite
+transaction. Commit one canonical request plus all policy/audit or nothing. An
+original-key replay returns only its historical receipt, never re-enable/rebase.
+Saving policy neither queues work nor wakes/reads FTD, initializes schemas,
+resumes policy or enables any ADD/controller gate. Later execution remains
+separately gated and snapshot/cooldown bounded. No live grant/import or new device
+write approval follows from default-off implementation/deployment.

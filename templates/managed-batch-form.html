@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Maintain an address list</h1>
+{% if refresh %}{% include "refresh-panel.html" %}{% endif %}
+<p class="policy-warning"><strong>Persistent policy, not a one-time import.</strong> Each selected address will be maintained on every selected device until explicitly stopped. Saving policy does not queue a command or enable restoration.</p>
+{% if message %}<p class="preview-error" role="alert">{{ message }} No policy was saved by preparation.</p>{% endif %}
+<form method="post" action="/managed-shuns/bulk-review" class="import-form" id="managed-batch-form">
+<input type="hidden" name="csrf" value="{{ csrf_token }}">
+<label for="batch-label">Label (optional)</label><input id="batch-label" name="label" maxlength="100" value="{{ batch_label }}">
+<label for="batch-reason">Reason (optional)</label><input id="batch-reason" name="reason" maxlength="500" value="{{ batch_reason }}">
+<fieldset><legend>Explicit target devices (up to 64)</legend>
+{% for device in devices %}<label class="device-choice"><input type="checkbox" name="device_ids" value="{{ device.id }}"{% if device.id in selected_devices %} checked{% endif %}{% if not device.enabled %} disabled{% endif %}> {{ device.hostname }}{% if not device.enabled %} — disabled{% endif %}</label>{% else %}<p>Device list unavailable. Nothing can be submitted without explicit device selection.</p>{% endfor %}
+</fieldset>
+<label for="blocklist-text">IPv4 list</label>
+<textarea id="blocklist-text" name="text" rows="12" spellcheck="false" autocapitalize="off" autocomplete="off" data-max-bytes="{{ import_text_limit }}" aria-describedby="paste-size batch-help" required placeholder="198.51.100.10 # example&#10;Source 203.0.113.20 detected">{{ source_text }}</textarea>
+<p id="paste-size" class="preview-help" role="status">Limit: 1 MiB UTF-8. Input is never truncated.</p>
+<p id="batch-help">Exact IPv4 tokens, lists and one address in text; # comments are supported. Duplicates are counted once. Invalid, ambiguous or unsupported rows reject the whole input. CIDRs, ranges, IPv6, URLs and IP:port are not expanded.</p>
+<p>Maximum 1000 device/IP pairs, including every selected device for each unique address. Protected, already observed, already maintained or uncertain targets cannot be silently skipped or adopted. Existing one-time imports keep their original meaning.</p>
+<button type="submit">Review entire standing-policy batch</button>
+</form>
+<p><a href="/managed-shuns">Managed shuns</a> · <a href="/imports">One-time import preview</a></p>
+<script src="/static/freshness.js" defer></script><script src="/static/import-preview.js" defer></script>
+{% endblock %}

@@ -101,6 +101,16 @@ an earlier write succeeded. Resolution/rearm needs a separate reviewed increment
 do not delete ledgers, edit outcomes, rekey old requests or restore an older DB
 to get around these checks.
 
+Use the read-only [Attention Inspection](managed-attention.md) `attention` command
+to identify retained ordinary/restoration failures and cleanup attention, with
+bounded snapshot-bound pages, pending-work counts and explicit missing evidence.
+It changes no latch or authority and cannot make a blocked resume ready.
+
+Separate [Incident Abandonment](managed-abandonment.md) commands can explicitly
+add a retained closure ledger and retire current policy for one restoration case.
+They require their own review/backup; base `initialize` still creates only seven
+tables. Abandonment preserves the failure latch and **does not relax resume**.
+
 ```bash
 ftd-shun-managed-maintenance resume-policy \
   --database /approved/restored/state.db \

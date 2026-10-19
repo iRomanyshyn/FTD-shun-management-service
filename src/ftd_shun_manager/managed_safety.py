@@ -65,7 +65,7 @@ def managed_state(db) -> dict | None:
         names = {r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
         if "managed_fleet_waits" in names and "managed_fleet_removals" not in names:
             raise ValueError("Orphan fleet cleanup reservations")
-        if not names.intersection(expected) and not names.intersection({"managed_fleet_removals", "managed_fleet_waits", "managed_restoration_attempts"}):
+        if not names.intersection(expected) and not names.intersection({"managed_fleet_removals", "managed_fleet_waits", "managed_restoration_attempts", "managed_incident_closures"}):
             return None
         if not names.issuperset(expected):
             raise ValueError("Partial managed schema")
@@ -80,6 +80,9 @@ def managed_state(db) -> dict | None:
         if db.execute("""SELECT 1 FROM managed_shun_targets WHERE enabled IS NULL OR typeof(enabled)!='integer'
             OR enabled NOT IN (0,1) OR typeof(ip)!='blob' OR length(ip)!=4 LIMIT 1""").fetchone():
             raise ValueError("Invalid managed target")
+        from .managed_closures import present as closures_present
+
+        closures_present(db)
         return {"revision": row[0], "restoration_suspended": bool(row[1])}
     except (sqlite3.DatabaseError, ValueError) as error:
         raise ManagedStateUnavailable("Managed policy is unavailable; review it before weakening protection or removing shuns.") from error
