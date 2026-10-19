@@ -4,6 +4,147 @@ Last updated: 2026-10-19
 
 ## Current increment
 
+**Uncertainty evidence survives retention (2026-10-19).** Automatic queue cleanup
+now preserves UNVERIFIED jobs and captured ADD predecessors of single/fleet
+WAITING_ADD, ADMITTING and ATTENTION cleanup, including linked requests/batches.
+Previously these terminal records could expire and remove evidence needed for
+inspection/resume blockers. Malformed held fleet references abort queue pruning
+in its transaction. Normal verified/completed history still expires; existing
+REMOVE reconciliation remains RECONCILED_ABSENT, not invented VERIFIED.
+
+Offline fleet `attention-case` now exposes each captured ADD separately from the
+cleanup REMOVE outcome, with explicit missing/inconsistent/not-captured states.
+Full reference validation precedes paging and outcome changes invalidate digests.
+History/detail pages explain the evidence-retention exception. No automatic
+closure/archive, new schema, migration, device operation or feature activation.
+Older already-pruned records cannot be reconstructed; unresolved evidence may
+grow beyond the configured window. Ordinary/fleet executable incident decisions
+remain next, followed by separately scoped recovery/load/production acceptance.
+
+Validation: **1077 Python tests pass** (53.62s), **27 Chromium tests pass**;
+compileall, Ruff and diff checks pass. Includes 29 additional regressions for
+367-day retention, original-key replay, audit rollback, full fleet references,
+original ADD outcomes and changed-page snapshots. API/Web rebuilt/deployed in
+the authorized lab; agent unchanged. Checked private backup and rollback images
+retained. API ready/socket with successful read at `2026-10-19T11:41:58Z`, no error;
+TLS-verified HTTPS302. Queue remains 11 VERIFIED/1 NOOP, zero pending, registry
+revision4/suspended, enabled targets0, seven optional tables/no closure ledger,
+all six experimental API gates false, development auth false and profiles0.
+Offline unrelated-resume/inspection code is now packaged, not invoked in the lab.
+
+**Separate unrelated-policy resume (2026-10-19).** Offline
+`review-resume-unrelated` / `resume-unrelated-policy` can resume other enabled
+standing targets after validating every retained restoration abandonment against
+its unchanged attempt/job/delegation and permanently retired device/IP policy.
+Normal `resume-policy` remains strict. No implicit closure migration, new grant,
+outcome reset, retry, HTTP route or device call is added. Ordinary uncertainty,
+extra unclosed attempts and waiting/attention single/fleet cleanup still block.
+Checked exclusive backup, five-minute state-bound review, fresh-read barrier and
+atomic `MANAGED_UNRELATED_POLICY_RESUMED` audit preserve original authority and
+all per-pair latches. See [Unrelated Policy Resume](manual/managed-unrelated-resume.md).
+
+41 new synthetic tests cover real local grant/attempt/abandonment/recovery paths,
+missing/contradictory evidence, isolation scope, frozen review, backup and rollback.
+Full suite: **1048 tests pass** (52.14s); compileall, Ruff, module CLI help and
+diff checks pass.
+No lab database was accessed, no services deployed/restarted and no gates or
+device profiles changed. No schema/agent/protocol change. The closure ledger is
+still not initialized in the lab; new activation needs separate approval.
+Next: ordinary/fleet incident decisions and separately scoped recovery/bulk/load/
+reboot acceptance. This command does not resolve an unknown device outcome.
+
+**Complete read-only incident inspection (2026-10-19).** The offline
+`attention-case --case-id kind:UUID` command supplements the catalog's five-device
+sample with the entire retained fleet scope, ordered by device ID in 100-target
+pages. Original reviewed metadata and current inventory/policy/cache context are
+separate; missing current devices remain in scope. Detail digests bind both the
+case and retained state, refusing cross-case/catalog reuse or changed snapshots.
+Malformed full scope, missing cases and out-of-range pages refuse explicitly.
+Ordinary, restoration and single-cleanup cases retain their original evidence and
+honest missing-job state. No resolution, retry, migration, audit or FTD call occurs.
+See [Attention Inspection](manual/managed-attention.md#inspecting-one-complete-case).
+
+Validation: **1007 Python tests pass** (47.35s), including 26 new detail/CLI
+regressions; compileall, Ruff, module CLI help and diff checks pass. Offline-only
+source change: no service restart/deployment, lab DB access, gate/profile change
+or device mutation. No schema/agent/protocol change. Executable ordinary/fleet
+incident handling and safe unrelated-policy resume remain next; this increment
+provides complete diagnostic scope, not a new recovery authorization.
+
+**Managed lab lifecycle completed and closed (2026-10-19).** The separately
+approved device1/fpr1010-lab / `198.51.100.252` experiment passed reviewed
+seven-table initialization, explicit standing consent, VERIFIED initial ADD,
+operator-induced disappearance, VERIFIED restoration under the same intent/
+generation and atomic retirement/VERIFIED removal. Independent Basic SSH checks
+confirmed initial presence, external absence, restored presence and final absence.
+Original grant replay returned only its historical receipt without re-enabling
+policy. API/Web restart and two scheduled baselines (`10:30:26Z`, `10:38:47Z`)
+confirmed no re-add with controller capability still enabled. See the
+[runbook](manual/managed-lifecycle-validation.md) for scope and exact evidence.
+
+Window closed by `10:41:21Z`, before the approved `11:09Z` deadline. All six
+API admission/execution/controller/cleanup gates are false; agent ADD is again
+absent/default-off and addition profiles0. Desired restoration is suspended,
+ordinary mutations resumed, API/Web/agent running, normal read successful at
+`10:41:03Z` and HTTPS authentication redirect302 with valid TLS. Optional seven
+tables and retired generation1 remain, with two VERIFIED attempts and three
+VERIFIED fixture jobs; total queue11 VERIFIED/1 NOOP, no pending/uncertain work.
+Prior audit and five unrelated policy/import/device tables are preserved. Checked
+before/after backups and original receipts remain private on-volume and on-host.
+This fixture authorization is consumed; do not re-enable or repeat it implicitly.
+
+Also fixed and deployed root-only socket/state initialization after a real
+recursive chown/private-backup startup failure. New initializer exits0 on the lab
+without changing private modes/owners or broadening capabilities. Disposable
+Docker regression reproduces the old failure and verifies the new command twice;
+Compose validates with temporary non-secret examples. **981 Python tests pass**
+(47.85s), compileall/Ruff/diff pass. No API/Web/agent binary rebuild was needed.
+Next: ordinary/fleet uncertainty handling and safe unrelated-policy resume,
+then separately scoped bulk/load/traffic/reboot acceptance. One-device CLI
+evidence is not production readiness or permission for general restoration.
+Earlier preparation/default-off checkpoints below are historical.
+
+**Managed lab activation approved; preparation only (2026-10-19).** The operator
+approved the exact device1 / `198.51.100.252` lifecycle in the
+[runbook](manual/managed-lifecycle-validation.md), including the trusted-host
+actor, seven-table migration and bounded temporary capability changes. Fresh
+read-only preflight passed at `10:02:59Z`; checked private SQLite backup and
+matching API/Web/agent rollback images are retained. Awaiting independent Basic
+SSH absence/unused-address evidence before setup. No migration, grant, gate/
+profile change, service restart or device mutation has occurred; normal monitoring
+continues. The earlier pending-approval checkpoint below is historical.
+
+**Integrated managed lifecycle acceptance (2026-10-19).** Seven new scenarios
+connect the actual checked offline migration/resume CLIs, browser standing-list
+confirmation, private API and shared scheduler through initial creation,
+disappearance/restoration, restart, single/fleet retirement/removal and no re-add.
+Disposable SQLite, private checked backups, a controlled clock and typed fake
+consoles are used; no policy/queue SQL shortcuts or live fixture. Protection
+cancels queued restoration and requires reviewed weakening. Disabled-controller
+restart holds the original job/deadline. Lost ADD remains UNVERIFIED through
+presence/absence/restart and blocks resume; lost REMOVE remains honestly
+unverified until later RECONCILED_ABSENT, with policy retired and no fabricated
+verified-removal event. Successful windows close with desired suspension and
+experimental gates off while ordinary monitoring remains available.
+
+All **980 Python tests pass** (46.30 s), plus compileall/Ruff/diff checks. No
+production code/assets/schema/Compose/agent change was required, and no rebuild
+or restart is needed for this test/documentation increment. The previous
+validated API/Web rollout remains deployed. Browser tests were not repeated
+because templates/JS/CSS and Web code did not change.
+
+The [Managed Lifecycle Validation](manual/managed-lifecycle-validation.md)
+runbook now defines the proposed device1/fpr1010-lab, `198.51.100.252` experiment:
+reviewed optional migration, one standing intent, initial ADD, one operator-induced
+external disappearance/restoration, combined final removal and no-readd checks,
+then restoration of disabled capability with evidence/schema retained. Read-only
+preflight at `2026-10-19T09:40:41Z` found cached fixture absence, no protection/jobs,
+no unfinished/uncertain work, no optional schemas/profiles and healthy monitoring.
+Scoped activation approval was subsequently received; fresh Basic-session
+fixture absence is still required (see the preparation checkpoint above).
+No lab policy, configuration, migration, service state or device entry was
+changed. Real SSH/restoration/load/reboot/production acceptance remains open.
+
 **Standing address-list workflow (2026-10-19).** Managed shuns now links to a
 separate pasted-list form with explicit devices and recurring, not one-time,
 consent. Exact-token parsing rejects the whole input on invalid/ambiguous/

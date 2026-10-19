@@ -281,6 +281,22 @@ def test_retention_preserves_waiting_predecessor_and_immutable_authority(handoff
     assert view.admit(**values)["replayed"]
 
 
+@pytest.mark.parametrize("outcome", ["NOOP", "FAILED", "UNVERIFIED"])
+def test_attention_keeps_captured_job_and_delegation_after_retention(handoffs, outcome):
+    original = add(handoffs)
+    handoffs.admit(**arguments(handoffs))
+    handoffs.queue.finish_addition(original["id"], "worker", AdditionResult(False) if outcome == "NOOP" else outcome)
+    with handoffs.store._connection() as db:
+        db.execute("UPDATE devices SET enabled=0 WHERE id=1")
+    assert handoffs.advance("worker") == 0 and row(handoffs)["state"] == "ATTENTION"
+    handoffs.test_clock[0] += timedelta(days=367)
+    handoffs.queue.prune_completed(366)
+    with handoffs.store._connection() as db:
+        assert db.execute("SELECT state FROM operation_jobs WHERE id=?", (original["id"],)).fetchone()[0] == outcome
+        assert db.execute("SELECT COUNT(*) FROM operation_links WHERE job_id=?", (original["id"],)).fetchone()[0] == 1
+        assert db.execute("SELECT COUNT(*) FROM operation_requests").fetchone()[0] == 1
+
+
 def test_ledger_full_refuses_before_retirement_and_logs_omit_reason(handoffs, monkeypatch, capsys):
     capsys.readouterr()
     values = arguments(handoffs, reason="Private operator note")

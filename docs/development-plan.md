@@ -8,6 +8,36 @@ already available. See [Project Status](project-status.md) for delivery evidence
 and [Architecture and Security Design](architecture-and-security-design.md#74-approved-next-increment-queued-device-cycles-and-manual-imports)
 for the approved scope extension and unchanged security boundaries.
 
+## Unrelated-policy recovery checkpoint — 2026-10-19
+
+Separate offline `review-resume-unrelated` / `resume-unrelated-policy` now validates
+each retained abandonment against original attempt/job/delegation and retired
+policy before allowing other enabled targets to resume behind a fresh-read
+barrier. Normal resume stays strict. Closed-pair latches/receipts/grants/outcomes
+are unchanged; extra ordinary uncertainty or any pending/attention cleanup still
+blocks. Checked backup, five-minute exact-state confirmation and atomic audit
+apply. No schema or live-state change, rearm, HTTP route or device command.
+See [Unrelated Policy Resume](manual/managed-unrelated-resume.md).
+Next: whole-scope ordinary/fleet incident decisions, then separately scoped
+recovery/bulk/load/reboot acceptance. Earlier checkpoints describe their own
+delivery state, not authorization for new lab activation.
+
+## Integrated lifecycle checkpoint — 2026-10-19
+
+Seven operator-lifecycle tests now connect the actual CLI migration/resume,
+Web/BFF consent, API, queue and shared controller with disposable SQLite and
+typed fake consoles. They cover create/disappear/restore/retire/no-readd,
+single/fleet cleanup, protected priority, disabled-controller restart and lost
+ADD/REMOVE replies. No direct policy/queue SQL shortcut or lab activation is used.
+The [Managed Lifecycle Validation](manual/managed-lifecycle-validation.md)
+runbook records the separately approved device1/198.51.100.252 experiment,
+completed2026-10-19: reviewed migration, VERIFIED initial ADD/restoration/removal,
+independent Basic checks, replay/restart/two no-readd baselines and restored
+disabled configuration. Seven managed tables and retired evidence remain; fixture
+authority is consumed. Root-only volume initialization also fixes the discovered
+private-backup startup failure. Next: ordinary/fleet incident handling and safe
+unrelated-policy resume, then separately scoped bulk/load/reboot acceptance.
+
 ## Standing address-list checkpoint — 2026-10-19
 
 The separate pasted-list workflow now freezes the full explicitly selected
@@ -23,6 +53,13 @@ authorized by deploying the disabled code. Earlier checkpoints record their
 historical next steps, not current availability.
 
 ## Attention inspection checkpoint — 2026-10-19
+
+Exact-case read-only inspection now supplements the five-device catalog sample
+with complete retained fleet membership, paginated by 100 targets and bound to
+case identity plus the retained snapshot. Reviewed/current metadata are separate;
+missing current devices never shrink the scope. No resolution or resume exception
+is introduced. This closes a diagnostic prerequisite for whole-fleet handling,
+not the remaining executable incident-resolution design below.
 
 The offline managed CLI now provides read-only retained uncertainty/cleanup
 inspection, separate pending-work counters and bounded snapshot-bound pages.
@@ -556,23 +593,21 @@ not be implemented as automatic renewal/reimport of expired user requests.
 
 Current next work supersedes the older sequence below:
 
-1. Delivered in isolation: desired registry/revisions, explicit managed mode and
-   durable authorization with lifecycle/concurrency/retention/backup tests.
-   Normal startup still does not initialize it. API/UI now expose optional
-   observational visibility, frozen reviews and revocation-only policy RETIRE/
-   waiting-cancel controls. Composite offline recovery and default-off leased
-   cleanup promotion are implemented with synthetic tests, not live acceptance.
-   Protected-IP warnings/current-revision acknowledgement and guarded ordinary
-   removal/MAINTAIN admission are now implemented. They do not provide system
-   restoration generation/claim hooks or executable fleet cleanup.
-2. Complete combined executable cleanup confirmation, reviewed fleet scope and
-   protection/system hooks; retain observed-versus-desired-versus-created
-   distinctions. Policy-only revocation is not device removal or creation.
-3. Shared-worker system intentions, ordered retirement/removal handoff, atomic
-   protection checks, uncertainty latch, deduplication/backpressure and bounded
-   anti-churn, independently gated off.
-4. Separately authorized single managed-fixture create/disappear/restore/remove/
-   no-readd test before any broader reboot/load or long-list trial.
+1. Implemented and synthetically integrated: desired registry, single/batch
+   standing consent, reviewed migration/resume, shared controller, protection,
+   single/fleet cleanup, revocation, retention and offline recovery. Gates remain
+   default-off and startup never initializes optional authority.
+2. Completed2026-10-19: separately approved single managed-fixture create/
+   disappear/restore/retire/remove/no-readd acceptance. Verified live results,
+   independent Basic evidence, restart/replay and restored disabled configuration
+   are recorded. This fixture authority is consumed, not permission for another run.
+3. Reviewed unrelated-policy resume is implemented (2026-10-19). The same day's
+   evidence-retention fix preserves UNVERIFIED jobs and waiting/attention cleanup
+   predecessors, with full read-only fleet predecessor inspection. Complete
+   executable ordinary/fleet incident decisions next, preserving abandoned/
+   uncertain pair latches and immutable outcomes; retention is not resolution.
+4. Separately scope fleet, load, traffic, physical-reboot and production acceptance;
+   a one-fixture CLI result does not authorize general imports/restoration.
 
 The prior delivery sequence documents the foundational work; it is not approval
 to enable current one-time imports as a restoration controller.

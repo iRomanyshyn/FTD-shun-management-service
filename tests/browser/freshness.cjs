@@ -855,6 +855,7 @@ test("refresh interaction in real Chromium", { timeout: 120000 }, async (t) => {
         await page.call("Page.navigate", { url: `${origin}/history` });
         await page.until("document.querySelector('#recent-events')?.textContent.includes('HISTORY_EVENT_252')");
         assert.ok(await page.evaluate("document.querySelector('.history-retention').textContent.includes('366 days')"));
+        assert.ok(await page.evaluate("document.querySelector('#recent-events').textContent.includes('Unverified operations and unresolved cleanup evidence are kept beyond this period.')"));
         assert.equal(postCount, hints);
       } finally { await page.close(); }
     });

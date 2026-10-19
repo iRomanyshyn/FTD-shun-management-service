@@ -4,10 +4,11 @@ import hashlib
 import hmac
 import json
 from ipaddress import IPv4Address
+from uuid import UUID
 
 from .managed_intent import canonical_managed_fleet_scope
 from .managed_restoration import present as restoration_present
-from .managed_safety import fleet_waits_present, managed_state
+from .managed_safety import captured_fleet_predecessors, fleet_waits_present, managed_state
 
 PAGE_SIZE = 100
 KINDS = ("operation", "restoration", "device_cleanup", "fleet_cleanup")
@@ -74,6 +75,38 @@ def _job_evidence(db, row):
                 "SELECT COUNT(*) FROM operation_links WHERE job_id=?", (row["job_id"],)).fetchone()[0]}
 
 
+def _fleet_scope(db, row):
+    """Validate the entire retained scope before sampling or paginating it."""
+    try:
+        payload = json.loads(row["scope_json"])
+        keys = ("ip", "managed_initialized", "managed_revision", "protected_revision", "protected", "targets")
+        scope = {key: payload[key] for key in keys}
+        canonical_managed_fleet_scope(scope)
+        scope["targets"] = sorted(scope["targets"], key=lambda target: target["device_id"])
+        barrier = db.execute("""SELECT w.target_count,r.phase FROM managed_fleet_waits w
+            JOIN managed_fleet_removals r ON r.id=w.id WHERE w.id=?""", (row["record_id"],)).fetchone()
+        if barrier is None or barrier["target_count"] != len(scope["targets"]) or barrier["phase"] != "ADMITTED":
+            raise ValueError("Inconsistent retained fleet scope.")
+        return scope
+    except (ValueError, TypeError, KeyError, AttributeError) as error:
+        # Never interpolate raw payloads or return a partially valid scope.
+        raise ValueError("Inconsistent retained fleet scope; no target page is available.") from error
+
+
+def _fleet_predecessors(db, row, scope):
+    barrier = db.execute("SELECT predecessors_json,target_count FROM managed_fleet_waits WHERE id=?",
+                         (row["record_id"],)).fetchone()
+    return captured_fleet_predecessors(barrier["predecessors_json"], barrier["target_count"],
+                                       device_ids={target["device_id"] for target in scope["targets"]})
+
+
+def _predecessor_evidence(db, device, ip, predecessors):
+    if device not in predecessors:
+        return {"state": "not_captured", "job_id": None, "role": "captured_predecessor_add"}
+    return _job_evidence(db, {"kind": "device_cleanup", "job_id": predecessors[device],
+                             "device_id": device, "ip": ip.packed})
+
+
 def _item(db, row, initialized):
     from .managed_closures import decision
 
@@ -90,20 +123,19 @@ def _item(db, row, initialized):
     else:
         # No raw payload/comment/reason escapes, including malformed evidence.
         try:
-            payload = json.loads(row["scope_json"])
-            keys = ("ip", "managed_initialized", "managed_revision", "protected_revision", "protected", "targets")
-            canonical_managed_fleet_scope({key: payload[key] for key in keys})
-            ip = IPv4Address(payload["ip"])
-            targets = sorted(payload["targets"], key=lambda target: target["device_id"])
-            barrier = db.execute("""SELECT w.target_count,r.phase FROM managed_fleet_waits w
-                JOIN managed_fleet_removals r ON r.id=w.id WHERE w.id=?""", (row["record_id"],)).fetchone()
-            if barrier is None or barrier["target_count"] != len(targets) or barrier["phase"] != "ADMITTED":
-                raise ValueError("Inconsistent retained fleet scope.")
+            scope = _fleet_scope(db, row)
+            ip, targets = IPv4Address(scope["ip"]), scope["targets"]
             result.update(scope_state="retained", ip=str(ip), target_count=len(targets),
                           targets_truncated=len(targets) > 5,
                           targets=[_context(db, target["device_id"], ip, initialized) for target in targets[:5]])
         except (ValueError, TypeError, KeyError, AttributeError):
             result.update(scope_state="inconsistent", ip=None, target_count=None, targets_truncated=None, targets=[])
+        try:
+            predecessors = _fleet_predecessors(db, row, scope) if result["scope_state"] == "retained" else None
+            result.update(predecessor_evidence_state="retained" if predecessors is not None else "inconsistent",
+                          predecessor_count=len(predecessors) if predecessors is not None else None)
+        except ValueError:
+            result.update(predecessor_evidence_state="inconsistent", predecessor_count=None)
     return result
 
 
@@ -133,17 +165,24 @@ def _snapshot_digest(db, cases, initialized):
     return digest.hexdigest()
 
 
-def attention_report(db, *, page=1, snapshot_digest=None):
-    """A transactionally consistent, non-executable page of retained attention."""
-    from .managed_closures import present as closures_present
-    from .managed_maintenance import TABLES, _objects, _owned, recognized_schema
-
-    if not db.in_transaction:
-        raise ValueError("Attention inspection requires a caller-owned read transaction.")
+def _page(page, snapshot_digest):
     if type(page) is not int or not 1 <= page <= 1000000:
         raise ValueError("Attention page must be an integer between 1 and 1000000.")
     if page > 1 and snapshot_digest is None:
         raise ValueError("Subsequent pages require the previous snapshot digest.")
+
+
+def _check_digest(snapshot_digest, digest):
+    if snapshot_digest is not None and (not isinstance(snapshot_digest, str) or not snapshot_digest.isascii()
+                                       or not hmac.compare_digest(snapshot_digest, digest)):
+        raise ValueError("Attention snapshot changed; start again at page 1. No automatic rebase.")
+
+
+def _inspection_snapshot(db):
+    from .managed_maintenance import TABLES, _objects, _owned, recognized_schema
+
+    if not db.in_transaction:
+        raise ValueError("Attention inspection requires a caller-owned read transaction.")
     owned = _owned(_objects(db))
     initialized = bool(owned)
     if initialized:
@@ -165,9 +204,16 @@ def attention_report(db, *, page=1, snapshot_digest=None):
         raise ValueError("Initialized current queue metadata required; no migration is performed.")
     cases = _cases(initialized)
     digest = _snapshot_digest(db, cases, initialized)
-    if snapshot_digest is not None and (not isinstance(snapshot_digest, str) or not snapshot_digest.isascii()
-                                       or not hmac.compare_digest(snapshot_digest, digest)):
-        raise ValueError("Attention snapshot changed; start again at page 1. No automatic rebase.")
+    return initialized, registry, executor, cases, digest
+
+
+def attention_report(db, *, page=1, snapshot_digest=None):
+    """A transactionally consistent, non-executable page of retained attention."""
+    from .managed_closures import present as closures_present
+
+    _page(page, snapshot_digest)
+    initialized, registry, executor, cases, digest = _inspection_snapshot(db)
+    _check_digest(snapshot_digest, digest)
     counts = {kind: 0 if initialized or kind == "operation" else None for kind in KINDS}
     for row in db.execute("SELECT kind,COUNT(*) AS n FROM (" + cases + ") GROUP BY kind"):
         counts[row["kind"]] = row["n"]
@@ -198,3 +244,44 @@ def attention_report(db, *, page=1, snapshot_digest=None):
             "has_next": page * PAGE_SIZE < total,
             "items": [_item(db, row, initialized) for row in rows],
             "warning": "Read-only retained evidence, not a resolution or current device verification. Missing history is not success; never replay uncertain ADD."}
+
+
+def attention_case(db, case_id, *, page=1, snapshot_digest=None):
+    """Inspect an exact incident, preserving its full original fleet membership."""
+    _page(page, snapshot_digest)
+    try:
+        kind, record_id = case_id.split(":")
+        if kind not in KINDS or str(UUID(record_id)) != record_id:
+            raise ValueError
+    except (ValueError, AttributeError, TypeError) as error:
+        raise ValueError("Supply a canonical kind:UUID attention case ID.") from error
+    initialized, registry, executor, cases, state_digest = _inspection_snapshot(db)
+    digest = hashlib.sha256(json.dumps(["attention-case-v1", case_id, state_digest]).encode()).hexdigest()
+    _check_digest(snapshot_digest, digest)
+    row = db.execute("SELECT * FROM (" + cases + ") WHERE kind=? AND record_id=?", (kind, record_id)).fetchone()
+    if row is None:
+        raise ValueError("Attention case is not retained; missing evidence is not success.")
+    scope = _fleet_scope(db, row) if kind == "fleet_cleanup" else None
+    total = len(scope["targets"]) if scope else 1
+    if (page - 1) * PAGE_SIZE >= total:
+        raise ValueError("Attention target page is outside the retained scope.")
+    item = _item(db, row, initialized)
+    if scope:
+        predecessors = _fleet_predecessors(db, row, scope)  # Validate all references, not only this page.
+        item.pop("targets")  # Replace the catalog sample with the requested exact target page.
+        item.pop("targets_truncated")
+        targets = [{"reviewed": target, "current": _context(db, target["device_id"], IPv4Address(scope["ip"]), initialized),
+                    "predecessor": _predecessor_evidence(db, target["device_id"], IPv4Address(scope["ip"]), predecessors)}
+                   for target in scope["targets"][(page - 1) * PAGE_SIZE:page * PAGE_SIZE]]
+    else:
+        # No fabricated reviewed device metadata for ordinary/single-target cases.
+        targets = [{"reviewed": None, "current": item.pop("target")}]
+    return {"read_only": True, "resolution_available": False, "case": item,
+            "managed_initialized": initialized, "mutations_suspended": bool(executor["mutations_suspended"]),
+            "restoration_suspended": registry["restoration_suspended"] if registry else None,
+            "executor_lease_present": executor["owner"] is not None or executor["lease_until"] is not None,
+            "snapshot_digest": digest, "page": page, "page_size": PAGE_SIZE,
+            "target_count": total, "total_pages": (total + PAGE_SIZE - 1) // PAGE_SIZE,
+            "has_next": page * PAGE_SIZE < total, "targets": targets,
+            "reviewed_scope": {key: value for key, value in scope.items() if key != "targets"} if scope else None,
+            "warning": "Read-only retained evidence, not resolution, retry authority or current device verification."}

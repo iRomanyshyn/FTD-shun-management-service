@@ -46,6 +46,24 @@ host TCP/443 -> Caddy -> Authelia (ForwardAuth)
 
 Only Caddy publishes a host port. Web and API use `network_mode: none`; the API has no Cisco network route. The agent is the sole service on the `ftd-management` network and must be restricted by host/network firewall policy to configured FTD management addresses on TCP/22. The `socket-init` one-shot container prepares the three named socket volumes and the SQLite state volume; the agent socket is writable only by the agent and its API group.
 
+`socket-init` changes ownership of mount roots only, never existing children.
+Private 0700 backup directories, 0600 database/backup files and nested symlinks
+must not be traversed or rewritten during startup. The initializer retains only
+CHOWN, with no network, a read-only root filesystem and no privilege escalation.
+Restored files must already have reviewed ownership for API UID/GID10001; startup
+is not an ownership-repair/migration tool. If restored state is inaccessible,
+stop and use an explicitly reviewed offline recovery procedure instead of
+recursive chown, broader capabilities or relaxed backup permissions.
+
+For existing initialized volumes, service-only updates may use
+`docker compose --env-file .env -f deploy/compose.yml up -d --no-deps api web`
+(add the existing local-lab overlay when applicable). Fresh deployment still
+requires the initializer. The former recursive command failed when rerun over
+private backup directories; recreate `socket-init` from the updated Compose
+definition before relying on dependency-based startup. No schema/data migration
+is involved. Rollback to the old initializer reintroduces that failure; retain
+private data permissions and use service-only startup for already prepared volumes.
+
 Before the first agent request, validate that the host firewall/NAT policy permits the agent bridge to reach each approved FTD management address on TCP/22 and denies other destinations and ports. This policy is especially required when the FTD route uses a VPN interface: host SSH reachability does not establish that a Docker bridge has the same routed and masqueraded path. Do not relax the agent timeout, pinned host key, or FTD source ACL to work around a missing host egress rule.
 
 ## Prepare protected configuration

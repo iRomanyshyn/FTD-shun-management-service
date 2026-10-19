@@ -8,7 +8,7 @@ from uuid import uuid4
 import pytest
 
 from ftd_shun_manager import managed_maintenance as maintenance
-from ftd_shun_manager.managed_attention import attention_report
+from ftd_shun_manager.managed_attention import attention_case, attention_report
 from ftd_shun_manager.managed_intent import canonical_managed_change, canonical_managed_fleet_scope
 from ftd_shun_manager.operation_queue import OperationQueue, stamp
 from ftd_shun_manager.store import Device, Store
@@ -30,6 +30,12 @@ def report(store, **kwargs):
     with store._connection() as db:
         db.execute("BEGIN")
         return attention_report(db, **kwargs)
+
+
+def detail(store, case_id, **kwargs):
+    with store._connection() as db:
+        db.execute("BEGIN")
+        return attention_case(db, case_id, **kwargs)
 
 
 def fingerprint(store):
@@ -70,7 +76,7 @@ def attempt(store, request, intent, *, state="UNVERIFIED", job_id=None, ip=IP, g
     return key
 
 
-def fleet(store, *, devices=1, state="ATTENTION", phase="ADMITTED", malformed=False):
+def fleet(store, *, devices=1, state="ATTENTION", phase="ADMITTED", malformed=False, predecessors=None):
     scope = {"ip": str(IP), "managed_initialized": True, "managed_revision": 0, "protected_revision": 0,
              "protected": False, "targets": [{"device_id": device, "hostname": f"synthetic-{device}", "device_enabled": True,
                  "observed_present": True, "maintenance_enabled": False, "intent_id": None, "generation": None}
@@ -81,7 +87,8 @@ def fleet(store, *, devices=1, state="ATTENTION", phase="ADMITTED", malformed=Fa
         db.execute("INSERT INTO managed_fleet_removals VALUES (?,NULL,'alice','Alice','[]',?,'{}',?,?,?)",
                    (key, payload, stamp(NOW), stamp(NOW + timedelta(minutes=10)), phase))
         if state:
-            db.execute("INSERT INTO managed_fleet_waits VALUES (?,?,'[]',?,'PRIVATE_RAW_ERROR')", (key, devices, state))
+            evidence = predecessors if predecessors is not None else [{"device_id": 1, "job_id": str(uuid4())}]
+            db.execute("INSERT INTO managed_fleet_waits VALUES (?,?,?,?,'PRIVATE_RAW_ERROR')", (key, devices, json.dumps(evidence), state))
     return key
 
 
@@ -361,4 +368,235 @@ def test_unknown_over_capacity_state_is_a_refusal_not_truncated_success(store):
     before = fingerprint(store)
     with pytest.raises(ValueError, match="exceeds this version"):
         report(store)
+    assert fingerprint(store) == before
+
+
+def test_case_target_pages_preserve_full_reviewed_fleet_and_missing_current_devices(store):
+    initialize(store)
+    case_id = "fleet_cleanup:" + fleet(store, devices=205)
+    with store._connection() as db:
+        db.execute("UPDATE devices SET hostname='renamed',enabled=0 WHERE id=1")
+    before = fingerprint(store)
+    first = detail(store, case_id)
+    pages = [first] + [detail(store, case_id, page=page, snapshot_digest=first["snapshot_digest"])
+                       for page in (2, 3)]
+    assert [len(page["targets"]) for page in pages] == [100, 100, 5]
+    assert [page["has_next"] for page in pages] == [True, True, False]
+    assert first["target_count"] == 205 and first["total_pages"] == 3
+    assert first["reviewed_scope"]["managed_revision"] == 0
+    targets = [target for page in pages for target in page["targets"]]
+    assert [target["reviewed"]["device_id"] for target in targets] == list(range(1, 206))
+    assert targets[0]["reviewed"]["hostname"] == "synthetic-1"
+    assert targets[0]["reviewed"]["device_enabled"] is True
+    assert targets[0]["current"]["hostname"] == "renamed"
+    assert targets[0]["current"]["device_enabled"] is False
+    assert all(target["current"]["hostname"] is None for target in targets[1:])
+    assert all(target["current"]["observation_basis"] == "cached_not_write_verification" for target in targets)
+    assert "targets_truncated" not in first["case"] and "targets" not in first["case"]
+    assert "PRIVATE" not in json.dumps(pages) and fingerprint(store) == before
+    with pytest.raises(ValueError, match="outside the retained scope"):
+        detail(store, case_id, page=4, snapshot_digest=first["snapshot_digest"])
+
+
+@pytest.mark.parametrize("kind", ["operation", "restoration", "device_cleanup"])
+def test_exact_single_case_read_only_preserves_original_evidence(store, kind):
+    key = job(store)
+    if kind != "operation":
+        initialize(store)
+        request, intent = authority(store, enabled=False)
+        if kind == "restoration":
+            key = attempt(store, request, intent)  # Pruned job must remain explicitly missing.
+        else:
+            predecessor, key = key, str(uuid4())
+            with store._connection() as db:
+                db.execute("""INSERT INTO managed_removal_handoffs VALUES (?,1,?,?,1,?,?,'alice','Alice','[]',
+                    '{}','{}',?,?,'ATTENTION','PRIVATE_RAW_ERROR')""",
+                           (key, IP.packed, intent, request, predecessor, stamp(NOW), stamp(NOW + timedelta(minutes=10))))
+    before = fingerprint(store)
+    with store._connection() as db:
+        db.execute("PRAGMA query_only=ON")
+        db.execute("BEGIN")
+        result = attention_case(db, f"{kind}:{key}")
+        assert db.total_changes == 0
+    assert result["case"]["case_id"] == f"{kind}:{key}"
+    assert result["read_only"] and not result["resolution_available"]
+    assert result["target_count"] == result["total_pages"] == 1 and not result["has_next"]
+    assert result["reviewed_scope"] is None and result["targets"][0]["reviewed"] is None
+    if kind == "restoration":
+        assert result["case"]["related_job"]["state"] == "not_retained"
+        assert result["case"]["pair_latch_retained"]
+    elif kind == "device_cleanup":
+        assert result["case"]["related_job"]["role"] == "captured_predecessor_add"
+    assert "PRIVATE" not in json.dumps(result) and fingerprint(store) == before
+
+
+def test_case_digest_cannot_be_used_for_another_case_or_catalog_or_changed_context(store):
+    initialize(store)
+    first_id, second_id = ["fleet_cleanup:" + fleet(store, devices=101) for _ in range(2)]
+    first = detail(store, first_id)
+    with pytest.raises(ValueError, match="snapshot changed"):
+        detail(store, second_id, page=2, snapshot_digest=first["snapshot_digest"])
+    with pytest.raises(ValueError, match="snapshot changed"):
+        detail(store, first_id, snapshot_digest=report(store)["snapshot_digest"])
+    with pytest.raises(ValueError, match="snapshot changed"):
+        report(store, snapshot_digest=first["snapshot_digest"])
+    store.record_observed_shun(1, IP, "management")
+    with pytest.raises(ValueError, match="snapshot changed"):
+        detail(store, first_id, page=2, snapshot_digest=first["snapshot_digest"])
+
+
+@pytest.mark.parametrize("case_id", [None, 123, "", "operation:no-uuid", "other:" + str(uuid4()),
+                                    "operation:" + str(uuid4()).upper(), "operation:" + uuid4().hex,
+                                    "operation:" + str(uuid4()) + ":extra"])
+def test_case_id_is_strict_and_does_not_leak_invalid_input(store, case_id):
+    before = fingerprint(store)
+    with pytest.raises(ValueError, match="canonical kind:UUID"):
+        detail(store, case_id)
+    assert fingerprint(store) == before
+
+
+@pytest.mark.parametrize("page", [True, 0, -1, 1.5, "2", 1000001])
+def test_case_page_validation_is_read_only(store, page):
+    case_id = "operation:" + job(store)
+    before = fingerprint(store)
+    with pytest.raises(ValueError, match="page must"):
+        detail(store, case_id, page=page)
+    assert fingerprint(store) == before
+
+
+def test_case_missing_or_non_attention_is_not_success_and_next_page_requires_digest(store):
+    case_id = "operation:" + job(store, state="VERIFIED")
+    before = fingerprint(store)
+    for key in (case_id, "operation:" + str(uuid4())):
+        with pytest.raises(ValueError, match="not retained"):
+            detail(store, key)
+    with pytest.raises(ValueError, match="previous snapshot"):
+        detail(store, case_id, page=2)
+    assert fingerprint(store) == before
+
+
+def test_case_malformed_scope_refuses_instead_of_returning_subset(store):
+    initialize(store)
+    case_id = "fleet_cleanup:" + fleet(store, malformed=True)
+    before = fingerprint(store)
+    with pytest.raises(ValueError, match="Inconsistent retained fleet scope") as error:
+        detail(store, case_id)
+    assert "PRIVATE" not in str(error.value) and fingerprint(store) == before
+
+
+@pytest.mark.parametrize("corruption", ["last_target", "count"])
+def test_case_validates_whole_fleet_even_before_returning_first_page(store, corruption):
+    initialize(store)
+    key = fleet(store, devices=101)
+    with store._connection() as db:
+        if corruption == "count":
+            trigger = "fleet_wait_authority_immutable"
+            db.execute(f"DROP TRIGGER {trigger}")
+            db.execute("UPDATE managed_fleet_waits SET target_count=100 WHERE id=?", (key,))
+        else:
+            trigger = "managed_fleet_authority_immutable"
+            db.execute(f"DROP TRIGGER {trigger}")
+            payload = json.loads(db.execute("SELECT payload_json FROM managed_fleet_removals WHERE id=?", (key,)).fetchone()[0])
+            payload["targets"][-1]["device_id"] = 1  # Duplicate outside page 1.
+            db.execute("UPDATE managed_fleet_removals SET payload_json=? WHERE id=?", (json.dumps(payload), key))
+        db.execute(next(row[3] for row in maintenance._expected_schema() if row[1] == trigger))
+    before = fingerprint(store)
+    with pytest.raises(ValueError, match="Inconsistent retained fleet scope"):
+        detail(store, "fleet_cleanup:" + key)
+    assert fingerprint(store) == before
+
+
+def test_case_inspection_requires_transaction_and_rejects_partial_schema(store):
+    key = "operation:" + job(store)
+    with store._connection() as db:
+        with pytest.raises(ValueError, match="read transaction"):
+            attention_case(db, key)
+        db.execute("CREATE TABLE managed_shun_registry(id INTEGER)")
+    before = fingerprint(store)
+    with pytest.raises(ValueError, match="partial state is not empty"):
+        detail(store, key)
+    assert fingerprint(store) == before
+
+
+def test_case_cli_is_read_only_and_requires_case_and_offline_flags(store, capsys):
+    case_id = "operation:" + job(store)
+    before = fingerprint(store)
+    base = ["attention-case", "--database", str(store.path), "--actor", "operator"]
+    for flags in (["--confirm-offline"], ["--case-id", case_id],
+                  ["--confirm-offline", "--case-id", case_id, "--reason", "not-an-abandonment"]):
+        with pytest.raises(SystemExit) as error:
+            maintenance.main(base + flags)
+        assert error.value.code == 2
+    assert maintenance.main(base + ["--confirm-offline", "--case-id", case_id]) == 0
+    output = json.loads(capsys.readouterr().out)
+    assert output["event"] == "maintenance.managed.attention_case"
+    assert output["case"]["case_id"] == case_id and fingerprint(store) == before
+
+
+def test_case_cli_missing_file_is_not_created(tmp_path):
+    path = tmp_path / "missing.db"
+    with pytest.raises(SystemExit) as error:
+        maintenance.main(["attention-case", "--database", str(path), "--actor", "operator",
+                          "--confirm-offline", "--case-id", "operation:" + str(uuid4())])
+    assert error.value.code == 2 and not path.exists()
+
+
+@pytest.mark.parametrize("outcome", ["RUNNING", "QUEUED", "NOOP", "FAILED", "UNVERIFIED"])
+def test_fleet_detail_separates_captured_add_from_cleanup_result(store, outcome):
+    initialize(store)
+    key = job(store, state=outcome)
+    root = fleet(store, devices=3, predecessors=[{"device_id": 1, "job_id": key},
+                                                {"device_id": 2, "job_id": str(uuid4())}])
+    before = fingerprint(store)
+    page = detail(store, "fleet_cleanup:" + root)
+    present, missing, uncaptured = [target["predecessor"] for target in page["targets"]]
+    assert present["state"] == "retained" and present["outcome"] == outcome
+    assert present["action"] == "ADD" and present["role"] == "captured_predecessor_add"
+    assert missing["state"] == "not_retained" and uncaptured["state"] == "not_captured"
+    assert page["case"]["outcome"] == "ATTENTION" and page["case"]["action"] == "REMOVE"
+    assert page["case"]["predecessor_count"] == 2
+    assert "PRIVATE" not in json.dumps(page) and fingerprint(store) == before
+
+
+def test_fleet_detail_does_not_trust_wrong_pair_or_action(store):
+    initialize(store)
+    root = fleet(store, predecessors=[{"device_id": 1, "job_id": job(store, action="REMOVE")}])
+    result = detail(store, "fleet_cleanup:" + root)
+    assert result["targets"][0]["predecessor"]["state"] == "inconsistent"
+
+
+@pytest.mark.parametrize("evidence", [[], {}, ["PRIVATE_TEXT"], [{"device_id": True, "job_id": str(uuid4())}],
+    [{"device_id": 2, "job_id": "not-uuid"}], [{"device_id": 206, "job_id": str(uuid4())}],
+    [{"device_id": 1, "job_id": str(uuid4()), "extra": "PRIVATE_TEXT"}]])
+def test_invalid_predecessors_refuse_all_detail_pages_and_catalog_reports_unknown(store, evidence):
+    initialize(store)
+    root = fleet(store, devices=205, predecessors=evidence)
+    before = fingerprint(store)
+    item = report(store)["items"][0]
+    assert item["scope_state"] == "retained" and item["target_count"] == 205
+    assert item["predecessor_evidence_state"] == "inconsistent" and item["predecessor_count"] is None
+    with pytest.raises(ValueError, match="predecessor evidence is inconsistent"):
+        detail(store, "fleet_cleanup:" + root)
+    assert "PRIVATE" not in json.dumps(item) and fingerprint(store) == before
+
+
+def test_changed_predecessor_outcome_invalidates_detail_page_digest(store):
+    initialize(store)
+    key = job(store)
+    root = fleet(store, devices=205, predecessors=[{"device_id": 1, "job_id": key}])
+    first = detail(store, "fleet_cleanup:" + root)
+    with store._connection() as db:
+        db.execute("UPDATE operation_jobs SET state='FAILED' WHERE id=?", (key,))
+    with pytest.raises(ValueError, match="snapshot changed"):
+        detail(store, "fleet_cleanup:" + root, page=2, snapshot_digest=first["snapshot_digest"])
+
+
+@pytest.mark.parametrize("evidence", [[], {}, ["PRIVATE_TEXT"], [{"device_id": 1, "job_id": "bad"}]])
+def test_malformed_held_fleet_references_refuse_queue_purge_atomically(store, evidence):
+    initialize(store)
+    fleet(store, predecessors=evidence)
+    job(store, state="VERIFIED", when=NOW - timedelta(days=400))
+    before = fingerprint(store)
+    with pytest.raises(ValueError, match="predecessor evidence is inconsistent"):
+        OperationQueue(store).prune_completed(366)
     assert fingerprint(store) == before

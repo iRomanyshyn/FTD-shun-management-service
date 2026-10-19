@@ -759,8 +759,21 @@ cutoff and inactive `shun_state` rows whose `last_changed_at` is older than the
 same cutoff. It never removes an active shun-state row.
 
 Terminal operation-queue jobs and their orphaned request records follow the
-same retention period. Unfinished QUEUED/RUNNING jobs are not purged; expiry
-or recovery must settle them first. Queue cleanup records its deletion count
+same retention period, with security-evidence exceptions: QUEUED/RUNNING and
+UNVERIFIED jobs are not purged. Captured ADD predecessors of WAITING_ADD,
+ADMITTING or ATTENTION single/fleet cleanup are also retained, regardless of
+their terminal result. Linked request/delegation records remain while their jobs
+remain. Age is not resolution; even restoration abandonment does not make an
+UNVERIFIED queue result disposable. Existing fresh-read REMOVE reconciliation
+may produce RECONCILED_ABSENT, not fabricated VERIFIED, after which ordinary
+retention applies unless a cleanup hold remains. No automatic archive or incident
+closure is implied; unresolved evidence may outlive configured history retention.
+
+Queue pruning validates retained fleet predecessor structure before deleting
+anything, in the same write transaction. Malformed/partial evidence refuses
+queue pruning rather than interpreting unknown references as an empty hold.
+It does not recover previously purged evidence or initialize optional schemas.
+Queue cleanup records its deletion count
 in a new `HISTORY_RETENTION_PURGED` event.
 
 The history store remains append-only inside its configured retention window.
@@ -2046,6 +2059,13 @@ Use bounded exponential backoff with a configured maximum.
 ---
 
 # 57. Container Hardening
+
+The socket/state volume initializer changes ownership of the fixed mount roots
+only. It must not recursively traverse or rewrite existing database files,
+private backup directories or child symlinks. Keep its sole CHOWN capability;
+do not add DAC_OVERRIDE or relax private file modes to make reinitialization
+succeed. Existing/restored data ownership is an explicitly reviewed offline
+operator concern, not an automatic startup repair.
 
 All application containers should use:
 
@@ -3474,6 +3494,28 @@ does not initialize schema, append audit, retire policy, resolve a latch, resume
 enqueue, renew authority, signal work, change gates or contact FTD. No live
 activation or new write authorization is implied.
 
+An exact-case offline view may additionally return the entire retained fleet
+membership in device-ID order, at most 100 targets per page. Require canonical
+kind/UUID identity and bind its pagination digest to both that identity and the
+same retained-state/context snapshot; catalog and other-case digests are not
+interchangeable. Validate the whole original scope before returning any page;
+malformed scope or a mismatched retained count refuses detail, never silently
+filters members. Keep reviewed device/intent metadata separate from current
+inventory/policy/cache context, including missing current devices. Reject missing
+cases and out-of-range target pages explicitly. This view has all the same
+read-only/no-initialization/no-resolution boundaries as the catalog above.
+
+Fleet inspection also identifies every captured predecessor ADD separately from
+the cleanup REMOVE outcome. Validate the complete predecessor reference list,
+canonical unique job/device identities and original-scope membership before any
+detail page. The catalog reports malformed references as inconsistent with an
+unknown count, without erasing otherwise valid fleet scope. Detail distinguishes
+retained, not-captured, missing and inconsistent related jobs; never infer ADD
+success from cleanup state or missing evidence. Related job outcome changes
+invalidate the snapshot digest. Queue evidence retention follows the explicit
+UNVERIFIED and WAITING_ADD/ADMITTING/ATTENTION predecessor holds above; this view
+does not resolve those holds or recover evidence pruned by older versions.
+
 ### Reviewed abandonment of restoration incidents — 2026-10-19
 
 Permit a separate optional immutable closure ledger and trusted-host offline
@@ -3508,6 +3550,40 @@ unchanged failure/latch; a closed operational case is not VERIFIED, an executabl
 resolution or permission to resume. Unknown/partial closure state fails closed.
 No live migration/abandonment or consumed-fixture reuse is authorized by shipping
 this implementation.
+
+### Explicit offline resume of unrelated policy — 2026-10-19
+
+Introduce a separate `review-resume-unrelated` / `resume-unrelated-policy`
+maintenance action. This narrowly supersedes the global failed-attempt resume
+block above, not any pair-wide latch. Ordinary `resume-policy` remains unchanged.
+Require the exact explicitly initialized closure ledger and at least one retained
+abandonment decision. Every FAILED/UNVERIFIED restoration attempt must have its
+own consistent immutable closure and unchanged original attempt/evidence. Every
+closed pair must remain retired at the recorded intent/generation and authority;
+missing or changed policy is not proof of isolation. A retained linked job must
+match the original ADD evidence; pruned terminal jobs may remain explicitly
+missing. Retained UNVERIFIED jobs not covered by these exact closed attempts
+still block, including ordinary operations on the same address. No one closure
+silently covers other attempts, devices or generations.
+
+Preserve all other resume prerequisites: stopped services/settled RPCs, separately
+resumed ordinary mutations, desired suspension, no lease/pending work, no waiting/
+attention single or fleet cleanup, complete authority for every enabled target,
+enabled devices, protection priority and backwards-time refusal. Bind a separate
+five-minute confirmation to schema, complete retained context, closure evidence,
+isolated incidents and enabled targets. A standard resume/report digest cannot
+authorize this action. Do not repair, initialize or filter inconsistent evidence.
+
+Use the existing checked exclusive backup and atomic control/audit transaction.
+Clear only desired suspension and advance enabled targets' fresh-read barrier;
+record a distinct audit event with isolated-incident count and evidence digest.
+Preserve retired targets, receipts, failure outcomes, original grants, jobs and
+per-pair no-rearm checks. Do not grant, enqueue, wake workers, change gates or
+query FTD. Resume acknowledgment is not device verification. New authorization,
+ordinary/fleet incident resolution and HTTP resume remain unavailable. Lab
+activation requires separately scoped approval; none is implied by this source
+implementation. Older code retains its stricter refusal and must never be used
+to remove evidence or resurrect an excluded target.
 
 ### Frozen batch standing-policy consent — 2026-10-19
 

@@ -25,7 +25,7 @@ Verified <time class="local-timestamp" datetime="{{ origin.verified_at }}">{{ or
 {% endif %}
 </section>
 <section id="ip-history" data-live-region>
-<h2>History</h2>{% if refresh %}<p class="history-retention">History retention: {{ refresh.history_retention_days }} days. Expired inactive history is purged daily.</p>{% endif %}<ul>{% for event in events %}<li><time class="local-timestamp" datetime="{{ event.timestamp }}">{{ event.timestamp }}</time> — {{ event.event_type }}{% if event.device_hostname %} — {{ event.device_hostname }}{% endif %}{% if event.actor_display_name %} — {{ event.actor_display_name }}{% endif %}</li>{% else %}<li>No recorded events.</li>{% endfor %}</ul>
+<h2>History</h2>{% if refresh %}<p class="history-retention">History retention: {{ refresh.history_retention_days }} days. Expired inactive history is purged daily.</p><p class="history-retention">Unverified operations and unresolved cleanup evidence are kept beyond this period.</p>{% endif %}<ul>{% for event in events %}<li><time class="local-timestamp" datetime="{{ event.timestamp }}">{{ event.timestamp }}</time> — {{ event.event_type }}{% if event.device_hostname %} — {{ event.device_hostname }}{% endif %}{% if event.actor_display_name %} — {{ event.actor_display_name }}{% endif %}</li>{% else %}<li>No recorded events.</li>{% endfor %}</ul>
 </section>
 <script src="/static/freshness.js" defer></script>
 {% endblock %}

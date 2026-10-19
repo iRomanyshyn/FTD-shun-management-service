@@ -44,7 +44,33 @@ Do not rewrite historical log entries except to correct an objective error; add 
   feature-specific validation/security gates. Reconfirm if the target environment
   is unclear or changes beyond the current lab.
 - Prefer small, reviewable changes and preserve existing user work in a dirty tree.
+- On 2026-10-19 the operator approved the exact one-address managed lifecycle
+  experiment in `docs/manual/managed-lifecycle-validation.md`: device 1 /
+  `fpr1010-lab`, unused TEST-NET `198.51.100.252`, reviewed seven-table migration,
+  one standing intent, initial creation, one operator-induced disappearance,
+  one restoration and final combined retirement/removal. The approved
+  trusted-host actor is `maintenance:managed-lifecycle-validation`, with Operator
+  authority limited to this fixture; do not impersonate a Web identity. Temporary
+  gates/profile are limited to that runbook's <=60-minute activation window.
+  Fresh Basic-session absence/unused-address evidence is required before setup.
+  Restore disabled experimental gates/profile and desired suspension afterward,
+  retain evidence/schema, and resume ordinary monitoring. No bulk/fleet test,
+  closure migration, physical reboot, unrelated address or uncertain ADD replay
+  is authorized. This bounded exception does not relax the defaults below.
+  The experiment completed and closed on 2026-10-19 by10:41Z: VERIFIED initial
+  ADD, VERIFIED restoration, VERIFIED combined cleanup, independent Basic
+  evidence, original-key non-reenable and two no-readd baseline reads including
+  restart. Authorization is consumed, not reusable. Current lab retains seven
+  managed tables, one retired generation1 and two verified attempts; do not
+  expect empty optional schemas or erase them. All experimental gates/profile
+  are restored off, desired restoration suspended and ordinary monitoring/work
+  available. New policy activation/fixtures still need separately scoped approval.
 - Use parameterized SQLite access and retain audit events as append-only records.
+- Automatic queue retention must preserve UNVERIFIED jobs and captured ADD
+  predecessors of WAITING_ADD/ADMITTING/ATTENTION cleanup, with linked requests.
+  Age or abandonment never resolves uncertainty. Malformed held fleet references
+  refuse queue pruning; inspection must distinguish ADD evidence from REMOVE
+  attention. Older missing evidence stays missing, never reconstructed as success.
 - Document migration, backup, rollback, and operational impact when changing schemas or deployment configuration.
 - For Python changes, run at least:
 
@@ -120,8 +146,15 @@ Do not rewrite historical log entries except to correct an objective error; add 
   abandonment now has its own explicitly reviewed optional ledger migration and
   five-minute/original-key/typed-IP confirmation. It records immutable minimal
   evidence/receipt, retires current policy and retains original outcomes/latches.
-  No rearm, resume exception, ordinary/fleet resolution or live activation is
-  enabled. Abandoned pairs cannot receive MAINTAIN/restoration, and closure keys
+  No rearm, ordinary/fleet resolution or live activation is enabled. Normal
+  resume remains strict. Separate offline `resume-unrelated-policy` requires
+  an existing closure ledger, exact validation of every failed/uncertain attempt's
+  own abandonment and permanently retired pair, no other uncertainty or pending/
+  attention cleanup, checked backup and a five-minute state-bound review. It
+  resumes only other already enabled policy with a fresh-read barrier; it never
+  clears latches, creates authority, queues work or changes gates. Follow
+  docs/manual/managed-unrelated-resume.md; no lab invocation is authorized.
+  Abandoned pairs cannot receive MAINTAIN/restoration, and closure keys
   cannot gain other authority; original receipts remain observational. Base
   initialization/startup/GET never creates the ledger. Do not invoke migration/
   abandonment in the lab without scoped approval. Follow docs/manual/managed-abandonment.md.
@@ -141,7 +174,8 @@ Do not rewrite historical log entries except to correct an objective error; add 
   migrate, adopt or admit. All live gates remain off. Retirement/
   protection cancel unstarted system ADD atomically; RUNNING remains ordered.
   FAILED/UNVERIFIED latches survive queue retention and new generations; no rearm
-  or HTTP resume route exists. Offline resume refuses those latches; standing
+  or HTTP resume route exists. Normal offline resume refuses those latches;
+  the separate unrelated-policy action preserves them on retired pairs. Standing
   admission remains disabled in the lab. No startup initializes its
   optional attempt ledger. Follow docs/manual/managed-restoration.md; do not
   seed the ledger or enable dispatch/discovery in the lab as a smoke shortcut.

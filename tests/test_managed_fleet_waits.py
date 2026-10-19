@@ -367,7 +367,7 @@ def test_retention_preserves_captured_add_evidence_while_waiting(fixture):
     fleet, waits, clock = fixture
     predecessor = add(fleet)
     fleet.admit(**arguments(fleet))
-    settle(fleet, predecessor)
+    settle(fleet, predecessor, "NOOP")
     clock[0] += timedelta(days=367)
     fleet.queue.prune_completed(366)
     with fleet.store._connection() as db:
@@ -378,6 +378,35 @@ def test_retention_preserves_captured_add_evidence_while_waiting(fixture):
     fleet.queue.prune_completed(366)
     with fleet.store._connection() as db:
         assert not db.execute("SELECT 1 FROM operation_jobs WHERE id=?", (predecessor["id"],)).fetchone()
+
+
+@pytest.mark.parametrize("outcome", ["NOOP", "FAILED", "UNVERIFIED"])
+def test_attention_retains_whole_predecessor_evidence_after_history_cutoff(fixture, outcome):
+    fleet, waits, clock = fixture
+    predecessors = [add(fleet, device=device) for device in (1, 2)]
+    fleet.admit(**arguments(fleet))
+    for predecessor in predecessors:
+        settle(fleet, predecessor, outcome)
+    with fleet.store._connection() as db:
+        db.execute("UPDATE devices SET enabled=0 WHERE id=3")
+    assert waits.advance("worker") == 0 and state(waits)["state"] == "ATTENTION"
+    before = fingerprint(fleet)
+    clock[0] += timedelta(days=367)
+    fleet.queue.prune_completed(366)
+    assert fingerprint(fleet) == before
+
+
+def test_expired_barrier_does_not_make_unknown_add_disposable(fixture):
+    fleet, waits, clock = fixture
+    predecessor = add(fleet)
+    fleet.admit(**arguments(fleet))
+    settle(fleet, predecessor, "UNVERIFIED")
+    clock[0] += timedelta(days=367)
+    assert fleet.queue.claim_cycle("recovered", 135)
+    assert waits.advance("recovered") == 0 and state(waits)["state"] == "EXPIRED"
+    fleet.queue.prune_completed(366)
+    with fleet.store._connection() as db:
+        assert db.execute("SELECT state FROM operation_jobs WHERE id=?", (predecessor["id"],)).fetchone()[0] == "UNVERIFIED"
 
 
 def test_evidence_is_immutable_retained_and_terminal_state_cannot_be_rearmed(fixture):

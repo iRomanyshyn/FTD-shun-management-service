@@ -2,10 +2,34 @@
 
 import json
 import sqlite3
+from uuid import UUID
 
 
 class ManagedStateUnavailable(ValueError):
     pass
+
+
+def captured_fleet_predecessors(raw, target_count, *, device_ids=None):
+    """Parse bounded retained references, never infer malformed evidence is empty."""
+    try:
+        entries = json.loads(raw)
+        if (type(target_count) is not int or not 1 <= target_count <= 1000
+                or not isinstance(entries, list) or not 1 <= len(entries) <= target_count):
+            raise ValueError
+        devices, jobs = {}, set()
+        for entry in entries:
+            if not isinstance(entry, dict) or set(entry) != {"device_id", "job_id"}:
+                raise ValueError
+            device, job = entry["device_id"], entry["job_id"]
+            if (type(device) is not int or not 1 <= device <= 65535 or device in devices
+                    or not isinstance(job, str) or str(UUID(job)) != job or job in jobs
+                    or (device_ids is not None and device not in device_ids)):
+                raise ValueError
+            devices[device] = job
+            jobs.add(job)
+        return devices
+    except (ValueError, TypeError, AttributeError) as error:
+        raise ManagedStateUnavailable("Retained fleet predecessor evidence is inconsistent; no empty scope was inferred.") from error
 
 
 def fleet_waits_present(db) -> bool:

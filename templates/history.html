@@ -5,6 +5,7 @@
 <section id="recent-events" data-live-region class="recent-events" aria-labelledby="recent-events-heading">
 <h2 id="recent-events-heading">Audit events</h2>
 <p class="history-retention">History retention: {{ refresh.history_retention_days }} days. Expired inactive history is purged daily. Events are shown newest first, 100 per page.</p>
+<p class="history-retention">Unverified operations and unresolved cleanup evidence are kept beyond this period.</p>
 {% if pagination.expired %}
 <p role="status">This history window is no longer retained. <a href="/history">Open Latest events</a> to browse the current history.</p>
 {% else %}

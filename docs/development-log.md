@@ -4036,6 +4036,553 @@ reuse the consumed fixture, delete latches or run older writers against future
 managed/closure authority. Use current recovery/maintenance procedures before
 any future authorized migration or downgrade.
 
+## 2026-10-19 — Integrated managed operator lifecycle and prepared lab experiment
+
+Added `tests/test_managed_lifecycle.py`: seven scenarios compose the production
+offline recovery/managed CLIs, checked private backups, Web/BFF frozen standing
+consent, private API and shared worker on disposable SQLite and typed fake
+consoles. No policy/queue SQL edits shortcut initialization, authority, pause/
+resume, attempts or results. A controlled clock exercises persisted >=60-second
+cycle spacing and 300-second per-pair backoff without sleeps; fake observations
+are explicitly synthetic, not SSH/FTD evidence.
+
+Successful device/two-device cases cover empty migration, separate ordinary and
+desired resume, retained original intent/generation/authorization, discovery
+before next-cycle dispatch, restart across cooldown, verified creation, external
+disappearance/restoration, browser combined cleanup, retirement/no-readd and
+original-grant-key non-reenable. The final simulated window restores desired
+suspension/disabled experimental capability and ordinary monitoring with all
+receipts retained. Additional cases cover protection's atomic queued cancellation,
+reviewed weakening and later automatic removal; disabled-controller restart
+without deadline renewal; ADD reply loss surviving presence/absence/restart and
+blocking offline resume; and device/fleet REMOVE reply loss retaining retirement,
+independent member results and honest RECONCILED_ABSENT after a later snapshot.
+Integrity, private backup mode, real system actor/empty roles, zero fabricated
+one-time provenance and absence of implicit closure migration are checked.
+
+All **980 Python tests passed** (46.30 s); seven new cases passed in the focused
+run. Compileall, Ruff and git diff --check pass. Early harness failures were an
+incorrect synthetic datetime return type and guessed audit-event name; corrected
+fixtures to use the actual UTC datetime/event contracts. No production code or
+invariant was weakened. No production source/assets/schema/Rust/protocol/Compose
+or dependency changed. Existing browser checks remain applicable; no unnecessary
+UI test rerun, image build or service restart was performed.
+
+Added structured `docs/manual/managed-lifecycle-validation.md` with the executable
+local acceptance command, evidence matrix and concrete proposed 60-minute live
+window: device1/fpr1010-lab and new TEST-NET fixture198.51.100.252; reviewed base
+managed initialization, one explicit standing intent, initial creation, one
+external disappearance/restoration and final device-scoped retirement/removal,
+two no-readd baseline reads including restart, original-key receipt check and
+restored disabled gates/profile. It specifies private backups, retained schemas/
+evidence, supported real Web or separately authorized trusted-host identity,
+operator Basic-session disappearance with the executor stopped/RPCs settled,
+stop conditions and honest uncertainty. No closure migration, reboot, long list,
+production, auth spoofing or general ADD enablement is implied. Updated manual
+index, contributor/maintenance/restoration manuals, current delivery sequence
+and project status.
+
+Read-only lab preflight at `2026-10-19T09:40:41Z`: device1 enabled; proposed fixture
+cached absent/unprotected, historical fixture jobs0; unfinished/uncertain jobs0;
+optional managed tables absent; addition profiles0; all import/managed/cleanup
+gates false, cycle/large-read true, SQLite quick-check ok. Last normal successful
+read `2026-10-19T09:39:38Z`, no error. Inspection used only private API/local
+read-only SQLite and non-secret setting booleans, without a refresh hint, agent
+RPC, live grant/migration/profile change or device mutation. No actual env,
+inventory, secrets, policy or deployed service state was changed.
+
+The runbook is ready for scoped operator approval and fresh Basic-session absence
+before any live change. Existing lab deployment permission does not cover this
+new migration/policy/device experiment, and the previous one-address permission
+is consumed. Uncertainty resolution for ordinary/fleet incidents, safe unrelated-
+policy resume, fleet/load/traffic/physical-reboot and production acceptance remain
+separate work. No live managed-lifecycle result is claimed.
+
+## 2026-10-19 — Managed lifecycle approval and pre-activation preservation
+
+The operator explicitly approved the prepared one-pair experiment for device1 /
+fpr1010-lab and unused TEST-NET 198.51.100.252: reviewed optional initialization,
+bounded standing grant/temporary capability, initial creation, one Basic-session
+external disappearance, restoration and final combined cleanup. The approved
+trusted-host maintenance actor is limited to this fixture. Recorded the scoped
+exception in AGENTS.md and updated the runbook/status; no general ADD, bulk,
+fleet, reboot, closure migration or uncertainty replay permission is inferred.
+
+Read-only preflight at 2026-10-19T10:02:59Z passed: cached fixture absent,
+unprotected and zero previous fixture jobs; no unfinished/uncertain jobs;
+optional managed tables absent; addition profiles0; all six experimental API
+gates false; socket mode without development authentication. Retained queue
+jobs9, Protected IPs3; SQLite quick-check/foreign-key check pass. Normal refresh
+last succeeded at 10:00:15Z without error. Requested independent fresh Basic
+absence plus unchanged device/version/role and unused-address confirmation.
+
+Created a SQLite-API backup at 10:03:23Z, checked full integrity/foreign keys and
+fixture/no-pending/no-managed-state prerequisites, with exclusive file mode0600
+and parent0700. Volume path:
+`/var/lib/ftd-shun-manager/managed-lifecycle-20261019T1003/before-activation.sqlite3`;
+matching ignored host copy:
+`.local/backups/managed-lifecycle-20261019T1003/before-activation.sqlite3`.
+Both SHA-256: `bb622fbbac0de6b514a161a6fd4621143d026f5e1f6e96342589c590ba758ee6`.
+Retained exact current images under suffix `rollback-managed-lifecycle-20261019T1003`:
+
+- `ftd-shun-api`: `sha256:70a7c1bad1b2f11618094db0a94f1b92276178e11073f2d6b9542e3970852fc3`.
+- `ftd-shun-web`: `sha256:5325a1d3487c0ee64410d0fc741a19dc037564fc0ad1a12ae7425c3653f8573a`.
+- `ftd-shun-agent`: `sha256:72b045e182081c6f2d3c3a7d546a92402dd224179c0891ff7b50c9e85a71df41`.
+
+Preparation only: no production source change, live migration/grant, env/inventory
+edit, service restart, extra device read or device mutation. Services and normal
+monitoring continue unchanged; activation clock has not started. Each later
+offline control still needs its own fresh reviewed state and exclusive backup.
+The pre-test database must not replace later authority/history as routine rollback.
+The previously recorded 980-test integration result is unchanged; this increment
+only records authority and preserves operational artifacts, not live acceptance.
+
+## 2026-10-19 — Scoped managed lab migration, standing consent and activation
+
+Operator supplied `show shun 198.51.100.252` returning only the normal prompt,
+then confirmed the address is unused and the otherwise empty desk FPR1010 has
+only management connected. Rechecked unchanged images and no pending/uncertain
+queue work. Stopped API/Web and agent (agent stop needed its 30-second grace
+period; no queued/running mutation or enabled ADD existed). API/Web were stopped
+before offline suspension; all three were stopped before managed initialization.
+
+Offline networkless UID10001 maintenance used only the state volume and the
+retained matching API image. Every write created its own checked exclusive0600
+backup in `managed-lifecycle-20261019T1003` under the state directory:
+`before-initial-suspend.sqlite3`, `before-initialize.sqlite3`,
+`before-initial-ordinary-resume.sqlite3`, `before-policy-resume.sqlite3`.
+The exact-state initialization review at 10:06:44.905Z was ready/no blockers;
+seven tables created atomically, zero targets adopted, desired suspension kept.
+Ordinary resume cleared only the mutation pause.
+
+Temporarily added device1 profile `fpr1010-766-single-vf-management-v1` and only
+standing admission first; restarted matching API/Web/agent with ADD/controller
+off. Pure classification/frozen request preparation confirmed an absent,
+unprotected exact pair. The approved trusted-host actor
+`maintenance:managed-lifecycle-validation` (Operator, explicitly not a Web
+identity) admitted original request `3a7dd33d-93cf-4fd8-88b1-a94230494105` at
+10:07:57.742Z. Receipt: policy_saved/revision1/changed_targets1/replayedfalse;
+intent `54097200-c6d6-4408-8740-da3e00da594d`, generation1. No fixture job created
+by admission. Original frozen body/key/response are retained as private0600 JSON
+files alongside backups; no replacement key on unknown outcomes.
+
+Inspection caught that early ad-hoc fixture SQL checks used text against packed
+IPv4 BLOB columns. Corrected the temporary observer and rechecked both original
+backup and current database using IPv4Address(...).packed before execution:
+zero fixture jobs, active observations and protected rows in both. Production
+classification/admission already used packed values and refused adoption;
+no production guard was changed or bypassed.
+
+Stopped all three services again. Offline policy review at 10:08:32.028Z was
+ready and contained exactly the original pair/intent/generation/authority.
+Reviewed resume raised revision2 and absence barrier10:08:57.860Z; no job queued
+by that control. Enabled API ADD execution/controller/cleanup worker/cleanup
+admission and agent ADD, retaining cycles/large reads and keeping one-time import
+admission false. Matching API/Web/agent restarted at approximately10:09Z;
+activation must end by11:09Z. Caddy/Authelia unchanged. No broad import or direct
+CLI mutation was sent.
+
+First successful complete read started10:09:02.269Z and completed10:09:09.982Z.
+Discovery admitted attempt `c3fa4a90-8669-5fd8-8d67-06285b4c885f`, job
+`1812e4de-ac7c-47d7-b5ab-b70c8f54ff4c`, snapshot
+`fac1be68-15a1-465b-930a-f75ec6cc8c41`; original intent/generation/request retained,
+system actor `system:managed-shun-policy`, empty roles and 900-second deadline
+10:24:09.993Z. At10:09:27Z it is QUEUED behind the frozen cutoff/cooldown
+(next eligible10:10:11.495Z), not verified creation. No unrelated pending work.
+Normal read has no error. Creation, operator external loss, verified restoration,
+combined cleanup, no-readd checks and disabled-mode closure remain pending.
+
+## 2026-10-19 — First live managed creation verified; external-loss checkpoint
+
+The first managed system attempt `c3fa4a90-8669-5fd8-8d67-06285b4c885f` /
+job `1812e4de-ac7c-47d7-b5ab-b70c8f54ff4c` started at10:10:19.039Z and completed
+**VERIFIED** at10:10:26.130Z, interface management, occurrence
+`015b19c3-dc2e-4560-890e-97ffdef8c227`. The same standing intent/generation1 /
+original authorization remain enabled; complete final snapshot succeeded at
+10:10:27Z with no reported error. No new or duplicate attempt appeared and the
+original 900-second deadline was not extended. No one-time import was admitted.
+
+At10:10:39Z the shared executor was released, next eligible10:11:27.598Z.
+Stopped API/Web gracefully for the approved operator-induced disappearance;
+then independently checked both containers exited, zero QUEUED/RUNNING/FAILED/
+UNVERIFIED jobs, null executor owner/lease and exactly one VERIFIED restoration
+attempt. Agent remains running but has no active service executor. Caddy and
+Authelia were not changed; Web is deliberately unavailable while paused.
+
+Asked the operator to obtain Basic `show shun` presence, remove only the exact
+expected `.252` management row once, then obtain absence. Unexpected initial
+output must stop manual deletion. No external disappearance has yet been
+reported, so no restoration success is claimed. Temporary settings/profile
+remain configured; do not restart API/Web outside this runbook. Activation
+window still ends11:09Z and must be checked on continuation. If that deadline
+has passed, do not resume restoration as though authorization renewed; close
+the window safely and request an extension for remaining test activity.
+Current records pass git diff --check; production source/test result unchanged.
+
+## 2026-10-19 — Independent external disappearance and restoration observation
+
+The operator supplied Basic-session presence of the exact management `.252` row,
+then `no shun 198.51.100.252 interface management`, followed by `show shun`
+returning only the normal prompt. API/Web were stopped, no pending/uncertain
+job/lease existed and the service did not perform this external deletion. Original
+standing intent/generation and successful initial occurrence remain retained.
+At10:12:19Z checked the original11:09Z activation deadline had not elapsed and
+all three deployed image IDs matched the retained set.
+
+`compose start api web` unexpectedly reran socket-init; its recursive chown
+failed with Permission denied on `/state/backups` and the new private lifecycle
+backup directory. API/Web remained stopped. Did not change backup permissions,
+grant capabilities or repeat the initializer. Started only the already initialized
+API/Web with `up -d --no-deps` successfully; agent/Caddy/Authelia unchanged.
+Recorded the safe existing-volume restart procedure and a required initializer
+follow-up in the lifecycle manual. This startup failure is not an FTD command
+failure, new attempt or uncertain ADD; no rekey/retry of device work occurred.
+
+Complete normal snapshot at10:12:52Z confirmed fixture absence and no device-read
+error. Exactly the original VERIFIED attempt remains; the controller reports
+`backoff` until10:14:09.993Z (300 seconds after original admission). Next baseline
+is10:17:52Z, not an immediate write at backoff expiry. No interval/clock/cutoff
+was changed and no refresh hint/manual ADD was submitted. Awaiting natural
+discovery and the subsequent eligible dispatch. Prepared, but have not executed,
+a bounded exact-pair final-cleanup helper requiring two VERIFIED attempts,
+original intent/generation and no pending/uncertain work; it cannot widen scope.
+
+## 2026-10-19 — Live restoration verified; independent confirmation checkpoint
+
+Kept normal baseline300s, cycle cooldown>=60s and per-pair backoff300s unchanged.
+At10:14:18Z the read-only hold became awaiting_snapshot, not an immediate new ADD.
+Next complete read started10:17:53.031Z and completed10:18:00.162Z, snapshot
+`ad3551d7-5b0f-41d1-b56d-1d8b63f0d916`. Discovery admitted exactly one new attempt
+`4a175cb2-513c-5351-a3e1-875c35011524`, job
+`37e3106e-ac84-446f-a312-6ec953d184a8`, at10:18:00.170Z. Original intent
+`54097200-c6d6-4408-8740-da3e00da594d`, generation1, authorization request and
+revision2 were retained; separate system delegation/empty roles expires at
+10:33:00.170Z. No deadline renewal, key reuse or one-time import.
+
+The next eligible cycle started the ADD at10:19:09.237Z and completed
+**VERIFIED** at10:19:16.627Z on management, distinct occurrence
+`fd8a7b09-f06b-46a2-87f4-508e0d73c0e6`. Final complete snapshot succeeded at
+10:19:18Z without error. Exactly two attempts remain VERIFIED; no third attempt,
+unrelated job or uncertainty. This is agent-verified restoration after the
+operator's confirmed external disappearance, not physical-reboot/traffic proof.
+
+Prepared (NOT submitted) exact device cleanup with original key
+`4e11c548-34e0-461d-8a2b-ca7a22247169`, original intent/generation, managed revision2,
+TTL900s and digest
+`d5e44cab5fd84a4d4497ea67cc95c0d47c3660bfbd3136e74d32458c21d137b6`.
+Frozen body is private0600 `cleanup-request.json` beside prior artifacts; retain
+this key/body on continuation, never silently regenerate it. Preparation required
+both VERIFIED attempts and no pending/uncertain work and did not retire policy,
+create a handoff or enqueue REMOVE.
+
+Stopped API/Web gracefully again to avoid unattended execution while waiting
+for independent Basic `show shun 198.51.100.252`. Verified both exited, no executor
+owner/lease, no QUEUED/RUNNING/FAILED/UNVERIFIED jobs, exactly two VERIFIED
+management attempts and zero cleanup handoffs. Agent remains running, Web is
+deliberately unavailable, experimental config/profile remain set. Original
+activation deadline11:09Z still applies; check it before continuation. Final
+independent presence, cleanup, no-readd cycles/restart/replay and desired
+suspension/restored gates are pending, not claimed complete.
+
+Read-only integrity checks confirmed five unrelated tables exactly equal to the
+pre-activation backup: protected_ips, protected_policy, manual_import_batches,
+shun_import_origins and devices. Seven managed tables only; FK check clean;
+private artifact modes0600 and directory0700 unchanged after socket-init failure.
+Repeated all seven synthetic lifecycle cases (4.48s), then full validation:
+**980 passed in46.71s**, compileall/Ruff/diff clean. The first sandboxed focused
+test process stalled on local IPC and was terminated without touching services;
+the normal-permission rerun passed. No production source change was made.
+
+## 2026-10-19 — Independent restoration, verified cleanup and replay/restart checks
+
+Operator Basic-session output independently confirmed restored management `.252`.
+At10:22:27Z the original11:09Z window was still valid; restarted the same API/Web
+with `up -d --no-deps`, leaving agent unchanged. Submitted previously frozen
+cleanup key `4e11c548-34e0-461d-8a2b-ca7a22247169` without regenerating/rebasing.
+Response202 accepted/replayedfalse/waitingfalse; the transaction retired the
+original generation at10:22:43.999Z, revision3, and queued REMOVE job
+`f4c11dbf-cd41-4d76-ae9b-4ceb462b026a`. No separate policy-write loop or direct
+agent mutation was used.
+
+REMOVE started10:23:54.189Z and completed **VERIFIED** at10:24:05.666Z. Complete
+final snapshot at10:24:07Z confirmed absence without error. Operator supplied
+independent Basic `show shun 198.51.100.252` returning only the prompt. Exactly
+two VERIFIED ADD attempts remain and the fixture has exactly three VERIFIED
+jobs (ADD, ADD, REMOVE), with no pending/uncertain work or unrelated mutation.
+
+Replayed original standing UUID/body while its admission gate remained enabled:
+200 policy_saved with historical revision1/changed_targets1/replayedtrue. Actual
+policy stayed disabled at revision3 with the original retirement timestamp; no
+new grant, generation, attempt or queue entry. Retained replay response privately.
+Restarted API/Web after removal with controller gates still on: first complete
+post-restart snapshot at10:25:17Z confirmed absence, stopped policy and exactly
+two attempts. Two scheduled baseline cycles and final offline suspension/
+ordinary resume/configuration closure are still pending at this checkpoint.
+
+## 2026-10-19 — Root-only socket/state initialization fix (validated, rollout pending)
+
+Removed recursive chown from the one-shot socket-init command: it initializes
+only /web, /api, /state and the existing agent root/mode sequence. It never
+traverses private backups, existing database files or child symlinks. Preserved
+CHOWN-only capability, network none, read-only filesystem and no-new-privileges;
+did not add DAC_OVERRIDE or relax permissions. Added a static command/sandbox
+contract regression, and deployment instructions for restored-file ownership,
+existing-volume service-only updates, initializer recreation and rollback caveat.
+
+Disposable Docker regression used ONLY its newly created synthetic volume:
+reproduced old Permission denied on a0700 child directory, then ran the new
+command twice successfully and verified0600 backup content,0700 directory,
+unchanged child ownership and retained symlink. An initial fixture-provisioning
+run used the API image's non-root default UID and failed before initializer
+testing; corrected only synthetic provisioning to root+CHOWN. Both disposable
+volumes were removed; only synthetic data was deleted, no lab artifact touched.
+Compose config --quiet passes using copies of the tracked Compose and .env.example
+under private temporary /tmp configuration, never actual credentials. Focused
+unit/Ruff/diff pass; full regression is running. No actual lab initializer
+replacement yet; API/Web no-readd baseline observation continues unchanged.
+
+## 2026-10-19 — First scheduled no-readd baseline and final-source validation
+
+First scheduled post-restart baseline completed at10:30:26Z. Recorded private
+`baseline-1.json` at10:30:45.391Z after full SQLite integrity/FK checks: fixture
+absent, original intent generation1 retired, exactly two VERIFIED attempts and
+three VERIFIED fixture jobs, no pending/FAILED/UNVERIFIED work. Total retained
+queue11 VERIFIED/1 NOOP. Controller/ADD capabilities still on, so this checks
+retirement itself rather than a global gate hiding an active policy. Entire
+pre-test audit remains unchanged and retained; five unrelated policy/import/
+device tables equal the initial backup. Next normal baseline due10:35:26Z.
+Preserved another private host artifact copy under
+`.local/backups/managed-lifecycle-20261019T1030/` (directory0700/files0600).
+
+Initializer fix final-source validation: **981 Python tests passed in47.85s**,
+compileall/Ruff/diff clean. Architecture now explicitly requires root-only volume
+ownership preparation and reviewed offline restoration of child ownership, no
+recursive startup repair or privilege broadening. Current lab initializer still
+awaits replacement after the active lifecycle observation window; no API/agent
+binary rebuild or dependency change is needed for the Compose-only fix.
+
+## 2026-10-19 — Stable baseline observation and preserved initializer regression
+
+An additional complete read at10:33:38Z again confirmed absence and moved the
+next baseline from10:35:26Z to10:38:38Z. Did not count an expired old deadline as
+a completed scheduled cycle. Stopped only Web to prevent browser refresh hints
+from repeatedly moving the baseline; API and normal monitoring continue, with
+two retained attempts and zero pending/uncertain work. Added this practical
+observation procedure to the runbook. No polling interval or device state changed.
+
+Verified Caddy HTTPS with normal certificate validation and no identity headers:
+302 authentication redirect. All337 local documentation links resolve. The
+initializer's temporary regression volume has been deleted (synthetic fixtures
+only); actual checked SQLite/receipt artifacts remain on-volume and in private
+host copies. Final ordinary monitoring/Web restoration follows the second real
+scheduled baseline, not a fabricated or accelerated observation.
+
+## 2026-10-19 — Managed lab lifecycle completed, disabled-mode closure and initializer rollout
+
+Second actual scheduled baseline completed10:38:47Z; retained private
+`baseline-2.json` at10:38:50.221Z verifies no re-add with controller/ADD gates
+still enabled, original policy retired and exactly two attempts/three fixture
+jobs VERIFIED. Prior audit remains unchanged; five unrelated tables match the
+pre-test backup; no pending/uncertain work. Independent Basic final absence was
+already supplied by the operator. This completes required no-readd observation,
+including API/Web restart and original-key non-reenable, without accelerated
+timers or a replacement grant.
+
+Stopped API/Web/agent and confirmed all exited before offline closure. Checked
+`suspend` then reviewed `resume-mutations` each created a new0600 backup:
+`before-final-suspend.sqlite3` and `before-final-ordinary-resume.sqlite3` in the
+existing private lifecycle directory. Both controls committed; zero queued,
+running, waiting or active-request cancellation was required. Desired restoration
+is suspended, ordinary mutation handling resumed, evidence/retired intent intact.
+Removed only the temporary seven .env keys (returning to original absent/default-
+off values) and the device1 addition_profile. Cycle/large-read mode unchanged.
+
+With services stopped, recreated the validated socket-init from the root-only
+Compose command: exited0 on the actual lab volumes. Private directory0700,
+artifact0600/UID10001 remained unchanged. No recursive chown, extra capability,
+data migration or backup restore. Recreated API/Web/agent using the same retained
+image IDs and original disabled configuration; Caddy/Authelia unchanged.
+
+Final normal snapshot succeeded10:41:03Z without error. Private `closed.json`
+at10:41:21.647Z verifies all six API experimental gates false, no addition profiles,
+socket mode/development-auth false, desired suspensiontrue, ordinary pausefalse,
+fixture absent, retired generation1, two VERIFIED attempts, three VERIFIED
+fixture jobs, total queue11 VERIFIED/1 NOOP and no pending/FAILED/UNVERIFIED work.
+Agent ADD environment is again absent/default-off; its cycle mode remains true.
+All seven optional tables remain; no closure ledger initialized. TLS-verified
+HTTPS returns normal302 authentication redirect. Window closed well before11:09Z;
+the one-fixture authorization is now consumed and must not be reused.
+
+Created full integrity/FK-checked exclusive0600 post-test SQLite-API backup:
+`/var/lib/ftd-shun-manager/managed-lifecycle-20261019T1003/after-closure.sqlite3`.
+SHA-256 `38dbde59910d55c78350fae8157166445a1a78320f97e087d8bfdbbad861cfb4`;
+matching ignored host copy plus all original reviews/receipts/maintenance backups
+under `.local/backups/managed-lifecycle-20261019-final/` (directory0700/files0600).
+No pre-test database replaced live evidence and no table/history was dropped.
+
+Updated status/runbook/working agreement/maintenance/restoration manuals and
+delivery order to distinguish completed one-device SSH lifecycle from remaining
+ordinary/fleet uncertainty resolution, safe unrelated-policy resume, bulk/load,
+traffic, actual reboot and production acceptance. The deployment initializer
+fix has981 passing tests (47.85s), compileall/Ruff/diff, disposable-volume
+reproduction and sanitized Compose validation; no Rust/protocol/binary change.
+No further operator CLI commands are required for this completed experiment.
+
+## 2026-10-19 — Exact-case read-only inspection with complete fleet pagination
+
+Added offline `attention-case --case-id kind:UUID` alongside the existing
+attention catalog. Shared schema/capacity/metadata validation and fingerprinting
+remain read-only and caller-transaction-bound. The command supports retained
+ordinary UNVERIFIED operations, FAILED/UNVERIFIED restoration attempts and
+single/fleet ATTENTION cleanup; it never creates optional tables or a database.
+
+Fleet detail validates the entire original scope and matching barrier count
+before exposing any page. Returns up to100 targets in device-ID order with
+reviewed metadata separate from current context. Missing current inventory or
+policy does not reduce original membership. Original intent/generation, outcomes,
+predecessor semantics and missing/pruned job evidence remain explicit. No raw
+CLI/error/comment/credential or full admission payload is exported. Malformed
+scope stays honestly inconsistent in the catalog and refuses detailed pages.
+
+Detail pagination hashes a versioned domain, exact case ID and retained-state
+snapshot. Other-case/catalog digests, context changes, invalid IDs, missing cases
+and out-of-range pages refuse rather than silently rebasing. The digest grants
+no write authority. No audit, backup, policy retirement, latch change, retry,
+queue insertion, feature gate, RPC or HTTP route was added. Original restoration
+abandonment and all no-rearm/resume guards are unchanged.
+
+Validation:26 new disposable-SQLite regressions cover all four case kinds,
+205-target complete paging, original/current metadata and missing devices,
+cross-case/catalog digest separation, changed observation, invalid last-page
+target/count, strict IDs/pages, missing cases/files, partial schema, read-only
+transaction/zero changes and CLI argument separation. Full suite1007 passed in
+47.35s; compileall/Ruff/module CLI help/git diff checks pass. Package wheel build
+was not run: local build/hatchling packages are absent; source/module CLI and
+existing entrypoint routing were tested. No lab DB access or service deployment
+was needed; existing lab stack and disabled gates were not changed.
+
+Updated normative attention boundary, operator manual/index, plan and status.
+Remaining: executable ordinary/fleet incident decisions and safe unrelated-policy
+resume with immutable outcomes/whole-scope authority. Complete read-only scope
+inspection is a prerequisite, not uncertainty resolution or production acceptance.
+
+## 2026-10-19 — Reviewed offline resume of unrelated standing policy
+
+Added an explicit architecture amendment and separate `review-resume-unrelated`
+/ `resume-unrelated-policy` actions. Normal policy resume retains its global
+failure refusal. The new action requires an already initialized exact closure
+ledger and validates every immutable abandonment request/evidence/receipt against
+the original attempt, retained job/delegation and current retired policy.
+Each FAILED/UNVERIFIED attempt needs its own decision, including multiple attempts
+on one pair. Missing/changed/re-enabled retired targets refuse; pruned terminal
+jobs/delegations remain explicitly missing, never recreated or verified. Changed
+or independently linked system requests cannot borrow a closure's exclusion.
+
+No other UNVERIFIED operation, pending queue/restoration, lease, waiting/ATTENTION
+single/fleet cleanup or transitional fleet root is exempted. All existing healthy
+target/standing-authority/device/protection/time prerequisites remain. The new
+action binds its five-minute confirmation to complete managed context, exact
+case/job/link/delegation/cache state and isolation summaries. Cross-action/stale
+reviews refuse without rebase. No operator-supplied exception list, rearm, HTTP
+route, schema initialization, new desired authority or device command exists.
+
+Reused checked exclusive SQLite backups and savepoint-protected control/audit.
+Only desired suspension and enabled targets' fresh-read revision/barrier change.
+Retired policies, consent, closure receipts, attempts, queue contents and original
+FAILED/UNVERIFIED results remain unchanged. Distinct audit includes the isolated
+incident count and summary digest, review/state digest and trusted-host actor;
+it makes no claim of device success. Existing default-off discovery/dispatch and
+pair-wide abandonment/latch checks remain in effect after a reviewed restart.
+
+41 new disposable-state tests exercise successful FAILED/UNVERIFIED isolation,
+read-only preparation, old-command refusal, retained/pruned jobs/delegations,
+default-off/fresh-snapshot behavior, no rearm/original-key replay, extra attempts,
+ordinary/fleet blockers, contradictory closures, extra request links, changed
+context/delegations, stale/future/late expiry, caught audit rollback and the real
+CLI checked backup. Initial tests exposed the actual trusted-policy delegation
+link (not a user request): validation now checks its exact source/actor/empty
+roles/payload/timing/link binding while refusing additional delegation, rather
+than incorrectly rejecting every valid system job.
+
+Final validation: all **1048 Python tests pass** in52.14s, including41 new cases;
+compileall, Ruff, module CLI help and git diff checks pass. No Rust, protocol,
+Compose or browser asset change in this increment; those build/rollout paths
+were not invoked.
+
+Updated architecture, working agreement, operator manual/index, abandonment/
+attention/restoration/maintenance procedures, plan and status. No live DB access,
+deployment/restart, closure migration, profile/gate enablement or FTD operation
+was performed; this offline source increment does not require service rollout.
+Existing consumed lab fixture authority is unchanged. Ordinary/fleet incident
+closure and live recovery/bulk/load/reboot/production acceptance remain pending.
+
+## 2026-10-19 — Preserve unresolved queue evidence and expose fleet predecessors
+
+While preparing ordinary/fleet incident handling, found that daily completed-job
+retention could delete UNVERIFIED work and captured ADD predecessors after cleanup
+entered ATTENTION. This lost diagnostic/request evidence and could remove an
+ordinary uncertainty blocker merely through age. Queue pruning now retains those
+jobs and linked requests/batches; predecessor holds cover WAITING_ADD, ADMITTING
+and ATTENTION. UNVERIFIED retention is independent of barrier expiry/cancellation
+or restoration abandonment. Existing complete-read REMOVE reconciliation remains
+RECONCILED_ABSENT, not VERIFIED, and follows ordinary retention once not held.
+
+Pruning acquires one write transaction before optional-state reads, validates
+canonical bounded unique fleet predecessor references, and refuses malformed held
+references before deleting queue rows. Irrelevant terminal barrier JSON is not
+evaluated. Queue deletion, orphan cleanup and purge audit roll back together;
+separate event/inactive-state retention is not part of this transaction.
+
+Offline fleet detail validates all references against the complete original scope
+before paging. Per-target predecessor evidence exposes the original ADD role,
+outcome and request count separately from REMOVE/ATTENTION. Missing, uncaptured
+and inconsistent jobs remain explicit. Catalog reports reference inconsistency
+without erasing a valid original fleet scope; changed predecessor outcomes invalidate
+detail snapshots. No writes, fabricated verification, retry or device command.
+History and detail pages explain why unresolved evidence can exceed retention.
+
+29 new disposable-state regressions cover 367-day ADD/REMOVE evidence/link/batch
+retention, old-key replay, real absence reconciliation, atomic audit rollback,
+single/fleet ATTENTION with NOOP/FAILED/UNVERIFIED predecessors, expired barriers,
+five original ADD states, missing/wrong-action evidence, malformed references and
+changed digests. Updated older tests that expected UNVERIFIED jobs to disappear:
+retained original keys now reject reuse at the existing idempotency guard, while
+FAILED history can still expire and its independent restoration latch remains.
+Full Python suite **1077 passed in53.62s**; **27 Chromium tests passed** in110.36s,
+including the retention notice. Compileall/Ruff/git diff checks pass. No Rust or
+protocol changes, and no new Compose changes in this increment.
+
+Authorized lab deployment rebuilt/recreated API/Web only. Retained rollback tags
+`ftd-shun-api:rollback-retention-evidence-20261019T1137` and
+`ftd-shun-web:rollback-retention-evidence-20261019T1137`. Checked online SQLite
+backup (quick_check ok, no FK violations), private0700 directory/0600 file:
+`/var/lib/ftd-shun-manager/retention-evidence-20261019T1137/before-update.sqlite3`,
+SHA-256 `3966fe4d3fa950eb72aa69003568e783b321a80e739112c780bf4a05cc5501a4`.
+New API image `f9a4e1500f9e022b3d876b3a7c59ca85b9c8d261aebd6149371485b5d148437e`;
+Web `04f4e4bbe0a9d1dd364f6324fe7c0a8abf2e902557f144d5440dd8a5a791594c`.
+Agent unchanged at `72b045e182081c6f2d3c3a7d546a92402dd224179c0891ff7b50c9e85a71df41`.
+
+Post-deployment API ready/socket, successful normal read `2026-10-19T11:41:58Z`,
+no error; TLS-auth redirect302 and only loopback443 published. New pruning source
+and both retention notices verified in running images. SQLite quick_check/FKs
+pass; queue unchanged11 VERIFIED/1 NOOP, zero pending; registry4/suspended,
+enabled targets0, seven optional tables/no closure ledger. Six experimental API
+gates and development auth remain false, addition profiles0. Initial read-only
+queue check used a nonexistent `status` column; corrected to `state` and repeated
+successfully without changing data. No new fixture, grant, mutation, migration,
+offline resume/closure invocation or agent restart. Previously source-only offline
+inspection/resume modules are packaged but not activated.
+
+Updated architecture, working agreement, retention/attention/cleanup/restoration/
+unrelated-resume manuals, plan and status. Rollback needs paired images and current
+evidence review: older code does not honor these new retention holds. Do not restore
+the backup over current state or start an old pruner to undo this fix. Follow offline
+recovery before any approved rollback; backups do not authorize request replay.
+There is no schema migration. Already-pruned historical evidence stays missing;
+unresolved records can increase storage. Executable ordinary/fleet incident closure,
+bounded archival and separately approved load/recovery/production acceptance remain
+pending. Evidence preservation is a prerequisite, not incident resolution.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

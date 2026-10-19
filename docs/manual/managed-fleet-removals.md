@@ -115,7 +115,10 @@ Even ready/coalescible targets reserve slots conservatively. Intake counts one
 submission per actor/minute, including after cancellation. No refund, new grant
 or renewed deadline is created by promotion. ADD cannot newly enter a reserved
 pair; MAINTAIN is blocked while the fleet waits or needs attention. Retention
-preserves captured predecessor jobs while waiting.
+preserves captured predecessor jobs and linked requests in WAITING_ADD,
+ADMITTING and ATTENTION. Malformed held predecessor references abort queue pruning
+transactionally. UNVERIFIED jobs remain retained even after barrier expiry or
+cancellation; neither age nor an abandoned restoration releases that hold.
 
 `ManagedFleetWaits.advance()` requires the current shared executor lease and is
 bounded to 1–16 roots per call. Roots still waiting on a RUNNING ADD are skipped

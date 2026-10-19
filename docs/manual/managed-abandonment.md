@@ -10,10 +10,12 @@ ADD, submits REMOVE, changes an outcome to VERIFIED or clears a restoration latc
 Already retired target dates and original consent are preserved.
 
 This closes the operational maintenance decision, **not the unknown device
-outcome**. Policy resume still refuses retained FAILED/UNVERIFIED attempts and
-uncertain jobs, including abandoned ones. Resuming unrelated healthy policy,
-rearm/new authorization and ordinary/device/fleet cleanup incident resolution
-remain separate unimplemented controls. Abandonment permanently blocks MAINTAIN
+outcome**. Normal policy resume still refuses retained FAILED/UNVERIFIED attempts
+and uncertain jobs, including abandoned ones. Separate
+[Unrelated Policy Resume](managed-unrelated-resume.md) can resume healthy enabled
+targets after exact closure/isolation validation; abandonment alone never resumes
+anything. Rearm/new authorization and ordinary/device/fleet cleanup incident
+resolution remain unimplemented. Abandonment permanently blocks MAINTAIN
 and restoration for this pair in the current implementation. It is not a retry.
 
 There is no HTTP route, Web confirmation or automatic startup migration. No

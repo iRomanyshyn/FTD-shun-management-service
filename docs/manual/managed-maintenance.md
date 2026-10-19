@@ -109,7 +109,11 @@ It changes no latch or authority and cannot make a blocked resume ready.
 Separate [Incident Abandonment](managed-abandonment.md) commands can explicitly
 add a retained closure ledger and retire current policy for one restoration case.
 They require their own review/backup; base `initialize` still creates only seven
-tables. Abandonment preserves the failure latch and **does not relax resume**.
+tables. Abandonment preserves the failure latch and **does not relax this normal
+resume command**. A separate [Unrelated Policy Resume](managed-unrelated-resume.md)
+workflow can resume other enabled targets only after validating every retained
+abandonment and its permanently retired pair. Ordinary/fleet uncertainty still
+blocks; neither command clears a latch or rearms a closed pair.
 
 ```bash
 ftd-shun-managed-maintenance resume-policy \
@@ -150,3 +154,10 @@ digest/revision/protection/device/clock conflicts, backup/no overwrite, retained
 uncertainty/barriers, CLI confirmations and post-resume fresh-snapshot gating.
 Existing recovery/source/queue suites remain required. This is not live reboot,
 restoration, rollback or production acceptance.
+
+The integrated [Managed Lifecycle Validation](managed-lifecycle-validation.md)
+now exercises these CLI controls, including checked backups, with actual browser
+consent and shared dispatch/cleanup on disposable state. Its separately approved
+one-fixture lab migration/resume/create/restore/retire test completed on2026-10-19;
+the lab retains initialized tables and retired policy, with gates off and desired
+restoration suspended. This consumed approval does not authorize another activation.

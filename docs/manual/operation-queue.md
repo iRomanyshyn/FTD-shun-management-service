@@ -70,6 +70,10 @@ summary, not a full paginated queue browser.
 BFF polling updates it locally without generating CLI queries. Hiding completed
 rows does not delete or requeue them: they remain under the configured history
 retention (366 days by default), with the same idempotency and no-replay rules.
+UNVERIFIED jobs are an exception: age never clears uncertainty. Captured ADD
+predecessors of WAITING_ADD, ADMITTING or ATTENTION cleanup are also retained,
+including their linked requests/batches. These records may outlive the configured
+window; hiding them in the UI is not resolution or deletion.
 In session mode it also shows the active device/action/IP, completed item
 count, priority wait/read state, and budget deferral. An eligible refresh
 button can request a priority snapshot while background removals continue;
@@ -203,8 +207,16 @@ Audit uses `SHUN_OPERATION_*`. JSON stdout events include
 `queue.removal.unverified`, and `queue.executor.recovered`. Join parent request
 and job IDs. Experimental pre-write deferral also emits `queue.removal.deferred`;
 multiple actor events do not imply multiple CLI writes. Completed
-queue records follow configured history retention; unfinished QUEUED/RUNNING
-work is preserved until settled.
+queue records normally follow configured history retention; QUEUED/RUNNING and
+UNVERIFIED work is preserved, as are captured predecessors still needed by
+WAITING_ADD, ADMITTING or ATTENTION single/fleet cleanup. An existing complete
+read can reconcile an uncertain REMOVE as RECONCILED_ABSENT, never VERIFIED;
+that settled record follows normal retention unless another evidence hold applies.
+Fleet predecessor references are validated before deleting queue records in the
+same transaction. Malformed held references abort queue pruning, not silently
+release evidence. Audit-event retention remains separately configured; this is
+not indefinite retention of every historical event. Older already-pruned evidence
+cannot be recovered by this change. There is no automatic incident archive/closure.
 
 ## Managed-policy admission guard
 

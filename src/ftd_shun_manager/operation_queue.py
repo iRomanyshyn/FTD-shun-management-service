@@ -12,6 +12,7 @@ from uuid import uuid4
 from .agent_protocol import AdditionResult, _valid_interface
 from .import_intent import canonical_import
 from .managed_safety import (
+    captured_fleet_predecessors,
     fleet_target_held,
     fleet_waits_present,
     require_fleet_queue_key,
@@ -807,16 +808,22 @@ class OperationQueue:
     def prune_completed(self, retention_days: int) -> None:
         cutoff = stamp(self._now() - timedelta(days=retention_days))
         with self.store._connection() as db:
+            db.execute("BEGIN IMMEDIATE")
             preserve = ""
             if self._handoffs_present(db):
                 preserve = """ AND NOT EXISTS (SELECT 1 FROM managed_removal_handoffs h
-                    WHERE h.predecessor_id=operation_jobs.id AND h.state='WAITING_ADD')"""
+                    WHERE h.predecessor_id=operation_jobs.id AND h.state IN ('WAITING_ADD','ADMITTING','ATTENTION'))"""
             if fleet_waits_present(db):
+                for row in db.execute("""SELECT predecessors_json,target_count FROM managed_fleet_waits
+                        WHERE state IN ('WAITING_ADD','ADMITTING','ATTENTION')"""):
+                    captured_fleet_predecessors(row["predecessors_json"], row["target_count"])
                 preserve += """ AND NOT EXISTS (SELECT 1 FROM managed_fleet_waits w,
-                    json_each(w.predecessors_json) p WHERE w.state='WAITING_ADD'
+                    json_each(CASE WHEN w.state IN ('WAITING_ADD','ADMITTING','ATTENTION')
+                        THEN w.predecessors_json ELSE '[]' END) p
+                    WHERE w.state IN ('WAITING_ADD','ADMITTING','ATTENTION')
                     AND json_extract(p.value,'$.job_id')=operation_jobs.id)"""
             deleted = db.execute("""DELETE FROM operation_jobs
-                WHERE state NOT IN ('QUEUED','RUNNING') AND completed_at<?""" + preserve, (cutoff,)).rowcount
+                WHERE state NOT IN ('QUEUED','RUNNING','UNVERIFIED') AND completed_at<?""" + preserve, (cutoff,)).rowcount
             db.execute("""DELETE FROM operation_requests WHERE requested_at<?
                 AND NOT EXISTS(SELECT 1 FROM operation_links WHERE request_id=operation_requests.id)""", (cutoff,))
             batches_deleted = db.execute("""DELETE FROM manual_import_batches WHERE requested_at<?

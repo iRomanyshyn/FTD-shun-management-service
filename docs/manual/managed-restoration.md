@@ -120,7 +120,10 @@ outcomes, policy or current controller capability.
 An explicitly migrated [abandonment ledger](managed-abandonment.md) can record
 offline revocation of current maintenance for a restoration incident. It keeps
 original FAILED/UNVERIFIED outcomes/latches and blocks subsequent MAINTAIN and
-restoration for the pair; it is not rearm or a policy-resume exception.
+restoration for the pair; abandonment alone never resumes anything. Separate
+[Unrelated Policy Resume](managed-unrelated-resume.md) validates all closed pairs
+and resumes only other enabled targets, retaining these per-pair latches and all
+controller/gate/fresh-read checks. Normal policy resume remains strict.
 
 Exact pre-write deferral reuses the same job/deadline. Unknown reply or lost lease
 becomes retained UNVERIFIED, never an automatically replayed ADD. A future
@@ -155,8 +158,12 @@ and last verified restoration with timezone without enabling the controller.
 Explicit isolated `initialize()` requires the existing registry/queue and adds
 `managed_restoration_attempts`: at most 10000 retained immutable authority keys.
 Terminal outcomes/provenance cannot be rewritten, deleted or rearmed. Job IDs
-are retained as evidence without preventing normal completed-queue retention.
-Failure latches, original keys and verified provenance survive job/request pruning.
+are retained as evidence independently of ordinary completed-queue retention.
+UNVERIFIED jobs and cleanup-held predecessors are excluded from automatic queue
+pruning, with their linked requests. Other terminal jobs (including FAILED when
+not held) can still expire. Failure latches, original keys and verified provenance
+survive job/request pruning. Previously pruned evidence remains explicitly missing;
+an abandonment receipt does not make a retained UNVERIFIED job disposable.
 Root and job keys cannot acquire ordinary/import/policy/cleanup authority after
 pruning. A full ledger rejects new attempts; there is no automatic recycling or
 archive/migration of historical imports.
@@ -189,3 +196,12 @@ single/fleet cleanup, recovery, limits and late audit/lease rollback. Browser
 fixtures check retained attention and timezone-labelled verified dates. Packaged
 smoke must use a networkless disposable container without live volumes or secrets.
 This evidence does not establish actual reboot/restoration or production readiness.
+
+Seven [operator-lifecycle integration cases](managed-lifecycle-validation.md)
+also connect reviewed CLI migration/resume, browser consent, shared dispatch,
+protection and single/fleet cleanup without SQL state shortcuts. They preserve
+uncertainty across observations/restarts and check final retirement/no-readd.
+The same manual records the separately approved one-address live experiment
+completed on2026-10-19: VERIFIED creation/restoration/cleanup, independent Basic
+checks, no re-add after retirement/restart and restored disabled gates. Its
+authority is consumed; this is not bulk, physical-reboot or production acceptance.

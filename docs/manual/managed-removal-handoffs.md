@@ -121,7 +121,9 @@ Shared-worker wake/advance/expiry is tested with synthetic state;
 it is not enabled in the lab and no handoffs are seeded there. Take a checked SQLite-safe backup and retain paired images
 before an approved schema rollout. Do not drop authority/tombstones to revert.
 
-Retention preserves a predecessor while cleanup waits; handoff authority is
+Retention preserves a predecessor in WAITING_ADD, ADMITTING and ATTENTION,
+including linked request evidence. UNVERIFIED jobs remain retained independently
+even after cancellation/expiry; age is not uncertainty resolution. Handoff authority is
 not ordinary expiring history. Backup recovery must suspend waiting cleanup,
 queued jobs and desired restoration before starting any worker, followed by
 fresh observations and review. [Offline Recovery](recovery.md) now implements

@@ -101,6 +101,67 @@ memory, but scans retained context on each invocation. It is an offline diagnost
 not a cheap Web polling API. Database work is not limited to the 100 returned
 cases; large retained databases require an appropriate maintenance window.
 
+## Inspecting one complete case
+
+The catalog samples at most five fleet devices. Use `attention-case` to inspect
+all retained members, without executing or preparing a resolution. Copy the
+exact `case_id` from the catalog; accepted prefixes are `operation`, `restoration`,
+`device_cleanup` and `fleet_cleanup`, followed by a canonical UUID. The same
+offline prerequisites and private-output handling apply.
+
+```bash
+ftd-shun-managed-maintenance attention-case \
+  --database /approved/restored/state.db \
+  --actor operator-label --confirm-offline \
+  --case-id fleet_cleanup:UUID_FROM_CATALOG
+```
+
+The result includes `case` evidence, `target_count`, `total_pages`, `has_next`
+and up to 100 `targets`, sorted by original device ID. Each fleet target has
+`reviewed` original device/intent metadata and separate `current` persisted
+context. `reviewed_scope` carries original policy revisions/protection state.
+A device missing from today's inventory stays in the retained scope, with null
+current hostname/enabled fields; it is not silently removed. For non-fleet cases,
+there is one target and `reviewed`/`reviewed_scope` are null rather than invented
+historical metadata. Original intent/generation remain in `case` when retained.
+
+Fleet catalog cases also report `predecessor_evidence_state` and
+`predecessor_count`: malformed references are inconsistent/unknown, not zero.
+Each fleet detail target has a separate `predecessor` object. `retained` exposes
+the captured ADD's original outcome and request count; `not_captured` means that
+member did not have a captured ADD, `not_retained` means its referenced job is
+missing, and `inconsistent` means retained job identity/action does not match.
+The cleanup's REMOVE/ATTENTION status is never substituted for the ADD outcome.
+Validate all captured references against the full scope before any detail page;
+malformed reference structure refuses detail. A predecessor outcome change also
+invalidates the detail digest.
+
+Queue pruning now retains UNVERIFIED jobs and captured predecessors of
+WAITING_ADD/ADMITTING/ATTENTION cleanup beyond the configured retention window,
+with linked requests/batches. Already-pruned historical evidence is not recreated.
+These holds can grow storage; no automatic closure/archive was introduced, and
+normal audit-event retention remains separate.
+
+For page 2 use the **detail view's own** digest:
+
+```bash
+ftd-shun-managed-maintenance attention-case \
+  --database /approved/restored/state.db \
+  --actor operator-label --confirm-offline \
+  --case-id fleet_cleanup:UUID_FROM_CATALOG \
+  --page 2 --snapshot-digest DIGEST_FROM_CASE_PAGE_1
+```
+
+The digest binds both case identity and retained state. Catalog digests and
+digests for another case are rejected. Changes require starting again at detail
+page 1, not rebasing the remaining pages. Missing/non-attention cases and pages
+beyond the retained scope refuse explicitly. The entire fleet scope is validated
+before page 1: malformed metadata anywhere or a mismatched root/count refuses
+detail, while the catalog still labels the scope inconsistent. Nothing is
+resolved, retried, retired, initialized or fetched from FTD. No backup, migration
+or rollback procedure is needed for this read-only command; retain existing
+backups and do not restore an older DB merely to obtain a matching digest.
+
 ## What to do next
 
 Do not delete an attempt, edit an outcome, drop a trigger, replay an old ADD,
@@ -109,6 +170,9 @@ Existing [policy retirement and waiting cancellation](managed-controls.md) remai
 separate revocation controls; neither resolves an uncertain write. Existing
 [offline suspension](recovery.md) stops future execution and preserves uncertainty.
 [Reviewed policy resume](managed-maintenance.md) still refuses unresolved latches.
+The separate [Unrelated Policy Resume](managed-unrelated-resume.md) command can
+resume other enabled targets after validating every closed restoration pair;
+this inspector neither performs that review nor authorizes resume.
 
 Separate [Offline Incident Abandonment](managed-abandonment.md) now implements
 the first revocation-only step for one restoration incident, with its own explicit
@@ -123,16 +187,17 @@ The remaining resolution design is **planned, not implemented or authorized**:
 1. Prepare an exact incident/pair/intent-generation review with original evidence,
    fresh observation separately identified and a reasoned operator decision.
 2. Build on explicit **abandon maintenance**, which retains a durable decision
-   separately from the unchanged FAILED/UNVERIFIED outcome. Decide how
-   unrelated healthy policy can resume without releasing that pair's latch.
+   separately from the unchanged FAILED/UNVERIFIED outcome. Unrelated healthy
+   policy now has a separate reviewed offline resume with exact isolation checks;
+   extending decisions to ordinary/fleet incidents still requires design.
 3. Treat later new authorization/rearm as a different explicit review, never an
    automatic side effect of acknowledging an incident. Preserve original keys,
    unknown outcomes, protection priority and whole-fleet scope.
 4. Specify retention/restore/replay, stopped/RUNNING predecessors, audit rollback
    and new-generation races before exposing any executable resolution action.
 
-No outcome reset/rearm, HTTP resolution, resume exception or live fixture is
-introduced. The optional abandonment ledger is distinct from device verification.
+This inspector introduces no outcome reset/rearm, HTTP resolution, resume action
+or live fixture. The optional abandonment ledger is distinct from device verification.
 
 ## Validation and rollout
 
@@ -140,7 +205,9 @@ introduced. The optional abandonment ledger is distinct from device verification
 partial/capacity, read-only connection/no audit/no initialization, ordinary and
 restoration evidence/deduplication/pruning, historical generations, inconsistent
 jobs/scopes, bounded fleet samples, independent pending work, 205-case pagination,
-snapshot changes, strict arguments and missing-file/CLI behavior. Existing
+complete 205-target detail pagination, original/current metadata, missing devices,
+cross-case/catalog digest refusal, invalid targets outside page 1, snapshot
+changes, strict arguments and missing-file/CLI behavior. Existing
 maintenance/recovery/source/queue suites remain required. No Rust/protocol,
 runtime schema, Compose or Web assets change; no service restart or lab state
 operation is needed for this offline-only source/package increment. This is not

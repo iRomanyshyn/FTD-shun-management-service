@@ -2,6 +2,17 @@
 
 ## Offline managed-policy foundation
 
+`tests/test_managed_lifecycle.py` connects checked offline CLI migration/resume,
+browser batch consent, private admission, complete fake snapshots and the shared
+executor through initial creation, disappearance/restoration, restart and final
+single/fleet cleanup. It also tests protection priority, held deadlines when
+the controller is disabled and lost ADD/REMOVE replies. Policy/queue tables are
+not patched to shortcut state transitions. Seven integration cases use private
+temporary backups, a controlled clock and typed fake consoles, never a lab
+environment file, service volume, credential or device socket. See
+[Managed Lifecycle Validation](managed-lifecycle-validation.md) for the local
+command, evidence boundaries and the separately approved next lab procedure.
+
 `tests/test_managed_cleanup_admission.py` covers the gated HTTP/BFF connection to
 single/fleet coordinators using synthetic SQLite/ASGI: ready/ordered whole-scope
 semantics, late audit/deadline rollback, generation/scope CAS, historical replay,

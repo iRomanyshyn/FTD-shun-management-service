@@ -216,10 +216,13 @@ def test_failure_attention_survives_retirement_new_generation_and_queue_pruning(
     change(lab[1], "RETIRE")
     advance_clock(lab, 400 * 86400)
     lab[0].queue.prune_completed(366)
+    with lab[0].store._connection() as db:
+        retained = db.execute("SELECT 1 FROM operation_jobs WHERE id=?", (job["id"],)).fetchone()
+        assert bool(retained) == (outcome == "UNVERIFIED")
     change(lab[1])
     with pytest.raises(QueueConflict, match="blocked|resolution"):
         admit(lab)
-    with pytest.raises(QueueConflict, match="Restoration keys"):
+    with pytest.raises(QueueConflict, match="idempotency key" if outcome == "UNVERIFIED" else "Restoration keys"):
         lab[0].queue.enqueue(receipt["operation_id"], [(1, IP)], "other", "Other", ("Operator",))
     assert attempt(lab)["state"] == outcome
     assert lab[1].snapshot()["entries"][0]["restoration_attention"]

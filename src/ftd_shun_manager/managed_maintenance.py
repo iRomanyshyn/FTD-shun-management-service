@@ -92,8 +92,9 @@ def review(db, action, *, reviewed_at=None, now=None):
     """Caller owns a read snapshot or write transaction; this function never writes."""
     if not db.in_transaction:
         raise ValueError("Review requires a caller-owned transaction.")
-    if action not in {"initialize", "resume-policy", "enable-closures"}:
+    if action not in {"initialize", "resume-policy", "resume-unrelated-policy", "enable-closures"}:
         raise ValueError("Unsupported managed maintenance action.")
+    resuming = action in {"resume-policy", "resume-unrelated-policy"}
     current = _time(now or datetime.now(UTC))
     issued = _time(reviewed_at or current)
     if issued > current or current - issued >= timedelta(minutes=5):
@@ -117,13 +118,14 @@ def review(db, action, *, reviewed_at=None, now=None):
         blockers.append("Executor lease remains; settle RPCs and use offline recovery first.")
     if pending:
         blockers.append("Pending jobs remain; use offline recovery first.")
-    if bool(executor["mutations_suspended"]) != (action != "resume-policy"):
+    if bool(executor["mutations_suspended"]) != (not resuming):
         blockers.append("Initialization requires the ordinary pause; policy resume requires reviewed ordinary resume first.")
     state = {"schema": objects, "executor": dict(executor), "protection": dict(protection),
              "protected_ips": [list(row) for row in db.execute("SELECT * FROM protected_ips ORDER BY ip")],
              "devices": [list(row) for row in db.execute("SELECT * FROM devices ORDER BY id")],
              "pending_jobs": pending, "uncertain_jobs": uncertain}
     targets = []
+    isolated = None
     if action != "initialize":
         registry = managed_state(db)
         if registry is None or not present(db):
@@ -136,11 +138,32 @@ def review(db, action, *, reviewed_at=None, now=None):
             state[table] = [dict(row) for row in rows]
         if with_closures:
             state["managed_incident_closures"] = [dict(row) for row in db.execute("SELECT * FROM managed_incident_closures ORDER BY id")]
+        if action == "resume-unrelated-policy":
+            from .managed_attention import attention_report
+            from .managed_isolation import isolated_incidents
+
+            isolated = isolated_incidents(db, current)
+            # Includes job identity/outcomes, links and cache, not just uncertain-row counts.
+            state["attention_snapshot"] = attention_report(db)["snapshot_digest"]
+            state["restoration_delegations"] = [dict(row) for row in db.execute("""SELECT r.* FROM operation_requests r
+                JOIN managed_restoration_attempts a ON a.id=r.id ORDER BY r.id""")]
+            state["isolated_incidents"] = isolated
+            if not isolated:
+                blockers.append("No abandoned incidents; use ordinary reviewed policy resume.")
+            closed_cases = {item["case_id"] for item in isolated}
+            closed_jobs = {item["job_id"] for item in isolated}
+            if any("restoration:" + row["id"] not in closed_cases for row in db.execute(
+                    "SELECT id FROM managed_restoration_attempts WHERE state IN ('FAILED','UNVERIFIED')")):
+                blockers.append("Every failed/uncertain restoration needs its own retained abandonment decision.")
+            if any(row["id"] not in closed_jobs for row in db.execute("SELECT id FROM operation_jobs WHERE state='UNVERIFIED'")):
+                blockers.append("Unrelated uncertain operations remain; a closure never covers ordinary work.")
+            if db.execute("SELECT 1 FROM managed_restoration_attempts WHERE state IN ('QUEUED','RUNNING') LIMIT 1").fetchone():
+                blockers.append("Pending restoration must be settled before resume.")
         if not registry["restoration_suspended"]:
             blockers.append("Desired restoration is not suspended.")
         if action == "resume-policy" and (uncertain or db.execute("SELECT 1 FROM managed_restoration_attempts WHERE state IN ('QUEUED','RUNNING','FAILED','UNVERIFIED') LIMIT 1").fetchone()):
             blockers.append("Pending or uncertain restoration/work requires separate resolution; resume never rearms it.")
-        if action == "resume-policy" and (db.execute("SELECT 1 FROM managed_removal_handoffs WHERE state IN ('WAITING_ADD','ADMITTING','ATTENTION') LIMIT 1").fetchone()
+        if resuming and (db.execute("SELECT 1 FROM managed_removal_handoffs WHERE state IN ('WAITING_ADD','ADMITTING','ATTENTION') LIMIT 1").fetchone()
                 or db.execute("SELECT 1 FROM managed_fleet_waits WHERE state IN ('WAITING_ADD','ADMITTING','ATTENTION') LIMIT 1").fetchone()
                 or db.execute("SELECT 1 FROM managed_fleet_removals WHERE phase!='ADMITTED' LIMIT 1").fetchone()):
             blockers.append("Unfinished or attention cleanup requires separate resolution.")
@@ -159,13 +182,13 @@ def review(db, action, *, reviewed_at=None, now=None):
                 payload["managed_revision"], payload["policy_revision"], payload["label"], payload["reason"])
             if canonical != row["payload_json"] or [row["device_id"], ip] not in payload["targets"]:
                 raise ValueError("Enabled target lacks matching retained standing authority.")
-            if action == "resume-policy" and current <= datetime.fromisoformat(row["updated_at"]):
+            if resuming and current <= datetime.fromisoformat(row["updated_at"]):
                 blockers.append("Policy time is not before resume time; review clock/state first.")
-            if action == "resume-policy" and (not row["device_enabled"] or row["protected"]):
+            if resuming and (not row["device_enabled"] or row["protected"]):
                 blockers.append("Enabled targets include disabled devices or protected addresses; retire/review them first.")
             targets.append({key: row[key] for key in ("device_id", "hostname", "intent_id", "generation", "authorization_request_id", "actor_subject")}
                            | {"ip": ip, "label": payload["label"], "reason": payload["reason"]})
-        if not targets and action == "resume-policy":
+        if not targets and resuming:
             blockers.append("No enabled standing targets to resume.")
         # Schema-only migration does not require healthy/enabled targets.
         if action == "enable-closures" and any(db.execute(
@@ -176,7 +199,7 @@ def review(db, action, *, reviewed_at=None, now=None):
     timestamp = stamp(issued)
     return {"action": action, "reviewed_at": timestamp, "expires_at": stamp(issued + timedelta(minutes=5)),
             "ready": not blockers, "blockers": list(dict.fromkeys(blockers)), "targets": targets,
-            "state_digest": state_digest,
+            "state_digest": state_digest, "isolated_incidents": isolated,
             "confirmation_digest": _hash({"action": action, "reviewed_at": timestamp, "state_digest": state_digest})}
 
 
@@ -211,8 +234,12 @@ def apply_reviewed(db, store, action, actor, reviewed_at, digest, *, now=None):
             db.execute("UPDATE managed_shun_registry SET revision=?,restoration_suspended=0 WHERE id=1", (revision,))
             result = {"action": action, "managed_revision": revision, "restoration_suspended": False,
                       "enabled_targets": len(frozen["targets"]), "absence_not_before": barrier}
+            if action == "resume-unrelated-policy":
+                result.update(isolated_incident_count=len(frozen["isolated_incidents"]),
+                              isolation_digest=_hash(frozen["isolated_incidents"]))
         event = {"initialize": "MANAGED_SCHEMA_INITIALIZED", "enable-closures": "MANAGED_CLOSURES_INITIALIZED",
-                 "resume-policy": "MANAGED_POLICY_RESUMED"}[action]
+                 "resume-policy": "MANAGED_POLICY_RESUMED",
+                 "resume-unrelated-policy": "MANAGED_UNRELATED_POLICY_RESUMED"}[action]
         store._insert_event(db, event,
                             None, None, None, subject, "Offline managed maintenance", (), str(uuid4()),
                             {**result, "reviewed_at": frozen["reviewed_at"], "state_digest": frozen["state_digest"]}, timestamp)
@@ -228,8 +255,9 @@ def apply_reviewed(db, store, action, actor, reviewed_at, digest, *, now=None):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Offline managed schema/policy control; stop API/Web and settle RPCs first.")
-    parser.add_argument("action", choices=("review-initialize", "initialize", "review-resume", "resume-policy", "attention",
-                                          "review-enable-closures", "enable-closures", "review-abandon", "abandon"))
+    parser.add_argument("action", choices=("review-initialize", "initialize", "review-resume", "resume-policy", "attention", "attention-case",
+                                          "review-enable-closures", "enable-closures", "review-abandon", "abandon",
+                                          "review-resume-unrelated", "resume-unrelated-policy"))
     parser.add_argument("--database", type=Path, required=True)
     parser.add_argument("--actor", required=True)
     parser.add_argument("--backup", type=Path)
@@ -237,20 +265,25 @@ def main(argv=None):
     parser.add_argument("--review-digest")
     parser.add_argument("--confirm-offline", action="store_true")
     parser.add_argument("--confirm-reviewed", action="store_true")
-    parser.add_argument("--page", type=int, default=1, help="Attention report page (100 cases)")
+    parser.add_argument("--page", type=int, default=1, help="Attention page (100 cases or 100 targets for attention-case)")
     parser.add_argument("--snapshot-digest", help="Attention snapshot from page 1, required for subsequent pages")
-    parser.add_argument("--case-id", help="Original restoration:UUID incident, only for abandonment")
+    parser.add_argument("--case-id", help="Original kind:UUID for attention-case; restoration:UUID for abandonment")
     parser.add_argument("--request-id", help="Original canonical abandonment UUID from review")
     parser.add_argument("--reason", help="Required abandonment reason")
     parser.add_argument("--confirm-ip", help="Type the reviewed exact IPv4 for abandonment")
     args = parser.parse_args(argv)
-    readonly = args.action.startswith("review-") or args.action == "attention"
+    inspection = args.action in {"attention", "attention-case"}
+    readonly = args.action.startswith("review-") or inspection
     abandonment = args.action in {"review-abandon", "abandon"}
     if abandonment and (not args.case_id or not args.reason or (args.action == "abandon" and not (args.request_id and args.confirm_ip))):
         parser.error("Abandonment requires case/reason; confirmation also needs original request ID and typed IPv4.")
-    if not abandonment and any(value is not None for value in (args.case_id, args.request_id, args.reason, args.confirm_ip)):
-        parser.error("Case/request/reason/typed-IP options are only valid for abandonment.")
-    if args.action != "attention" and (args.page != 1 or args.snapshot_digest is not None):
+    if args.action == "attention-case" and not args.case_id:
+        parser.error("Attention-case requires --case-id kind:UUID.")
+    if args.case_id is not None and not (abandonment or args.action == "attention-case"):
+        parser.error("Case ID is only valid for attention-case or abandonment.")
+    if not abandonment and any(value is not None for value in (args.request_id, args.reason, args.confirm_ip)):
+        parser.error("Request/reason/typed-IP options are only valid for abandonment.")
+    if not inspection and (args.page != 1 or args.snapshot_digest is not None):
         parser.error("Pagination/snapshot options are only valid for attention inspection.")
     if not args.confirm_offline or (not readonly and not (args.confirm_reviewed and args.backup and args.reviewed_at and args.review_digest)):
         parser.error("Explicit offline confirmation is required; writes also require backup and reviewed timestamp/digest/confirmation.")
@@ -268,12 +301,17 @@ def main(argv=None):
                     from .managed_attention import attention_report
 
                     result = attention_report(db, page=args.page, snapshot_digest=args.snapshot_digest)
+                elif args.action == "attention-case":
+                    from .managed_attention import attention_case
+
+                    result = attention_case(db, args.case_id, page=args.page, snapshot_digest=args.snapshot_digest)
                 elif args.action == "review-abandon":
                     from .managed_abandonment import prepare
 
                     result = prepare(db, args.request_id or str(uuid4()), args.case_id, args.actor, args.reason)
                 else:
                     action = {"review-initialize": "initialize", "review-resume": "resume-policy",
+                              "review-resume-unrelated": "resume-unrelated-policy",
                               "review-enable-closures": "enable-closures"}[args.action]
                     result = review(db, action)
         else:
@@ -289,7 +327,8 @@ def main(argv=None):
                                          apply_reviewed(db, store, args.action, args.actor, issued, args.review_digest))
     except (OSError, ValueError, TypeError, KeyError, sqlite3.Error) as error:
         parser.exit(2, f"Managed maintenance refused: {error}. Any created backup was retained.\n")
-    event = ("maintenance.managed.attention" if args.action == "attention" else
+    event = ("maintenance.managed.attention_case" if args.action == "attention-case" else
+             "maintenance.managed.attention" if args.action == "attention" else
              "maintenance.managed.review" if readonly else "maintenance.managed.committed")
     print(json.dumps({"event": event, **result}), flush=True)
     return 0

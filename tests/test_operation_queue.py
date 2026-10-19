@@ -7,6 +7,7 @@ from uuid import uuid4
 
 import pytest
 
+from ftd_shun_manager.import_intent import canonical_import
 from ftd_shun_manager.operation_queue import OperationQueue, QueueConflict, QueueFull
 from ftd_shun_manager.store import Device, Store
 
@@ -253,6 +254,62 @@ def test_retention_preserves_unfinished_jobs(queue):
 
     assert queue.status()["counts"] == {"QUEUED": 1}
     assert any(event["event_type"] == "HISTORY_RETENTION_PURGED" for event in queue.store.list_events())
+
+
+@pytest.mark.parametrize("action", ["ADD", "REMOVE"])
+def test_retention_never_erases_uncertainty_or_original_request(queue, action):
+    key, ip = str(uuid4()), IPv4Address("198.51.100.10")
+    extra = ({"source": "manual_import", "scope": "import", "policy_revision": 0,
+              "confirmation_digest": canonical_import([(1, ip)], 0)[2]} if action == "ADD" else {})
+    queue.enqueue(key, [(1, ip)], "alice", "Alice", ("Operator",), **extra)
+    assert queue.claim_cycle("worker", 135)
+    job = (queue.claim_addition(1, "worker", queue.cutoff(), execution_enabled=True) if action == "ADD"
+           else queue.claim_removal(1, "worker", queue.cutoff()))
+    finish = queue.finish_addition if action == "ADD" else queue.finish_removal
+    finish(job["id"], "worker", "UNVERIFIED")
+    queue.finish_cycle("worker", 60)
+    with queue.store._connection() as db:
+        before = {table: list(db.execute(f"SELECT * FROM {table}"))
+                  for table in ("operation_jobs", "operation_requests", "operation_links", "manual_import_batches")}
+    queue.test_clock[0] += timedelta(days=367)
+    queue.prune_completed(366)
+    with queue.store._connection() as db:
+        assert before == {table: list(db.execute(f"SELECT * FROM {table}")) for table in before}
+    assert queue.enqueue(key, [(1, ip)], "alice", "Alice", ("Operator",), **extra)["replayed"]
+    assert queue.status()["counts"] == {"UNVERIFIED": 1} and not queue.has_pending()
+    assert not any(event["event_type"] == "HISTORY_RETENTION_PURGED" for event in queue.store.list_events())
+
+
+def test_reconciled_absence_is_not_verified_and_follows_ordinary_retention(queue):
+    enqueue(queue)
+    assert queue.claim_cycle("worker", 135)
+    job = queue.claim_removal(1, "worker", queue.cutoff())
+    queue.finish_removal(job["id"], "worker", "UNVERIFIED")
+    queue.test_clock[0] += timedelta(days=367)
+    queue.prune_completed(366)
+    assert queue.status()["counts"] == {"UNVERIFIED": 1}
+    queue.reconcile_unknown(1, set())
+    assert queue.status()["counts"] == {"RECONCILED_ABSENT": 1}
+    queue.prune_completed(366)
+    assert queue.status()["counts"] == {"RECONCILED_ABSENT": 1}
+    queue.test_clock[0] += timedelta(days=367)
+    queue.prune_completed(366)
+    assert queue.status()["counts"] == {}
+
+
+def test_retention_audit_failure_rolls_back_jobs_requests_and_links(queue, monkeypatch):
+    enqueue(queue)
+    assert queue.claim_cycle("worker", 135)
+    job = queue.claim_removal(1, "worker", queue.cutoff())
+    queue.finish_removal(job["id"], "worker", "VERIFIED")
+    queue.test_clock[0] += timedelta(days=367)
+    with queue.store._connection() as db:
+        before = tuple(db.iterdump())
+    monkeypatch.setattr(queue.store, "_insert_event", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("synthetic")))
+    with pytest.raises(RuntimeError, match="synthetic"):
+        queue.prune_completed(366)
+    with queue.store._connection() as db:
+        assert tuple(db.iterdump()) == before
 
 
 def test_expired_work_stops_driving_the_scheduler_without_a_device_read(queue):
