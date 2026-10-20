@@ -130,6 +130,9 @@ class ManagedFleetRemovals:
             return {**json.loads(old["result_json"]), "replayed": True}, []
         if mutations_suspended(db):
             raise QueueConflict("Device mutations are suspended for recovery; no fleet cleanup was admitted.")
+        from .incident_isolations import require_manual_scope
+
+        require_manual_scope(db, [(target["device_id"], IPv4Address(scope["ip"])) for target in scope["targets"]])
         if fleet_key_reserved(db, key) or self._key_used(db, key):
             raise ManagedConflict("An existing key cannot acquire fleet-removal semantics.")
         if db.execute("SELECT COUNT(*) FROM managed_fleet_removals").fetchone()[0] >= MAX_FLEET_RECORDS:

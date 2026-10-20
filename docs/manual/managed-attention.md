@@ -164,6 +164,21 @@ backups and do not restore an older DB merely to obtain a matching digest.
 
 ## What to do next
 
+The separate [Incident Isolation](incident-isolation.md) workflow adds a reviewed
+whole-scope exclusion decision and distinct healthy-policy resume. Inspection
+shows `isolation` and `incident_isolated` without hiding original attention or
+declaring a write verified. Each ordinary uncertain predecessor needs its own
+decision; a group receipt is not an exception for its independent ADD case.
+
+The separate [Incident Acknowledgments](incident-acknowledgements.md) workflow
+records operator review of ordinary UNVERIFIED and single/fleet ATTENTION cases.
+Its optional ledger requires explicit offline migration. Catalog/detail shows
+`acknowledgment` separately; `acknowledged_case_count` counts current cases with
+a receipt and `retained_acknowledgement_count` includes historical receipts.
+Unavailable ledger counts are null. Original counts, outcomes, evidence holds
+and resume blockers remain unchanged. The report never creates a decision and
+`resolution_available` remains false. Restoration abandonment remains separate.
+
 Do not delete an attempt, edit an outcome, drop a trigger, replay an old ADD,
 rekey a failed request or restore old enabled policy to make the report empty.
 Existing [policy retirement and waiting cancellation](managed-controls.md) remain

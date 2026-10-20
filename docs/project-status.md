@@ -1,8 +1,76 @@
 # Project Status
 
-Last updated: 2026-10-19
+Last updated: 2026-10-20
 
 ## Current increment
+
+**Whole-scope incident isolation and healthy-policy resume (2026-10-20).** After
+administrative acknowledgment, separate offline ISOLATE_INCIDENT can retire all
+current enabled policy in an ordinary/single/fleet case and retain immutable
+device/IP exclusion latches. Every original fleet member remains covered,
+including missing current devices. Original UNVERIFIED/ATTENTION, authority,
+queue and evidence remain. New manual ADD/REMOVE, managed cleanup, MAINTAIN and
+restoration are blocked for those pairs; claims recheck before dispatch. Protected
+automatic removal retains its independent priority. No release/rearm/HTTP exists.
+
+The distinct reviewed `resume-isolated-policy` validates every retained exclusion,
+acknowledgment, full scope/latch, exact retired/absent policy and jobs/links before
+resuming other enabled healthy policy with a fresh-read barrier. Every independent
+ordinary uncertain predecessor needs its own decision; every failed/uncertain
+restoration still needs its own abandonment. Normal and restoration-only unrelated
+resume remain strict. Separate reviewed two-table migration, checked backups,
+five-minute reviews, typed IP/count, original-key replay and atomic audit rollback
+apply. Startup/GET never initialize optional state. Original related jobs/requests
+remain held beyond retention, including later RECONCILED_ABSENT REMOVE evidence.
+See [Incident Isolation](manual/incident-isolation.md).
+
+Validation: **1142 Python tests pass** (58.42s), including29 new isolation/resume
+cases; compileall/Ruff/CLI help/diff checks pass. Tests cover205-target full scope,
+single cleanup, missing devices, retirement/rearm refusal, independent uncertain
+ADDs, protected removal, claim revalidation, immutable/malformed latches, replay,
+checked migration and atomic rollback. Agent/protocol/browser assets unchanged.
+API/Web deployed in the authorized lab with checked backup/paired rollback
+images; agent unchanged. API ready/socket with normal read `2026-10-20T09:06:48Z`,
+no error, valid-TLS auth redirect302. Queue12 VERIFIED/1 NOOP, no pending work;
+queue/protection/managed/import records match backup. Registry4/suspended, enabled
+targets0, seven optional managed tables, no new incident/closure ledger, all six
+experimental gates/development auth false and profiles0. No isolation, resume or
+new device fixture was activated. Overlapping failed-restoration/
+ATTENTION cleanup still blocks because its required restoration abandonment is
+not available through a partial scope. That composite decision, archival, Web
+handling and live recovery/load/traffic/reboot/production acceptance remain pending.
+
+**Reviewed incident acknowledgment (2026-10-20).** The separate offline
+`ftd-shun-incident-maintenance` CLI supports reviewed optional-ledger migration
+and ACKNOWLEDGE_UNRESOLVED for ordinary UNVERIFIED ADD/REMOVE and single/fleet
+ATTENTION cleanup. It records operator review/reason with immutable evidence,
+original-key receipt and audit. Full original fleet membership and all captured
+ADD evidence are frozen, including missing current devices; typed IP/count and
+five-minute review prevent changed/partial confirmation. Checked backups,
+quiescence/both existing pauses and atomic audit rollback apply. Ordinary-only
+databases need no managed initialization. Startup/GET never create the ledger.
+
+Attention catalog/detail shows acknowledgment separately with current-case and
+retained-receipt counts. Original outcomes/counts, policy, reservations, evidence
+holds and resume blockers remain. Acknowledgment keys cannot gain other queue/
+policy/restoration/cleanup/abandonment authority; exact replay stays observational
+after expiry or later REMOVE reconciliation. Restoration abandonment remains a
+separate action. See [Incident Acknowledgments](manual/incident-acknowledgements.md).
+
+Validation: **1113 Python tests pass** (56.27s), including 36 new cases for full
+205-target review, original ADD outcomes, stale/typed/actor/key conflicts, expiry,
+concurrent replay, checked CLI backups, immutable retention and audit rollback.
+Compileall/Ruff/module CLI help/diff checks pass. No browser assets, agent or
+wire protocol changed. API/Web deployed to the authorized lab with checked backup
+and paired rollback images; agent unchanged. API ready/socket, successful normal
+read `2026-10-20T08:48:40Z`, no error, TLS-auth redirect302. Queue12 VERIFIED/1 NOOP,
+no pending work; queue/protection/managed/import records match the backup exactly.
+Registry4/suspended, enabled targets0, seven optional tables; all experimental
+gates/development auth false and profiles0. The optional acknowledgment ledger is
+not initialized there; migration and
+actual decisions still require scoped approval. Executable uncertainty resolution/
+ordinary-fleet isolation, archival and live load/recovery/production acceptance
+remain pending. Administrative acknowledgment does not resolve device uncertainty.
 
 **Uncertainty evidence survives retention (2026-10-19).** Automatic queue cleanup
 now preserves UNVERIFIED jobs and captured ADD predecessors of single/fleet

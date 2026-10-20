@@ -67,12 +67,18 @@ def present(db):
 
 
 def pair_abandoned(db, device_id, ip):
-    return present(db) and db.execute("SELECT 1 FROM managed_incident_closures WHERE device_id=? AND ip=? LIMIT 1",
-                                      (device_id, ip.packed)).fetchone() is not None
+    from .incident_isolations import pair_isolated
+
+    return pair_isolated(db, device_id, ip) or (present(db) and db.execute(
+        "SELECT 1 FROM managed_incident_closures WHERE device_id=? AND ip=? LIMIT 1", (device_id, ip.packed)).fetchone() is not None)
 
 
 def key_reserved(db, key):
-    return present(db) and db.execute("SELECT 1 FROM managed_incident_closures WHERE id=?", (key,)).fetchone() is not None
+    from .incident_acknowledgements import key_reserved as acknowledgement_key_reserved
+    from .incident_isolations import key_reserved as isolation_key_reserved
+
+    return isolation_key_reserved(db, key) or acknowledgement_key_reserved(db, key) or (present(db) and db.execute(
+        "SELECT 1 FROM managed_incident_closures WHERE id=?", (key,)).fetchone() is not None)
 
 
 def decision(db, attempt_id):

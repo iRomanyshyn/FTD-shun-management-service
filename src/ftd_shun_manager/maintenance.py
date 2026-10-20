@@ -67,6 +67,12 @@ def apply_recovery_control(db, store: Store, action: str, actor: str, *, now: da
         from .managed_closures import present as closures_present
 
         closures_present(db)  # Unknown retained revocation must not be ignored by recovery.
+        from .incident_acknowledgements import present as acknowledgements_present
+
+        acknowledgements_present(db)
+        from .incident_isolations import present as isolations_present
+
+        isolations_present(db)
         columns = {row[1] for row in db.execute("PRAGMA table_info(operation_executor)")}
         if "mutations_suspended" not in columns:
             db.execute("ALTER TABLE operation_executor ADD COLUMN mutations_suspended INTEGER NOT NULL DEFAULT 0 CHECK(mutations_suspended IN (0,1))")

@@ -773,6 +773,9 @@ Queue pruning validates retained fleet predecessor structure before deleting
 anything, in the same write transaction. Malformed/partial evidence refuses
 queue pruning rather than interpreting unknown references as an empty hold.
 It does not recover previously purged evidence or initialize optional schemas.
+Explicit isolation receipts additionally hold their original related jobs and
+linked requests, including a subsequently reconciled REMOVE. Validate those
+bounded references before pruning; a malformed hold is never treated as empty.
 Queue cleanup records its deletion count
 in a new `HISTORY_RETENTION_PURGED` event.
 
@@ -3515,6 +3518,89 @@ success from cleanup state or missing evidence. Related job outcome changes
 invalidate the snapshot digest. Queue evidence retention follows the explicit
 UNVERIFIED and WAITING_ADD/ADMITTING/ATTENTION predecessor holds above; this view
 does not resolve those holds or recover evidence pruned by older versions.
+
+### Offline acknowledgment of unresolved operations and cleanup — 2026-10-20
+
+Permit a separate administrative ACKNOWLEDGE_UNRESOLVED decision for a retained
+ordinary UNVERIFIED operation or single/fleet ATTENTION cleanup. This records
+that a trusted-host operator inspected the incident and supplied a reason. Keep
+the original case/outcome, authority, policy, reservations and resume blockers
+unchanged. It does not retire policy, verify a write, abandon restoration, release
+uncertainty, archive evidence or authorize execution. Restoration incidents use
+their separate abandonment workflow. Whole-fleet acknowledgment covers every
+original member and captured predecessor, including missing current devices;
+no per-member decision or inferred smaller scope is allowed.
+
+Use a separately reviewed optional immutable acknowledgment ledger, recognized
+with exact DDL/capacity validation independently of managed-schema initialization.
+Startup, reads and the existing managed/closure migrations never create it.
+Ordinary-only databases can use it without initializing managed policy. Explicit
+offline migration and confirmation use checked exclusive backups, both existing
+mutation pauses (desired pause when managed policy exists), settled RPCs/no lease
+or pending work, and five-minute state-bound reviews. Bind schema, complete
+retained context, original case, full scope, predecessor/request evidence,
+canonical request UUID, maintenance actor and bounded printable reason.
+Require typed exact IPv4 and exact original target count. Changed/inconsistent
+evidence, partial schema, expiry or mismatched keys refuse; missing historical
+jobs remain explicitly missing. No silent rebase, second fleet transaction,
+partial acknowledgment or new action inferred from a review digest.
+
+Commit minimal sanitized evidence, immutable request/receipt and a distinct
+INCIDENT_ACKNOWLEDGED audit atomically. One retained acknowledgment per case;
+at most 10000, with no automatic recycling. Original-key replay returns only the
+historical receipt, including after expiry or later observation changes. Reserve
+decision keys against queue/policy/restoration/cleanup/abandonment authority.
+Attention inspection shows the acknowledgment separately and keeps all original
+cases/counts and resolution-unavailable semantics. Historical acknowledgment
+can survive normal REMOVE absence reconciliation without changing its meaning.
+No HTTP action, feature activation, schema migration in the lab or new device
+mutation follows from implementing this offline workflow. Executable ordinary/
+fleet uncertainty resolution and isolation exceptions remain separate work.
+
+### Offline isolation of reviewed ordinary and cleanup incidents — 2026-10-20
+
+Permit a separate ISOLATE_INCIDENT decision after administrative acknowledgment
+of an ordinary UNVERIFIED or single/fleet ATTENTION case. Require explicitly
+initialized immutable isolation receipts and exact indexed device/IP latches;
+startup/GET/base/acknowledgment migration never create these two optional tables.
+At most10000 receipts/target rows are retained. Original full fleet membership,
+captured ADD evidence, original acknowledgment and current policy are frozen in
+one five-minute review. Use checked exclusive backups, both existing mutation
+pauses, no outstanding RPC/lease/pending work, original UUID/actor/reason and typed
+IP/whole target count. Missing historical predecessors remain explicit; changed
+or inconsistent evidence refuses. Isolation of a restoration case is unavailable
+through this action; use its separate abandonment procedure.
+
+Atomically retire all currently enabled standing targets in the original scope,
+retain immutable receipt/evidence and pair latches, and append audit. Preserve
+already retired target dates, original authority, outcomes, cleanup ATTENTION/
+reservations and queue evidence. Missing current inventory members still receive
+their exact device/IP latch; never loop per-member transactions. Exact original
+request replay returns only its historical receipt. Decision keys cannot acquire
+other queue/policy/cleanup/restoration/abandonment authority. No new device command
+or automatic uncertainty replay is authorized.
+
+Isolated pairs cannot receive new manual ADD/REMOVE, managed cleanup, MAINTAIN
+or restoration, including later generations. Fleet ordinary removal checks the
+whole address scope, including isolated devices missing from its observed list.
+Claims recheck isolation. Protected automatic removal retains its existing
+independent authority and priority. Read-only monitoring and policy-only retirement
+remain available. No release/rearm route exists; original evidence holds persist.
+Partial or inconsistent isolation schema/latches fail closed.
+
+Provide a distinct reviewed offline resume-isolated-policy action for other
+already-enabled healthy targets. Ordinary resume and restoration-only unrelated
+resume stay strict. Require every remaining ordinary UNVERIFIED and single/fleet
+ATTENTION case to have its own fully validated original isolation receipt/scope,
+matching retained jobs/links and permanently retired or originally absent policy.
+Every failed/uncertain restoration still needs its own valid abandonment receipt.
+Validate all isolation receipts, not just sampled targets; missing/changed latches,
+extra uncertain cases or overlapping enabled policy refuse. Normal complete-read
+REMOVE reconciliation may remain RECONCILED_ABSENT, explicitly not VERIFIED.
+Preserve quiescence, fresh-read barrier, device/protection/standing-authority/time
+checks and atomic resume audit. The acknowledgment alone grants no exception.
+Attention reports keep the original incidents with separate isolation status.
+No HTTP, live migration/isolation/resume or new fixture is implied by shipping.
 
 ### Reviewed abandonment of restoration incidents — 2026-10-19
 

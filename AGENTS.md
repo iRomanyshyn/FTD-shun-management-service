@@ -71,7 +71,23 @@ Do not rewrite historical log entries except to correct an objective error; add 
   Age or abandonment never resolves uncertainty. Malformed held fleet references
   refuse queue pruning; inspection must distinguish ADD evidence from REMOVE
   attention. Older missing evidence stays missing, never reconstructed as success.
+- Offline ACKNOWLEDGE_UNRESOLVED records administrative review of an ordinary
+  UNVERIFIED or single/fleet ATTENTION case. Its separate optional ledger is never
+  created by startup/GET/managed initialization. Keep outcomes, policy, evidence
+  holds and resume blockers unchanged; review the whole original fleet scope.
+  Decision keys cannot gain queue/policy/cleanup/restoration/abandonment authority.
+  Follow docs/manual/incident-acknowledgements.md. No lab migration/decision or
+  new fixture is authorized by implementation or default-disabled deployment.
 - Document migration, backup, rollback, and operational impact when changing schemas or deployment configuration.
+- Separate offline ISOLATE_INCIDENT now supports acknowledged ordinary/single/
+  fleet cases with atomic whole-scope retirement and retained pair latches.
+  Preserve original outcomes, ATTENTION and evidence. Block new manual mutations,
+  cleanup, MAINTAIN/restoration and recheck claims; protected removal stays
+  independent. A distinct resume-isolated-policy validates every original scope,
+  latch, retired policy and job/link plus every separate uncertainty/abandonment;
+  neither acknowledgment nor a fleet receipt covers an independent ADD case.
+  No release/rearm/HTTP exists. Follow docs/manual/incident-isolation.md. Optional
+  migration, isolation/resume or new lab fixtures still require scoped approval.
 - For Python changes, run at least:
 
   ```bash

@@ -12,6 +12,8 @@ These manuals describe the first implementation increment. The service is safe t
 | [Offline Recovery](recovery.md) | Checked backup, durable mutation pause, composite queue/policy suspension and reviewed ordinary resume. |
 | [Offline Managed Maintenance](managed-maintenance.md) | Explicit empty-schema migration, exact-state five-minute review and separate policy resume; no live activation or uncertainty override. |
 | [Offline Attention Inspection](managed-attention.md) | Read-only uncertainty catalog and exact-case inspection, full fleet membership in snapshot-bound pages, evidence provenance and planned resolution boundaries. |
+| [Incident Acknowledgments](incident-acknowledgements.md) | Reviewed offline ordinary/single/fleet administrative receipts, whole-scope evidence and unchanged uncertainty/controls. |
+| [Incident Isolation](incident-isolation.md) | Whole-scope offline exclusion/retirement, permanent pair latches and reviewed resume of other healthy standing policy. |
 | [Offline Incident Abandonment](managed-abandonment.md) | Explicit closure-ledger migration, reviewed restoration-policy abandonment, immutable receipts and retained no-replay latches. |
 | [Unrelated Policy Resume](managed-unrelated-resume.md) | Separate reviewed offline resume of healthy enabled policy after exact abandonment/isolation checks; no rearm or ordinary/fleet uncertainty override. |
 | [Managed Controls](managed-controls.md) | Frozen policy-only retirement, bounded single/fleet cleanup status and owner/Admin waiting cancellation; no device-write admission. |

@@ -4583,6 +4583,169 @@ unresolved records can increase storage. Executable ordinary/fleet incident clos
 bounded archival and separately approved load/recovery/production acceptance remain
 pending. Evidence preservation is a prerequisite, not incident resolution.
 
+## 2026-10-20 — Reviewed administrative acknowledgment of unresolved incidents
+
+Added a normative amendment and the separate `ftd-shun-incident-maintenance`
+entrypoint/module with review-enable/enable/review/acknowledge actions.
+ACKNOWLEDGE_UNRESOLVED records trusted-host operator review/reason for a retained
+ordinary UNVERIFIED operation or single/fleet ATTENTION cleanup. It preserves
+all outcomes, policy, work, reservations, evidence holds and resume blockers.
+Restoration abandonment remains separate. This delivers an administrative
+decision record, not device uncertainty resolution or a new isolation exception.
+
+The optional `incident_acknowledgements` table has exact recognized DDL,
+immutable update/delete guards, one receipt per case and a10000-row capacity.
+No startup/GET/Store/queue/managed initializer creates it. Ordinary-only databases
+can use it without managed policy initialization. Explicit offline migration and
+decision confirmation require both existing pauses, settled RPCs/no lease or
+pending work, checked exclusive SQLite backups and five-minute frozen reviews.
+The decision binds original UUID, maintenance actor/reason, complete schema/
+queue/request/link/observation/protection/managed context and all fleet evidence.
+Typed exact IP/count rejects partial scopes. Full paginated fleet inspection is
+gathered within one transaction, retaining missing current members and separate
+captured ADD outcomes. Missing historical jobs remain explicit; inconsistent or
+unfinished related evidence refuses. Output excludes raw errors/CLI, credentials,
+comments and full admission payloads.
+
+One transaction stores minimal sanitized evidence/request/receipt and
+INCIDENT_ACKNOWLEDGED audit with a maintenance actor and empty roles. Late expiry
+and audit failure roll back even when an outer caller catches the exception.
+Exact original-key replay returns its historical receipt after expiry or later
+REMOVE absence reconciliation. Different inputs or second-case keys refuse.
+Acknowledgment keys are reserved through existing queue/policy/restoration/
+cleanup guards and restoration-abandonment admission. Offline recovery validates
+the optional ledger instead of ignoring malformed state. Attention inspection
+shows acknowledgment separately, with current-case and retained-receipt counts,
+and retains original case counts and resolution-unavailable semantics.
+
+36 new disposable-state tests cover read-only/no-startup migration, ADD/REMOVE
+uncertainty, single/fleet predecessor separation, full205-target scope including
+missing inventory, state/actor/reason/typed-scope/digest changes, quiescence,
+expiry and late rollback, original-key concurrency/replay, checked CLI backups,
+immutable/malformed ledger retention, key isolation, normal absence reconciliation
+and unchanged resume blockers. Initial local test iterations corrected the
+in-memory schema contract's explicit transaction and test assumptions about
+immutable fleet references/recovery/key-guard ordering. Full suite **1113 passed
+in56.27s**; compileall, Ruff, module help and diff checks pass. No browser asset,
+Rust, wire protocol or Compose edits; browser/agent builds were not repeated.
+
+Authorized lab update rebuilt/recreated API/Web only. Preflight had12 VERIFIED/
+1 NOOP and no pending work, registry4/suspended, enabled targets0, seven optional
+managed tables, no closure/acknowledgment ledger, six experimental gates and
+development auth false, addition profiles0. No gates/profiles were changed.
+Retained rollback tags `ftd-shun-api:rollback-incident-ack-20261020T0847` and
+`ftd-shun-web:rollback-incident-ack-20261020T0847`. Checked private0700/0600 online
+SQLite backup:
+`/var/lib/ftd-shun-manager/incident-ack-20261020T0847/before-update.sqlite3`,
+SHA-256 `0af3db6249723bee4b9037387e05aaa34374648de3b7ecfda10d3342bb373075`.
+New API image `79ac6fbc4021c12de5ac2056e62043dd4b931a7331bc04beb6fdac1ba77018cc`,
+Web `ab4ed354a9d8c66ccd57b3458f7793006c279d7281518ec097a18cefa156bed1`;
+agent unchanged `72b045e182081c6f2d3c3a7d546a92402dd224179c0891ff7b50c9e85a71df41`.
+
+Post-update API ready/socket, normal successful read `2026-10-20T08:48:40Z`, no
+error and valid-TLS authentication redirect302. Queue unchanged12 VERIFIED/1 NOOP;
+queue/request/link/protection/managed/import records match the checked backup
+exactly. SQLite quick_check ok/no FK errors. Optional schema remains seven tables,
+no acknowledgment ledger, enabled targets0 and desired suspension retained.
+Experimental gates/development auth remain false. Running API imports the new
+module without creating its ledger. No migration, acknowledgment, resume, grant,
+new device fixture/mutation or agent restart was performed. Existing consumed
+fixture authority remains consumed.
+
+Updated working agreement, architecture, README, structured acknowledgment manual/
+index, attention/development procedures, plan and status. Retain paired matching
+images and backup for rollback; older code ignores acknowledgment keys/receipts.
+If a ledger is later initialized, downgrade needs a separately reviewed offline
+plan. Do not drop decisions/triggers or restore old enabled policy to revert code.
+Unresolved evidence/receipts may outlive event retention and increase storage;
+no archive/recycling or ordinary/fleet resolution is implemented. Whole-scope
+uncertainty/isolation decisions, Web handling and separately approved recovery/
+load/traffic/physical-reboot/production acceptance remain pending.
+
+## 2026-10-20 — Whole-scope isolation and reviewed healthy-policy resume
+
+Added a normative amendment and explicit offline ISOLATE_INCIDENT after a separate
+administrative acknowledgment. Optional `incident_isolations` receipts and indexed
+`incident_isolation_targets` have exact DDL, immutable guards, count/orphan checks
+and10000 receipt/total-target bounds. Separate review-enable-isolation/
+enable-isolation actions never initialize managed policy. Startup/GET/Store/queue/
+acknowledgment/managed migration never create these tables. All live optional
+ledgers remain absent and all experimental gates remain off.
+
+One five-minute original-UUID/actor/reason/IP/count review freezes the whole
+original case scope, every captured ADD, original acknowledgment, current policy,
+jobs/links and complete retained context. Apply atomically retires current enabled
+standing targets and adds pair latches/evidence/receipt/audit. Already retired
+dates, absent policy, original outcomes, consent, queue and ATTENTION stay intact.
+No per-member transaction or smaller fleet inference. Original-key replay remains
+historical after expiry; changed inputs cannot replace a decision. Keys cannot
+acquire queue/policy/cleanup/restoration/acknowledgment/abandonment authority.
+
+Manual ADD/REMOVE, combined cleanup, MAINTAIN and restoration check pair exclusion;
+fleet ordinary removal also checks isolated members absent from observed scope.
+Claims cancel restored/older queued manual work before dispatch. Protected-policy
+removal retains independent authority and priority. Policy-only retirement and
+monitoring remain available. No release/rearm or HTTP action was introduced.
+Attention shows separate isolation status and target exclusion without hiding
+the original case or inventing a verified outcome. Queue retention now also holds
+original isolation jobs/requests, including a later RECONCILED_ABSENT REMOVE;
+bounded retained job references are validated before purge.
+
+Distinct `review-resume-isolated` / `resume-isolated-policy` requires all original
+isolation receipts/latches/scopes, acknowledgments, exact retired/absent policy
+and retained jobs/links to agree. Every ordinary UNVERIFIED case needs its own
+decision; a fleet receipt cannot exempt its separately listed uncertain ADD.
+Every failed/uncertain restoration still needs its own valid abandonment. Existing
+normal/restoration-only unrelated resume stay strict. Resume changes only desired
+suspension and enabled healthy targets' fresh-read barrier, with atomic distinct
+audit and original authority/outcomes preserved. Protected/device/time/lease/
+pending-work/standing-authority checks remain. No job, wake, gate or new grant.
+
+29 new disposable-state tests cover ordinary ADD/REMOVE and single/fleet cleanup,
+205-member scope/missing devices, exact retirement/rearm refusal, healthy resume,
+independent uncertain predecessor cases, changed policy/job/link/latches,
+protected-removal priority, manual claim revalidation, stale/typed/expiry conflicts,
+concurrent original-key replay, checked CLI migration, normal absence reconciliation
+with retention and audit/late-expiry rollback even under an outer commit. Early
+test iterations corrected synthetic policy CHECK invariants and recovery cooldown
+clock assumptions. Full suite **1142 passed in58.42s**; prior1140-case run passed
+in56.16s before adding single-cleanup/migration-rollback acceptance. Compileall,
+Ruff, both CLI help routes and diff checks pass. No Rust/protocol/browser asset or
+Compose edits; those unchanged build/test paths were not repeated.
+
+Authorized lab rollout rebuilt/recreated API/Web only. Preflight confirmed12
+VERIFIED/1 NOOP, no pending work, registry4/suspended, enabled targets0, seven
+optional tables and no closure/incident ledger. All six experimental gates and
+development auth false, addition profiles0. Retained paired rollback tags
+`ftd-shun-api:rollback-incident-isolation-20261020T0905` and
+`ftd-shun-web:rollback-incident-isolation-20261020T0905`.
+Checked private0700/0600 online SQLite backup:
+`/var/lib/ftd-shun-manager/incident-isolation-20261020T0905/before-update.sqlite3`,
+SHA-256 `4014ef38f1e3ab8d222c00f84796d34de73206c65fd95f50a2894d015f37d886`.
+New API image `80808a4b57a5b0bea42707bdeb64d4ed5aabc354da42dc805ea504c899e369ae`,
+Web `2f264f75a4df65f1e82b8295b23d50130839747a40d43a2d629ec7d1dc20ff24`;
+agent unchanged `72b045e182081c6f2d3c3a7d546a92402dd224179c0891ff7b50c9e85a71df41`.
+
+Post-update API ready/socket, normal successful read `2026-10-20T09:06:48Z`, no
+error and valid-TLS auth redirect302. SQLite quick_check/FKs pass and all queue,
+request/link, protection, managed policy/attempt/cleanup and import records match
+the checked backup exactly. Queue remains12 VERIFIED/1 NOOP, registry4/suspended,
+enabled targets0, seven optional tables, no new ledger. All experimental gates/
+development auth remain false. Running API imports isolation support without DDL.
+No migration, isolation/resume, new grant/fixture/device mutation or agent restart.
+Previous one-address test authority stays consumed. No production acceptance claim.
+
+Updated architecture, working agreement, README, structured isolation manual/index,
+acknowledgment/attention/unrelated-resume/managed-maintenance/queue/development
+procedures, plan and status. Older writers ignore pair latches; after any approved
+activation, downgrade requires a separately reviewed offline plan and matching
+images/evidence. Never drop latches/receipts or restore old enabled policy to undo
+code. Existing restoration abandonment still refuses overlapping ATTENTION cleanup,
+so a combined failed-restoration/cleanup case remains blocked; a separate whole-
+scope decision is still needed. No partial exception was added. Remaining: that
+composite incident path, bounded archive, Web handling, release/rearm design and
+separately approved live recovery/fleet/load/traffic/reboot/production acceptance.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

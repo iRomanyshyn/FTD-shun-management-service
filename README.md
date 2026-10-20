@@ -30,6 +30,14 @@ override. It has not been invoked on the lab; no HTTP resume exists.
 Its [read-only attention report](docs/manual/managed-attention.md) now identifies
 retained uncertainty and cleanup incidents, with 100-case snapshot-bound pages;
 inspection never clears a latch or authorizes retry.
+A separate [offline acknowledgment](docs/manual/incident-acknowledgements.md)
+records operator review of ordinary/single/fleet incidents with immutable receipts
+and the whole original scope. It preserves uncertain outcomes and resume blockers;
+its optional ledger is never created by startup.
+An additional [offline isolation decision](docs/manual/incident-isolation.md)
+can retire and permanently exclude the whole reviewed incident scope, then allow
+separately reviewed resume of other healthy standing policy. Original outcomes
+and pair latches remain; schema migration and live decisions are separate operations.
 A separate [offline abandonment workflow](docs/manual/managed-abandonment.md)
 now records an immutable decision and retires current maintenance for one failed/
 uncertain restoration case. Original outcomes/latches and all execution gates

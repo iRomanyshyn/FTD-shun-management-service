@@ -74,6 +74,9 @@ UNVERIFIED jobs are an exception: age never clears uncertainty. Captured ADD
 predecessors of WAITING_ADD, ADMITTING or ATTENTION cleanup are also retained,
 including their linked requests/batches. These records may outlive the configured
 window; hiding them in the UI is not resolution or deletion.
+An explicitly isolated incident also holds every original related job/request,
+including a REMOVE later reconciled absent. Missing/invalid isolation references
+refuse queue pruning. See [Incident Isolation](incident-isolation.md).
 In session mode it also shows the active device/action/IP, completed item
 count, priority wait/read state, and budget deferral. An eligible refresh
 button can request a priority snapshot while background removals continue;

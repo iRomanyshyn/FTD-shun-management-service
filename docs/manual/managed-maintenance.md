@@ -23,6 +23,12 @@ Created backups survive refusal; use a new filename for each retry.
 
 ## Initialize empty optional schemas
 
+[Incident Isolation](incident-isolation.md) has its own explicit optional-ledger
+migration and distinct `review-resume-isolated` / `resume-isolated-policy` action.
+That action validates complete retained exclusions before resuming other enabled
+healthy targets. Normal resume and restoration-only unrelated resume stay strict;
+neither initializes isolation state or accepts an acknowledgment as an exception.
+
 First use [Offline Recovery](recovery.md) `suspend` with its own checked backup.
 This cancels queued work, preserves RUNNING uncertainty and pauses ordinary
 mutations; review that operational impact before doing it. No outstanding job

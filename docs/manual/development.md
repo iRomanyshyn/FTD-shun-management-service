@@ -172,6 +172,18 @@ native count validation, token/input/focus retention without POST-view GETs,
 live status and 375px layout. See [Browser Import Review](import-review.md).
 These tests do not enable ADD or submit any work to the lab stack.
 
+Offline incident acknowledgment tests use disposable SQLite only. They cover
+administrative receipts for ordinary/single/fleet incidents, full 205-target scope,
+separate predecessor outcomes, original-key concurrency/replay, checked backups,
+expiry and atomic audit rollback. No test calls FTD or enables a lab ledger/gate.
+See [Incident Acknowledgments](incident-acknowledgements.md) for the operator workflow.
+
+Isolation tests additionally exercise entire-scope retirement/exclusion, missing
+inventory, protected-policy priority, claim revalidation, independent uncertain
+predecessor cases, healthy-policy resume, immutable latches and atomic migration/
+audit rollback. All use disposable state; no live ledger or gate is enabled.
+See [Incident Isolation](incident-isolation.md).
+
 ## Prerequisites
 
 - Python 3.12+

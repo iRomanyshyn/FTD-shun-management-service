@@ -115,6 +115,9 @@ class ManagedRemovals:
                 return {**json.loads(old["result_json"]), "replayed": True}
             if mutations_suspended(db):
                 raise QueueConflict("Device mutations are suspended for recovery; no cleanup was admitted.")
+            from .incident_isolations import require_manual_scope
+
+            require_manual_scope(db, [(device_id, ip)])
             if fleet_key_reserved(db, request_id):
                 raise ManagedConflict("Managed-fleet keys cannot acquire single-target removal semantics.")
             if fleet_target_held(db, device_id, ip):

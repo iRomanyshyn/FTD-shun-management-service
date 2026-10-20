@@ -273,6 +273,10 @@ class OperationQueue:
             # Combined admission retires policy under this very write lock
             # before it delegates removal. A scope label is not a bypass.
             require_ordinary_removal(db, targets, fleet=scope == "all")
+        if source in {"manual", "manual_import"}:
+            from .incident_isolations import require_manual_scope
+
+            require_manual_scope(db, targets, fleet=scope == "all")
         if action == "ADD":
             if db.execute("SELECT revision FROM protected_policy WHERE id=1").fetchone()[0] != policy_revision:
                 raise QueueConflict("Protected IPs changed; review the import again.")
@@ -521,6 +525,12 @@ class OperationQueue:
                           OR (r.id=? AND r.actor_subject=? AND r.source='trusted_policy'))""",
                     (job["id"], stamp(self._now()), int(job_action == "ADD"), restoration["id"] if restoration else None, ACTOR),
                 ).fetchall()
+                from .incident_isolations import pair_isolated
+
+                if pair_isolated(db, device_id, IPv4Address(job["ip"])) and not (
+                        job_action == "REMOVE" and any(request["source"] == "trusted_policy" for request in requests)):
+                    self._finish(db, job, "CANCELLED", "Incident scope is isolated; manual work is blocked")
+                    continue
                 device = db.execute("SELECT enabled FROM devices WHERE id=?", (device_id,)).fetchone()
                 if device is None or not device["enabled"]:
                     self._finish(db, job, "FAILED", "target device is disabled")
@@ -810,8 +820,15 @@ class OperationQueue:
         with self.store._connection() as db:
             db.execute("BEGIN IMMEDIATE")
             preserve = ""
+            from .incident_isolations import present as isolations_present
+            from .incident_isolations import retained_job_ids
+
+            if isolations_present(db):
+                retained_job_ids(db)  # Validate every held reference before any deletion.
+                preserve += """ AND NOT EXISTS (SELECT 1 FROM incident_isolations i,
+                    json_each(i.evidence_json,'$.jobs') j WHERE json_extract(j.value,'$.id')=operation_jobs.id)"""
             if self._handoffs_present(db):
-                preserve = """ AND NOT EXISTS (SELECT 1 FROM managed_removal_handoffs h
+                preserve += """ AND NOT EXISTS (SELECT 1 FROM managed_removal_handoffs h
                     WHERE h.predecessor_id=operation_jobs.id AND h.state IN ('WAITING_ADD','ADMITTING','ATTENTION'))"""
             if fleet_waits_present(db):
                 for row in db.execute("""SELECT predecessors_json,target_count FROM managed_fleet_waits

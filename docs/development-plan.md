@@ -603,9 +603,13 @@ Current next work supersedes the older sequence below:
    are recorded. This fixture authority is consumed, not permission for another run.
 3. Reviewed unrelated-policy resume is implemented (2026-10-19). The same day's
    evidence-retention fix preserves UNVERIFIED jobs and waiting/attention cleanup
-   predecessors, with full read-only fleet predecessor inspection. Complete
-   executable ordinary/fleet incident decisions next, preserving abandoned/
-   uncertain pair latches and immutable outcomes; retention is not resolution.
+   predecessors, with full read-only fleet predecessor inspection. Offline
+   administrative acknowledgment for ordinary/single/fleet cases is implemented
+   (2026-10-20), retaining original outcomes/controls and all fleet evidence.
+   Whole-scope offline isolation and distinct healthy-policy resume are implemented
+   (2026-10-20), preserving unknown outcomes and permanent pair latches. Remaining:
+   overlapping failed-restoration/ATTENTION decisions, bounded archival, and later
+   reviewed release/rearm design; neither acknowledgment nor isolation verifies a write.
 4. Separately scope fleet, load, traffic, physical-reboot and production acceptance;
    a one-fixture CLI result does not authorize general imports/restoration.
 

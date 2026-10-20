@@ -40,6 +40,8 @@ def _cases(initialized):
 
 
 def _context(db, device, ip, initialized):
+    from .incident_isolations import pair_isolated
+
     row = db.execute("SELECT hostname,enabled FROM devices WHERE id=?", (device,)).fetchone()
     observed = db.execute("""SELECT COUNT(*) AS n
         FROM shun_state WHERE device_id=? AND ip=? AND active=1""", (device, ip.packed)).fetchone()
@@ -55,7 +57,8 @@ def _context(db, device, ip, initialized):
             "current_generation": target["generation"] if target else None,
             "protected": db.execute("SELECT 1 FROM protected_ips WHERE ip=? AND enabled=1", (ip.packed,)).fetchone() is not None,
             "cached_present": bool(observed["n"]), "cached_active_interface_count": observed["n"],
-            "cached_last_seen_at": last_seen, "observation_basis": "cached_not_write_verification"}
+            "cached_last_seen_at": last_seen, "observation_basis": "cached_not_write_verification",
+            "incident_isolated": pair_isolated(db, device, ip)}
 
 
 def _job_evidence(db, row):
@@ -108,6 +111,8 @@ def _predecessor_evidence(db, device, ip, predecessors):
 
 
 def _item(db, row, initialized):
+    from .incident_acknowledgements import decision as acknowledgement
+    from .incident_isolations import decision as isolation
     from .managed_closures import decision
 
     result = {key: row[key] for key in ("kind", "record_id", "occurred_at", "action", "outcome",
@@ -115,6 +120,8 @@ def _item(db, row, initialized):
     result.update(case_id=row["kind"] + ":" + row["record_id"], resolution_available=False,
                   next_step="Review original authority, retained evidence and a fresh authorized observation. Do not replay or clear outcomes.")
     result["related_job"] = _job_evidence(db, row)
+    result["acknowledgment"] = acknowledgement(db, result["case_id"])
+    result["isolation"] = isolation(db, result["case_id"])
     if row["kind"] != "fleet_cleanup":
         result["target"] = _context(db, row["device_id"], IPv4Address(row["ip"]), initialized)
         result["pair_latch_retained"] = row["kind"] == "restoration"
@@ -140,6 +147,8 @@ def _item(db, row, initialized):
 
 
 def _snapshot_digest(db, cases, initialized):
+    from .incident_acknowledgements import present as acknowledgements_present
+    from .incident_isolations import present as isolations_present
     from .managed_closures import present as closures_present
     """Stream retained evidence, bounded in Python memory; never export raw rows."""
     from .managed_maintenance import TABLES
@@ -150,8 +159,14 @@ def _snapshot_digest(db, cases, initialized):
                ("protected_ips", "SELECT * FROM protected_ips ORDER BY ip"),
                ("devices", "SELECT id,hostname,enabled FROM devices ORDER BY id"),
                ("observations", "SELECT * FROM shun_state ORDER BY device_id,ip,interface"),
-               ("jobs", "SELECT id,device_id,ip,action,state FROM operation_jobs ORDER BY id"),
+               ("jobs", "SELECT id,device_id,ip,action,state,requested_at,started_at,completed_at FROM operation_jobs ORDER BY id"),
+               ("requests", "SELECT * FROM operation_requests ORDER BY id"),
                ("links", "SELECT request_id,job_id FROM operation_links ORDER BY request_id,job_id")]
+    if acknowledgements_present(db):
+        queries.append(("acknowledgments", "SELECT * FROM incident_acknowledgements ORDER BY id"))
+    if isolations_present(db):
+        queries.extend([("isolations", "SELECT * FROM incident_isolations ORDER BY id"),
+                        ("isolation_targets", "SELECT * FROM incident_isolation_targets ORDER BY isolation_id,device_id,ip")])
     if initialized:
         queries.extend((table, f"SELECT * FROM {table} ORDER BY rowid") for table in TABLES)
         if closures_present(db):
@@ -209,6 +224,7 @@ def _inspection_snapshot(db):
 
 def attention_report(db, *, page=1, snapshot_digest=None):
     """A transactionally consistent, non-executable page of retained attention."""
+    from .incident_acknowledgements import present as acknowledgements_present
     from .managed_closures import present as closures_present
 
     _page(page, snapshot_digest)
@@ -218,6 +234,9 @@ def attention_report(db, *, page=1, snapshot_digest=None):
     for row in db.execute("SELECT kind,COUNT(*) AS n FROM (" + cases + ") GROUP BY kind"):
         counts[row["kind"]] = row["n"]
     total = sum(value or 0 for value in counts.values())
+    acknowledgements = acknowledgements_present(db)
+    acknowledged = (db.execute("""SELECT COUNT(*) FROM incident_acknowledgements a
+        JOIN (""" + cases + """ ) c ON a.case_id=c.kind||':'||c.record_id""").fetchone()[0] if acknowledgements else None)
     rows = db.execute("SELECT * FROM (" + cases + ") ORDER BY occurred_at DESC,kind,record_id LIMIT ? OFFSET ?",
                       (PAGE_SIZE, (page - 1) * PAGE_SIZE)).fetchall()
     pending = {row["state"]: row["n"] for row in db.execute(
@@ -232,6 +251,10 @@ def attention_report(db, *, page=1, snapshot_digest=None):
         pending_managed["inconsistent_fleet_admissions"] = db.execute(
             "SELECT COUNT(*) FROM managed_fleet_removals WHERE phase!='ADMITTED'").fetchone()[0]
     return {"read_only": True, "resolution_available": False, "managed_initialized": initialized,
+            "offline_acknowledgment_available": acknowledgements,
+            "acknowledged_case_count": acknowledged,
+            "retained_acknowledgement_count": (db.execute("SELECT COUNT(*) FROM incident_acknowledgements").fetchone()[0]
+                                               if acknowledgements else None),
             "offline_abandonment_available": closures_present(db) if initialized else False,
             "abandoned_case_count": (db.execute("SELECT COUNT(*) FROM managed_incident_closures").fetchone()[0]
                                      if initialized and closures_present(db) else None),

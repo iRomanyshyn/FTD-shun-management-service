@@ -61,6 +61,10 @@ def _evidence(db, attempt_id):
 
 
 def _reserved(db, key):
+    from .incident_acknowledgements import key_reserved
+
+    if key_reserved(db, key):
+        return True
     for table in ("operation_requests", "operation_jobs", "manual_import_batches", "managed_shun_requests",
                   "managed_removal_handoffs", "managed_incident_closures"):
         if db.execute(f"SELECT 1 FROM {table} WHERE id=?", (key,)).fetchone():

@@ -15,6 +15,10 @@ never grants policy, queues work, calls FTD, wakes execution or changes gates.
 Ordinary uncertain operations and single/fleet cleanup attention still block.
 There is no HTTP route or automatic startup behavior.
 
+Ordinary/single/fleet exclusions use the distinct
+[Incident Isolation](incident-isolation.md) and `resume-isolated-policy` workflow.
+This restoration-only command retains its stricter refusal of those cases.
+
 ## Prerequisites
 
 Follow [Offline Managed Maintenance](managed-maintenance.md) and

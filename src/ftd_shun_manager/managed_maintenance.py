@@ -92,9 +92,9 @@ def review(db, action, *, reviewed_at=None, now=None):
     """Caller owns a read snapshot or write transaction; this function never writes."""
     if not db.in_transaction:
         raise ValueError("Review requires a caller-owned transaction.")
-    if action not in {"initialize", "resume-policy", "resume-unrelated-policy", "enable-closures"}:
+    if action not in {"initialize", "resume-policy", "resume-unrelated-policy", "resume-isolated-policy", "enable-closures"}:
         raise ValueError("Unsupported managed maintenance action.")
-    resuming = action in {"resume-policy", "resume-unrelated-policy"}
+    resuming = action in {"resume-policy", "resume-unrelated-policy", "resume-isolated-policy"}
     current = _time(now or datetime.now(UTC))
     issued = _time(reviewed_at or current)
     if issued > current or current - issued >= timedelta(minutes=5):
@@ -107,6 +107,9 @@ def review(db, action, *, reviewed_at=None, now=None):
         with_closures = recognized_schema(db)
         if action == "enable-closures" and with_closures:
             raise ValueError("Closure ledger is already initialized; no implicit repair or replay.")
+    from .incident_isolations import present as isolations_present
+
+    isolations_present(db)
     executor = db.execute("SELECT revision,owner,lease_until,next_eligible_at,mutations_suspended FROM operation_executor WHERE id=1").fetchone()
     protection = db.execute("SELECT * FROM protected_policy WHERE id=1").fetchone()
     if executor is None or protection is None or executor["mutations_suspended"] not in (0, 1):
@@ -138,20 +141,31 @@ def review(db, action, *, reviewed_at=None, now=None):
             state[table] = [dict(row) for row in rows]
         if with_closures:
             state["managed_incident_closures"] = [dict(row) for row in db.execute("SELECT * FROM managed_incident_closures ORDER BY id")]
-        if action == "resume-unrelated-policy":
+        isolation_cases = []
+        if action in {"resume-unrelated-policy", "resume-isolated-policy"}:
             from .managed_attention import attention_report
             from .managed_isolation import isolated_incidents
 
-            isolated = isolated_incidents(db, current)
+            isolated = isolated_incidents(db, current) if with_closures else []
+            if action == "resume-unrelated-policy" and not with_closures:
+                raise ValueError("Unrelated-policy resume requires the existing closure ledger.")
+            if action == "resume-isolated-policy":
+                from .incident_isolations import validated
+
+                isolation_cases = validated(db, now=current)
+                if not isolation_cases:
+                    blockers.append("No isolated incidents; use the existing reviewed policy resume.")
+                state["isolation_cases"] = isolation_cases
             # Includes job identity/outcomes, links and cache, not just uncertain-row counts.
             state["attention_snapshot"] = attention_report(db)["snapshot_digest"]
             state["restoration_delegations"] = [dict(row) for row in db.execute("""SELECT r.* FROM operation_requests r
                 JOIN managed_restoration_attempts a ON a.id=r.id ORDER BY r.id""")]
             state["isolated_incidents"] = isolated
-            if not isolated:
+            if not isolated and action == "resume-unrelated-policy":
                 blockers.append("No abandoned incidents; use ordinary reviewed policy resume.")
             closed_cases = {item["case_id"] for item in isolated}
             closed_jobs = {item["job_id"] for item in isolated}
+            closed_jobs.update(job for item in isolation_cases if item["case_id"].startswith("operation:") for job in item["job_ids"])
             if any("restoration:" + row["id"] not in closed_cases for row in db.execute(
                     "SELECT id FROM managed_restoration_attempts WHERE state IN ('FAILED','UNVERIFIED')")):
                 blockers.append("Every failed/uncertain restoration needs its own retained abandonment decision.")
@@ -163,10 +177,14 @@ def review(db, action, *, reviewed_at=None, now=None):
             blockers.append("Desired restoration is not suspended.")
         if action == "resume-policy" and (uncertain or db.execute("SELECT 1 FROM managed_restoration_attempts WHERE state IN ('QUEUED','RUNNING','FAILED','UNVERIFIED') LIMIT 1").fetchone()):
             blockers.append("Pending or uncertain restoration/work requires separate resolution; resume never rearms it.")
-        if resuming and (db.execute("SELECT 1 FROM managed_removal_handoffs WHERE state IN ('WAITING_ADD','ADMITTING','ATTENTION') LIMIT 1").fetchone()
-                or db.execute("SELECT 1 FROM managed_fleet_waits WHERE state IN ('WAITING_ADD','ADMITTING','ATTENTION') LIMIT 1").fetchone()
-                or db.execute("SELECT 1 FROM managed_fleet_removals WHERE phase!='ADMITTED' LIMIT 1").fetchone()):
-            blockers.append("Unfinished or attention cleanup requires separate resolution.")
+        if resuming:
+            isolated_ids = {item["case_id"] for item in isolation_cases}
+            cleanup_blocked = db.execute("SELECT 1 FROM managed_fleet_removals WHERE phase!='ADMITTED' LIMIT 1").fetchone() is not None
+            for kind, table in (("device_cleanup", "managed_removal_handoffs"), ("fleet_cleanup", "managed_fleet_waits")):
+                cleanup_blocked |= any(row["state"] != "ATTENTION" or kind + ":" + row["id"] not in isolated_ids
+                                       for row in db.execute(f"SELECT id,state FROM {table} WHERE state IN ('WAITING_ADD','ADMITTING','ATTENTION')"))
+            if cleanup_blocked:
+                blockers.append("Unfinished or attention cleanup requires separate resolution.")
         rows = db.execute("""SELECT t.*, d.hostname,d.enabled AS device_enabled,r.actor_subject,r.payload_json,
             EXISTS(SELECT 1 FROM protected_ips p WHERE p.ip=t.ip AND p.enabled=1) AS protected
             FROM managed_shun_targets t JOIN devices d ON d.id=t.device_id
@@ -175,6 +193,10 @@ def review(db, action, *, reviewed_at=None, now=None):
         if len(rows) != db.execute("SELECT COUNT(*) FROM managed_shun_targets WHERE enabled=1").fetchone()[0]:
             raise ValueError("Enabled target is missing its device or retained authority.")
         for row in rows:
+            from .incident_isolations import pair_isolated
+
+            if resuming and pair_isolated(db, row["device_id"], IPv4Address(row["ip"])):
+                blockers.append("Enabled policy overlaps an isolated pair; no new authority may bypass its latch.")
             payload = json.loads(row["payload_json"])
             ip = str(IPv4Address(row["ip"]))
             _, canonical, _ = canonical_managed_change(
@@ -234,11 +256,17 @@ def apply_reviewed(db, store, action, actor, reviewed_at, digest, *, now=None):
             db.execute("UPDATE managed_shun_registry SET revision=?,restoration_suspended=0 WHERE id=1", (revision,))
             result = {"action": action, "managed_revision": revision, "restoration_suspended": False,
                       "enabled_targets": len(frozen["targets"]), "absence_not_before": barrier}
-            if action == "resume-unrelated-policy":
+            if action in {"resume-unrelated-policy", "resume-isolated-policy"}:
                 result.update(isolated_incident_count=len(frozen["isolated_incidents"]),
                               isolation_digest=_hash(frozen["isolated_incidents"]))
+            if action == "resume-isolated-policy":
+                from .incident_isolations import validated
+
+                cases = validated(db, now=current)
+                result.update(isolated_scope_count=len(cases), isolated_scope_digest=_hash(cases))
         event = {"initialize": "MANAGED_SCHEMA_INITIALIZED", "enable-closures": "MANAGED_CLOSURES_INITIALIZED",
                  "resume-policy": "MANAGED_POLICY_RESUMED",
+                 "resume-isolated-policy": "MANAGED_ISOLATED_POLICY_RESUMED",
                  "resume-unrelated-policy": "MANAGED_UNRELATED_POLICY_RESUMED"}[action]
         store._insert_event(db, event,
                             None, None, None, subject, "Offline managed maintenance", (), str(uuid4()),
@@ -257,7 +285,8 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description="Offline managed schema/policy control; stop API/Web and settle RPCs first.")
     parser.add_argument("action", choices=("review-initialize", "initialize", "review-resume", "resume-policy", "attention", "attention-case",
                                           "review-enable-closures", "enable-closures", "review-abandon", "abandon",
-                                          "review-resume-unrelated", "resume-unrelated-policy"))
+                                          "review-resume-unrelated", "resume-unrelated-policy",
+                                          "review-resume-isolated", "resume-isolated-policy"))
     parser.add_argument("--database", type=Path, required=True)
     parser.add_argument("--actor", required=True)
     parser.add_argument("--backup", type=Path)
@@ -312,6 +341,7 @@ def main(argv=None):
                 else:
                     action = {"review-initialize": "initialize", "review-resume": "resume-policy",
                               "review-resume-unrelated": "resume-unrelated-policy",
+                              "review-resume-isolated": "resume-isolated-policy",
                               "review-enable-closures": "enable-closures"}[args.action]
                     result = review(db, action)
         else:
