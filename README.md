@@ -87,7 +87,7 @@ source used for build metadata; it does not imply production readiness. See
 
 - Web/BFF with Caddy/Authelia ForwardAuth trust boundary and CSRF protection.
 - Internal Unix-socket API backed by SQLite WAL state and append-only audit events.
-- Isolated [durable import-preparation journal](docs/manual/managed-import-preparations.md), tested with 100,000 synthetic pairs and paged restart-safe reports; not yet connected to Web/API or executable authority.
+- [Managed import Web workflow](docs/manual/managed-import-web.md): saved preparations, explicit adoption/exclusions, frozen recurring consent, retained receipts and uncompleted-work cancellation within current 1000-pair policy limits. Preparation storage is tested with 100,000 synthetic pairs; larger executable capacity/rolling dispatch remain pending and gates remain off.
 - [Managed policy pagination](docs/manual/managed-shuns.md#read-only-managed-shuns-page) with 100-row pages, page-scoped attempt summaries and explicit revision conflicts; existing authority limits remain unchanged.
 - Strict fixed binary protocol encoder/decoder and an isolated Rust FTD SSH agent.
 - Opt-in [per-device SSH credentials](docs/manual/per-device-credentials.md), with agent-only mapping/secrets, ID-based selection and non-network configuration checks. Existing lab credentials remain unchanged in explicit shared compatibility mode.

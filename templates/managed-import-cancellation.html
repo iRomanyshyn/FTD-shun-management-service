@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Current import cancellation status</h1>
+<p class="policy-warning">Cancellation stops only uncompleted initial work. Already applied/adopted addresses remain managed and blocked. This is not device-removal progress.</p>
+<p>Original import: <code>{{ status.operation_id }}</code></p>
+{% if not status.requested %}<p>No cancellation decision is recorded.</p>{% else %}
+<p><strong>{{ 'All captured outcomes settled.' if status.settled else 'Waiting for captured commands to settle; do not resend them.' }}</strong> {% if status.attention_count %}<span class="state-badge policy-disabled">{{ status.attention_count }} need attention</span>{% endif %}</p>
+<ul>{% for state, count in status.counts.items() %}<li>{{ state }}: {{ count }}</li>{% endfor %}</ul>
+<p>Initial decision recorded <time class="local-timestamp" datetime="{{ status.initial_receipt.requested_at }}">{{ status.initial_receipt.requested_at }}</time>. Counts below reflect current settlement, not the initial receipt.</p>
+<div class="table-scroll"><table aria-label="Cancellation settlement"><thead><tr><th>Device</th><th>IPv4</th><th>Disposition</th><th>Last settled / updated</th></tr></thead><tbody>
+{% for target in status.targets %}<tr><td>{{ target.device_id }}</td><td>{{ target.ip }}</td><td><span class="state-badge{% if target.attention %} policy-disabled{% elif target.state.startswith('RETAINED_') %} policy-enabled{% endif %}">{{ target.state }}</span>{% if target.attention %} Needs attention{% endif %}</td><td><time class="local-timestamp" datetime="{{ target.updated_at }}">{{ target.updated_at }}</time></td></tr>{% endfor %}
+</tbody></table></div><p>Page {{ status.page }} of {{ status.pages }} · at most 100 pairs.</p>
+{% endif %}
+<form method="post" action="/managed-imports/cancellation" class="pagination-controls"><input type="hidden" name="csrf" value="{{ csrf_token }}"><input type="hidden" name="operation_id" value="{{ status.operation_id }}"><button name="page" value="{{ status.page | default(1) }}">Check latest status</button>{% if status.requested and status.pages > 1 %}<button name="page" value="{{ status.page-1 }}"{% if status.page == 1 %} disabled{% endif %}>Previous 100</button><button name="page" value="{{ status.page+1 }}"{% if status.page == status.pages %} disabled{% endif %}>Next 100</button>{% endif %}</form>
+<p><a href="/managed-imports">Saved preparations and receipts</a> · <a href="/managed-shuns">Current managed policy</a></p>
+<script src="/static/freshness.js" defer></script>
+{% endblock %}

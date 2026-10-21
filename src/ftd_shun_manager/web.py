@@ -34,6 +34,7 @@ from .import_preview import (
 from .import_review import ImportReviews, ReviewUnavailable
 from .managed_batch_review import ManagedBatchReviews, parse_standing_list, validate_batch_receipt
 from .managed_grant_review import ManagedGrantReviews
+from .managed_import_web import register_import_web
 from .managed_retirement_review import ManagedRetirementReviews
 from .managed_review import ManagedRemovalReviews, validate_removal_receipt
 
@@ -1171,6 +1172,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(503, "Cancellation was not confirmed; check the operation queue.") from error
         return queued_result(request, response, "/")
 
+    register_import_web(app, settings, render=render, identity_for=identity_from_request,
+                        client_for=lambda config: api_client(config), form_for=preview_form, csrf_for=require_csrf)
     return app
 
 

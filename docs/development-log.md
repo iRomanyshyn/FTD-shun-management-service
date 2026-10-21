@@ -5123,6 +5123,244 @@ No optional journal migration, new grant, live ADD/REMOVE or fixture. Current
 code rollback uses the retained paired images without restoring old policy/data;
 if unrelated work later appears, review it before downgrade or backup recovery.
 
+## 2026-10-21 — Prepared import confirmation and retained reports
+
+Implemented `ManagedImports` and seven fixed private POST routes for owner-bound
+preparation/list/report/cancel-draft, gated confirmation and retained receipt reads.
+Startup constructs coordinators only; no optional initializer/migration is called.
+Current Operator/Administrator, explicit boolean recurring consent, distinct
+canonical operation key, owner draft ID/full digest, exact accepted count and
+trusted standing gate/configured profiles are required. Extra action/target/enable
+fields and coercion are refused. Read reports remain available with admission off.
+
+One BEGIN IMMEDIATE verifies lifetime/backwards time/full original scope, current
+managed/protection revisions, selected device IDs/names/enabled state, classifications
+and original references, pending/uncertain/cleanup/latch/recovery/profile/capacity
+guards. Classification changes conflict whole; normal observation heartbeats do
+not impersonate fresh evidence. Existing canonical MAINTAIN request/target writes
+are shared, not a single-target transaction loop or alternate policy registry.
+Explicit adoption has no ADD or fabricated creation provenance; already-managed
+pairs retain original intent/generation/author. Protected members and invalid/
+duplicate diagnostics are visibly retained as exclusions rather than silently
+truncating scope. Ordinary grant entry points still reject adoption.
+
+Two separate `confirmed_import_*` report tables/four immutable UPDATE/DELETE guards
+retain full scope and prior/assigned intent references, captured draft versus real
+confirmation actor, diagnostics and independent full framed checksums. Constructor/
+optional reads do not initialize them. Confirmed reports survive draft pruning,
+history retention/restart and later policy generations; original-key replay never
+re-enables authority. A preparation cannot acquire another operation key, and an
+old policy key cannot be reinterpreted as an import. Draft pages/lists show their
+original confirmed operation; cancel-draft explicitly refuses after confirmation.
+No confirmed-import cancellation or actual execution-progress claim is introduced.
+
+The existing 1000 accepted-pair/key, 10000 request/attempt and retirement-reserve
+bounds remain. Oversize scopes reject without splitting or partial admission.
+Confirmed evidence is additionally bounded to 128 roots/1,000,000 member rows,
+without automatic eviction/recycling. Policy/receipt/audit late failures roll
+back together. Root adoption/confirmation audit uses the real actor; minimal
+structured confirmation counts log only after commit. No queue insertion, hint,
+SSH, resume, credential/profile or live gate change is part of confirmation.
+
+Validation: **1260 Python tests passed (65.59s)**, including 43 new confirmation/
+private-API cases. Final combined confirmation/preparation check: **70 passed
+(6.03s)** after preserving early digest rejection before opening a database.
+Compileall/Ruff/diff pass; 221 local Markdown links/anchors checked across ten
+documents. Coverage includes mixed accepted/adopted/already-managed/protected
+scope and invalid/duplicate reporting, actual versus captured roles, no queue or
+occurrence provenance fabrication, whole-scope conflicts/expiry/backwards time,
+late audit and outer schema rollback, concurrent key replay, old namespace refusal,
+immutable/tampered evidence, owner privacy, full current 1000-pair reports and
+oversize refusal, receipt/retirement reserves and permanent protection retirement.
+Legacy exact-schema managed-maintenance inspection accepts the unchanged canonical
+adoption authority without modifying state or weakening its existing blockers.
+Strict private routes reject unreviewed fields/coerced consent; disabled admission
+and ordinary startup never initialize optional tables. ASGI/socket tests use
+permitted local test execution only. Browser/Rust/Compose unchanged; their separate
+suites were not rerun for this backend-only change.
+
+Built a separate validation-only image, not the running Compose image tags:
+`ftd-shun-api:prepared-import-validation-20261021`,
+`sha256:b3d86cb0efc8a52c90b88da4870159e4300543245c891d3ddd19d1980ac2ea22`.
+Non-root/read-only/no-network Python 3.12 smoke validation uses only temporary
+synthetic inventory/SQLite with no lab mounts: prepare two accepted targets plus
+an invalid line, adopt one without ADD, save policy/report, prune the draft,
+replay the original key and read the retained report. Queue jobs/attempts remain
+zero; SQLite integrity/FK checks pass. Image construction/fixture initialization
+does not migrate or activate the laboratory stack.
+
+No lab deployment/restart, database migration, new fixture, device connection or
+mutation, gate/profile/credential change was performed. The current browser is
+unchanged; restarting services would not expose this unfinished Web workflow.
+Keep the prior recorded lab images/evidence in place. The reviewed additive
+migration/backup/rollback procedure is documented, not invoked. Larger policy/
+attempt capacity, confirmed-import cancellation, frozen Web integration and rolling
+dispatch remain the next working-version increments; this is not hardware-load
+or 10,000-address executable/production acceptance.
+
+## 2026-10-21 — Confirmed-import cancellation and in-flight settlement
+
+Implemented the next working-version cancellation increment, not another
+device executor. A separate journal provides fixed private review/cancel/status
+POSTs for original-owner Operator/Administrator or current Administrator. A
+five-minute state-bound digest and typed accepted pair count bind the original
+confirmed scope, current policy/protection revisions and retained ADD outcomes.
+Whole-scope changes refuse; original-key retries return the immutable initial
+decision without repeating effects. Current status separately pages at 100 rows.
+
+One SQLite write transaction records the decision/scope, retires exact unsent
+original generations, cancels only owned unstarted ADDs and appends real-actor
+audit. Adopted/pre-existing or VERIFIED/NOOP-applied targets remain maintained;
+observation alone never fabricates service application. Failed/uncertain work
+retains its original outcomes/latches with attention even after future policy
+retirement. No REMOVE, queue admission, hint, new canonical request slot, fake
+identity, policy resume or device connection is involved.
+
+Captured RUNNING predecessors settle inside the existing queue result transaction:
+success retains already enabled original policy; failure/uncertainty or typed
+pre-write deferral retires it. Protection/independent retirement and newer grants
+always win. The exact original pending generation blocks new restoration dispatch.
+Lease-expiry recovery records UNVERIFIED rather than replaying, then settles the
+same decision atomically. Pruning validates/preserves captured jobs and linked
+requests. A missed hook from an unsupported older writer stays honestly pending;
+GET never repairs it. No downgrade to such writers while a decision is pending.
+
+Explicit optional initialization adds only `import_cancellation_decisions` and
+`import_cancellation_targets`, one partial pending-pair index and five guards.
+It requires existing report/policy/attempt schemas and supports outer rollback;
+startup/requests/GET never initialize or repair them. One decision per existing
+root reserves capacity for revocation (at most 128 roots/128000 accepted members),
+without increasing the current 1000-key/pair or 10000-request/attempt bounds.
+New confirmation requires these controls; historical receipt/replay does not.
+Updated architecture, status, delivery plans and the structured
+[Import Cancellation manual](manual/import-cancellation.md), including schema,
+backup, activation boundaries, compatibility and rollback hazards.
+
+Validation: full Python suite **1305 passed (67.30s)**, including 45 new cancellation
+cases; final cancellation/restoration suite **99 passed (3.79s)** after tightening
+retirement row-count/completion-evidence validation. Compileall/Ruff/diff pass;
+233 changed-document local links/anchors checked. Local ASGI/socket tests ran with
+permitted test execution outside the restrictive sandbox; initially blocked runs
+were interrupted, not treated as successful validation. Fixtures are temporary
+SQLite/ASGI only. Coverage includes mixed adopted/existing/protected
+scope, queued cancellation, four RUNNING outcomes, exact deferral, restart/lease
+loss, original-key concurrency, stale/expired reviews/current roles, late decision
+and settlement audit rollback, retained success after pruning/draft expiry,
+1000-pair atomic revocation/100-row pages, ledger exhaustion, immutable evidence,
+missing predecessor refusal and disabled-admission strict private API.
+
+No lab rollout/restart, optional migration, credential/profile/gate change, new
+fixture or FTD call was performed. Existing browser/agent/Compose assets are
+unchanged; their separate suites were not rerun. Frozen Web confirmation/cancel
+integration, larger compatible capacity and continuous bounded execution remain
+pending. This is not live bulk/throughput or production acceptance.
+
+## 2026-10-21 — Managed-import Web confirmation and cancellation
+
+Connected the prepared-import backends to a separate authenticated BFF workflow
+at `/managed-imports`, now recommended by Operator/Administrator navigation.
+Saved preparations/owner receipts use private body references and 100-row report
+pages. Exact classifications, protected exclusions, adoption, invalid/duplicate
+diagnostics and selected device identity are visible. Uninitialized optional
+storage is explicit, not an empty healthy/executable import state. The legacy
+one-time preview remains separately accessible; no existing endpoint is silently
+converted into standing policy.
+
+Separate bounded subject/CSRF-bound review caches protect confirmation and
+cancellation; configured sensitive age is capped at ten/five minutes respectively.
+Confirmation requires exact accepted pair count and recurring consent plus both
+BFF and current API admission capability. Deterministic UUIDv5 operation reference
+from the immutable preparation preserves one original key through Web restart.
+Unknown/malformed replies retain frozen key/body/token/count/consent, with explicit
+inspection/retry, never automatic replay or silent reclassification. Reload/paging
+never replaces the review or supplies authority. Current roles are checked again
+on every POST; no browser actor/target/gate override exists. Metadata is escaped,
+times localize with a timezone, and all non-static responses are no-store.
+
+Cancellation is separately reviewed even when new admission is off. Its warning
+explicitly says already applied/adopted addresses remain blocked and maintained.
+Historical confirmation/initial cancellation receipt and current cancellation
+settlement are distinct. Manual status reads page current retained/stopped/waiting/
+attention members without commands or another decision. Opening a previously
+cancelled root shows status instead of creating new authority.
+
+New `managed_import_web.py` isolates the browser adapter instead of extending
+the privileged executor. Five templates reuse existing controls/styles, with
+explicit action spacing and no background refresh replacement on sensitive forms.
+Updated architecture, working-version/development plans, status and structured
+[Managed Import Web manual](manual/managed-import-web.md). No schema, fixed binary
+protocol, agent, credential, Compose or storage/dispatch-capacity change is involved.
+
+Validation: **1331 Python tests passed (77.33s)**, including 26 new real BFF/private
+API integration cases on temporary SQLite. Coverage includes adoption/exclusions,
+count/consent, subject/cookie/age/roles/CSRF/extra-field boundaries, frozen paging,
+both gates, lost/malformed/post-commit follow-up replies, stable keys across BFF
+restart, receipt reads after draft pruning and base-only startup without migration.
+**30 Chromium cases passed (101.27s)**, including two new production-template
+checks for native validation, field/focus/token preservation, escaped metadata,
+colored exclusions, gate-independent cancellation warnings and mobile spacing.
+The initial browser fixture incorrectly awaited a live-refresh control on these
+frozen pages; fixed the fixture's readiness selector, without adding refresh or
+weakening production behavior, then reran the complete browser suite.
+Compileall/Ruff/diff checks pass; 247 local Markdown links/anchors checked.
+Local socket/browser tests used permitted local
+execution. Browser fixtures never invoke the lab or device mutations.
+
+Built paired Python 3.12 images; a separate non-root/read-only/no-network container
+with no lab mounts passed real synthetic BFF/API prepare, recurring confirmation,
+cancellation and status. Explicit synthetic schema initialization created no live
+state; zero device jobs, integrity/FK checks pass. This verifies installed assets/
+dependencies, not hardware throughput or 100,000-pair execution.
+
+Authorized API/Web-only rollout completed on the existing local-lab Compose
+project, service-only `--no-deps --no-build` recreation after validation. Retained
+previous images as `ftd-shun-api:rollback-managed-import-web-20261021` and
+`ftd-shun-web:rollback-managed-import-web-20261021`. Checked online SQLite backup:
+`/var/lib/ftd-shun-manager/managed-import-web-20261021T1330/before-update.sqlite3`,
+0700 directory/0600 file, integrity/FK checks pass, SHA-256
+`7442b5043f7325d5f16eae9d125bd86f1f714bb33af206154f510db0fc17633d`.
+Schema SHA-256 `d1f2cc47eea097f9d873514cd448d173e9e24abaef37dbfb891436dc0d8f6132`
+and every row in twelve retained queue/policy tables match the backup after
+rollout; the active executor lease is intentionally excluded from row equality.
+
+Running API `sha256:7bcbe11f777ddd9cf9e2564d994579fc00099f0029be52224bfa3dbd9da8e51e`,
+Web `sha256:a21f63de26f037419a118c4db2948619dba8eeeae035c4ef26cbfdad4abe45b5`.
+Agent remains `sha256:bdd040aef2720ae80fe2caf90b715904ea60eef024ed594b52a74cdaf14a0b34`;
+Caddy/Authelia unchanged. API ready/socket, successful snapshot 13:33:10Z and no
+error; 12 VERIFIED/1 NOOP/no pending, revision 4/suspended/enabled managed 0.
+All six experimental flags and development auth remain false; addition profiles 0.
+Preparation/confirmed/cancellation schemas remain absent, with private reads
+reporting uninitialized honestly. Anonymous Web denies `/managed-imports` (401),
+TLS-verified Caddy redirects it to authentication (302); API/Web retain network
+mode none and only Caddy loopback443 is published. No synthetic Web actor was
+submitted to the live BFF; live owner-list smoke used an explicitly labelled,
+non-authoritative trusted-host read identity, not an impersonated user.
+
+No optional live migration, fixture, ADD/restoration activation, inventory or
+credential change is included. Larger compatible authority/attempt capacity,
+continuous bounded dispatch/progress, per-device parallelism and automatic
+uncertainty reconciliation remain working-version delivery gaps.
+
+## 2026-10-21 — Deferred minimal IP-context idea
+
+Recorded the operator's request to add minimal IP information in the Web UI using
+RDAP or an equivalent source later. Added the working-version follow-up and linked
+development/status records without changing the current core delivery priority.
+Candidate fields are network/organization/range, optional ASN and registered
+country when supplied, plus source/time/staleness. Registration context is not
+physical geolocation, blocking reputation or mutation authority.
+
+Recorded compact expandable presentation, asynchronous deduplicated/bounded
+caching, TTL/backoff/rate/response/time limits and honest unavailable states.
+Provider/coverage/terms, external-query privacy, private/special-address exclusion,
+offline alternatives and SSRF-safe discovery need review before implementation.
+Existing Web/API isolation and FTD-only agent egress stay unchanged; this idea
+does not authorize provider traffic, a new network route, schema or deployment.
+
+Validation: documentation-only change; `git diff --check` and changed-document
+local link/anchor checks. No code/tests, IP lookup/provider research, live service
+restart, configuration change or device operation was performed.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

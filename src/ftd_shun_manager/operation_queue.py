@@ -820,9 +820,15 @@ class OperationQueue:
         with self.store._connection() as db:
             db.execute("BEGIN IMMEDIATE")
             preserve = ""
+            from .import_cancellations import present as cancellations_present
+            from .import_cancellations import retained_job_ids as cancellation_job_ids
             from .incident_isolations import present as isolations_present
             from .incident_isolations import retained_job_ids
 
+            if cancellations_present(db):
+                cancellation_job_ids(db)  # Missing/malformed predecessors refuse pruning.
+                preserve += """ AND NOT EXISTS (SELECT 1 FROM import_cancellation_targets c
+                    WHERE c.job_id=operation_jobs.id AND c.state='WAITING_OUTCOME')"""
             if isolations_present(db):
                 retained_job_ids(db)  # Validate every held reference before any deletion.
                 preserve += """ AND NOT EXISTS (SELECT 1 FROM incident_isolations i,

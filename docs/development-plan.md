@@ -2,6 +2,34 @@
 
 Last updated: 2026-10-21
 
+## Deferred idea: minimal IP context — 2026-10-21
+
+The operator requested RDAP or equivalent enrichment for IPs in the Web UI.
+Track a compact context view with available network/organization/range, optional
+ASN and registered-country fields, source and freshness; not geolocation or
+blocking reputation. Provider choice is deferred. Use asynchronous bounded caching
+and preserve all current network/credential boundaries; no Internet route for
+Web/API or the FTD agent, no per-row blocking lookups and no policy authority.
+See [the working-version follow-up](working-version-plan.md#deferred-ip-context--enrichment--requested-2026-10-21)
+for privacy, failure, SSRF and implementation-design prerequisites. Not implemented,
+not activated and not a change to the current core delivery order.
+
+## Prepared confirmation checkpoint — 2026-10-21
+
+The private backend now confirms exact accepted subsets with explicit adoption,
+protected/invalid exclusions and independent immutable receipts. Existing canonical
+standing authority, 1000-pair capacity and retirement reserve remain unchanged.
+No device work, live migration or activation is included. See
+[Prepared Import Confirmation](manual/managed-import-confirmation.md).
+Confirmed-import cancellation now has a separate private backend with frozen
+review, retained applied/adopted policy and transactional in-flight settlement;
+see [Import Cancellation](manual/import-cancellation.md). No live migration.
+The [managed-import Web workflow](manual/managed-import-web.md) now connects saved
+preparations, frozen consent, receipts and uncompleted-work cancellation with
+stable original-key recovery. Next: capacity-compatible retained policy/attempts,
+then rolling dispatch/progress. Do not expose the
+100,000-pair planning limit as executable or use draft cancellation for imports.
+
 ## Bounded managed-read checkpoint — 2026-10-21
 
 The Managed tab now uses 100-row policy pages and pair-scoped attempt/hold
@@ -20,7 +48,8 @@ Owner-bound 100-row reports/full streamed digest survive restart; cancellation/
 expiry affects drafts only. No old request becomes policy, no job is inserted,
 and existing authority/gates remain unchanged. See
 [Durable Import Preparations](manual/managed-import-preparations.md).
-This isolated foundation is not initialized in the lab or connected to HTTP/Web.
+The foundation remains uninitialized in the lab; the newer checkpoint above adds
+private API integration, not Web or dispatch.
 Next: compatible paged standing-policy/attempt capacity, atomic confirmed import
 root/accepted-subset adoption and bounded execution/progress linked to that durable
 authority, never to an expiring preparation.

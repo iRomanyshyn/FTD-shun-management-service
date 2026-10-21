@@ -192,10 +192,15 @@ class ManagedShuns:
         return result
 
     def _apply(self, db, request_id, action, targets, revision, protected_revision,
-               subject, display_name, roles, payload):
+               subject, display_name, roles, payload, *, adopted_pairs=frozenset()):
         from .managed_restoration import cancel_obsolete, key_reserved
         from .operation_queue import OperationQueue
 
+        # Only the prepared-import coordinator supplies a reviewed adoption set.
+        # Ordinary change/grant entry points never pass this internal argument.
+        if (type(adopted_pairs) is not frozenset or not adopted_pairs.issubset(targets)
+                or (adopted_pairs and action != "MAINTAIN")):
+            raise ValueError("Adoption requires an exact reviewed subset of maintained pairs.")
         previous = db.execute("SELECT * FROM managed_shun_requests WHERE id=?", (request_id,)).fetchone()
         if previous:
             if previous["actor_subject"] != subject or previous["payload_json"] != payload:
@@ -251,10 +256,13 @@ class ManagedShuns:
                     raise ManagedConflict("Unknown or disabled managed target device.")
                 if db.execute("SELECT 1 FROM protected_ips WHERE ip=? AND enabled=1", (ip.packed,)).fetchone():
                     raise ManagedConflict("Enabled Protected IPs cannot be maintained as shuns.")
-                if (old is None or not old["enabled"]) and db.execute(
+                observed = db.execute(
                     "SELECT 1 FROM shun_state WHERE device_id=? AND ip=? AND active=1",
                     (device_id, ip.packed),
-                ).fetchone():
+                ).fetchone() is not None
+                if (device_id, ip) in adopted_pairs and (not observed or (old is not None and old["enabled"])):
+                    raise ManagedConflict("Reviewed adoption no longer matches an unmanaged observed target.")
+                if (old is None or not old["enabled"]) and observed and (device_id, ip) not in adopted_pairs:
                     raise ManagedConflict("Existing shun adoption requires a separate reviewed workflow.")
                 changes.append((device_id, ip, old, old is None or not old["enabled"]))
             else:
@@ -290,7 +298,8 @@ class ManagedShuns:
                     db.execute("""UPDATE managed_shun_targets SET enabled=0,revision=?,updated_at=?,retired_at=?
                         WHERE device_id=? AND ip=?""", (current + 1, timestamp, timestamp, device_id, ip.packed))
             row = db.execute("SELECT * FROM managed_shun_targets WHERE device_id=? AND ip=?", (device_id, ip.packed)).fetchone()
-            self.store._insert_event(db, "MANAGED_SHUN_AUTHORIZED" if action == "MAINTAIN" and changed else
+            self.store._insert_event(db, "MANAGED_SHUN_ADOPTED" if (device_id, ip) in adopted_pairs else
+                                     "MANAGED_SHUN_AUTHORIZED" if action == "MAINTAIN" and changed else
                                      "MANAGED_SHUN_RETIRED" if changed else "MANAGED_SHUN_POLICY_NOOP",
                                      device_id, ip, None, subject, display_name, roles, request_id,
                                      {"source": "managed_shun_policy", "mode": "maintain_present",

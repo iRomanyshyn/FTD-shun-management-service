@@ -20,6 +20,7 @@ from ftd_shun_manager.managed_intent import canonical_managed_fleet_scope
 from ftd_shun_manager.managed_retirement_review import ManagedRetirementReviews
 from ftd_shun_manager.managed_grant_review import ManagedGrantReviews
 from ftd_shun_manager.managed_batch_review import ManagedBatchReviews, parse_standing_list
+from ftd_shun_manager.managed_import_web import BrowserImportReviews
 from ipaddress import IPv4Address
 from ftd_shun_manager.web import Identity, templates
 p = json.load(sys.stdin)
@@ -27,6 +28,7 @@ policy_entries = (p.get("policy") or {}).get("entries", [])
 enabled_ips = frozenset(entry["ip"] for entry in policy_entries if entry["enabled"])
 disabled_ips = frozenset(entry["ip"] for entry in policy_entries if not entry["enabled"])
 preview = None
+managed_import_report = None
 if p.get("submitted"):
     parsed = parse_blocklist(p["source_text"])
     preview = paginate_preview(summarize_preview(parsed, dict(policy_revision=1, devices=[dict(id=1,hostname="lab-ftd")],
@@ -57,8 +59,24 @@ if p["template"] == "managed-batch-review.html":
     classification = dict(policy_revision=1, addresses=[dict(ip=ip, protected=False,
         devices=[dict(id=1, hostname="lab-ftd", already_shunned=False)]) for ip in parsed["ips"]])
     review = ManagedBatchReviews().prepare("test", "fixture-token", p["managed"], classification, parsed, [1], "Fixture", "Synthetic only")
+if p["template"] == "managed-import-review.html":
+    targets = [dict(device_id=1,ip=f"198.18.0.{i}",classification="EXCLUDED_PROTECTED" if i==1 else "PROPOSE_ADOPT" if i==2 else "PROPOSE_ADD") for i in range(1,103)]
+    header = dict(plan_id="33333333-3333-4333-8333-333333333333",digest="a"*64,target_count=102,
+        classification_counts=dict(PROPOSE_ADD=100,PROPOSE_ADOPT=1,ALREADY_MANAGED=0,EXCLUDED_PROTECTED=1),
+        devices=[dict(id=1,hostname="<b>Fixture FTD</b>")], source_counts=dict(Ready=102,Invalid=1),
+        label="<b>Escaped import</b>",reason="Synthetic only",managed_revision=1,protected_revision=1,
+        managed_initialized=True,expires_at="2099-01-01T00:00:00.000Z",can_execute=False,state="PREPARED")
+    managed_import_report = dict(**header,page=1,pages=2,targets=targets[:100],report_rows=[dict(line=103,ip=None,status="Invalid",reason="Not an exact IPv4 token")])
+    if p.get("import_kind") == "cancel":
+        cancellation = dict(operation_id="44444444-4444-4444-8444-444444444444",can_cancel=True,device_work_admitted=False,
+            accepted_count=101,counts=dict(WAITING_OUTCOME=1,RETAINED_APPLIED=5,STOPPED_UNSENT=95),attention_count=0,
+            reviewed_at="2026-10-21T12:00:00.000Z",review_digest="b"*64)
+        review = BrowserImportReviews().cancellation("test","fixture-token",cancellation)
+        managed_import_report = dict(header=header,page=1,pages=2,targets=targets[:100],report_rows=[])
+    else:
+        review = BrowserImportReviews().confirmation("test","fixture-token",managed_import_report)
 print(templates.get_template(p["template"]).render(identity=Identity("test", "Test Operator", ("Operator",)),
-    review=review, accepted=None, result=None, confirm_ip="", message=None, admission_enabled=p["refresh"].get("import_admission_enabled", False),
+    review=review, report=managed_import_report, accepted=None, result=None, confirm_ip="", message=None, admission_enabled=p["refresh"].get("managed_policy_admission_enabled" if p["template"] == "managed-import-review.html" else "import_admission_enabled", False),
     retry_available=p["refresh"].get("import_admission_enabled", False), execution_enabled=False,
     removal_admission_enabled=p["refresh"].get("managed_removal_admission_enabled", False),
     frozen_view=p["template"] in ("import-confirm.html", "managed-remove-review.html", "managed-retirement-review.html", "managed-grant-review.html", "managed-batch-form.html", "managed-batch-review.html"),
@@ -91,7 +109,7 @@ const initial = () => ({
     last_successful_refresh: "2026-10-15T10:00:00Z", last_error: null } },
 });
 
-async function connectPage(debugOrigin, url) {
+async function connectPage(debugOrigin, url, readySelector = "[data-refresh-request]") {
   const target = await fetch(`${debugOrigin}/json/new?${encodeURIComponent("about:blank")}`, { method: "PUT" }).then((r) => r.json());
   const socket = new WebSocket(target.webSocketDebuggerUrl);
   await once(socket, "open");
@@ -134,7 +152,7 @@ async function connectPage(debugOrigin, url) {
   await call("Runtime.enable");
   await call("Emulation.setFocusEmulationEnabled", { enabled: true });
   await call("Page.navigate", { url });
-  await until("Boolean(document.querySelector('[data-refresh-request]'))");
+  await until(`Boolean(document.querySelector(${JSON.stringify(readySelector)}))`);
   return { call, evaluate, until, errors, close: async () => {
     assert.deepEqual(errors, [], "No browser JavaScript exceptions");
     await fetch(`${debugOrigin}/json/close/${target.id}`);
@@ -306,7 +324,7 @@ test("refresh interaction in real Chromium", { timeout: 120000 }, async (t) => {
       confirmationPosts += 1;
       response.setHeader("Content-Type", "text/html");
       response.end("<p>Fixture admission received; no device work</p>");
-    } else if (["/", "/history", "/protected-ips", "/imports", "/imports/review", "/managed-shuns", "/managed-shuns/removal-review", "/managed-shuns/fleet-removal-review", "/managed-shuns/retirement-review", "/managed-shuns/grant-review", "/managed-shuns/bulk", "/managed-shuns/bulk-review"].includes(url.pathname) || url.pathname.startsWith("/shuns/")) {
+    } else if (["/", "/history", "/protected-ips", "/imports", "/imports/review", "/managed-imports/review", "/managed-shuns", "/managed-shuns/removal-review", "/managed-shuns/fleet-removal-review", "/managed-shuns/retirement-review", "/managed-shuns/grant-review", "/managed-shuns/bulk", "/managed-shuns/bulk-review"].includes(url.pathname) || url.pathname.startsWith("/shuns/")) {
       pageReads += 1;
       let previewFields = {};
       if (url.pathname === "/imports/review") previewFields = {
@@ -342,13 +360,14 @@ test("refresh interaction in real Chromium", { timeout: 120000 }, async (t) => {
             entries: managed.entries.slice((current - 1) * 100, current * 100) };
       }
       const payload = { refresh: stamp(), generation, query: url.searchParams.get("q") || "", shun_origins: shunOrigins,
+        import_kind: url.searchParams.get("kind"),
         fleet_review: url.pathname === "/managed-shuns/fleet-removal-review",
         ordered_wait: url.searchParams.get("ordered") === "yes", all_devices_enabled: url.searchParams.get("enabled") === "all",
         history, anchor: url.searchParams.get("anchor"),
         ...previewFields,
         policy, managed: managedView, handoffs, fleet_cleanup: fleetCleanup, template: url.pathname === "/" ? "index.html" : url.pathname === "/history" ? "history.html"
           : url.pathname === "/protected-ips" ? "protected-ips.html" : url.pathname === "/imports" ? "import-preview.html"
-            : url.pathname === "/imports/review" ? "import-confirm.html" : url.pathname === "/managed-shuns" ? "managed-shuns.html"
+            : url.pathname === "/imports/review" ? "import-confirm.html" : url.pathname === "/managed-imports/review" ? "managed-import-review.html" : url.pathname === "/managed-shuns" ? "managed-shuns.html"
               : ["/managed-shuns/removal-review", "/managed-shuns/fleet-removal-review"].includes(url.pathname) ? "managed-remove-review.html"
                 : url.pathname === "/managed-shuns/retirement-review" ? "managed-retirement-review.html"
                   : url.pathname === "/managed-shuns/grant-review" ? "managed-grant-review.html"
@@ -1435,6 +1454,48 @@ test("refresh interaction in real Chromium", { timeout: 120000 }, async (t) => {
         assert.equal(executionCount, executions);
       } finally { await page.close(); }
     });
+    await t.test("managed import review preserves session fields, consent, escaping and mobile spacing", async () => {
+      status.managed_policy_admission_enabled = true;
+      const page = await connectPage(debugOrigin, `${origin}/managed-imports/review`, "#prepared-import-confirm");
+      try {
+        await page.until("document.querySelector('#prepared-import-confirm')");
+        const reads = pageReads, hints = postCount, submissions = confirmationPosts;
+        const token = await page.evaluate("document.querySelector('[name=review]').value");
+        await page.evaluate("document.querySelector('#accepted-pair-count').value='101'; document.querySelector('[name=maintain_present]').checked=true; document.querySelector('#accepted-pair-count').focus()");
+        assert.ok(await page.evaluate("document.body.textContent.includes('<b>Escaped import</b>')"));
+        assert.equal(await page.evaluate("document.querySelectorAll('td b, dd b').length"), 0);
+        assert.equal(await page.evaluate("document.querySelector('#prepared-import-confirm').checkValidity()"), true);
+        assert.ok(await page.evaluate("getComputedStyle(document.querySelector('.protected-shun td')).backgroundColor !== 'rgba(0, 0, 0, 0)'"));
+        assert.equal(await page.evaluate("document.querySelectorAll('table[aria-label=\"Exact import pairs\"] tbody tr').length"), 100);
+        await wake(page); await delay(300);
+        assert.equal(pageReads, reads); assert.equal(postCount, hints); assert.equal(confirmationPosts, submissions);
+        assert.equal(await page.evaluate("document.querySelector('[name=review]').value"), token);
+        assert.equal(await page.evaluate("document.activeElement.id"), "accepted-pair-count");
+        assert.equal(await page.evaluate("document.querySelector('[name=maintain_present]').checked"), true);
+        for (const width of [1100, 375]) {
+          await page.call("Emulation.setDeviceMetricsOverride", { width, height: 800, deviceScaleFactor: 1, mobile: width === 375 });
+          assert.equal(await page.evaluate("document.documentElement.scrollWidth<=window.innerWidth"), true);
+          assert.ok(await page.evaluate("(() => {const input=document.querySelector('#accepted-pair-count').getBoundingClientRect();const button=document.querySelector('#prepared-import-confirm > button').getBoundingClientRect();return button.top-input.bottom>=8;})()"));
+        }
+      } finally { await page.close(); }
+    });
+
+    await t.test("import cancellation warns about retained shuns and has no maintenance-consent switch", async () => {
+      status.managed_policy_admission_enabled = false;
+      const page = await connectPage(debugOrigin, `${origin}/managed-imports/review?kind=cancel`, "#prepared-import-confirm");
+      try {
+        await page.until("document.querySelector('#prepared-import-confirm')");
+        assert.ok(await page.evaluate("document.body.textContent.includes('This does not unblock already added addresses')"));
+        assert.ok(await page.evaluate("document.body.textContent.includes('WAITING_OUTCOME: 1')"));
+        assert.equal(await page.evaluate("document.querySelector('[name=maintain_present]')"), null);
+        assert.equal(await page.evaluate("document.querySelector('#prepared-import-confirm > button').disabled"), false);
+        assert.equal(await page.evaluate("document.querySelector('[name=kind]').value"), "cancel");
+        assert.equal(await page.evaluate("document.querySelector('#prepared-import-confirm').checkValidity()"), false);
+        await page.evaluate("document.querySelector('#accepted-pair-count').value='101'");
+        assert.equal(await page.evaluate("document.querySelector('#prepared-import-confirm').checkValidity()"), true);
+      } finally { await page.close(); }
+    });
+
     await t.test("large pasted lists are not truncated; UTF-8 limit is explicit and results page by 100", async () => {
       status = initial();
       const hints = postCount;

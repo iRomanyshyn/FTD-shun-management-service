@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 <h1>Blocklist import preview</h1>
+{% if 'Operator' in identity.roles or 'Administrator' in identity.roles %}<p class="policy-warning">For maintained blocks with restoration, use <a href="/managed-imports">Managed imports</a>: saved preparations, explicit adoption, exclusions and receipts. This page is the separate legacy one-time workflow.</p>{% endif %}
 {% include "refresh-panel.html" %}
 <p class="preview-boundary"><strong>Preview only — this step never queues work.</strong> Nothing is sent to FTD. Operators may prepare a separate exact-target review; admission and device execution remain independently gated and disabled by default.</p>
 {% if 'Operator' in identity.roles or 'Administrator' in identity.roles %}<p>Need automatic restoration instead of a one-time import? Use the separate <a href="/managed-shuns/bulk">standing-policy list workflow</a>.</p>{% endif %}

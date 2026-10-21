@@ -3878,7 +3878,8 @@ refresh hint or SSH operation. Its UUID/digest is a preparation reference, never
 a bearer permission or an executable operation key. Every returned report states
 that it cannot execute. Preserve existing 1000-key policy/canonical bounds and
 all gates until their coordinated replacement. No startup/GET initializes this
-journal; this foundation is not yet connected to HTTP/Web admission or dispatch.
+journal; the subsequent confirmation amendment defines its gated private API.
+Web admission and rolling dispatch remain separate implementation work.
 
 Prepared rows/header are immutable; separate cancellation only invalidates the
 unconfirmed preparation, not any independently admitted work. Retain snapshots
@@ -3921,3 +3922,112 @@ This change does not increase the 1000-policy-key, 10000-request or 10000-attemp
 capacities, change any gate, authorize a fixture or migrate live optional tables.
 Paired API/Web rollout needs matching rollback images and a checked SQLite-safe
 backup; it changes no schema and leaves the agent unchanged.
+
+## Prepared-import policy confirmation — 2026-10-21
+
+Provide fixed private preparation/list/report/cancel-draft and confirmation/report
+POSTs; trusted actors come from the authenticated BFF, not public header/form
+overrides. Confirmation requires current Operator/Administrator, explicit recurring
+consent, a distinct canonical operation UUID, original owner preparation ID/digest,
+exact accepted count, the existing default-off standing-admission gate, profiles
+and already initialized optional schemas. Unknown state never becomes empty.
+No request/startup migrates or enables policy. Future Web must enforce CSRF/session/
+sensitive-age checks and retain the exact key/body through uncertain replies.
+
+Under one SQLite write transaction, verify the full frozen preparation, lifetime/
+clock, selected enabled device labels/IDs, managed/protection revisions and current
+pair classification/prior references. Unchanged observation heartbeats need not
+invalidate a logical pair, but presence-to-absence/adoption changes conflict.
+Recheck pending/uncertain work, restoration latches, isolation/abandonment, cleanup,
+profiles, recovery and existing capacity/reserved revocation. Reject the entire
+changed/oversize scope; never silently reduce or split it. Invalid input is retained
+as generated diagnostics, enabled Protected IP pairs as exact exclusions.
+
+Atomically save the existing canonical MAINTAIN request/effective policies plus
+independent immutable confirmation reports and actual-actor audit. Explicitly
+adopt observed unmanaged pairs without ADD or invented creation provenance.
+Already-maintained pairs retain their original intent/generation/authorization.
+Absent proposals authorize maintenance, not verified creation. The internal exact
+adoption subset is never a caller-supplied HTTP switch; legacy grants still refuse
+adoption. No queue insertion, refresh hint, SSH, resume or new gate follows.
+
+The two `confirmed_import_*` report tables retain full accepted/excluded scope,
+generated diagnostics, original and assigned intent references, captured draft
+versus actual confirmation identity, original preparation and receipt checksums.
+They are evidence, not a parallel authority registry. Canonical standing authority
+remains independently retained and compatible with existing revocation/maintenance.
+Owner-only reports page at 100 rows, stream full integrity checks and outlive draft
+expiry/pruning. Retain at most 128 roots/1,000,000 report members; refuse overflow,
+never recycle keys/evidence. Original-key replay returns history only after expiry,
+retirement/new generation/protection; a preparation cannot acquire a second key.
+Confirmed draft reads identify its operation; cancel-draft refuses after confirmation
+instead of implying cancellation of standing authority or in-flight work.
+
+This backend preserves current 1000 accepted-pair/key, 10000 request/attempt limits
+and default-off gates. It is not the 10,000-address executable release: compatible
+larger capacity, confirmed-import cancellation, bounded dispatch/progress and Web
+confirmation remain pending. No new lab migration/fixture/activation is authorized.
+An additive API-only rollout may preserve the unchanged Web/agent, with checked
+SQLite-safe backup and previous images; startup must leave optional schemas alone.
+Follow [Prepared Import Confirmation](manual/managed-import-confirmation.md).
+
+## Confirmed-import cancellation — 2026-10-21
+
+Cancellation is revocation of an import's uncompleted initial application, not
+rollback. Retain adopted, previously managed and successfully applied targets.
+Retire only the exact original uncompleted generation; never touch newer grants,
+send REMOVE, interrupt RUNNING ADD or turn observations into execution evidence.
+FAILED/UNVERIFIED outcomes remain uncertain/latched even when policy is retired.
+
+A separate explicitly initialized optional cancellation journal records one
+immutable decision per original import key and bounded per-member settlement.
+It grants no ADD authority. New confirmations require this journal; historical
+confirmation recovery does not. Owner Operator or Administrator reviews the
+whole accepted scope, exact current authority/outcomes and policy/protection
+revisions with a five-minute digest and typed accepted count. Cancellation is
+one transaction, available even with admission disabled. Changed evidence rejects
+the whole decision. Original decision retries are observational, not new authority.
+
+Unstarted owned ADDs are cancelled atomically with retirement. Capture RUNNING
+owned ADDs and block new dispatch for that exact generation until the existing
+queue transaction settles the result: VERIFIED/NOOP retains already enabled
+original policy; failure/uncertainty or exact pre-write deferral retires it.
+Protection/other retirement always wins; settlement cannot re-enable anything.
+Shared lease recovery records uncertainty and settles cancellation in the same
+transaction. Preserve captured jobs/requests while pending; malformed evidence
+refuses pruning. Startup/read never migrate or settle work. Do not downgrade to
+writers lacking cancellation hooks while any captured outcome is pending.
+
+No live migration, policy fixture, gate change or device mutation is authorized
+by this backend increment. See [Import Cancellation](manual/import-cancellation.md).
+
+## Prepared-import browser integration — 2026-10-21
+
+The authenticated BFF may expose saved preparations, exact 100-row reviews,
+explicit recurring consent, owner receipts and uncompleted-work cancellation.
+Browser forms carry only session-bound opaque review tokens or read references,
+never actors, executable targets, gates or arbitrary actions. All POSTs require
+CSRF; mutations additionally require current Operator/Administrator and bounded
+sensitive-action review age. Reads/pagination never grant, hint, migrate or settle.
+
+Derive the confirmation operation UUID deterministically from the immutable
+preparation UUID with UUIDv5 name `ftd-shun-manager:prepared-policy:v1`. This is
+an idempotency reference, not permission. It survives BFF restart; backend actor,
+digest, consent, revisions and one-root-per-preparation checks remain mandatory.
+Keep the same frozen payload/key through unknown replies; require explicit retry,
+never automatic mutation retry. A new session may inspect the retained preparation
+or receipt, not reactivate retired policy. Expired browser tokens cannot submit.
+
+Bound ephemeral review caches separately for confirmation and cancellation;
+cancel reviews expire within five minutes. Pagination preserves tokens and typed
+count/consent. Render exclusions, adoption and incomplete/uninitialized state
+honestly. Distinguish historical policy confirmation, immutable cancellation
+decision and current cancellation settlement; none is device execution progress.
+No auto-navigation/refresh may replace a frozen sensitive form. Escape metadata.
+
+Both BFF configuration and current private API status must enable new standing
+confirmation. Cancellation remains independent of that gate. No GET/startup/Web
+request initializes optional schemas or activates profiles, restoration or ADD.
+The existing one-time import path remains a separate legacy gated workflow, not
+the default recommendation. This UI does not expand the 1000 accepted-pair limit
+or enable continuous dispatch. See [Managed Import Web](manual/managed-import-web.md).

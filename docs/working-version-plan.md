@@ -167,6 +167,43 @@ The later email digest must emphasize these correlated addresses too. Preserve
 the existing local timestamp display with explicit timezone and history/search
 behavior while reorganizing the interface.
 
+### Deferred IP context / enrichment — requested 2026-10-21
+
+Add minimal informational context for each IP in the Web UI, using RDAP or an
+equivalent source to be evaluated later. This is a follow-up idea, not implemented
+functionality or permission to enable outbound lookups. Keep core working-version
+delivery ahead of this optional feature.
+
+Candidate fields, only where the selected source actually supplies them:
+
+- Network/registered organization name and allocated prefix or address range.
+- ASN/operator information, potentially requiring a separate source.
+- Registered country, clearly labelled as registration data rather than the
+  user's location or the physical origin of traffic.
+- Source attribution and lookup timestamp, with explicit stale/unavailable states.
+
+Prefer a compact expandable IP-context view shared by current/managed/unmanaged
+lists, search and IP details, rather than adding several permanent table columns.
+Context is advisory: never use it as blocking reputation, proof of ownership or
+authority to add/remove/restore a shun or change protection.
+
+Use asynchronous deduplicated lookups with a bounded local cache, configurable
+TTL, negative caching/backoff, provider rate limits, response-size limits and short
+timeouts. Viewing a long list must not fan out into one live lookup per row or
+delay Web responses, refresh, queue dispatch or Cisco operations. No-data/errors
+must leave IP operations usable; stale cached context may be shown honestly.
+
+Before implementation, evaluate provider coverage/terms and query privacy:
+external requests reveal queried IPs to the provider. Specify enablement,
+retention and an offline/local-data option where appropriate. Do not query private
+or special-use addresses externally. Keep browser third-party requests off and
+retain the current Web/API network isolation and FTD-only agent egress; design a
+separate constrained lookup path rather than granting these services Internet
+access. Use fixed trusted discovery/provider rules, validated destinations and
+bounded redirects to prevent SSRF; treat all returned text/links as untrusted.
+Provider choice, exact fields, cache defaults, worker topology and any schema or
+deployment migration remain future design decisions, not current configuration.
+
 ## 8. Emergency Purge
 
 Emergency Purge is available to every authenticated service user, with explicit
@@ -228,11 +265,11 @@ manuals still describe existing contracts until implementation is migrated.
 | Area | Existing implementation constraint | Agreed working-version target |
 | --- | --- | --- |
 | Credentials | Opt-in agent-only per-device mapping implemented; lab still uses explicit shared compatibility mode | Separately reviewed per-device rollout; no shared fallback within that mode |
-| Preparation storage | Explicit draft-only 100,000-pair journal implemented with restart/owner pagination; not runtime-connected or authority | Connect authenticated frozen reviews to independently durable confirmed imports |
+| Preparation storage | Explicit 100,000-pair journal/private API/Web; gated confirmation and cancellation/settlement retain reports/canonical policy within current 1000-pair bounds | Compatible larger capacity and rolling dispatch/progress |
 | Policy display | Managed tab now reads 100-row policy/attempt summaries with revision-bound pagination; legacy full reviews and authority limits unchanged | Coordinate larger retained capacity, confirmed imports and bounded dispatch |
 | Capacity | 1,000-pair policy/admission bounds | 10,000 input IPs across selected devices; bounded dispatch |
-| Existing shun | Adoption rejected | Explicitly reviewed managed adoption |
-| Invalid/protected rows | Whole-scope rejection in standing review | Visible exclusions and exact accepted-scope confirmation |
+| Existing shun | Gated prepared-confirmation Web/backend support adoption without ADD/provenance; legacy grants still reject it | Retain explicit selected-device adoption in the larger executable workflow |
+| Invalid/protected rows | Managed-import Web/backend bind visible diagnostics/protected exclusions and exact accepted scope; legacy standing review still rejects whole scope | Retain exclusions/reporting during rolling execution |
 | Scheduling | One fleet executor, global >=60s cooldown | Parallel devices, one stream each, continuous bounded writes |
 | Protection | Explicit protection saves now permanently retire matching maintenance; unknown state holds enabled protection until retirement can finish | Retain this lifecycle in the new bulk workflow |
 | Lost result | Latched offline attention/recovery | Automatic fresh-evidence reconciliation with original uncertainty retained |

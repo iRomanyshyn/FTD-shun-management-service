@@ -1,0 +1,12 @@
+{% set summary = report if mode == 'preparation' else report.header %}
+<dl class="import-review-metadata"><dt>Label / reason</dt><dd>{{ summary.label or 'Not supplied' }} / {{ summary.reason or 'Not supplied' }}</dd>
+<dt>Selected devices</dt><dd>{% for device in summary.devices %}{{ device.hostname }} ({{ device.id }}){% if not loop.last %}, {% endif %}{% endfor %}</dd>
+<dt>Exact classifications</dt><dd>{% for kind, count in summary.classification_counts.items() %}<span class="state-badge{% if kind == 'EXCLUDED_PROTECTED' %} policy-disabled{% elif kind == 'PROPOSE_ADOPT' %} policy-enabled{% endif %}">{{ kind }}: {{ count }}</span> {% endfor %}</dd>
+<dt>Input report</dt><dd>{% for kind, count in summary.source_counts.items() %}{{ kind }}: {{ count }}{% if not loop.last %} · {% endif %}{% endfor %}</dd></dl>
+<p>Page {{ report.page }} of {{ report.pages }} · at most 100 pairs and 100 generated input diagnostics per page. This is frozen local evidence, not a fresh Cisco query.</p>
+<div class="table-scroll"><table aria-label="Exact import pairs"><thead><tr><th>Device</th><th>IPv4</th><th>Classification</th></tr></thead><tbody>
+{% for target in report.targets %}<tr{% if target.classification == 'EXCLUDED_PROTECTED' %} class="protected-shun"{% endif %}><td>{% for device in summary.devices %}{% if device.id == target.device_id %}{{ device.hostname }}{% endif %}{% endfor %} ({{ target.device_id }})</td><td>{{ target.ip }}</td><td><span class="state-badge{% if target.classification == 'EXCLUDED_PROTECTED' %} policy-disabled{% elif target.classification == 'PROPOSE_ADOPT' %} policy-enabled{% endif %}">{{ target.classification }}</span></td></tr>{% else %}<tr><td colspan="3">No pairs on this report page.</td></tr>{% endfor %}
+</tbody></table></div>
+{% if report.report_rows %}<h3>Input diagnostics</h3><div class="table-scroll"><table aria-label="Import input diagnostics"><thead><tr><th>Source line</th><th>IPv4</th><th>Result</th><th>Explanation</th></tr></thead><tbody>
+{% for row in report.report_rows %}<tr data-preview-status="{{ row.status }}"><td>{{ row.line }}</td><td>{{ row.ip or '—' }}</td><td><span class="preview-state-badge" data-preview-status="{{ row.status }}">{{ row.status }}</span></td><td>{{ row.reason }}</td></tr>{% endfor %}
+</tbody></table></div>{% endif %}

@@ -17,10 +17,13 @@ from .agent_client import (
     UnixAgentClient,
 )
 from .config import Settings
+from .import_cancellations import ImportCancellations
+from .import_preparations import ImportPreparations, PreparationCapacity, PreparationUnavailable
 from .import_preview import MAX_DEVICES, MAX_ROWS, classify_targets
 from .inventory import load_devices
 from .managed_fleet_removals import ManagedFleetRemovals
 from .managed_fleet_state import ManagedFleetState
+from .managed_imports import ManagedImports
 from .managed_safety import ManagedStateUnavailable, require_ordinary_removal
 from .managed_scope import ManagedRemovalScopes
 from .managed_shuns import (
@@ -77,6 +80,50 @@ class ManagedGrantRequest(ManagedRetirementRequest):
         if not isinstance(value, str) or str(IPv4Address(value)) != value:
             raise ValueError("Standing grants require an exact canonical IPv4 string.")
         return value
+
+
+class PreparedImportInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    actor: ManagedControlActor
+    text: str = Field(max_length=1048576)
+    device_ids: list[Annotated[int, Field(strict=True, ge=1, le=65535)]] = Field(min_length=1, max_length=10)
+    label: str = Field(default="", max_length=100)
+    reason: str = Field(default="", max_length=500)
+
+
+class PreparedImportReference(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    actor: ManagedControlActor
+    preparation_id: str = Field(pattern=r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+
+
+class PreparedImportPage(PreparedImportReference):
+    page: int = Field(default=1, strict=True, ge=1, le=1000)
+
+
+class PreparedImportConfirmation(PreparedImportReference):
+    preparation_digest: str = Field(pattern=r"^[0-9a-f]{64}$")
+    accepted_count: int = Field(strict=True, ge=1, le=1000)
+    maintain_present: StrictBool
+
+
+class ConfirmedImportPage(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    actor: ManagedControlActor
+    operation_id: str = Field(pattern=r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+    page: int = Field(default=1, strict=True, ge=1, le=1000)
+
+
+class ImportCancellationReference(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    actor: ManagedControlActor
+    operation_id: str = Field(pattern=r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+
+
+class ImportCancellationRequest(ImportCancellationReference):
+    reviewed_at: str = Field(max_length=40)
+    review_digest: str = Field(pattern=r"^[0-9a-f]{64}$")
+    accepted_count: int = Field(strict=True, ge=1, le=1000)
 
 
 class ManagedDeviceCleanupRequest(ManagedRetirementRequest):
@@ -203,6 +250,9 @@ def create_app(
     store = store or Store(settings.database_path)
     store.initialize()
     managed = ManagedShuns(store)  # Optional registry; never initialize policy here.
+    import_preparations = ImportPreparations(store)  # No optional initialization.
+    managed_imports = ManagedImports(store)
+    import_cancellations = ImportCancellations(store)
     addition_device_ids = set()
     if settings.device_inventory_path:
         for device, host_key in load_devices(settings.device_inventory_path):
@@ -311,6 +361,112 @@ def create_app(
     @app.get("/api/v1/protected-ips")
     def protected_ips() -> dict:
         return policy.snapshot()
+
+    def prepared_import_error(error, *, confirming=False):
+        if isinstance(error, PermissionError):
+            return HTTPException(403, str(error))
+        if isinstance(error, ManagedStateUnavailable):
+            return HTTPException(503, "Standing evidence or confirmed-import storage is unavailable; nothing was admitted.")
+        if isinstance(error, (ManagedConflict, ManagedCapacity, PreparationUnavailable, PreparationCapacity)):
+            return HTTPException(409, str(error))
+        if isinstance(error, ValueError):
+            return HTTPException(422, str(error))
+        message = ("Import policy outcome was not confirmed. Inspect receipts and retry only the original operation key."
+                   if confirming else "Import report is unavailable; no admission request was made.")
+        return HTTPException(503, message)
+
+    @app.post("/api/v1/managed-imports/prepare")
+    def prepare_managed_import(change: PreparedImportInput):
+        require_operator(change.actor)
+        try:
+            return import_preparations.create(change.text, change.device_ids, change.actor.subject,
+                                              change.actor.display_name, tuple(change.actor.roles),
+                                              label=change.label, reason=change.reason)
+        except (sqlite3.DatabaseError, ValueError, TypeError, KeyError) as error:
+            raise prepared_import_error(error) from error
+
+    @app.post("/api/v1/managed-imports/preparations")
+    def list_import_preparations(actor: ManagedControlActor):
+        if not actor.subject.strip():
+            raise HTTPException(403, "Authenticated author required.")
+        try:
+            return import_preparations.list_for_owner(actor.subject)
+        except (sqlite3.DatabaseError, ValueError, TypeError, KeyError) as error:
+            raise prepared_import_error(error) from error
+
+    @app.post("/api/v1/managed-imports/preparation")
+    def read_import_preparation(change: PreparedImportPage):
+        try:
+            return import_preparations.page(change.preparation_id, change.actor.subject, page=change.page)
+        except (sqlite3.DatabaseError, ValueError, TypeError, KeyError) as error:
+            raise prepared_import_error(error) from error
+
+    @app.post("/api/v1/managed-imports/cancel-preparation")
+    def cancel_import_preparation(change: PreparedImportReference):
+        try:
+            cancelled = import_preparations.cancel(change.preparation_id, change.actor.subject)
+            return {"preparation_id": change.preparation_id, "cancelled": cancelled, "device_work_admitted": False}
+        except (sqlite3.DatabaseError, ValueError, TypeError, KeyError) as error:
+            raise prepared_import_error(error) from error
+
+    @app.post("/api/v1/managed-imports/confirm")
+    def confirm_managed_import(change: PreparedImportConfirmation, request: Request):
+        require_operator(change.actor)
+        if not settings.managed_policy_admission_enabled:
+            raise HTTPException(503, "Standing policy admission is disabled. Inspect any earlier receipt; this attempt was not submitted.")
+        try:
+            result = managed_imports.confirm(request.headers.get("Idempotency-Key", ""), change.preparation_id,
+                change.preparation_digest, change.accepted_count, change.actor.subject, change.actor.display_name,
+                tuple(change.actor.roles), maintain_present=change.maintain_present,
+                enabled=settings.managed_policy_admission_enabled, addition_device_ids=addition_device_ids)
+        except (sqlite3.DatabaseError, ValueError, TypeError, KeyError, PermissionError) as error:
+            raise prepared_import_error(error, confirming=True) from error
+        if not result["replayed"]:
+            synchronizer.note_state_change()  # Publish local metadata only, no refresh/discovery wakeup.
+        return result
+
+    @app.post("/api/v1/managed-imports/receipts")
+    def list_managed_import_receipts(actor: ManagedControlActor):
+        if not actor.subject.strip():
+            raise HTTPException(403, "Authenticated author required.")
+        try:
+            return managed_imports.list_for_owner(actor.subject)
+        except (sqlite3.DatabaseError, ValueError, TypeError, KeyError) as error:
+            raise prepared_import_error(error) from error
+
+    @app.post("/api/v1/managed-imports/receipt")
+    def read_managed_import_receipt(change: ConfirmedImportPage):
+        try:
+            return managed_imports.page(change.operation_id, change.actor.subject, page=change.page)
+        except (sqlite3.DatabaseError, ValueError, TypeError, KeyError) as error:
+            raise prepared_import_error(error) from error
+
+    @app.post("/api/v1/managed-imports/cancellation-review")
+    def review_import_cancellation(change: ImportCancellationReference):
+        try:
+            return import_cancellations.review(change.operation_id, change.actor.subject, tuple(change.actor.roles))
+        except (sqlite3.DatabaseError, ValueError, TypeError, KeyError, PermissionError) as error:
+            raise prepared_import_error(error) from error
+
+    @app.post("/api/v1/managed-imports/cancel-confirmed")
+    def cancel_confirmed_import(change: ImportCancellationRequest):
+        try:
+            result = import_cancellations.cancel(change.operation_id, change.reviewed_at, change.review_digest,
+                change.accepted_count, change.actor.subject, change.actor.display_name, tuple(change.actor.roles))
+        except (sqlite3.DatabaseError, ValueError, TypeError, KeyError, PermissionError) as error:
+            if isinstance(error, (sqlite3.DatabaseError, TypeError, KeyError)):
+                raise HTTPException(503, "Cancellation outcome was not confirmed. Inspect its status; retry only the original review.") from error
+            raise prepared_import_error(error) from error
+        if not result["replayed"]:
+            synchronizer.note_state_change()
+        return result
+
+    @app.post("/api/v1/managed-imports/cancellation")
+    def read_import_cancellation(change: ConfirmedImportPage):
+        try:
+            return import_cancellations.page(change.operation_id, change.actor.subject, tuple(change.actor.roles), page=change.page)
+        except (sqlite3.DatabaseError, ValueError, TypeError, KeyError, PermissionError) as error:
+            raise prepared_import_error(error) from error
 
     @app.post("/api/v1/managed-shuns/retire")
     def retire_managed_shun(change: ManagedRetirementRequest, request: Request) -> dict:

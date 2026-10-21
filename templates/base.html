@@ -13,7 +13,7 @@
       <a href="/managed-shuns"{% if active_page == 'managed' %} aria-current="page"{% endif %}>Managed shuns</a>
       <a href="/protected-ips"{% if active_page == 'protected' %} aria-current="page"{% endif %}>Protected IPs</a>
       <a href="/history"{% if active_page == 'history' %} aria-current="page"{% endif %}>History</a>
-      <a href="/imports"{% if active_page == 'imports' %} aria-current="page"{% endif %}>Import preview</a>
+      <a href="{{ '/managed-imports' if 'Operator' in identity.roles or 'Administrator' in identity.roles else '/imports' }}"{% if active_page == 'imports' %} aria-current="page"{% endif %}>{{ 'Imports' if 'Operator' in identity.roles or 'Administrator' in identity.roles else 'Import preview' }}</a>
     </nav>{% endif %}
     <main>{% block content %}{% endblock %}</main>
     <footer class="app-footer" aria-label="Application version">FTD Shun Manager · <span data-product-version>v{{ product_version }}</span></footer>

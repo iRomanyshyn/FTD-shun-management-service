@@ -119,6 +119,21 @@ def _state(row, current):
     return "CANCELLED" if row["cancelled_at"] else "EXPIRED" if row["expires_at"] <= current else "PREPARED"
 
 
+def _confirmed_operation(db, row):
+    # Optional retained receipts are separate from an expiring draft. Never
+    # present cancelling a confirmed draft as cancellation of standing policy.
+    from .managed_imports import _present as imports_present
+
+    if not imports_present(db):
+        return None
+    receipt = db.execute("SELECT id,actor_subject FROM confirmed_import_receipts WHERE preparation_id=?", (row["id"],)).fetchone()
+    if receipt is None:
+        return None
+    if receipt["actor_subject"] != row["actor_subject"]:
+        raise PreparationUnavailable("Preparation and retained receipt authors are inconsistent.")
+    return receipt["id"]
+
+
 class ImportPreparations:
     def __init__(self, store, *, clock=None):
         self.store = store
@@ -262,9 +277,11 @@ class ImportPreparations:
             plans = []
             for record in rows:
                 row, header = self._plan(db, record["id"], subject)
+                operation = _confirmed_operation(db, row)
                 plans.append({key: header[key] for key in ("plan_id", "created_at", "expires_at", "label", "target_count",
                                                           "address_count", "classification_counts")}
-                             | {"state": _state(row, current), "digest": row["digest"], "can_execute": False})
+                             | {"state": "CONFIRMED" if operation else _state(row, current),
+                                "confirmed_operation_id": operation, "digest": row["digest"], "can_execute": False})
             return {"initialized": True, "can_execute": False, "plans": plans}
 
     def page(self, plan_id, subject, *, page=1):
@@ -275,6 +292,7 @@ class ImportPreparations:
         with self.store._connection() as db:
             db.execute("BEGIN")
             row, header = self._plan(db, plan_id, subject)
+            operation = _confirmed_operation(db, row)
             reports = header.pop("line_report")
             pages = max(1, (max(row["target_count"], len(reports)) + PAGE_SIZE - 1) // PAGE_SIZE)
             if page > pages:
@@ -282,7 +300,7 @@ class ImportPreparations:
             rows = db.execute("SELECT * FROM import_preparation_targets WHERE plan_id=? ORDER BY device_id,ip LIMIT ? OFFSET ?",
                               (plan_id, PAGE_SIZE, (page - 1) * PAGE_SIZE)).fetchall()
             return {**header, "digest": row["digest"], "can_execute": False, "execution_started": False,
-                "state": _state(row, current),
+                "state": "CONFIRMED" if operation else _state(row, current), "confirmed_operation_id": operation,
                 "page": page, "pages": pages, "page_size": PAGE_SIZE,
                 "targets": [_member(member) for member in rows], "report_rows": reports[(page - 1)*PAGE_SIZE:page*PAGE_SIZE]}
 
@@ -292,16 +310,25 @@ class ImportPreparations:
             raise PreparationUnavailable("Invalid preparation digest.")
         with self.store._connection() as db:
             db.execute("BEGIN")
-            row, header = self._plan(db, plan_id, subject)
-            digest = hashlib.sha256()
-            _feed(digest, header)
-            cursor = db.execute("SELECT * FROM import_preparation_targets WHERE plan_id=? ORDER BY device_id,ip", (plan_id,))
-            while members := cursor.fetchmany(PAGE_SIZE):
-                for member in members:
-                    _feed(digest, _member(member))
-            if not hmac.compare_digest(expected_digest, row["digest"]) or not hmac.compare_digest(digest.hexdigest(), expected_digest):
-                raise PreparationUnavailable("Preparation digest does not match retained scope.")
+            self._verified_plan(db, plan_id, subject, expected_digest)
         return {"plan_id": plan_id, "integrity_verified": True, "can_execute": False}
+
+    def _verified_plan(self, db, plan_id, subject, expected_digest):
+        """Internal composition read: caller keeps the same transaction open."""
+        if not db.in_transaction:
+            raise ValueError("Preparation verification requires a caller-owned transaction.")
+        if not isinstance(expected_digest, str) or len(expected_digest) != 64 or not expected_digest.isascii():
+            raise PreparationUnavailable("Invalid preparation digest.")
+        row, header = self._plan(db, plan_id, subject)
+        digest = hashlib.sha256()
+        _feed(digest, header)
+        cursor = db.execute("SELECT * FROM import_preparation_targets WHERE plan_id=? ORDER BY device_id,ip", (plan_id,))
+        while members := cursor.fetchmany(PAGE_SIZE):
+            for member in members:
+                _feed(digest, _member(member))
+        if not hmac.compare_digest(expected_digest, row["digest"]) or not hmac.compare_digest(digest.hexdigest(), expected_digest):
+            raise PreparationUnavailable("Preparation digest does not match retained scope.")
+        return row, header
 
     def cancel(self, plan_id, subject):
         """Invalidate only an unconfirmed preparation; never cancels device work."""
@@ -309,6 +336,8 @@ class ImportPreparations:
         with self.store._connection() as db:
             db.execute("BEGIN IMMEDIATE")
             row, _ = self._plan(db, plan_id, subject)
+            if _confirmed_operation(db, row):
+                raise PreparationUnavailable("Preparation is already confirmed. Draft cancellation cannot cancel its standing policy or admitted work.")
             if row["cancelled_at"]:
                 return False
             db.execute("UPDATE import_preparation_plans SET cancelled_at=? WHERE id=?", (timestamp, plan_id))

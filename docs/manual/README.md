@@ -26,7 +26,10 @@ not a runbook or permission to change gates, initialize schemas or run new fixtu
 | [Combined Managed Cleanup](managed-cleanup.md) | Default-off atomic device/fleet retirement/cleanup, explicit ordered waiting, original-key receipts and rollout. |
 | [Protected IPs](protected-ips.md) | Shared authenticated policy editor, concurrency, one-time legacy import, audit, backup and rollback. |
 | [Import Preview](import-preview.md) | Non-executable paste parsing, local-state classification, supported syntax, limits and the pending ADD release gate. |
-| [Durable Import Preparations](managed-import-preparations.md) | Explicit, non-authoritative 100,000-pair journal, owner-bound pagination/restart, exclusions, integrity and draft-only expiry; not connected to runtime admission. |
+| [Durable Import Preparations](managed-import-preparations.md) | Explicit, non-authoritative 100,000-pair journal, owner reports/restart, exclusions, integrity and draft-only expiry; no automatic initialization. |
+| [Prepared Import Confirmation](managed-import-confirmation.md) | Gated confirmation/adoption/exclusions, immutable reports and original-key recovery within current 1000-pair policy bounds; no automatic execution/live migration. |
+| [Import Cancellation](import-cancellation.md) | Whole-import uncompleted-work revocation, retained additions/adoption, in-flight settlement and immutable receipts; explicit schema, no automatic activation. |
+| [Managed Import Web](managed-import-web.md) | Saved preparations, exact review/consent, retained receipts and uncompleted-work cancellation; current capacity/gates and unknown-reply recovery. |
 | [Browser Import Review](import-review.md) | Frozen exact-target confirmation, identity/CSRF, bounded ephemeral drafts, same-key retry, default-off admission and rollback. |
 | [Managed Shuns](managed-shuns.md) | Registry foundation, lifecycle/storage bounds, standing consent and independently gated restoration. |
 | [Standing Managed Policy](managed-grants.md) | Frozen one-pair standing consent, default-off policy-only admission, retries/revocation and unchanged live gates. |

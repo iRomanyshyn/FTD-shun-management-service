@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ 'Confirm recurring managed import' if review.kind == 'confirm' else 'Stop uncompleted import work' }}</h1>
+{% if review.kind == 'confirm' %}<p class="policy-warning">This saves recurring maintenance for the exact accepted pairs, including restoration after disappearance until explicitly stopped. Observed unmanaged pairs are adopted without another ADD. Protected/invalid inputs are excluded visibly. It does not enable dispatch or confirm device creation.</p>
+{% else %}<p class="policy-warning"><strong>This does not unblock already added addresses.</strong> Applied/adopted targets remain managed and shunned. Only uncompleted initial application stops; a command in progress must settle. Failures/unknown outcomes remain visible. Use the separate removal workflow to unblock an address.</p>
+<h2>Expected cancellation effects</h2><ul>{% for state, count in review.summary.counts.items() %}<li>{{ state }}: {{ count }}</li>{% endfor %}</ul>{% if review.summary.attention_count %}<p class="preview-error">{{ review.summary.attention_count }} targets need attention; cancellation does not resolve uncertainty.</p>{% endif %}{% endif %}
+{% if message %}<p class="preview-error" role="alert">{{ message }}</p>{% endif %}
+<p>Original operation / retry key: <code>{{ review.operation_id }}</code></p>
+<p>Exact accepted scope: <strong>{{ review.payload().accepted_count }} device/IP pairs</strong>.</p>
+<p>Session review expires <time class="local-timestamp" datetime="{{ review.expires_at }}">{{ review.expires_at }}</time>. Backend preparation/cancellation expiry also applies.</p>
+{% if result %}<section aria-label="Import action receipt"><h2>{{ 'Standing policy recorded' if review.kind == 'confirm' else 'Cancellation decision recorded' }}</h2><p>{{ 'Original request replayed; no new action.' if result.replayed else 'The exact reviewed request was recorded.' }} This is not device execution progress.</p></section>{% endif %}
+{% if report %}{% set mode = 'preparation' if review.kind == 'confirm' else 'receipt' %}{% include "managed-import-members.html" %}{% else %}<p>The frozen report is temporarily unavailable. The original request/key is still retained; do not create a new import.</p>{% endif %}
+{% if not result %}
+{% if review.kind == 'confirm' and not admission_enabled %}<p class="policy-warning">Standing admission is disabled or unavailable. Inspect any earlier receipt; this does not disprove a previous outcome.</p>{% endif %}
+<form method="post" action="/managed-imports/submit" class="import-confirm-form managed-grant-form" id="prepared-import-confirm">
+<input type="hidden" name="csrf" value="{{ csrf_token }}"><input type="hidden" name="review" value="{{ review.token }}"><input type="hidden" name="kind" value="{{ review.kind }}">
+<label for="accepted-pair-count">Type {{ review.payload().accepted_count }} to confirm the whole accepted device/IP pair count</label>
+<input id="accepted-pair-count" name="confirm_count" value="{{ confirm_count }}" inputmode="numeric" pattern="{{ review.payload().accepted_count }}" autocomplete="off" required>
+{% if review.kind == 'confirm' %}<label class="policy-checkbox"><input type="checkbox" name="maintain_present" value="yes"{% if acknowledged %} checked{% endif %} required> I authorize recurring maintenance for all {{ review.payload().accepted_count }} accepted pairs until explicitly stopped.</label>{% endif %}
+<button type="submit"{% if review.kind == 'confirm' and not admission_enabled %} disabled{% endif %}>{{ 'Save recurring maintenance' if review.kind == 'confirm' else 'Stop only uncompleted work' }}</button>
+<button name="page" value="{{ report.page if report else 1 }}" formaction="/managed-imports/review-page" formnovalidate>Reload frozen review</button>
+{% if report and report.pages > 1 %}<div class="pagination-controls" aria-label="Frozen import pages"><button name="page" value="{{ report.page-1 }}" formaction="/managed-imports/review-page" formnovalidate{% if report.page == 1 %} disabled{% endif %}>Previous 100</button><button name="page" value="{{ report.page+1 }}" formaction="/managed-imports/review-page" formnovalidate{% if report.page == report.pages %} disabled{% endif %}>Next 100</button></div>{% endif %}
+</form>
+<p class="preview-help">If a reply is lost, inspect the saved receipt/status and explicitly retry this same review. Never generate a new import to work around an unknown result.</p>
+{% endif %}
+<div class="import-actions"><form method="post" action="{{ '/managed-imports/preparation' if review.kind == 'confirm' else '/managed-imports/report' }}"><input type="hidden" name="csrf" value="{{ csrf_token }}"><input type="hidden" name="{{ 'preparation_id' if review.kind == 'confirm' else 'operation_id' }}" value="{{ review.payload().preparation_id if review.kind == 'confirm' else review.operation_id }}"><button>Inspect saved {{ 'preparation / original receipt' if review.kind == 'confirm' else 'confirmation receipt' }}</button></form>
+{% if review.kind == 'cancel' or result %}<form method="post" action="/managed-imports/cancellation"><input type="hidden" name="csrf" value="{{ csrf_token }}"><input type="hidden" name="operation_id" value="{{ review.operation_id }}"><button>Current cancellation status</button></form>{% endif %}
+{% if review.kind == 'confirm' %}<form method="post" action="/managed-imports/report"><input type="hidden" name="csrf" value="{{ csrf_token }}"><input type="hidden" name="operation_id" value="{{ review.operation_id }}"><button>Inspect original confirmed receipt</button></form>{% endif %}</div>
+<p><a href="/managed-imports">Saved preparations and receipts</a></p>
+<script src="/static/freshness.js" defer></script>
+{% endblock %}

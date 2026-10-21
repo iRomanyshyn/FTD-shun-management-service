@@ -2,7 +2,108 @@
 
 Last updated: 2026-10-21
 
+## Deferred product ideas
+
+**Minimal IP context (requested 2026-10-21):** RDAP or equivalent network/
+organization context in a compact Web view, with optional ASN/registered-country
+data where available, source attribution and freshness. Planning only; no provider,
+lookup, cache/schema, new egress or activation exists. Core delivery retains
+priority. See [the planned constraints](working-version-plan.md#deferred-ip-context--enrichment--requested-2026-10-21).
+
 ## Current increment
+
+**Managed-import Web workflow (2026-10-21).** Operator navigation now opens
+saved preparations, exact classified reports and retained owner receipts at
+`/managed-imports`. Separate session/CSRF/age-bound forms authorize recurring
+policy with typed accepted pair count and consent, or stop only uncompleted
+application with retained/applied/waiting/attention outcomes. Confirmation UUIDv5
+is reproducible from the immutable preparation, so Web restart/unknown replies
+do not create another operation key. There is no automatic mutation retry or
+frozen-form replacement; paging retains count/consent/token. Historical receipts
+and current cancellation settlement are explicitly different screens.
+See [Managed Import Web](manual/managed-import-web.md).
+
+Both BFF configuration and API status gate new policy, while cancellation stays
+available with admission off. Base-only pages report uninitialized optional state
+without migrating. Legacy one-time preview remains separately reachable; this is
+not the 10,000-IP executable release. Current 1000 accepted-pair/key limits,
+separate dispatch/restoration gates, protocols, credentials and schemas are unchanged.
+
+Validation: **1331 Python tests pass** (77.33s), including 26 new Web/API cases;
+**30 Chromium cases pass** (101.27s). Compileall/Ruff/diff pass. Built Python 3.12
+image assets and 247 local Markdown links/anchors were checked. The
+image passed prepare/confirm/cancel/status with temporary SQLite, no network/lab
+mounts and zero device jobs. Deployment evidence is in the latest
+[development-log entry](development-log.md#2026-10-21--managed-import-web-confirmation-and-cancellation).
+
+Paired API/Web rolled out to the existing lab with checked private SQLite backup
+and prior-image rollback tags. API ready/socket, fresh successful read 13:33:10Z,
+no error. Schema and all twelve retained queue/policy tables (excluding the active
+executor lease) match backup exactly: 12 VERIFIED/1 NOOP, no pending work,
+revision 4/suspended, enabled managed 0. Import optional tables remain absent;
+all six experimental flags/development auth false, addition profiles 0. Anonymous
+Web 401, TLS-verified Caddy auth redirect 302. Agent/Caddy/Authelia unchanged;
+only loopback 443 remains published. No optional migration or test mutation.
+The new screen is available for inspection but import preparation/confirmation
+cannot be enabled merely by opening it; capacity/activation work is still pending.
+
+**Confirmed-import cancellation backend (2026-10-21).** A frozen whole-import
+review now cancels only uncompleted initial application. Adopted/existing and
+VERIFIED/NOOP-applied targets retain maintenance. Exact unsent generations and
+owned queued ADDs retire/cancel atomically, without REMOVE or another policy-ledger
+slot. RUNNING ADDs are captured, not interrupted: existing queue result/lease
+recovery transactions settle them, preserving uncertainty and protection/newer-
+generation priority. Original decision replay returns history, not live progress.
+See [Import Cancellation](manual/import-cancellation.md).
+
+Three strict private POSTs provide owner Operator/Administrator review, cancellation
+and 100-row current status. Revocation remains available with new admission off.
+Two optional tables, one partial index and five guards are explicitly initialized
+only; new confirmation requires them, historical confirmation recovery does not.
+No startup/GET migration, automatic repair, new executor, device command or Web
+integration. Queue pruning retains pending captured evidence and refuses malformed
+references. Downgrade to old writers is forbidden while cancellation is pending.
+
+Validation and remaining delivery boundaries are recorded in the latest
+[development-log entry](development-log.md#2026-10-21--confirmed-import-cancellation-and-in-flight-settlement).
+Full Python suite: **1305 passed** (67.30s), including 45 new cancellation cases;
+final cancellation/restoration checks after fail-closed tightening: **99 passed**
+(3.79s). Compileall/Ruff/diff pass; 233 changed-document local links/anchors checked.
+Current capacity/gates/browser/lab are unchanged; larger compatible authority and
+frozen Web integration/rolling dispatch remain next. No live migration or rollout
+was performed for this backend-only increment.
+
+**Prepared managed-import confirmation backend (2026-10-21).** Fixed private API
+routes now create/read/cancel unconfirmed owner preparations and confirm exact
+accepted subsets behind the existing disabled standing-admission gate. One write
+transaction commits canonical standing policy, explicit adoption without ADD,
+protected/invalid exclusions, immutable independent reports and real-actor audit.
+Already-maintained pairs keep original authority; pending/uncertain/cleanup and
+revision/observation changes reject the whole scope. Original-key recovery survives
+draft pruning, retirement and newer generations without re-enabling policy.
+See [Prepared Import Confirmation](manual/managed-import-confirmation.md).
+
+Reports retain draft versus confirmation identity, complete sorted scope and both
+streamed checksums; owner pagination returns 100 rows. Confirmed drafts identify
+their receipt and cannot be misleadingly cancelled as unconfirmed work. Explicit
+two-table/four-trigger report initialization is never called by startup/requests.
+Existing canonical authority, 1000-pair/key and 10000-request/attempt limits plus
+retirement reserve remain; larger input is never truncated/split. Report retention
+is bounded to 128 roots/1,000,000 members. No device work is admitted by confirmation.
+
+Current browser flows are unchanged. Larger compatible authority/attempt capacity,
+frozen Web confirmation and rolling execution/
+progress remain pending. Validation and deployment boundaries are recorded in the
+latest [development-log entry](development-log.md#2026-10-21--prepared-import-confirmation-and-retained-reports).
+
+Validation: **1260 Python tests pass** (65.59s), including 43 new confirmation/
+private-API cases; final combined confirmation/preparation suite **70 passed**
+(6.03s). Compileall/Ruff/diff pass; 221 local links/anchors checked. A separate
+non-root/read-only/no-network Python 3.12 validation image exercises synthetic
+prepare/adoption/confirmation, draft pruning, original-key replay and reports
+with no queue work or lab mounts. No lab deployment/restart, optional migration,
+policy fixture, credential/profile/gate change or FTD request in this increment.
+Browser/agent/Compose assets are unchanged; their separate suites were not rerun.
 
 **Bounded Managed tab integration (2026-10-21).** Private read-only policy pages
 now return at most 100 keys with page-scoped restoration/queue summaries, explicit

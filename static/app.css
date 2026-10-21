@@ -20,6 +20,8 @@ form { display: inline; } li form { margin-left: .75rem; }
 table { border-collapse: collapse; width: 100%; }
 th, td { border-bottom: 1px solid #8886; text-align: left; padding: .7rem .6rem; vertical-align: top; overflow-wrap: anywhere; }
 .table-scroll { overflow-x: auto; }
+.import-actions { display: flex; flex-wrap: wrap; gap: .75rem; margin: 1rem 0; }
+.import-actions form { margin: 0; }
 [hidden], tr[hidden] { display: none !important; }
 .refresh-error { color: light-dark(#a22317, #ffb4a8); font-weight: 600; }
 .history-retention { color: light-dark(#595959, #b9b9b9); font-size: .9rem; margin: 1rem 0; }

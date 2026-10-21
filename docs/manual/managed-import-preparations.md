@@ -5,13 +5,16 @@
 This is the storage foundation for the working-version bulk flow, not an executable
 import release. `ImportPreparations` freezes a private, unconfirmed local-state
 plan that survives process restart. It does **not** save standing policy, adopt a
-shun, submit a job, renew a user request or contact FTD. Current Import/Managed
-Web workflows and their existing 1000-pair admission bounds remain unchanged.
+shun, submit a job, renew a user request or contact FTD. Existing 1000-pair
+admission bounds remain unchanged.
 
-There is no HTTP route, background dispatcher, runtime feature flag or automatic
-schema initializer for this journal yet. No lab migration or bulk test is enabled.
-Future confirmed imports need separately durable authority and progress, not jobs
-attached to an expiring preparation. See the
+The [confirmation backend](managed-import-confirmation.md) now provides private
+preparation/report routes and separately gated policy-only confirmation within
+current 1000-pair authority limits. The [Web workflow](managed-import-web.md) now
+connects preparation, confirmation/reports and confirmed-import cancellation;
+larger retained capacity and dispatch remain pending. There is no automatic schema
+initializer, lab migration or bulk test enablement. Confirmed reports/authority
+are retained independently, never jobs attached to an expiring preparation. See the
 [Working-Version Plan](../working-version-plan.md#capacity-contract-for-the-next-import-increment).
 
 ## Frozen scope and reporting
@@ -66,6 +69,9 @@ interfaces only, not a substitute for future authenticated/CSRF admission:
 | `prune_expired()` | Explicitly delete expired preparations and their children only; never policy/queue/attempt/origin/audit records. |
 
 Rows/header are immutable; only the first cancellation timestamp may change.
+After confirmation, pages/lists show `CONFIRMED` and `confirmed_operation_id`.
+Cancelling a confirmed draft refuses explicitly; it cannot cancel standing policy
+or pretend to stop admitted work. Confirmed reports survive draft expiry/pruning.
 The SHA-256 digest is domain/version-bound, canonically framed and includes the
 entire scope/diagnostics/author/metadata, not merely the visible page. Member counts
 are checked before reports. Owner mismatch and unknown reference do not expose a
@@ -102,8 +108,8 @@ draft pruning and late-insert/outer-transaction rollback. Queue, policy, attempt
 origins and audit outside the journal must remain byte-for-byte unchanged.
 These are not FTD throughput, device ADD, adoption or production acceptance.
 
-No migration was performed in the lab, and no service restart is needed for this
-unconnected foundation. Do not initialize live tables merely to smoke-test code.
+No migration was performed in the lab. Deploying the additive private backend does
+not initialize these tables or enable confirmation. Do not initialize live tables merely to smoke-test code.
 Before eventual activation, retain checked SQLite-safe backups and matching images,
 review the additive journal schema and its full admission/lifecycle integration.
 Never initialize optional managed/attempt tables, change gates or infer authority

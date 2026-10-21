@@ -94,9 +94,13 @@ def record_result(db, store, job, state, timestamp, reason=None):
         db.execute("UPDATE operation_requests SET state='CANCELLED' WHERE id=? AND state='ACTIVE'", (attempt["id"],))
     updated = db.execute("SELECT * FROM managed_restoration_attempts WHERE id=?", (attempt["id"],)).fetchone()
     _event(db, store, updated, state, timestamp, reason)
+    from .import_cancellations import settle_result
+
+    settle_result(db, store, updated, state, timestamp)
 
 
 def authority_valid(db, attempt):
+    from .import_cancellations import held
     from .managed_closures import pair_abandoned
 
     row = db.execute("""SELECT t.*,d.enabled AS device_enabled,r.restoration_suspended
@@ -108,6 +112,7 @@ def authority_valid(db, attempt):
             and row["revision"] == attempt["target_revision"]
             and row["authorization_request_id"] == attempt["authorization_request_id"]
             and not mutations_suspended(db)
+            and not held(db, attempt)
             and not pair_abandoned(db, attempt["device_id"], IPv4Address(attempt["ip"]))
             and not db.execute("SELECT 1 FROM managed_restoration_attempts WHERE device_id=? AND ip=? AND state IN ('FAILED','UNVERIFIED')",
                                (attempt["device_id"], attempt["ip"])).fetchone()

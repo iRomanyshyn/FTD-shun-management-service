@@ -1,5 +1,37 @@
 # Development Manual
 
+## Managed-import browser regression checks
+
+`tests/test_managed_import_web.py` connects actual BFF forms and strict private
+API to disposable SQLite. Tests cover preparation/adoption/exclusions, explicit
+consent/count, deterministic original-key recovery after restart/unknown replies,
+retained reports after pruning, cancellation versus actual removal, frozen paging,
+both admission gates, current identity/CSRF/cache age, malformed replies and base-
+only startup without optional migration. Chromium checks production templates,
+native confirmation validation, escaping, marked exclusions, stable input/focus
+and mobile spacing without hints/mutations. See [Managed Import Web](managed-import-web.md).
+
+## Confirmed-import cancellation regression checks
+
+`tests/test_import_cancellations.py` uses disposable policy/import/queue state to
+test retained adoption/completed work, unsent revocation, RUNNING settlement,
+typed pre-write deferral, lease recovery, old-generation/protection precedence,
+retained uncertainty, concurrency/receipt replay and atomic audit rollback.
+It covers full current 1000-pair cancellation/100-row reports, separate explicit
+schema/guards, pruning holds and gate-independent strict private API. No lab
+activation or device connection follows. See [Import Cancellation](import-cancellation.md).
+
+## Prepared-import confirmation regression checks
+
+`tests/test_managed_imports.py` validates atomic canonical policy plus immutable
+report/audit, explicit adoption without ADD/creation provenance, protected/invalid
+exclusions, owner/current-role binding, whole-scope conflicts, rollback, original-key
+concurrency/replay after pruning/new generations and permanent protection retirement.
+It covers full current 1000-pair reports without raising capacity, separate receipt/
+retirement reserves, strict private routes, disabled capability and no startup/schema
+side effects. See [Prepared Import Confirmation](managed-import-confirmation.md).
+Only temporary SQLite/ASGI is used; no live migration, grant or execution follows.
+
 ## Managed pagination regression checks
 
 `tests/test_managed_pagination.py` validates 100-row policy pages, one-snapshot
