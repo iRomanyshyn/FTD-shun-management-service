@@ -1,5 +1,17 @@
 # Development Manual
 
+## Managed pagination regression checks
+
+`tests/test_managed_pagination.py` validates 100-row policy pages, one-snapshot
+counts/summaries, legacy-view parity, restart/revision conflicts, bounded pair
+queries, full 1000-key capacity without raising it, orphan/partial-state refusal,
+API/BFF authentication/no-store/selector errors and no full-view fallback. Reads
+leave the disposable database unchanged. The Chromium pagination scenario checks
+Previous/Next, local status updates without navigation, 100-option target selectors,
+mobile overflow and explicit changed-policy recovery without device hints/writes.
+See [Managed Shuns](managed-shuns.md#read-only-managed-shuns-page). No live fixture,
+policy grant, schema migration or gate change is part of these tests.
+
 ## Durable bulk-preparation regression checks
 
 `tests/test_import_preparations.py` exercises an explicitly initialized preparation

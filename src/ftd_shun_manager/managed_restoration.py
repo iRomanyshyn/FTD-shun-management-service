@@ -128,13 +128,42 @@ def cancel_obsolete(db, queue):
             queue._finish(db, job, "CANCELLED", "Standing restoration authority revoked or blocked before dispatch")
 
 
-def snapshot_targets(db):
+def read_scope(pairs):
+    """Bound a local summary query to one page, never executable targets."""
+    if (not isinstance(pairs, list) or len(pairs) > 100
+            or any(not isinstance(pair, tuple) or len(pair) != 2
+                   or type(pair[0]) is not int or not 1 <= pair[0] <= 65535
+                   or type(pair[1]) is not bytes or len(pair[1]) != 4 for pair in pairs)
+            or len(set(pairs)) != len(pairs)):
+        raise ValueError("Read summaries require at most 100 distinct device/IP pairs.")
+    if not pairs:
+        return "WITH selected(device_id,ip) AS (SELECT NULL,NULL WHERE 0) ", []
+    return ("WITH selected(device_id,ip) AS (VALUES " + ",".join("(?,?)" for _ in pairs) + ") ",
+            [value for pair in pairs for value in pair])
+
+
+def snapshot_targets(db, *, pairs=None):
     """Optional retained outcomes; never infer creation from observation or NOOP."""
     if not present(db):
         return {}
-    rows = db.execute("SELECT * FROM managed_restoration_attempts ORDER BY requested_at DESC,id LIMIT 10001").fetchall()
-    if len(rows) > 10000:
+    if db.execute("SELECT COUNT(*) FROM managed_restoration_attempts").fetchone()[0] > 10000:
         raise ManagedStateUnavailable("Restoration ledger exceeds this version's capacity.")
+    if pairs is not None:
+        cte, parameters = read_scope(pairs)
+        rows = db.execute(cte + """, ranked AS (
+            SELECT a.*,
+                ROW_NUMBER() OVER (PARTITION BY a.device_id,a.ip ORDER BY a.requested_at DESC,a.id) AS position,
+                MAX(a.state IN ('FAILED','UNVERIFIED')) OVER (PARTITION BY a.device_id,a.ip) AS attention
+            FROM managed_restoration_attempts a JOIN selected s ON s.device_id=a.device_id AND s.ip=a.ip)
+            SELECT r.*,(SELECT completed_at FROM managed_restoration_attempts v
+                WHERE v.device_id=r.device_id AND v.ip=r.ip AND v.state='VERIFIED'
+                ORDER BY v.requested_at DESC,v.id LIMIT 1) AS last_verified
+            FROM ranked r WHERE position=1 ORDER BY device_id,ip""", parameters).fetchall()
+        return {(row["device_id"], row["ip"]): {
+            "restoration_state": row["state"], "restoration_attempt_id": row["id"],
+            "restoration_generation": row["generation"], "restoration_attention": bool(row["attention"]),
+            "last_verified_restoration_at": row["last_verified"]} for row in rows}
+    rows = db.execute("SELECT * FROM managed_restoration_attempts ORDER BY requested_at DESC,id LIMIT 10001").fetchall()
     views = {}
     for row in rows:
         key = row["device_id"], row["ip"]

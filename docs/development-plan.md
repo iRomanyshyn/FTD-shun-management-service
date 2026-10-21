@@ -2,6 +2,16 @@
 
 Last updated: 2026-10-21
 
+## Bounded managed-read checkpoint — 2026-10-21
+
+The Managed tab now uses 100-row policy pages and pair-scoped attempt/hold
+summaries rather than full snapshots. Revision-bound navigation rejects policy
+changes explicitly; observation/attempt updates remain live on the same page.
+This changes no schema, standing capacity, admission or dispatcher. Legacy frozen
+reviews still validate their complete scope. The remaining large-import sequence
+is compatible retained authority/attempt capacity, atomic confirmed roots and
+adoption/exclusions, then bounded dispatch/cancellation and Web confirmation.
+
 ## Durable bulk-preparation checkpoint — 2026-10-21
 
 An explicit non-authoritative SQLite journal now freezes up to 100,000 proposed

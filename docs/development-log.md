@@ -5055,6 +5055,74 @@ paged policy/attempt capacity, atomic confirmed-import adoption/accepted-subset
 authority and durable progress, then bounded dispatch/UI integration. This is not
 executable 10,000-address or hardware-load/production acceptance.
 
+## 2026-10-21 — Bounded managed-policy pagination
+
+Replaced the Managed tab's full registry read with a separate private GET page
+resource: 100 keys, stable device/numerical-IP ordering, explicit global totals,
+positive selectors without clamping and one SQLite snapshot for counts, authority,
+observations, protection and status. Previous/Next bind the managed revision.
+API conflicts return 409; Web keeps a live region with an explicit current-policy
+link, suppressing stale target controls without pretending policy is empty or
+silently rebasing. Observation/attempt updates remain live on that same page.
+Independent cleanup panels remain available. BFF refuses incomplete/truncated
+page responses; authenticated viewing, no-store and source escaping are retained.
+
+Added bounded local read-scope queries to restoration summaries and hold reporting.
+Only displayed pairs are grouped/materialized; retained older-generation attention,
+latest attempt and verified-only timestamp match the legacy view. Global capacity
+and missing pending-evidence checks remain strict. Missing target device/authority
+links refuse the page instead of disappearing through joins. Shared serialization
+keeps full-review responses unchanged. Existing full private GET remains for
+legacy exact-scope review; no admission logic uses a visible page as full scope.
+
+No schema/capacity/protocol/agent/gate/profile/credential change, optional migration,
+policy activation, draft confirmation or device fixture. Existing 1000-key policy,
+10000-request and 10000-attempt bounds remain. Large-import confirmation/adoption,
+capacity-compatible durable roots and continuous bounded dispatch remain pending;
+this increment delivers their bounded read-side prerequisite and usable pagination.
+
+Validation: final complete **1217 Python tests passed (62.96s)**, including 21
+new pagination cases; **28 Chromium cases passed (100.59s)**. Compileall/Ruff/
+diff checks pass; 184 local links/anchors validated across eight documents.
+Synthetic tests compare all 251 policy rows/older-generation attempt summaries
+against the legacy view; cover full 1000-key pagination without raising its limit,
+restart, immutable read effects, changed revisions, malformed selectors, missing
+authority outside the selected page, explicit empty/uninitialized/partial state,
+bounded SQL scope and truncated BFF responses. Chromium checks 100 rows per page,
+page-local control targets, Previous/Next, live updates without navigation,
+mobile overflow and explicit current-policy recovery with no hint/execution.
+Final Python 3.12 image preflight passes 101 synthetic pairs/two API pages in a
+non-root/read-only/no-network container with disposable state and no lab mounts.
+Rust/agent/protocol/Compose unchanged; their separate suites were not rerun.
+Stopped the initial sandbox-constrained test run and reran local-socket coverage
+with the permitted execution profile; no background test or fixture remains.
+
+Authorized paired API/Web lab rollout only; retained prior images under
+`ftd-shun-api:rollback-managed-pages-20261021T1042` and
+`ftd-shun-web:rollback-managed-pages-20261021T1042`. Checked SQLite-safe backup
+`/var/lib/ftd-shun-manager/managed-pages-20261021T1042/before-update.sqlite3`,
+directory 0700/file 0600, integrity/FK checks pass, SHA-256
+`68e87691753de5cf42002c6534899c7c74687df02b5c99e6030edc170c785c11`.
+Normal service-only recreation avoids rerunning initializers. Schema and all
+twelve retained queue/policy tables match backup exactly after rollout; observations
+continue normally. No backup restoration or table deletion was performed.
+
+Running API image
+`sha256:56a3af587587a364867114a31914dd2ca347fe338ae9392acf0efe322354c091`,
+Web `sha256:2fcdb9b57c432f773a54dcc0151ffd1b442b5304abef567227e4383e8d38d1fe`.
+Agent remains
+`sha256:bdd040aef2720ae80fe2caf90b715904ea60eef024ed594b52a74cdaf14a0b34`;
+Caddy/Authelia unchanged. API ready/socket, new successful read 10:44:43Z/no error;
+paged GET no-store/read-only with existing one retired target/revision 4.
+Anonymous private Web returns 401; verified-TLS browser HTML request redirects
+302 to authentication (a request without HTML Accept correctly returned 401).
+Sole published listener remains 127.0.0.1:443. Queue remains 12 VERIFIED/1 NOOP,
+no pending jobs; registry 4/suspended, enabled managed targets 0. All six experiment
+flags/development authentication remain false and addition profiles remain zero.
+No optional journal migration, new grant, live ADD/REMOVE or fixture. Current
+code rollback uses the retained paired images without restoring old policy/data;
+if unrelated work later appears, review it before downgrade or backup recovery.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

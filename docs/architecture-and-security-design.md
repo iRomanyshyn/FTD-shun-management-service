@@ -3897,3 +3897,27 @@ new live fixture, feature gate or device write is authorized in the lab by this
 foundation. Validate maximum synthetic scope, bounded reads, exclusion/adoption
 honesty, owner separation, concurrency, restart, immutable digests, expiry and
 transaction rollback before integrating the next working-version flow.
+
+## Bounded managed-policy reads — 2026-10-21
+
+The Managed tab uses a distinct observational paged resource: at most 100 policy
+keys and their attempt/hold summaries, in one SQLite snapshot, with stable device/
+IPv4 ordering and explicit global counts. Previous/Next links bind the managed
+revision; a changed registry refuses continuation with an explicit current-policy
+link instead of rebasing membership silently. Observation/attempt updates may
+refresh within that revision and must not be advertised as frozen device evidence.
+Invalid/out-of-range selectors refuse rather than clamping. Read summaries are
+strictly bounded local pair selectors, never executable protocol fields.
+
+Preserve older-generation uncertainty, latest retained attempt, verified-only
+restoration timestamps and honest missing/unsupported state. Do not hide orphaned
+device/authority rows through joins. The tab must not load the whole policy or
+attempt ledger into application memory. Keep the legacy full resource for exact
+frozen reviews until a coordinated replacement; a visible page is not the full
+admission/removal scope. No optional initialization, authority, queue mutation,
+refresh hint, SSH call or audit write follows from reading pages.
+
+This change does not increase the 1000-policy-key, 10000-request or 10000-attempt
+capacities, change any gate, authorize a fixture or migrate live optional tables.
+Paired API/Web rollout needs matching rollback images and a checked SQLite-safe
+backup; it changes no schema and leaves the agent unchanged.

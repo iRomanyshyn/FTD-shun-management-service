@@ -71,7 +71,7 @@ def test_registry_is_opt_in_and_normal_application_does_not_initialize_it(tmp_pa
     with store._connection() as db:
         assert not db.execute("SELECT name FROM sqlite_master WHERE name LIKE 'managed_shun_%'").fetchall()
     assert {route.path for route in app.routes if "managed" in route.path} == {
-        "/api/v1/managed-shuns", "/api/v1/managed-removal-handoffs",
+        "/api/v1/managed-shuns", "/api/v1/managed-shuns/page", "/api/v1/managed-removal-handoffs",
         "/api/v1/managed-shuns/retire", "/api/v1/managed-shuns/maintain", "/api/v1/managed-removal-handoffs/{request_id}/cancel",
         "/api/v1/managed-shuns/maintain-batch",
         "/api/v1/managed-removal-scope/{ip}",

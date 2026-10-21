@@ -23,7 +23,13 @@ from .managed_fleet_removals import ManagedFleetRemovals
 from .managed_fleet_state import ManagedFleetState
 from .managed_safety import ManagedStateUnavailable, require_ordinary_removal
 from .managed_scope import ManagedRemovalScopes
-from .managed_shuns import ManagedCapacity, ManagedConflict, ManagedShuns
+from .managed_shuns import (
+    ManagedCapacity,
+    ManagedConflict,
+    ManagedPageChanged,
+    ManagedPageInvalid,
+    ManagedShuns,
+)
 from .operation_queue import QueueConflict, QueueFull
 from .store import HistoryWindowExpired, Shun, Store
 from .synchronizer import Synchronizer
@@ -278,6 +284,20 @@ def create_app(
                                                restoration_now=synchronizer.queue._now())
         except (sqlite3.DatabaseError, ManagedConflict, ManagedCapacity, ValueError, TypeError, KeyError) as error:
             raise HTTPException(503, "Managed shun registry is unavailable; no policy was changed.") from error
+
+    @app.get("/api/v1/managed-shuns/page")
+    def managed_shuns_page(page: Annotated[int, Query(ge=1, le=2**31 - 1)] = 1,
+                           revision: Annotated[int | None, Query(ge=0)] = None) -> dict:
+        try:
+            return managed.page(page, revision=revision,
+                                restoration_context=synchronizer.managed_discovery.context,
+                                restoration_now=synchronizer.queue._now())
+        except ManagedPageChanged as error:
+            raise HTTPException(409, str(error)) from error
+        except ManagedPageInvalid as error:
+            raise HTTPException(422, str(error)) from error
+        except (sqlite3.DatabaseError, ValueError, TypeError, KeyError) as error:
+            raise HTTPException(503, "Managed policy page is unavailable; no policy was changed.") from error
 
     @app.get("/api/v1/managed-removal-scope/{ip}")
     def managed_removal_scope(ip: IPv4Address) -> dict:

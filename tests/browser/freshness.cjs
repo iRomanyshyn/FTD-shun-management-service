@@ -331,12 +331,22 @@ test("refresh interaction in real Chromium", { timeout: 120000 }, async (t) => {
         history = { page: current, pages, total: rows.length, page_size: 100,
           anchor: rows[0]?.id || null, events: rows.slice((current - 1) * 100, current * 100) };
       }
+      let managedView = managed;
+      if (url.pathname === "/managed-shuns") {
+        const revision = url.searchParams.get("revision");
+        const current = Number(url.searchParams.get("page") || 1);
+        managedView = revision !== null && Number(revision) !== managed.revision
+          ? { changed: true, initialized: false, entries: [] }
+          : { ...managed, total: managed.entries.length, page: current,
+            pages: Math.max(1, Math.ceil(managed.entries.length / 100)), page_size: 100,
+            entries: managed.entries.slice((current - 1) * 100, current * 100) };
+      }
       const payload = { refresh: stamp(), generation, query: url.searchParams.get("q") || "", shun_origins: shunOrigins,
         fleet_review: url.pathname === "/managed-shuns/fleet-removal-review",
         ordered_wait: url.searchParams.get("ordered") === "yes", all_devices_enabled: url.searchParams.get("enabled") === "all",
         history, anchor: url.searchParams.get("anchor"),
         ...previewFields,
-        policy, managed, handoffs, fleet_cleanup: fleetCleanup, template: url.pathname === "/" ? "index.html" : url.pathname === "/history" ? "history.html"
+        policy, managed: managedView, handoffs, fleet_cleanup: fleetCleanup, template: url.pathname === "/" ? "index.html" : url.pathname === "/history" ? "history.html"
           : url.pathname === "/protected-ips" ? "protected-ips.html" : url.pathname === "/imports" ? "import-preview.html"
             : url.pathname === "/imports/review" ? "import-confirm.html" : url.pathname === "/managed-shuns" ? "managed-shuns.html"
               : ["/managed-shuns/removal-review", "/managed-shuns/fleet-removal-review"].includes(url.pathname) ? "managed-remove-review.html"
@@ -996,6 +1006,51 @@ test("refresh interaction in real Chromium", { timeout: 120000 }, async (t) => {
         assert.equal(postCount, hints);
         assert.equal(executionCount, executions);
       } finally { await page.close(); }
+    });
+    await t.test("managed pagination stays bounded through live updates and exposes membership conflicts", async () => {
+      status = initial();
+      status.managed_policy_revision = 1;
+      status.managed_policy_initialized = true;
+      status.managed_policy_available = true;
+      const original = managed;
+      const hints = postCount, executions = executionCount;
+      managed = { initialized: true, revision: 1, limit: 1000, restoration_suspended: true,
+        controller_available: true, controller_enabled: false,
+        entries: Array.from({ length: 251 }, (_, i) => ({ device_id: 1, hostname: "synthetic-ftd",
+          ip: `198.18.0.${i}`, enabled: true, device_enabled: true, observed_present: false,
+          protected: false, generation: 1, actor_subject: "test", actor_display_name: "Test Operator",
+          authorized_at: "2026-10-21T10:00:00Z", label: "Synthetic", reason: "No device work" })) };
+      const page = await connectPage(debugOrigin, `${origin}/managed-shuns`);
+      try {
+        await page.until("document.querySelector('[aria-label=\"Managed policy pagination\"]')?.textContent.includes('Page 1 of 3')");
+        assert.equal(await page.evaluate("document.querySelectorAll('[aria-label=\"Managed shun policy\"] tbody tr').length"), 100);
+        await page.evaluate("document.querySelector('[aria-label=\"Managed policy pagination\"] a[rel=next]').click()");
+        await page.until("location.search.includes('page=2') && document.querySelector('[aria-label=\"Managed policy pagination\"]')?.textContent.includes('Page 2 of 3')");
+        assert.equal(await page.evaluate("document.querySelector('[aria-label=\"Managed shun policy\"] tbody a').textContent"), "198.18.0.100");
+        assert.equal(await page.evaluate("document.querySelectorAll('#managed-review-target option').length"), 101);
+        managed.entries[100].observed_present = true;
+        status.data_revision += 1;
+        status.status_revision += 1;
+        await wake(page);
+        await page.until("document.querySelector('[aria-label=\"Managed shun policy\"] tbody tr').textContent.includes('Observed present')");
+        assert.ok(await page.evaluate("location.search.includes('page=2')"));
+        for (const width of [1100, 375]) {
+          await page.call("Emulation.setDeviceMetricsOverride", { width, height: 800, deviceScaleFactor: 1, mobile: width === 375 });
+          assert.equal(await page.evaluate("document.documentElement.scrollWidth<=window.innerWidth"), true);
+        }
+        managed.revision += 1;
+        status.managed_policy_revision += 1;
+        status.status_revision += 1;
+        await wake(page);
+        await page.until("document.querySelector('#managed-shun-state').textContent.includes('Managed policy changed while')");
+        assert.equal(await page.evaluate("document.querySelector('#managed-shun-state').textContent.includes('has not been initialized')"), false);
+        assert.equal(await page.evaluate("Boolean(document.querySelector('#managed-review-target'))"), false);
+        await page.evaluate("document.querySelector('#managed-shun-state a[href=\"/managed-shuns\"]').click()");
+        await page.until("location.search==='' && Boolean(document.querySelector('[aria-label=\"Managed shun policy\"]'))");
+        assert.equal(await page.evaluate("document.querySelectorAll('[aria-label=\"Managed shun policy\"] tbody tr').length"), 100);
+        assert.equal(postCount, hints);
+        assert.equal(executionCount, executions);
+      } finally { managed = original; await page.close(); }
     });
     await t.test("version footer and read-only managed state work on mobile and follow policy revisions without hints", async () => {
       status = initial();

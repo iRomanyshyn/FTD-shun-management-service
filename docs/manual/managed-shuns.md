@@ -294,6 +294,33 @@ controller for these tables and must not be advertised as managed-shun support.
 ## Read-only Managed shuns page
 
 Open **Managed shuns** in the navigation. Every authenticated user may view it.
+The tab now uses `GET /api/v1/managed-shuns/page?page=1` and displays at most
+100 device/IP keys per page, ordered by stable device ID then numerical IPv4.
+The total includes stopped records, not just this page. Previous/Next links bind
+the registry revision; a changed policy returns private API 409 and a visible
+Web notice with **Open the current policy**, never a silently rebased page or
+an empty-registry claim. Invalid/out-of-range selectors return 422, not clamping.
+Local observation/attempt changes still update the same page without navigation;
+the membership anchor is not a frozen Cisco observation. Retirement/removal
+selectors contain only targets on the displayed page. Cleanup panels remain
+independent and available after a membership conflict.
+
+One SQLite read transaction supplies membership/counts, author metadata, presence,
+protection and only the displayed pairs' restoration summaries/holds. At most
+100 policy rows and 100 summary rows are returned; no full attempt ledger is
+materialized for this tab. Retained FAILED/UNVERIFIED attention from older
+generations remains visible; latest NOOP or current presence never erases it.
+Missing authority/device links and unsupported policy/attempt capacity refuse
+the read rather than silently filtering damaged records. Reads initialize no
+optional schema and change no policy, queue, provenance or audit.
+
+This is a bounded-read integration, **not increased standing-policy capacity**:
+the existing 1000-key/10000-request/10000-attempt limits still apply. Large-import
+confirmation/adoption, compatible retained capacity and rolling dispatch remain
+separate work. Legacy frozen review workflows continue to use the unchanged
+full private resource; do not replace their exact whole-scope validation with
+the visible page. Paged metadata does not grant mutation authority.
+
 The private `GET /api/v1/managed-shuns` resource remains observational, with no
 write method on that path. Separate revocation-only POSTs now provide frozen
 policy retirement and owner/Admin waiting cancellation. They do not create,
@@ -329,8 +356,9 @@ the full GET separately validates its read and fails closed on malformed data.
 Deployment: preserve paired API/Web images and a checked SQLite-safe backup,
 stop the sole API executor cleanly, then recreate only API/Web. Starting API may
 execute already admitted removal/policy work. Keep ADD gates and real inventory/
-.env unchanged. Read-only checks should show uninitialized registry/no new
-tables in the current lab, preserved queue/policy/shun state, anonymous page 401,
+.env unchanged. Read-only checks should preserve the exact prior registry and
+optional schema (the current lab retains a retired lifecycle fixture), queue and
+policy state; never expect or manufacture empty schemas. Check anonymous page 401,
 normal TLS-verified Authelia redirect, version footer assets and healthy ordinary
 read cycles. Revert the preceding paired images to remove visibility; do not
 restore old device state, erase policy tables or reset queue outcomes. Follow

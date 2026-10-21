@@ -30,6 +30,14 @@ class ManagedCapacity(ValueError):
     """The registry cannot accept the entire change within its bounds."""
 
 
+class ManagedPageChanged(ManagedConflict):
+    """Page membership changed; require an explicit current-policy view."""
+
+
+class ManagedPageInvalid(ValueError):
+    """Invalid page selector, distinct from corrupt retained policy."""
+
+
 def _require_operator(subject: str, roles: tuple[str, ...]) -> None:
     if not subject.strip() or not {"Operator", "Administrator"}.intersection(roles):
         raise PermissionError("Authenticated Operator or Administrator required.")
@@ -344,6 +352,62 @@ class ManagedShuns:
                 raise ManagedCapacity("Stored managed targets exceed this version's supported limit.")
             restoration = snapshot_targets(db)
             holds = describe(db, rows, restoration_context, restoration_now or OperationQueue(self.store)._now()) if restoration_context is not None else {}
+        return {**({"initialized": True} if if_present else {}),
+                "revision": state["revision"], "restoration_suspended": bool(state["restoration_suspended"]),
+                "limit": MAX_MANAGED_TARGETS, "entries": self._entries(rows, restoration, holds)}
+
+    def page(self, page=1, *, revision=None, restoration_context=None, restoration_now=None):
+        """Read 100 policy rows and only their summaries in one SQLite snapshot.
+
+        This does not expand authority/storage capacity. The existing full view
+        remains available to legacy frozen review workflows.
+        """
+        from .managed_discovery import describe
+        from .managed_restoration import snapshot_targets
+        from .operation_queue import OperationQueue
+
+        if type(page) is not int or not 1 <= page <= 2**31 - 1:
+            raise ManagedPageInvalid("Select a positive managed-policy page.")
+        if revision is not None and (type(revision) is not int or revision < 0):
+            raise ManagedPageInvalid("Managed revision must be a non-negative integer.")
+        with self.store._connection() as db:
+            db.execute("BEGIN")
+            state = managed_state(db)
+            current_revision = state["revision"] if state is not None else 0
+            if revision is not None and revision != current_revision:
+                raise ManagedPageChanged("Managed policy changed. Open the current policy before continuing pagination.")
+            total = db.execute("SELECT COUNT(*) FROM managed_shun_targets").fetchone()[0] if state is not None else 0
+            pages = max(1, (total + 99) // 100)
+            if page > pages:
+                raise ManagedPageInvalid("Select a page within the managed policy.")
+            rows, restoration, holds = [], {}, {}
+            if state is not None:
+                # A join must not silently hide an orphaned policy/authority row.
+                if db.execute("""SELECT 1 FROM managed_shun_targets m
+                    LEFT JOIN devices d ON d.id=m.device_id
+                    LEFT JOIN managed_shun_requests r ON r.id=m.authorization_request_id
+                    WHERE d.id IS NULL OR r.id IS NULL LIMIT 1""").fetchone():
+                    raise ManagedConflict("Managed target is missing its device or retained authority.")
+                rows = db.execute("""SELECT m.*,d.hostname,d.enabled AS device_enabled,
+                    r.actor_subject,r.actor_display_name,r.actor_roles_json,r.payload_json,
+                    EXISTS(SELECT 1 FROM shun_state s WHERE s.device_id=m.device_id AND s.ip=m.ip AND s.active=1) AS observed_present,
+                    EXISTS(SELECT 1 FROM protected_ips p WHERE p.ip=m.ip AND p.enabled=1) AS protected
+                    FROM managed_shun_targets m JOIN devices d ON d.id=m.device_id
+                    JOIN managed_shun_requests r ON r.id=m.authorization_request_id
+                    ORDER BY m.device_id,m.ip LIMIT 100 OFFSET ?""", ((page - 1) * 100,)).fetchall()
+                pairs = [(row["device_id"], row["ip"]) for row in rows]
+                restoration = snapshot_targets(db, pairs=pairs)
+                if restoration_context is not None:
+                    holds = describe(db, rows, restoration_context, restoration_now or OperationQueue(self.store)._now(), scoped=True)
+        return {"initialized": state is not None, "revision": current_revision,
+                "restoration_suspended": state["restoration_suspended"] if state is not None else True,
+                "limit": MAX_MANAGED_TARGETS, "page": page, "pages": pages, "page_size": 100, "total": total,
+                "read_only": True, "controller_available": restoration_context is not None,
+                **({"controller_enabled": restoration_context.enabled} if restoration_context is not None else {}),
+                "entries": self._entries(rows, restoration, holds)}
+
+    @staticmethod
+    def _entries(rows, restoration, holds):
         entries = []
         metadata = {}
         for row in rows:
@@ -360,6 +424,4 @@ class ManagedShuns:
             for key in ("enabled", "device_enabled", "observed_present", "protected"):
                 entry[key] = bool(entry[key])
             entries.append(entry)
-        return {**({"initialized": True} if if_present else {}),
-                "revision": state["revision"], "restoration_suspended": bool(state["restoration_suspended"]),
-                "limit": MAX_MANAGED_TARGETS, "entries": entries}
+        return entries

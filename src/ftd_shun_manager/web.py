@@ -430,17 +430,44 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return review_view(request, identity, review, refresh, accepted=result)
 
     @app.get("/managed-shuns", response_class=HTMLResponse)
-    def managed_shuns(request: Request) -> HTMLResponse:
+    def managed_shuns(request: Request, page: Annotated[int, Query(ge=1, le=2**31 - 1)] = 1,
+                      revision: Annotated[int | None, Query(ge=0)] = None) -> HTMLResponse:
         identity = identity_from_request(request, settings.development_auth)
+        parameters = {"page": page}
+        if revision is not None:
+            parameters["revision"] = revision
         try:
             with api_client(settings) as client:
                 refresh = client.get("/api/v1/status")
-                policy = client.get("/api/v1/managed-shuns")
+                policy = client.get("/api/v1/managed-shuns/page", params=parameters)
         except httpx.HTTPError as error:
             raise HTTPException(503, "Managed shun state is unavailable. No policy was changed.") from error
-        if refresh.status_code != 200 or policy.status_code != 200:
+        if policy.status_code == 422:
+            return render(request, "error.html", {"identity": identity,
+                          "message": "Select a page within the current managed policy."}, 422)
+        if refresh.status_code != 200 or policy.status_code not in (200, 409):
             return render(request, "error.html", {"identity": identity,
                           "message": "Managed shun state is unavailable. No policy was changed."}, 503)
+        if policy.status_code == 409:
+            # Show an explicit membership conflict, not an empty registry or a
+            # rebased review. Cleanup/status remain independently available.
+            managed = {"changed": True, "initialized": False, "entries": []}
+        else:
+            try:
+                managed = policy.json()
+                if (not isinstance(managed, dict) or managed.get("read_only") is not True
+                        or type(managed.get("initialized")) is not bool or managed.get("page_size") != 100
+                        or any(type(managed.get(key)) is not int for key in ("page", "pages", "total", "revision", "limit"))
+                        or not 0 <= managed["total"] <= managed["limit"] <= 1000
+                        or managed["revision"] < 0 or managed["page"] != page
+                        or managed["pages"] != max(1, (managed["total"] + 99) // 100)
+                        or not 1 <= page <= managed["pages"]
+                        or not isinstance(managed.get("entries"), list)
+                        or len(managed["entries"]) != min(100, max(0, managed["total"] - (page - 1) * 100))
+                        or (revision is not None and managed["revision"] != revision)):
+                    raise ValueError("Invalid managed page response")
+            except (ValueError, TypeError, KeyError) as error:
+                raise HTTPException(503, "Managed policy page is incomplete. No policy was changed.") from error
         cleanup, fleet_cleanup = None, None
         try:
             with api_client(settings) as client:
@@ -466,7 +493,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         except (httpx.HTTPError, ValueError, TypeError):
             pass
         return render(request, "managed-shuns.html", {
-            "identity": identity, "refresh": refresh.json(), "managed": policy.json(),
+            "identity": identity, "refresh": refresh.json(), "managed": managed,
             "handoffs": cleanup,
             "fleet_cleanup": fleet_cleanup,
             "active_page": "managed", "auto_request": False,

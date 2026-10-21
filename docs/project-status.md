@@ -4,6 +4,41 @@ Last updated: 2026-10-21
 
 ## Current increment
 
+**Bounded Managed tab integration (2026-10-21).** Private read-only policy pages
+now return at most 100 keys with page-scoped restoration/queue summaries, explicit
+global totals and stable device/IPv4 ordering in one SQLite read transaction.
+The authenticated tab uses this resource rather than the legacy full snapshot.
+Previous/Next links bind the managed revision; conflicts show an explicit current-
+policy link, not silent rebasing or an uninitialized/empty-state claim. Invalid
+pages refuse instead of clamping. Current observation/attempt changes still refresh
+the same page; displayed-target control selectors stay bounded to that page.
+Cleanup panels remain independent. See [Managed Shuns](manual/managed-shuns.md#read-only-managed-shuns-page).
+
+Original full-view review/admission semantics and all 1000-key/10000-request/
+10000-attempt bounds remain unchanged. Reads preserve older-generation uncertainty,
+verified-only timestamps and actor attribution, refuse orphaned/partial/unsupported
+state, initialize no schema and emit no hints, jobs, policy or audit writes.
+This removes a read-side prerequisite, not the remaining confirmed-import,
+adoption, retained-capacity or rolling-dispatch work. No gate/profile/credential
+change or new device fixture is authorized by the update.
+
+Validation: **1217 Python tests pass** (62.96s), including 21 new pagination cases;
+**28 Chromium cases pass** (100.59s). Compileall/Ruff/diff pass; 184 local links/
+anchors checked. Synthetic full 1000-key reads preserve legacy status parity,
+bounded summaries, restart/conflicts, corrupt-state refusal and unchanged data.
+Built-image preflight checks 101 synthetic pairs in a read-only/no-network
+container with no lab mounts.
+
+Paired API/Web deployed with checked private SQLite backup and matching rollback
+tags; agent/Caddy/Authelia unchanged. API ready/socket, fresh read 10:44:43Z/no error,
+page reports the existing one retired target/revision 4, anonymous Web 401 and
+TLS-verified browser authentication redirect 302. Twelve queue/policy tables and
+the complete schema match backup; 12 VERIFIED/1 NOOP/no pending, registry remains
+suspended, enabled managed targets 0. All six experimental flags/development auth
+false, addition profiles 0, sole listener 127.0.0.1:443. See the latest
+[development-log entry](development-log.md#2026-10-21--bounded-managed-policy-pagination)
+for exact images and rollback evidence. No live migration or fixture was created.
+
 **Durable bulk-import preparation foundation (2026-10-21).** An explicitly
 initialized, non-authoritative SQLite journal freezes up to 10,000 parsed rows/
 ten selected devices/100,000 proposed pairs. It retains owner/roles, UTC expiry,

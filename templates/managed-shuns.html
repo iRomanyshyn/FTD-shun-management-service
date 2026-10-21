@@ -4,11 +4,13 @@
 {% include "refresh-panel.html" %}
 <p>Desired shun presence is separate from observed device state. This page reads retained local data only; it does not query Cisco or adopt existing shuns.</p>
 <section id="managed-shun-state" data-live-region>
-<p class="policy-warning"><strong>{% if managed.controller_available %}Experimental automatic restoration is {{ 'enabled' if managed.controller_enabled else 'disabled' }}.{% else %}Automatic restoration is not implemented.{% endif %}</strong> Operators may review a standing grant, stop maintaining policy or cancel waiting cleanup. Standing grants and combined cleanup require independent admission gates and explicit migration. Policy resume remains unavailable.</p>
-{% if not managed.initialized %}
+{% if not managed.changed %}<p class="policy-warning"><strong>{% if managed.controller_available %}Experimental automatic restoration is {{ 'enabled' if managed.controller_enabled else 'disabled' }}.{% else %}Automatic restoration is not implemented.{% endif %}</strong> Operators may review a standing grant, stop maintaining policy or cancel waiting cleanup. Standing grants and combined cleanup require independent admission gates and explicit migration. Policy resume remains unavailable.</p>{% endif %}
+{% if managed.changed %}
+<p role="status" class="policy-warning">Managed policy changed while you were browsing. <a href="/managed-shuns">Open the current policy</a> before continuing. No policy was changed by this page.</p>
+{% elif not managed.initialized %}
 <p>The managed registry has not been initialized. Existing imports remain one-time; no historical shun has been converted into maintained policy.</p>
 {% else %}
-<p>Registry revision {{ managed.revision }} · {{ managed.entries | length }} / {{ managed.limit }} target keys, including stopped records. Registry suspension: <strong>{{ 'on' if managed.restoration_suspended else 'off' }}</strong>. {% if managed.controller_available %}Controller configuration, all ADD gates and explicit device profiles must also permit work. Cached absence alone is not authorization.{% else %}The restoration controller is unavailable regardless of this stored flag.{% endif %}</p>
+<p>Registry revision {{ managed.revision }} · {{ managed.total | default(managed.entries | length) }} / {{ managed.limit }} target keys, including stopped records. Registry suspension: <strong>{{ 'on' if managed.restoration_suspended else 'off' }}</strong>. {% if managed.controller_available %}Controller configuration, all ADD gates and explicit device profiles must also permit work. Cached absence alone is not authorization.{% else %}The restoration controller is unavailable regardless of this stored flag.{% endif %}</p>
 {% endif %}
 {% if refresh.managed_restoration and refresh.managed_restoration.enabled %}
 <details id="managed-discovery-summary"><summary>Latest discovery sweep — {{ refresh.managed_restoration.admitted_this_cycle }} / {{ refresh.managed_restoration.admission_limit }} new jobs admitted</summary>
@@ -29,6 +31,16 @@
 </tr>{% endfor %}
 </tbody></table></div>
 {% elif managed.initialized %}<p>No managed targets. Nothing is scheduled for restoration.</p>{% endif %}
+{% if managed.initialized and managed.page is defined %}
+<nav class="history-pagination" aria-label="Managed policy pagination">
+<p>Page {{ managed.page }} of {{ managed.pages }} · {{ managed.total }} target keys · Up to 100 per page</p>
+<div class="pagination-controls">
+{% if managed.page > 1 %}<a rel="prev" href="/managed-shuns?page={{ managed.page - 1 }}&amp;revision={{ managed.revision }}">Previous</a>{% else %}<span aria-disabled="true">Previous</span>{% endif %}
+{% if managed.page < managed.pages %}<a rel="next" href="/managed-shuns?page={{ managed.page + 1 }}&amp;revision={{ managed.revision }}">Next</a>{% else %}<span aria-disabled="true">Next</span>{% endif %}
+<a href="/managed-shuns">Current policy</a>
+</div>
+</nav>
+{% endif %}
 <p class="preview-help">Enabled Protected IPs take priority over desired presence. Stopped policy never restarts from old request replay. Future restoration requires explicit standing authorization; old imports and SSH-created shuns are not adopted automatically.</p>
 </section>
 {% if 'Operator' in identity.roles or 'Administrator' in identity.roles %}
@@ -52,7 +64,7 @@
 <p>Prepare a frozen policy-only review. Existing shuns and already submitted one-time jobs are not removed or cancelled. Missing, disabled-device and protected targets can still be retired.</p>
 <form method="post" action="/managed-shuns/retirement-review" class="import-confirm-form">
 <input type="hidden" name="csrf" value="{{ csrf_token }}">
-<label for="retirement-target">Managed target</label>
+<label for="retirement-target">Managed target on this page</label>
 <select id="retirement-target" name="target" required>
 <option value="">Choose one device/IP</option>
 {% for entry in maintained %}<option value="{{ entry.device_id }}:{{ entry.ip }}">{{ entry.hostname }} — {{ entry.ip }}</option>{% endfor %}
@@ -69,7 +81,7 @@
 <p>Preparation reads local policy only. It does not stop maintenance, create a job or remove a shun.</p>
 <form method="post" action="/managed-shuns/removal-review" class="import-confirm-form">
 <input type="hidden" name="csrf" value="{{ csrf_token }}">
-<label for="managed-review-target">Managed target</label>
+<label for="managed-review-target">Managed target on this page</label>
 <select id="managed-review-target" name="target" required>
 <option value="">Choose one device/IP</option>
 {% for entry in managed.entries %}{% if entry.device_enabled %}<option value="{{ entry.device_id }}:{{ entry.ip }}">{{ entry.hostname }} — {{ entry.ip }}</option>{% endif %}{% endfor %}

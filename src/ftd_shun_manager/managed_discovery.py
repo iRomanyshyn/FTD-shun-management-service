@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from ipaddress import IPv4Address
 
-from .managed_restoration import CompleteSnapshot, ManagedRestorations, present
+from .managed_restoration import CompleteSnapshot, ManagedRestorations, present, read_scope
 from .managed_safety import fleet_target_held, managed_state
 from .operation_queue import QueueConflict, QueueFull, stamp
 from .safety import mutations_suspended
@@ -27,21 +27,25 @@ def targets(db, device_id=None):
         WHERE (? IS NULL OR t.device_id=?) ORDER BY t.device_id,t.ip LIMIT 1001""", (device_id, device_id)).fetchall()
 
 
-def describe(db, rows, context, now, snapshot=None):
+def describe(db, rows, context, now, snapshot=None, *, scoped=False):
     """One read transaction; readiness without fresh evidence never means queued."""
     state = managed_state(db)
     available = present(db)
+    cte, parameters = read_scope([(row["device_id"], row["ip"]) for row in rows]) if scoped else ("", [])
+    selection = " JOIN selected s ON s.device_id=a.device_id AND s.ip=a.ip " if scoped else " "
     attempts = {}
     if available:
-        attempts = {(r["device_id"], r["ip"]): dict(r) for r in db.execute("""SELECT device_id,ip,
+        attempts = {(r["device_id"], r["ip"]): dict(r) for r in db.execute(cte + """SELECT a.device_id,a.ip,
             MAX(requested_at) AS latest,MAX(completed_at) AS completed,
             SUM(requested_at>?) AS recent,MAX(state IN ('FAILED','UNVERIFIED')) AS attention
-            FROM managed_restoration_attempts GROUP BY device_id,ip""", (stamp(now-timedelta(hours=1)),))}
-    jobs = {(r["device_id"], r["ip"]): dict(r) for r in db.execute("""SELECT j.device_id,j.ip,
+            FROM managed_restoration_attempts a""" + selection + " GROUP BY a.device_id,a.ip",
+            [*parameters, stamp(now-timedelta(hours=1))])}
+    selection = " JOIN selected s ON s.device_id=j.device_id AND s.ip=j.ip " if scoped else " "
+    jobs = {(r["device_id"], r["ip"]): dict(r) for r in db.execute(cte + """SELECT j.device_id,j.ip,
         MAX(j.state IN ('QUEUED','RUNNING')) AS pending,MAX(j.state='UNVERIFIED') AS uncertain,
         MAX(CASE WHEN j.state IN ('VERIFIED','NOOP') THEN j.completed_at END) AS completed
         FROM operation_jobs j JOIN managed_shun_targets t ON t.device_id=j.device_id AND t.ip=j.ip
-        GROUP BY j.device_id,j.ip""")} if state else {}
+        """ + selection + " GROUP BY j.device_id,j.ip", parameters)} if state else {}
     paused = mutations_suspended(db)
     handoffs = db.execute("SELECT 1 FROM sqlite_master WHERE name='managed_removal_handoffs'").fetchone() is not None
     views = {}
