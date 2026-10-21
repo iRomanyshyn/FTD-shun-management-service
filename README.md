@@ -87,6 +87,7 @@ source used for build metadata; it does not imply production readiness. See
 
 - Web/BFF with Caddy/Authelia ForwardAuth trust boundary and CSRF protection.
 - Internal Unix-socket API backed by SQLite WAL state and append-only audit events.
+- Isolated [durable import-preparation journal](docs/manual/managed-import-preparations.md), tested with 100,000 synthetic pairs and paged restart-safe reports; not yet connected to Web/API or executable authority.
 - Strict fixed binary protocol encoder/decoder and an isolated Rust FTD SSH agent.
 - Opt-in [per-device SSH credentials](docs/manual/per-device-credentials.md), with agent-only mapping/secrets, ID-based selection and non-network configuration checks. Existing lab credentials remain unchanged in explicit shared compatibility mode.
 - Default-off [large-snapshot extension](docs/manual/large-snapshots.md) with bounded multi-frame reads and complete-snapshot validation; synthetic 20,000-entry coverage, live small-read lab validation only.

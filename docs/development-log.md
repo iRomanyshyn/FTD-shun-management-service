@@ -4993,6 +4993,68 @@ TLS-verified HTTPS302; agent unchanged. Stopped the initial sandbox-constrained
 targeted test process after the permitted full suite completed; no background
 test/fixture or live work was left running by the checks.
 
+## 2026-10-21 — Durable large-import preparation journal
+
+Continued the agreed managed-import delivery order with isolated, non-authoritative
+storage rather than changing only text/queue limits. `ImportPreparations` explicitly
+initializes two tables/two immutability triggers, never normal Store/API startup,
+HTTP, GET, worker or a new CLI. Exact optional schema inspection refuses partial/
+modified state without repair. Existing managed-state inspection still rejects
+unknown policy rather than treating it as unmanaged. No second policy registry,
+new standing authority, queue job, import-origin, audit success, hint or SSH path.
+
+Preparation parses the existing bounded input and freezes up to 10,000 rows across
+ten explicit enabled device IDs/100,000 pairs in one transaction. Retains owner,
+display name/captured roles, UTC creation/ten-minute expiry, managed/protection
+revisions, device labels and normalized label/reason; generated source-line
+diagnostics preserve duplicates/invalid/unsupported/ambiguous inputs without
+persisting pasted text/comments/excerpts. Protected pairs are explicitly excluded,
+already-maintained targets preserve original references, locally present unmanaged
+targets propose adoption without fabricated creation provenance, and absent
+targets propose ADD without an eligibility/verified-absence claim. Previous stopped
+intent metadata stays observational. No actual maintenance changes or re-enabling.
+
+Domain/version-bound canonical framing hashes header and the entire sorted pair
+scope, not only the current page. Immutable targets/header, count checks and a
+streamed 100-row full verification prevent a changed/missing member from becoming
+a silently smaller scope. Integrity is not freshness, consent or bearer authority.
+Owner lists recover references after restart/lost response; pages return at most
+100 target and 100 generated-report rows. All results remain non-executable.
+Current-state changes never silently rebase a saved preparation.
+
+Capacity: four retained plans per owner/sixteen globally, 2 MiB maximum header,
+100,000 pairs per plan, with serialized admission to these draft-only bounds.
+Cancellation invalidates only the preparation and is idempotent; it cannot retire
+policy or cancel separately admitted work. Explicit expiry pruning deletes only
+expired preparation roots/children, not queue/policy/attempt/origin/audit evidence.
+Expired/cancelled reports remain historical until pruning. Future confirmation
+must create a distinct durable root/standing authority with a retained exact scope,
+author/report and progress, independent of draft expiry; no job may depend on an
+expiring preparation or renewed legacy request.
+
+Validation: **1196 Python tests pass (61.30s)**, including 27 new journal cases;
+targeted suite: 27 passed in 3.52s. Compileall/Ruff/diff checks pass. Maximum fixture
+stores 10,000 IPv4s on ten devices/100,000 rows, reopens the database, checks first/
+middle/last pages and streams full digest verification. Other cases cover owner
+privacy, explicit/bounded device selection, all-invalid/empty reports, per-pair
+classifications/provenance, source non-retention, immutable/corrupt/missing rows,
+wrong digest, exact expiry/cancellation/pruning, schema/outer rollback, late-target
+failure and concurrent quota admission. Independent SQLite state remains equal,
+with no jobs, managed initialization/authority, origins or audit effects. Existing
+API/socket regressions ran with permitted local sockets; no lab settings, secrets,
+volumes or FTD connections were used. Rust/browser/Compose unchanged; their
+separate suites were not rerun.
+
+Updated normative architecture, README, working-version/development plans, status,
+structured preparation/contributor manuals and manual index; validated 208 local
+Markdown links/anchors across nine documents. No service deployment/
+restart or live schema migration: the module is not runtime-connected, so replacing
+images or seeding unused live tables would not deliver an active feature. All
+credential/gate/profile and consumed-fixture boundaries remain. Next: compatible
+paged policy/attempt capacity, atomic confirmed-import adoption/accepted-subset
+authority and durable progress, then bounded dispatch/UI integration. This is not
+executable 10,000-address or hardware-load/production acceptance.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

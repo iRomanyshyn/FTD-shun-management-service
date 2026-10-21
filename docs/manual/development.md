@@ -1,5 +1,18 @@
 # Development Manual
 
+## Durable bulk-preparation regression checks
+
+`tests/test_import_preparations.py` exercises an explicitly initialized preparation
+journal, separate from authority and dispatch. A maximum synthetic 10,000-address/
+ten-device scope stores 100,000 pair classifications, survives restart and verifies
+its full digest in 100-row chunks. Owner lists/pages, exclusion/adoption honesty,
+source privacy, immutable scope, concurrent quotas, expiry/pruning and late-write
+rollback preserve all independent policy/queue/audit state. No normal startup/GET
+initializes the journal; no runtime/HTTP path uses it yet. Follow
+[Durable Import Preparations](managed-import-preparations.md), not a lab migration
+or admission shortcut. Larger policy/attempt capacity and durable confirmed-import
+progress remain the next integration work.
+
 ## Inventory and credential regression checks
 
 `agent/src/credentials.rs` and `agent/tests/credential_configuration.rs` exercise

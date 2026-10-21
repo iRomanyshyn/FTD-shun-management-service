@@ -3859,3 +3859,41 @@ Existing protected entries are not silently swept at startup/deployment; a user
 save performs the new transaction. Older images retain legacy resume semantics,
 so preserve matching API/Web rollback images and never restore old enabled policy
 or weaken a deferred barrier under an older writer.
+
+## Durable bulk-import preparation — 2026-10-21
+
+The next working-version increment introduces an explicitly initialized,
+non-authoritative preparation journal, separate from standing policy and the
+executable queue. It can freeze up to 10,000 parsed rows across at most ten
+explicit devices / 100,000 device-IP pairs. Capture author, UTC preparation/expiry,
+managed/protection revisions, device labels, normalized metadata, invalid/duplicate
+line reports and exact local proposed ADD/adoption/already-managed/protected
+classifications in one transaction. Never persist pasted source/comments/excerpts
+as part of the journal. Observed presence is cached evidence, not a fresh read or
+service creation provenance. Unknown managed state refuses preparation, not an
+invented unmanaged classification.
+
+Preparation creates no managed authority, import-origin, audit success, queue job,
+refresh hint or SSH operation. Its UUID/digest is a preparation reference, never
+a bearer permission or an executable operation key. Every returned report states
+that it cannot execute. Preserve existing 1000-key policy/canonical bounds and
+all gates until their coordinated replacement. No startup/GET initializes this
+journal; this foundation is not yet connected to HTTP/Web admission or dispatch.
+
+Prepared rows/header are immutable; separate cancellation only invalidates the
+unconfirmed preparation, not any independently admitted work. Retain snapshots
+across restart; owner-bound reads page at 100 rows. Full digest verification streams
+bounded chunks and never authorizes admission. Expiry is ten minutes, with at most
+four retained preparations per owner and sixteen globally. Explicit expiry pruning
+may delete only this non-authoritative preparation data; it never touches policy,
+queue, attempts, receipts or audit. Future confirmed imports require a distinct
+atomic durable authority/root that retains its accepted scope, provenance and
+progress independently of preparation expiry/pruning; never attach active work
+to an expiring draft or renew an old manual request.
+
+Optional partial/unsupported preparation schema fails closed without repair.
+Document migration/backup/rollback before eventual activation; no journal migration,
+new live fixture, feature gate or device write is authorized in the lab by this
+foundation. Validate maximum synthetic scope, bounded reads, exclusion/adoption
+honesty, owner separation, concurrency, restart, immutable digests, expiry and
+transaction rollback before integrating the next working-version flow.

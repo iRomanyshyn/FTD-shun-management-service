@@ -2,6 +2,19 @@
 
 Last updated: 2026-10-21
 
+## Durable bulk-preparation checkpoint — 2026-10-21
+
+An explicit non-authoritative SQLite journal now freezes up to 100,000 proposed
+device/IP pairs, author, source-line diagnostics and current local classifications.
+Owner-bound 100-row reports/full streamed digest survive restart; cancellation/
+expiry affects drafts only. No old request becomes policy, no job is inserted,
+and existing authority/gates remain unchanged. See
+[Durable Import Preparations](manual/managed-import-preparations.md).
+This isolated foundation is not initialized in the lab or connected to HTTP/Web.
+Next: compatible paged standing-policy/attempt capacity, atomic confirmed import
+root/accepted-subset adoption and bounded execution/progress linked to that durable
+authority, never to an expiring preparation.
+
 ## Current delivery priority — operator alignment, 2026-10-20
 
 The [Working-Version Plan](working-version-plan.md) is the current approved target

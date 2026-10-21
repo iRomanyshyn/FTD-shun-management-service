@@ -228,6 +228,7 @@ manuals still describe existing contracts until implementation is migrated.
 | Area | Existing implementation constraint | Agreed working-version target |
 | --- | --- | --- |
 | Credentials | Opt-in agent-only per-device mapping implemented; lab still uses explicit shared compatibility mode | Separately reviewed per-device rollout; no shared fallback within that mode |
+| Preparation storage | Explicit draft-only 100,000-pair journal implemented with restart/owner pagination; not runtime-connected or authority | Connect authenticated frozen reviews to independently durable confirmed imports |
 | Capacity | 1,000-pair policy/admission bounds | 10,000 input IPs across selected devices; bounded dispatch |
 | Existing shun | Adoption rejected | Explicitly reviewed managed adoption |
 | Invalid/protected rows | Whole-scope rejection in standing review | Visible exclusions and exact accepted-scope confirmation |

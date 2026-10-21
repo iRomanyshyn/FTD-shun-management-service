@@ -4,6 +4,40 @@ Last updated: 2026-10-21
 
 ## Current increment
 
+**Durable bulk-import preparation foundation (2026-10-21).** An explicitly
+initialized, non-authoritative SQLite journal freezes up to 10,000 parsed rows/
+ten selected devices/100,000 proposed pairs. It retains owner/roles, UTC expiry,
+managed/protection revisions, labels, generated line diagnostics and exact proposed
+ADD/adoption/already-managed/protected exclusions without pasted source/comments.
+Owner recovery lists and 100-row pages survive restart; full-scope digest verification
+streams 100-row chunks. Header/member updates are immutable except first draft
+cancellation. Four retained drafts per owner/sixteen globally and explicit ten-
+minute expiry pruning bound storage without touching independent evidence.
+See [Durable Import Preparations](manual/managed-import-preparations.md).
+
+Prepared/expired/cancelled reports and even verified digests always return
+`can_execute=false`: no standing authority, origins, queue/audit-success, hint,
+credentials, SSH or request renewal. Optional unknown managed state refuses
+classification rather than inventing unmanaged state. Existing 1000-key policy/
+canonical bounds, gates and current UI flows are unchanged. No startup/GET or
+HTTP/Web/worker path initializes or uses the journal. No lab migration/deployment/
+restart, policy fixture, gate/profile/credential change or device write occurred.
+
+Validation: **1196 Python tests pass** (61.30s), including 27 new synthetic cases;
+the targeted journal suite passes in 3.52s. Compileall/Ruff/diff checks pass.
+Coverage includes maximum 100,000-pair scope, paged/streamed reads, restart/owner
+separation, exclusions/adoption provenance, source privacy, frozen revisions,
+immutable/missing/tampered rows, partial schema refusal, concurrent quotas,
+exact expiry/draft pruning and late-insert/outer-transaction rollback. Independent
+policy/queue/attempt/origin/audit tables are unchanged. Agent/browser/Compose/runtime
+paths untouched; those separate suites were not rerun for this isolated module.
+
+Next: capacity-compatible paged standing policy/attempt ledgers and an atomic
+confirmed-import authority/root with exact accepted-scope adoption/exclusions and
+durable progress, then bounded rolling dispatch. Confirmed work must outlive
+preparation expiry/pruning; never attach jobs to an expiring draft. This is not
+10,000-address executable-import, throughput or production acceptance.
+
 **Permanent protection retirement (2026-10-21).** Explicit enabled-protection
 saves now permanently retire matching managed targets across missing observations
 and disabled devices, preserving intent/generation/original authorization and
