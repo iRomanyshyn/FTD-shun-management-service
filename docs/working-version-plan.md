@@ -1,0 +1,263 @@
+# Working Version: Agreed Product Behavior
+
+Agreed with the operator: 2026-10-20.
+Status: approved target behavior and delivery plan; not a deployment procedure.
+
+This records the sequential product discussion. The priority is a usable working
+version, with usability refined during actual use. Bulk managed addition and
+restoration belong in that version. Email is lower priority. The implementation
+does not yet provide all behavior below; consult [Project Status](project-status.md).
+The [architecture amendment](architecture-and-security-design.md#working-version-product-alignment--2026-10-20)
+establishes precedence over conflicting older target decisions while preserving
+the credential, typed-operation, verification and authentication boundaries.
+
+## 1. Managed and unmanaged
+
+- A manually added service target is always maintained until explicitly removed.
+  There is no one-time-add option in the working-version workflow.
+- An observed device/IP without active service authority is unmanaged. Observation
+  alone does not establish who created it: FTD output cannot distinguish automatic
+  detection from an external administrator's command.
+- Managed targets are restored after confirmed disappearance, including following
+  a reboot. A missing entry is not itself evidence that a reboot occurred.
+- Explicit service removal permanently stops maintenance in the selected scope.
+- Explicitly importing an already present unmanaged IP adopts it into maintenance
+  on the selected devices. No redundant ADD is needed and no historical service
+  creation is invented. Adoption is an intentional user action, never a startup
+  conversion of observed state, old imports or history.
+- Offering to restore disappeared unmanaged entries is deferred. The first
+  working version automatically restores managed targets only.
+
+## 2. Devices, identity and credentials
+
+Keep device configuration outside the Web UI. `.env` points to `devices.json`;
+the inventory contains stable internal IDs, display names, connection addresses
+(IP or DNS), ports, enabled state and pinned SSH host-key configuration.
+
+SQLite links observations, history and managed authority to stable device IDs.
+Changing a connection address preserves those links. Configuration is reloaded
+on restart. Address changes do not implicitly replace identity or trust a new
+SSH host key. A temporarily missing/unavailable device is not permission to erase
+its history or maintenance/cleanup obligations.
+
+Every device explicitly supplies its SSH login and its own password-secret
+reference. There is no shared-default credential fallback. Actual FTD passwords
+are readable only by the agent; Web/API must not receive them. Do not place
+password values in the inventory, database, tracked files or application logs.
+Credential mapping is agent-owned; the lower-privilege services receive only the
+public inventory projection, not a credential-loading interface or secret mounts.
+
+Planning target: up to 10 configured FTDs, with up to 4 processed concurrently by
+default and configurable concurrency. Each device has one serialized command
+stream. Failure/reconnection on one device must not stall unrelated devices.
+These are product planning targets, not validated FTD hardware capacity claims.
+
+## 3. Bulk import and cancellation
+
+Target up to 10,000 IPv4 addresses in one import, with explicit device selection.
+An address/device pair is the maintained unit: 10,000 addresses on 10 selected FTDs
+can require 100,000 policy pairs. Storage and admission limits must be revised
+accordingly; increasing only the text-field limit is insufficient.
+
+Preview and confirmation identify accepted, duplicate, invalid and actively
+protected addresses. Invalid and protected inputs are skipped with a conspicuous
+report and Web notification; they do not reject every valid member. Confirmation
+binds the exact accepted scope and exclusions. Concurrent changes produce an
+explicit conflict, not a silently changed acceptance list.
+
+Accepted targets establish durable maintenance, rather than thousands of short-
+lived one-time requests. Feed executable work into a bounded queue in portions;
+do not materialize an unbounded job backlog. Progress and restart recovery must
+preserve the original batch, target identities and author. The preview/admission
+confirmation can expire without expiring an already admitted standing policy.
+
+Cancelling an import cancels its unexecuted portion. Targets already added or
+adopted remain maintained, and the result explicitly reports retained versus
+cancelled work. An in-flight command must settle and be checked before its result
+is classified. Cancelling an import does not roll back its completed additions.
+
+Mass removal of an arbitrary selected address list is deferred. Individual
+removal and the separately confirmed Emergency Purge cover initial removal flows.
+
+## 4. Protected IPs / whitelist
+
+Use exact IPv4 addresses only; CIDR/subnet rules are deferred. Users can add,
+remove and temporarily disable entries while keeping disabled entries visible.
+Disabled entries provide no active protection and should remain visually distinct.
+
+Enabling protection permanently retires matching managed maintenance and cancels
+its unstarted additions/restorations, then requests removal of matching observed
+shuns on the relevant devices. A running ADD must settle before ordered removal.
+While protection is active, newly observed matching shuns are removed again.
+
+Disabling/deleting protection never reactivates the former managed policy. FTD
+may subsequently shun that address through its own mechanisms; without a new
+explicit managed action it remains unmanaged. This replaces the older design
+that retained enabled maintenance behind protection and resumed it on weakening.
+
+## 5. Scheduling, refresh and priority
+
+Queued work continues between polling intervals. There is no artificial minute-
+long pause between mutation batches. Keep command verification, bounded sessions,
+timeouts and orderly reconnection; new batching limits require measurement and
+validation rather than simply deleting the existing agent's safeguards.
+
+The baseline full poll remains configurable with a five-minute default. Manual
+full refreshes retain their configured minimum spacing, initially 60 seconds.
+Those reading intervals must not impose a global write cooldown or serialize
+independent devices. Web progress/status polling reads local state.
+
+Interactive refresh and quick unblock requests take the next appropriate slot
+after the current operation **and required verification**. Manual/protected
+removals and Emergency Purge must not wait behind an entire bulk ADD list.
+Multiple interactive requests are ordered/coalesced appropriately; conflicting
+user intentions are not silently overwritten. Do not interrupt an in-flight CLI
+operation or its verification to service another request.
+
+The refresh button is always available to submit demand. Show a pending/countdown
+indicator on the status trigger until the requested information is refreshed;
+repeated clicks join demand rather than pushing its deadline farther away.
+Update displayed data after completion without losing user input. Distinguish
+waiting, reading, device errors and verified fresh data; an elapsed timer is not
+proof that a refresh succeeded.
+
+## 6. Recovery and conflicting users
+
+An unavailable device waits for automatic recovery while healthy devices continue.
+Keep its pending intent/progress and expose the wait/retry condition in status.
+
+After a lost command response, automatically obtain valid device evidence and
+converge to the still-authorized desired state. Routine network uncertainty must
+not require an offline administrative ceremony. Preserve the original uncertain
+attempt and audit; do not relabel it VERIFIED or blindly resend a lost command.
+Before subsequent device work, establish that the earlier RPC/session cannot
+still execute, obtain a complete successful fresh observation, and recheck current
+intent/generation, protection, cancellation and purge scope. Timeout, partial
+output or an unverified/stale snapshot cannot authorize a new mutation.
+
+This requires a new reviewed reconciliation/attempt contract. The current
+permanent-latch implementation is not automatically relaxed by this document.
+Retained legacy abandonment/isolation decisions and uncertainty must be preserved
+through an explicit compatibility/migration plan; never silently erase receipts
+or release old exclusions to obtain automatic recovery.
+
+When users submit contradictory actions on changed state, show a conflict with
+the current state and require a refreshed review/confirmation. Do not silently
+make the last stale submission win. Preserve authorship and distinguish admission,
+in-flight work, observed presence and verified outcomes.
+
+## 7. Web layout and multi-device correlation
+
+Use separate Managed and Unmanaged tabs. Managed shows maintenance and execution
+state, including pending restoration; do not present an absent maintained target
+as an active observed shun. Retain the existing Protected IPs and history flows.
+
+Keep detailed execution/freshness information in the pop-up status/queue panels.
+Their triggers visibly indicate pending work, countdowns, failures and conditions
+needing attention. Users should notice important changes without opening a panel.
+Skipped import rows and cancellation consequences receive clear local notices.
+
+Highlight an unmanaged IP observed on at least two distinct FTD IDs in a rolling
+24-hour window, even if it has already disappeared from one device. Show device
+count/names and relevant times, distinct from current simultaneous presence.
+Repeated sightings on one FTD do not qualify as multiple devices. Provide a
+direct action to take that IP into Managed with explicit device selection.
+
+The later email digest must emphasize these correlated addresses too. Preserve
+the existing local timestamp display with explicit timezone and history/search
+behavior while reorganizing the interface.
+
+## 8. Emergency Purge
+
+Emergency Purge is available to every authenticated service user, with explicit
+confirmation and actual actor audit. This decision does not authorize anonymous
+access or invent directory roles. It is an exceptional whole-managed-scope action:
+
+1. Cancel current imports and their unexecuted additions/restorations.
+2. Permanently retire all managed targets in the confirmed purge scope.
+3. Remove their shuns from the corresponding FTDs with urgent scheduling after
+   current operations/verification settle.
+4. Preserve whitelist configuration and unmanaged targets outside that scope.
+5. Report progress and outstanding/failed/unreachable-device cleanup honestly.
+
+Unlike ordinary import cancellation, Purge also removes the managed entries that
+have already been applied. Confirmation must state what will happen, with import,
+target and device scope/counts and the fact that maintenance will stop. Missing
+current observations do not remove managed targets from that frozen scope.
+Retirement must prevent re-add while cleanup is pending, including across restart.
+
+The operator selected cancellation of current imports, not an approved permanent
+global import lock. Exact admission behavior for *new* imports while Purge remains
+pending needs to be specified with the concurrency/confirmation contract. Do not
+infer permission to clear unrelated state or activate Purge on the lab now.
+
+## 9. Email: approved follow-up, lower priority
+
+Use SMTP Relay with independent optional authentication and transport modes:
+plaintext, STARTTLS or implicit TLS. Support certificate verification/internal CA;
+configured TLS must not silently downgrade. Connection settings, sender, common
+recipients and timing belong in `.env`; passwords use secrets. Web needs a test
+message action and delivery status rather than another configuration editor.
+Sending/retry must be asynchronous and must not delay FTD work. Concrete mail
+dispatch topology, outbox/retry bounds and network isolation require a later design.
+
+Notification rules:
+
+- First new unmanaged event after a quiet period: immediate notification.
+- During an active notification window, collect further ordinary events rather
+  than send an email per IP/device. Send a digest after 10 minutes, then 20, then 40,
+  increasing toward a configurable maximum. Exact maximum remains configurable/
+  to be selected. Count elapsed time, not poll/command/manual-refresh cycles.
+- An unchanged shun list alone causes no new digest. If new events accumulate,
+  the message states when the next conditional digest will arrive ("in X").
+- Reset the backoff after one hour without new unmanaged events; the next new
+  event may notify immediately again.
+- Whitelist additions identify who added which address and when.
+- Detecting an actively protected address in shun is urgent, independent of the
+  ordinary digest timer. Notify about detection, the first unblock attempt/result,
+  and later state changes. Repeated identical attempts/failures do not send an
+  email every time; successful unblock is a state change.
+- Emphasize unmanaged multi-device sightings over the rolling 24-hour window
+  within the digest; this does not bypass the ordinary anti-spam timer.
+
+## 10. Delivery order and implementation gaps
+
+These decisions supersede older *target behavior* in the named areas. The older
+manuals still describe existing contracts until implementation is migrated.
+
+| Area | Existing implementation constraint | Agreed working-version target |
+| --- | --- | --- |
+| Credentials | Shared agent credential | Explicit per-device login/secret |
+| Capacity | 1,000-pair policy/admission bounds | 10,000 input IPs across selected devices; bounded dispatch |
+| Existing shun | Adoption rejected | Explicitly reviewed managed adoption |
+| Invalid/protected rows | Whole-scope rejection in standing review | Visible exclusions and exact accepted-scope confirmation |
+| Scheduling | One fleet executor, global >=60s cooldown | Parallel devices, one stream each, continuous bounded writes |
+| Protection | Maintenance retained behind protection | Permanently retire matching maintenance |
+| Lost result | Latched offline attention/recovery | Automatic fresh-evidence reconciliation with original uncertainty retained |
+| Purge | No working-version global managed purge | Confirmed cancel/retire/urgent cleanup, authenticated access |
+| Correlation | No agreed rolling cross-device signal | Unmanaged rolling 24-hour badge and managed action |
+| Email | No mail delivery implementation | Lower-priority SMTP relay/digest follow-up |
+
+Implementation order:
+
+1. Design per-device inventory/secret ownership and capacity-compatible durable
+   policy/import records; define migration and rollback from current retained state.
+2. Implement managed-only import/adoption, visible exclusions, whitelist retirement
+   and cancellation semantics with explicit conflict reviews.
+3. Refactor per-device dispatch/concurrency, continuous queues and interactive
+   priority while preserving fixed typed protocol and verified outcomes.
+4. Implement automatic uncertainty reconciliation with proven RPC settlement,
+   current-policy checks and retained audit; integrate ordered removal/Purge.
+5. Complete separate tabs, status indicators, refresh completion, import reports
+   and 24-hour cross-device correlation/action.
+6. Validate end-to-end with disposable state, then separately scoped lab scenarios
+   and measured throughput. A 10,000-address target does not authorize a live bulk
+   load or establish FTD capacity/production readiness.
+7. Implement SMTP delivery and notification aggregation after the core workflows.
+
+Do not keep extending offline incident controls as the default next product
+milestone while the core working-version workflows remain unavailable. Existing
+operator procedures/receipts remain valid safeguards for their current version.
+No runtime code, schema, gates, profiles, credentials or deployment is changed
+by recording this plan. New lab fixtures/migrations/activation still require
+the existing scoped authorization; old fixture permissions remain consumed.

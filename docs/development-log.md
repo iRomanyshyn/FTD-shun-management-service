@@ -4746,6 +4746,73 @@ scope decision is still needed. No partial exception was added. Remaining: that
 composite incident path, bounded archive, Web handling, release/rearm design and
 separately approved live recovery/fleet/load/traffic/reboot/production acceptance.
 
+## 2026-10-20 — Operator product alignment and working-version delivery reset
+
+Recorded the sequential question/answer discussion in
+`docs/working-version-plan.md`, with a normative architecture amendment and
+source-of-truth/priority guidance in AGENTS. The operator wants a usable working
+version with incremental UX improvements. This is documentation-only alignment;
+existing runtime code, feature gates, profiles, credential delivery and lab state
+are unchanged. Older implementation checkpoints and operating contracts remain
+historical/current-version evidence, not proof that the revised target shipped.
+
+Agreed core: all service additions become maintained device/IP policy, explicit
+adoption of already-present unmanaged shuns,10000-IP import with device selection,
+visible invalid/active-whitelist skips and reports, durable bounded dispatch and
+cancellation that retains completed/adopted targets. Active whitelist protection
+permanently retires matching maintenance and removes shuns; disabling protection
+never resurrects that old policy. Exact IPv4 only. Selected mass removal and
+offering restoration of disappeared unmanaged observations are deferred.
+
+Inventory remains file-based with a path in .env and stable IDs across address
+changes. Per-device explicit SSH login/secret replaces a shared fallback, keeping
+credential loading agent-owned. Planning target10 FTDs/default4 configurable
+concurrent devices, one serialized stream per device. Dispatch continues between
+polls; interactive refresh and unblock/removal/Purge take the next appropriate
+slot after the current operation and verification. Refresh remains submit-able
+with visible pending/countdown badges; detailed state stays in pop-up panels.
+
+Automatic recovery should reconcile fresh verified device evidence against
+current intent after proving the prior RPC/session has settled. Preserve original
+uncertainty/audit and design compatibility for existing retained latches/receipts;
+do not blindly replay or label an unknown write verified. Conflicting concurrent
+user actions require current-state review/reconfirmation. Emergency Purge is
+explicitly confirmed and audited for every authenticated user, cancels current
+imports, retires/removes managed scope and preserves whitelist/unmanaged state.
+The operator did not approve a permanent global intake lock; precise new-import
+behavior during outstanding Purge belongs to its concurrency contract.
+
+Separate Managed/Unmanaged views; highlight unmanaged sightings on at least two
+distinct device IDs in a rolling24-hour window, including disappeared entries,
+with a direct selected-device Managed action. Preserve counts, hostnames/times
+and the distinction between historical sightings and current presence.
+
+Email is lower priority. Recorded SMTP relay/auth optional/plaintext/STARTTLS/
+implicit-TLS/internal-CA configuration, .env sender/recipients/timing, secret-backed
+password, test/status UI and asynchronous delivery. Ordinary events aggregate
+with time-based10/20/40-minute increasing pauses toward a configurable cap,
+one-hour quiet reset, conditional next-notification timing and cross-device
+emphasis. Active-whitelist detections are urgent; notify first unblock attempt
+and later state changes, not every identical retry. Whitelist additions identify
+the actor. Concrete mail dispatch/outbox/network/retry design remains deferred.
+
+Updated README, project status, development plan/order and manual index, with
+explicit target/current-code notices in queue/import/protection manuals. The new
+plan lists the exact mismatches to resolve: shared credentials,1000-pair bounds,
+adoption rejection, whole-input rejection, global cooldown/serialized fleet,
+protection-resumed policy and routine mandatory offline uncertainty handling.
+Future implementation must supply reviewed concurrency, capacity, fresh-evidence
+reconciliation, migration/rollback and Purge contracts while preserving unchanged
+typed-command/verification/authentication/credential security invariants.
+
+Validation: checked 187 local Markdown link targets/anchors across 10 documents,
+reviewed target-versus-implemented wording and ran git diff --check. No Python,
+Rust, browser, Compose, schema or runtime files changed; their test suites were
+not rerun. The prior 1142-test result remains historical, not a new validation run.
+No deployment/restart, environment/secret read or edit, live DB access, migration,
+feature activation, device mutation or fixture reuse. Existing scoped lab
+authorization rules and consumed experiment permissions remain intact.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

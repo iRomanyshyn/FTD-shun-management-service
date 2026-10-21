@@ -2,9 +2,14 @@
 
 These manuals describe the first implementation increment. The service is safe to run for development and UI work today. Its separate FTD SSH agent implements verified removal for laboratory validation only; production Cisco writes remain unavailable until the documented FTD validation is complete.
 
+The [Working-Version Plan](../working-version-plan.md) records the newer approved
+product target and differences from these current operating procedures. It is
+not a runbook or permission to change gates, initialize schemas or run new fixtures.
+
 | Manual | Purpose |
 | --- | --- |
 | [Development](development.md) | Local setup, test commands, and mock agent boundaries. |
+| [Working-Version Plan](../working-version-plan.md) | Agreed product behavior, working-version priorities, implementation gaps and deferred SMTP notifications; not yet an operating procedure. |
 | [Versioning](versioning.md) | Single version source, manual release numbering, pre-1.0 compatibility and planned build identity. |
 | [Deployment](deployment.md) | Caddy, Authelia, Unix sockets, secrets, and container layout. |
 | [Operations](operations.md) | Roles, removal workflow, logs, backup, health, and incident response. |

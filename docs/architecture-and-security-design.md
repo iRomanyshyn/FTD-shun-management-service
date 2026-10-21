@@ -25,6 +25,13 @@ This is not intended to be a generic FTD management system, SSH proxy, terminal 
 
 Security takes priority over extensibility.
 
+The latest approved product target is the
+[working-version alignment](#working-version-product-alignment--2026-10-20),
+recorded after a sequential operator discussion. It supersedes conflicting older
+product requirements only in the stated areas. Earlier protocol/runtime contracts
+remain in force for existing code until reviewed implementation/migration; this
+document does not activate new behavior or authorize a lab mutation.
+
 Sections 1–73 describe the current removal-oriented scope. The approved next
 increment in [Section 74](#74-approved-next-increment-queued-device-cycles-and-manual-imports)
 and the [Development Plan](development-plan.md) extends that scope with queued
@@ -3701,3 +3708,82 @@ Saving policy neither queues work nor wakes/reads FTD, initializes schemas,
 resumes policy or enables any ADD/controller gate. Later execution remains
 separately gated and snapshot/cooldown bounded. No live grant/import or new device
 write approval follows from default-off implementation/deployment.
+
+## Working-version product alignment — 2026-10-20
+
+The operator prioritized a usable working version with ongoing usability
+improvements. The complete agreed target and delivery order are in
+[Working Version: Agreed Product Behavior](working-version-plan.md). That record
+is part of this normative target amendment, not an operating procedure or claim
+that the following changes are already implemented.
+
+It replaces these earlier product decisions for the next working-version design:
+
+- Service addition/import always creates durable maintained device/IP policy;
+  omit one-time addition from that user flow. Explicit adoption of an existing
+  unmanaged shun is allowed with selected-device confirmation, without inventing
+  service creation provenance. Never infer standing consent from observation,
+  startup, historical imports or an old request replay.
+- Support an import target of 10,000 input IPs, selected devices, visible skipping
+  of invalid/protected inputs and confirmation of the exact accepted subset.
+  Storage/admission/dispatch need compatible bounds; retain a bounded executable
+  backlog instead of equating input size with active queue capacity.
+- Device IDs remain stable across address changes. Use `.env` for the inventory
+  path and a device file for metadata. Explicit per-device SSH login/password
+  secrets replace a shared fallback. Only the agent receives actual FTD passwords;
+  host-key pinning is independent of the connection address. Plan for 10 devices,
+  default 4 concurrent devices, configurable, and one command stream per device.
+- Dispatch continues between polling intervals, with bounded verified sessions
+  and per-device isolation. Remove the artificial global minute-long mutation
+  pause as a target requirement, not by bypassing existing code/protocol guards.
+  Keep five-minute baseline polling and initially 60-second manual full-refresh
+  spacing configurable and distinct from writes. Interactive refresh/unblock and
+  urgent removal/Purge take priority after current operations/verification.
+- Refresh demand remains submit-able with visible pending/countdown state on
+  the panel trigger; coalesce repeated clicks and publish updated data afterward.
+  Status/queue triggers expose pending work and issues outside the open panels.
+- Active whitelist protection permanently retires matching managed authority,
+  cancels unstarted additions and orders removal after any in-flight ADD settles.
+  Disabling/deleting protection never resumes that old maintenance. Exact IPv4
+  rules only; entries can remain visible while disabled.
+- Device outages and uncertain results require automatic evidence-based
+  reconciliation toward current intent rather than routine mandatory offline
+  acknowledgment/isolation. Prove prior RPC/session settlement, obtain a fresh
+  complete successful observation and recheck authority/protection/cancellation
+  before a subsequent attempt. Preserve original unknown outcomes and audit;
+  never fabricate verified success or blindly replay an outstanding command.
+  A reviewed compatibility plan must preserve existing retained decisions/latches.
+- Import cancellation leaves completed/adopted targets maintained and reports the
+  remaining cancelled scope. Contradictory concurrent user actions require a
+  refreshed review/confirmation with current state, not silent last-write-wins.
+- Emergency Purge is an explicitly confirmed, actor-audited action for every
+  authenticated user: cancel current imports/restoration additions, retire and
+  urgently remove all managed targets in scope, preserving whitelist/unmanaged
+  state. Preview scope/counts/effects, retain missing-device cleanup obligations
+  and prevent re-add. No permanent global import lock was approved; define new
+  intake during pending Purge as part of its concurrency contract before release.
+- Use separate Managed/Unmanaged tabs. Highlight unmanaged sightings across at
+  least two distinct FTD IDs in a rolling 24-hour window, including disappeared
+  observations, with a selected-device action to adopt into Managed.
+- Email is lower priority: configurable SMTP relay with optional authentication,
+  plaintext/STARTTLS/implicit TLS, certificate/internal-CA verification and no
+  implicit downgrade; `.env` settings/recipients and secret-backed password.
+  Ordinary unmanaged events are aggregated with increasing time-based pauses
+  (10/20/40 minutes toward a configurable cap), reset after one quiet hour.
+  Active-whitelist incidents are urgent; first unblock attempt and later state
+  changes notify without emailing every identical retry. SMTP dispatch topology
+  and network/outbox/retry details remain a later implementation design.
+
+Mass selected-address removal, CIDR protection and user-triggered restoration of
+disappeared unmanaged entries are deferred. Prioritize delivery of the core
+working-version flows over further expansion of offline incident ceremonies.
+
+All unchanged invariants still apply: semantic typed operations only; exact fixed
+binary validation; agent-only FTD credentials; pinned host keys; authenticated
+identity/CSRF; Caddy as the only external listener; verified responses for success;
+append-only audit and honest uncertainty. Detailed concurrency, capacity,
+reconciliation, migration/rollback and Purge contracts must be implemented and
+validated before their gates are changed. This documentation approval neither
+clears old evidence nor authorizes a new lab fixture, live migration, bulk load,
+secret/gate change, or production rollout. Existing consumed authorizations remain
+consumed. Current implementation manuals describe their version until migrated.

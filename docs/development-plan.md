@@ -1,6 +1,23 @@
 # Development Plan
 
-Last updated: 2026-10-19
+Last updated: 2026-10-20
+
+## Current delivery priority — operator alignment, 2026-10-20
+
+The [Working-Version Plan](working-version-plan.md) is the current approved target
+and delivery sequence. Deliver the usable managed bulk import/restoration flows,
+continuous parallel per-device work, fast interactive removal/refresh, permanent
+whitelist retirement, clear status/correlation and confirmed Emergency Purge.
+Email is lower priority. Existing offline incident features remain supported
+evidence controls, not the default next feature milestone.
+
+This replaces conflicting older target choices (one-time additions, adoption
+rejection, shared credentials,1000-pair scope, global minute-long write cooldown,
+protection-resumed maintenance and routine mandatory offline uncertainty handling).
+It does not change deployed behavior or permit bypassing current safety checks.
+Define and test compatible capacity, per-device ownership, automatic fresh-evidence
+reconciliation and migration/rollback before enabling the revised workflows.
+The checkpoints and older sequences below record prior design/implementation.
 
 **Status: refresh/queue implemented; bounded removal sessions and priority reads experimental; parse-only import preview implemented, addition pending.** This document records
 the next product increments. It describes target behavior, not capabilities
@@ -591,7 +608,10 @@ not be implemented as automatic renewal/reimport of expired user requests.
 
 ## 6. Delivery order and acceptance
 
-Current next work supersedes the older sequence below:
+The current next work is the delivery order in the
+[Working-Version Plan](working-version-plan.md#10-delivery-order-and-implementation-gaps).
+The following sequence is the earlier foundation/incident checkpoint, retained
+for context rather than the current feature priority:
 
 1. Implemented and synthetically integrated: desired registry, single/batch
    standing consent, reviewed migration/resume, shared controller, protection,

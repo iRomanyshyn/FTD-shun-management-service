@@ -7,6 +7,9 @@ This repository is an English-language product repository. Write source code, do
 Read these documents before making a material change:
 
 1. [`docs/architecture-and-security-design.md`](docs/architecture-and-security-design.md) is the normative architecture and security specification.
+   Its 2026-10-20 working-version alignment incorporates
+   [`docs/working-version-plan.md`](docs/working-version-plan.md), the latest
+   operator-approved product target; distinguish that target from current code.
 2. [`docs/project-status.md`](docs/project-status.md) records what is implemented, intentionally unavailable, and next.
 3. [`docs/development-log.md`](docs/development-log.md) is the chronological engineering record.
 4. [`docs/manual/`](docs/manual/README.md) contains contributor, deployment, and operator procedures.
@@ -35,6 +38,18 @@ Do not rewrite historical log entries except to correct an objective error; add 
 
 ## Implementation and validation
 
+- On 2026-10-20 sequential product alignment prioritized a usable working version:
+  managed-only service additions/adoption,10000-IP selected-device import,
+  per-device credentials/parallel serialized streams, continuous dispatch,
+  interactive priority, permanent whitelist retirement, automatic evidence-based
+  recovery and confirmed Emergency Purge. Follow docs/working-version-plan.md and
+  the normative amendment before planning more offline incident extensions.
+  Conflicting older product requirements are historical/current-code contracts,
+  not the next delivery target. Do not bypass them ad hoc: implement reviewed
+  reconciliation/concurrency/capacity/migration contracts, preserve original
+  uncertainty/receipts and all security invariants, and retain existing live gates
+  and fixture/migration authorization boundaries. This alignment is not approval
+  to activate features, rearm old isolation, change secrets or mutate the lab.
 - While working on the current non-production lab stack, the operator authorizes
   deployment of validated, in-scope changes without a separate confirmation for
   each release (2026-10-16). Announce the affected services and operational impact,

@@ -1,5 +1,11 @@
 # Browser Import Review and Confirmation
 
+**Target update (2026-10-20):** [Working-Version Plan](../working-version-plan.md#3-bulk-import-and-cancellation)
+replaces one-time user additions with managed maintenance/adoption, visible skipped
+inputs and a10000-IP selected-device target. The existing flow/limits below remain
+unchanged until reviewed implementation and migration; old receipts gain no new
+authority and no live admission is enabled by this plan.
+
 **Requirement update (2026-10-17):** future explicitly confirmed imports will
 support [managed restoration](managed-shuns.md). That design is not implemented;
 this manual describes the current one-time flow. Old reviews/imports do not gain

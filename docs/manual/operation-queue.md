@@ -1,5 +1,11 @@
 # Operation Queue
 
+**Target update (2026-10-20):** [Working-Version Plan](../working-version-plan.md)
+requires continuous parallel per-device dispatch, interactive priority and
+automatic evidence-based recovery. This manual still describes current queue/
+protocol limits and offline uncertainty controls; do not bypass them to emulate
+the new target. No gates, schemas or live authorizations change with this plan.
+
 ## Scope
 
 The SQLite queue supports device-scoped and confirmed fleet-wide removals.

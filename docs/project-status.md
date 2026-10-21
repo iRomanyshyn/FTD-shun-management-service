@@ -4,6 +4,28 @@ Last updated: 2026-10-20
 
 ## Current increment
 
+**Product alignment recorded; documentation only (2026-10-20).** The operator
+prioritized a working version and incremental usability over further offline
+incident expansion. [Working-Version Plan](working-version-plan.md) records the
+agreed managed-only import/adoption, 10,000-IP selected-device scope, stable inventory
+IDs/per-device credentials, parallel devices/default 4 concurrency, continuous
+dispatch, interactive priority, automatic fresh-evidence recovery, permanent
+whitelist retirement, import cancellation and authenticated Emergency Purge.
+Separate Managed/Unmanaged tabs and rolling 24-hour cross-device detection/adoption
+are required. Contradictory actions require current-state review/reconfirmation.
+SMTP relay/digest/whitelist alerts are specified as lower-priority follow-up.
+
+The normative amendment explicitly supersedes conflicting older target decisions,
+not current code or live authorization. Existing implementation still has its
+documented capacity, serialization/cooldown, adoption, protection and uncertainty
+constraints. Per-device execution, safe uncertainty reconciliation, accepted-subset
+confirmation, migration/rollback and Purge concurrency contracts require design/
+implementation before release. No code/schema/configuration/credentials/gates or
+lab state changed, and no services restarted. Documentation links and diff checks
+were validated; the previous 1142-test result below is historical, not a new run.
+Next: implement the working-version delivery order with scoped validation. Existing
+uncertainty/receipts and consumed fixture authorizations remain preserved.
+
 **Whole-scope incident isolation and healthy-policy resume (2026-10-20).** After
 administrative acknowledgment, separate offline ISOLATE_INCIDENT can retire all
 current enabled policy in an ordinary/single/fleet case and retain immutable

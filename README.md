@@ -4,6 +4,12 @@ Security-focused internal service for monitoring and managing Cisco Secure Firew
 
 The governing specification is the [Architecture and Security Design](docs/architecture-and-security-design.md). The repository now contains the first Web/BFF and internal-state API increment, together with deployment assets and operational manuals.
 
+The [Working-Version Plan](docs/working-version-plan.md) records the operator's
+2026-10-20 product alignment and current delivery priority: usable managed bulk
+import/restoration, continuous parallel device work, quick unblock, whitelist
+retirement, clear status and Emergency Purge. Email is a later increment. This is
+an approved target; the implementation boundaries below are not yet replaced.
+
 Next requirement: [managed manual-shun restoration](docs/manual/managed-shuns.md)
 after confirmed disappearance/reboot, while explicit service removal stops
 maintenance. Its registry foundation and read-only Managed shuns tab are

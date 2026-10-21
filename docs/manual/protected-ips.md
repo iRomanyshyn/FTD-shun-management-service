@@ -1,5 +1,11 @@
 # Protected IPs
 
+**Target update (2026-10-20):** the [Working-Version Plan](../working-version-plan.md#4-protected-ips--whitelist)
+requires protection to permanently retire matching maintenance. The procedure
+below describes existing code, which can still retain maintenance behind
+protection and warn before its resumption. The new lifecycle is not implemented
+or activated by the documentation update.
+
 ## Purpose and permissions
 
 Open **Protected IPs** in the navigation. Each enabled, exact IPv4 address is
