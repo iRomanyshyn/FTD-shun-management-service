@@ -270,7 +270,8 @@ def test_changed_fleet_membership_or_protection_rejects_whole_scope(lab):
     assert dump(lab) == before
     frozen = review(lab, "fleet")
     policy = lab[2].state.synchronizer.policy
-    policy.change("add", IP, policy.revision(), "protector", "Protector", ("Operator",))
+    policy.change("add", IP, policy.revision(), "protector", "Protector", ("Operator",),
+                  managed_revision=lab[1].snapshot()["revision"])
     before = dump(lab)
     assert asyncio.run(post(lab, frozen)).status_code == 409
     assert dump(lab) == before

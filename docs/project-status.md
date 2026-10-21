@@ -1,8 +1,93 @@
 # Project Status
 
-Last updated: 2026-10-20
+Last updated: 2026-10-21
 
 ## Current increment
+
+**Permanent protection retirement (2026-10-21).** Explicit enabled-protection
+saves now permanently retire matching managed targets across missing observations
+and disabled devices, preserving intent/generation/original authorization and
+real editor roles. One transaction changes protection, bumps managed revision
+once, appends linked per-target/root audit and cancels valid unsent ADD/restoration.
+RUNNING work, cleanup waits, uncertainty and retained incident decisions survive.
+Full managed-request ledgers do not block this fixed protection revocation.
+Disabling/deleting never resumes old policy; new explicit consent is required.
+
+Unknown/partial optional state permits strengthening, with deferred retirement
+recorded honestly. Persisted enabled protection is the barrier: weakening is
+refused until state is readable and matching maintenance is retired atomically.
+Startup/GET do not initialize or sweep policy. New forms carry reviewed managed
+revision (including Add) and permanent-retirement wording instead of a resume
+checkbox. Dirty/stale edits do not rebase silently. Legacy typed compatibility
+fields cannot resume policy. SQLite save failures return503/unconfirmed, not success.
+See [Protected IPs](manual/protected-ips.md).
+
+Validation: **1169 Python tests pass** (55.91s), **27 Chromium tests pass**;
+compileall/Ruff/diff pass. Includes full-ledger retirement, actor/generation
+preservation, corruption/repair/restart barrier, old-key non-reenable, newly
+authorized policy on disabled entries, late-audit/HTTP rollback and synthetic
+end-to-end release/restart/new-consent behavior and honest RUNNING ADD settlement.
+Shared schema validation also treats missing retirement/authorization columns as
+unknown, blocking ordinary removal rather than inferring an empty policy.
+Agent/protocol/Compose unchanged
+in this increment. No new schema, optional migration, gate/profile/credential
+change, policy fixture or live test mutation. The ordinary lab read recovered
+after the operator restored networking: confirmed 08:52:58Z, no error.
+
+API/Web deployed with checked private SQLite backup/paired rollback images;
+agent/Caddy/Authelia unchanged. API ready/socket, fresh final read 09:01:43Z with no
+error, TLS-verified HTTPS 302. Twelve queue/policy tables match backup exactly;
+12 VERIFIED/1 NOOP/no pending, registry 4/suspended, enabled targets 0, seven
+retained managed tables/no incident ledgers. All six experimental flags and
+development auth remain false. No startup retirement sweep or state migration.
+
+Bulk design inspection is recorded in the working-version plan: keep existing
+1000-pair/registry bounds until durable import roots, 100000-pair paged policy
+reads, bounded rolling dispatch and retained request/attempt capacity are jointly
+implemented. No large-load readiness claim from increasing text limits alone.
+This increment closes protection lifecycle as a prerequisite; bulk admission,
+adoption/exclusions and parallel execution remain next.
+
+**Per-device credentials foundation (2026-10-21).** Explicit opt-in agent-only
+ID/login/password-secret mapping supports different credentials per FTD, covering
+every configured stable ID with no shared fallback. Legacy reads/removals and
+cycles v1/v2/v3 share the lookup. Password reads are bounded, regular-file-only,
+exact-byte and source-buffer-zeroized. `--check-config` validates configuration/
+all secret files and exits without SSH, a listener or database access. Public
+inventory rejects credential/unknown/duplicate fields and coerced identity/state;
+SQLite regression preserves observations/history across same-ID IPv4 changes.
+The public inventory host path is configurable in `.env`. DNS/custom ports and
+parallel execution remain separate work. See
+[Per-Device Credentials](manual/per-device-credentials.md).
+
+The opt-in Compose overlay supplies agent-only read-only mapping/secret mounts
+and removes the legacy shared secret. Git/build exclusions cover real files.
+Base Compose explicitly retains shared mode. No actual lab credential, inventory,
+profile, gate, optional schema or policy authority changed; credential migration
+and live per-device authentication need separate approval. Next: durable bulk-
+policy capacity, managed adoption/exclusions and permanent whitelist retirement,
+then continuous parallel per-device dispatch.
+
+Validation: **1158 Python tests pass** (55.82s), **47 Rust tests pass** (43 unit,
+4 process-isolated integration); compileall/Ruff/locked release build/format/
+all-target Clippy/diff checks pass. Temporary non-secret Compose validation checks
+both modes, matching public paths and no API/Web credential mounts. A non-root,
+read-only/no-network container validates two synthetic devices including disabled,
+ignoring deliberately invalid shared settings. The new image also checks unchanged
+lab shared credentials without SSH. Existing test-only unwraps were replaced with
+propagated errors/context to satisfy all-target lint without weaker assertions.
+
+API/agent deployed in the authorized lab; Web/Caddy/Authelia unchanged. Checked
+private SQLite backup/prior API-agent images retained. API ready/socket, valid-TLS
+auth redirect 302; 12 queue/policy tables exactly match backup, queue 12 VERIFIED/
+1 NOOP/no pending, registry 4/suspended, enabled targets 0, seven retained managed
+tables/no incident ledgers. All six experimental gates/development auth/agent ADD
+remain false; agent remains shared mode. **Environment issue:** old agent already
+timed out connecting before deployment (last confirmed 07:35:41Z); new agent has
+the same timeout, no post-restart successful snapshot yet. Host TCP/22 works via
+`cscotun0`, while the agent network namespace times out; no Docker-subnet overlap.
+No routing/firewall/ACL changes or test writes. Restore that path before claiming
+live monitoring/credential acceptance.
 
 **Product alignment recorded; documentation only (2026-10-20).** The operator
 prioritized a working version and incremental usability over further offline

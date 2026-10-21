@@ -41,7 +41,8 @@ review; it is not implied by observing presence or a NOOP.
 | Operator stops maintenance only | Keep any observed device shun; no further automatic restoration. |
 | Operator removes directly through SSH | Restore on later confirmed absence while maintenance remains enabled. Stop maintenance first if absence is intended. |
 | Enabled Protected IP matches | Block restoration; existing automatic-removal policy has priority. |
-| Protection later disabled/deleted | An otherwise enabled managed intent may resume; show this warning before editing protection. |
+| Protection saved enabled | Permanently retire matching maintenance with actor audit; cancel unstarted additions, never interrupt RUNNING work. |
+| Protection later disabled/deleted | Never resume old policy. Finish any legacy/deferred retirement before releasing active protection; new explicit consent is required for another maintained generation. |
 | ADD result/worker outcome unknown | Needs attention; do not send another ADD under a new ID. |
 | Later explicit managed import after retirement | New reviewed intent generation; an old-key retry never reactivates it. |
 

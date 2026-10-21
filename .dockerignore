@@ -11,3 +11,4 @@ agent/target
 deploy/secrets
 deploy/authelia/users.yml
 deploy/devices.json
+deploy/agent-credentials.json

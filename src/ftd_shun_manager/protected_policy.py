@@ -4,7 +4,7 @@ import json
 import sqlite3
 from ipaddress import IPv4Address
 from os import environ
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from .config import _ipv4_csv
 from .managed_safety import ManagedStateUnavailable, managed_state
@@ -47,6 +47,46 @@ class ProtectedPolicy:
         with self.store._connection() as db:
             return db.execute("SELECT revision FROM protected_policy WHERE id=1").fetchone()[0]
 
+    @staticmethod
+    def _managed_state(db):
+        """Preflight optional revocation fields/evidence without initializing anything."""
+        from .managed_restoration import present
+
+        state = managed_state(db)
+        if state is not None:
+            try:
+                rows = db.execute("""SELECT device_id,ip,intent_id,generation,revision,authorization_request_id,
+                    updated_at,retired_at FROM managed_shun_targets WHERE enabled=1""").fetchall()
+                for row in rows:
+                    if (str(UUID(row["intent_id"])) != row["intent_id"]
+                            or type(row["generation"]) is not int or row["generation"] < 1):
+                        raise ValueError("Invalid managed identity")
+                present(db)
+            except (sqlite3.DatabaseError, ValueError, TypeError, AttributeError) as error:
+                raise ManagedStateUnavailable("Managed retirement is unavailable; enabled protection must remain in place.") from error
+        return state
+
+    def _retire_managed(self, db, ip, state, subject, display_name, roles, request_id, protected_revision):
+        """Fixed protection revocation, not a standing grant or role promotion."""
+        if state is None:
+            return 0
+        rows = db.execute("SELECT * FROM managed_shun_targets WHERE ip=? AND enabled=1 ORDER BY device_id",
+                          (ip.packed,)).fetchall()
+        if not rows:
+            return 0
+        timestamp, revision = now(), state["revision"] + 1
+        for row in rows:
+            db.execute("""UPDATE managed_shun_targets SET enabled=0,revision=?,updated_at=?,retired_at=?
+                WHERE device_id=? AND ip=? AND enabled=1""", (revision, timestamp, timestamp, row["device_id"], ip.packed))
+            self.store._insert_event(db, "MANAGED_SHUN_RETIRED", row["device_id"], ip, None,
+                subject, display_name, roles, request_id,
+                {"source": "protected_ip_policy", "action": "RETIRE", "enabled": False,
+                 "intent_id": row["intent_id"], "generation": row["generation"],
+                 "authorization_request_id": row["authorization_request_id"],
+                 "managed_revision": revision, "protected_revision": protected_revision}, timestamp=timestamp)
+        db.execute("UPDATE managed_shun_registry SET revision=? WHERE id=1", (revision,))
+        return len(rows)
+
     def snapshot(self) -> dict:
         with self.store._connection() as db:
             db.execute("BEGIN")
@@ -58,7 +98,7 @@ class ProtectedPolicy:
                 FROM protected_ips p ORDER BY p.ip""").fetchall()
             counts = {}
             try:
-                managed = managed_state(db)
+                managed = self._managed_state(db)
                 if managed is not None:
                     counts = {r[0]: r[1] for r in db.execute("""SELECT ip,COUNT(*) FROM managed_shun_targets
                         WHERE enabled=1 GROUP BY ip""")}
@@ -76,7 +116,8 @@ class ProtectedPolicy:
                confirm_maintenance_resume: bool = False) -> None:
         if not subject.strip():
             raise PermissionError("authenticated user required")
-        if action not in {"add", "edit", "delete"} or revision < 0:
+        if (action not in {"add", "edit", "delete"} or type(revision) is not int
+                or revision < 0 or type(enabled) is not bool):
             raise ValueError("invalid policy action or revision")
         if (managed_revision is not None and (type(managed_revision) is not int or managed_revision < 0)
                 or type(confirm_maintenance_resume) is not bool):
@@ -94,18 +135,27 @@ class ProtectedPolicy:
                 raise QueueConflict("Address already exists or was removed. Review the current list.")
             if action == "add" and db.execute("SELECT COUNT(*) FROM protected_ips").fetchone()[0] >= 1000:
                 raise QueueConflict("Protected IP limit reached (1000).")
-            context = None
-            if action == "delete" or (action == "edit" and old["enabled"] and not enabled):
-                state = managed_state(db)
-                current_managed = state["revision"] if state else 0
-                count = db.execute("SELECT COUNT(*) FROM managed_shun_targets WHERE ip=? AND enabled=1",
-                                   (ip.packed,)).fetchone()[0] if state else 0
-                if managed_revision is not None and managed_revision != current_managed:
-                    raise QueueConflict("Managed policy changed. Reload saved values and review the maintenance warning.")
-                if count and (managed_revision != current_managed or not confirm_maintenance_resume):
-                    raise QueueConflict("Maintained targets may resume when protection is removed. Review the current managed revision and explicitly acknowledge this.")
-                context = {"revision": current_managed, "maintained_devices": count,
-                           "resume_acknowledged": confirm_maintenance_resume}
+            weakening = action == "delete" or (action == "edit" and old["enabled"] and not enabled)
+            try:
+                state = self._managed_state(db)
+                available = True
+            except ManagedStateUnavailable:
+                if weakening:
+                    raise
+                state, available = None, False
+            current_managed = state["revision"] if state else 0
+            if available and managed_revision is not None and managed_revision != current_managed:
+                raise QueueConflict("Managed policy changed. Reload saved values and review the permanent retirement scope.")
+            retire = (action != "delete" and enabled) or bool(old and old["enabled"])
+            count = db.execute("SELECT COUNT(*) FROM managed_shun_targets WHERE ip=? AND enabled=1",
+                               (ip.packed,)).fetchone()[0] if state else 0
+            if available and retire and count and managed_revision != current_managed:
+                raise QueueConflict("Review the current managed revision before permanently retiring matching maintenance.")
+            request_id = str(uuid4())
+            retired = self._retire_managed(db, ip, state, subject, display_name, roles, request_id, current + 1) if retire and available else 0
+            context = {"revision": current_managed if available else None, "maintained_devices": count if available else None,
+                       "retired_targets": retired, "retirement_deferred": bool(retire and not available),
+                       "maintenance_reenabled": False}
             before = {key: old[key] for key in ("name", "comment", "enabled")} if old else None
             if action == "delete":
                 db.execute("DELETE FROM protected_ips WHERE ip=?", (ip.packed,))
@@ -117,15 +167,20 @@ class ProtectedPolicy:
             db.execute("UPDATE protected_policy SET revision=revision+1,legacy_imported=1 WHERE id=1")
             # Same write lock as policy mutation and executor claim: no stale policy
             # intent can become RUNNING in the gap. Manual coalesced intents survive.
-            self.queue._cancel_obsolete_policy(db)
+            # Invalid optional evidence is never rewritten or mistaken for empty.
+            # Enabled protection remains durable; weakening must finish retirement
+            # after repair. Claims still fail closed on that evidence/protection.
+            if available:
+                self.queue._cancel_obsolete_policy(db)
             log = self._audit(db, {"add": "PROTECTED_IP_ADDED", "edit": "PROTECTED_IP_UPDATED",
                                   "delete": "PROTECTED_IP_DELETED"}[action], ip,
                               subject, display_name, roles, before,
-                              None if action == "delete" else {"name": name, "comment": comment, "enabled": enabled}, context)
+                              None if action == "delete" else {"name": name, "comment": comment, "enabled": enabled}, context,
+                              request_id=request_id)
         print(json.dumps(log), flush=True)
 
-    def _audit(self, db, event, ip, subject, display_name, roles, before, after, managed_context=None) -> dict:
-        request_id = str(uuid4())
+    def _audit(self, db, event, ip, subject, display_name, roles, before, after, managed_context=None, *, request_id=None) -> dict:
+        request_id = request_id or str(uuid4())
         details = {"before": before, "after": after, "scope": "fleet", "source": "protected_ip_policy"}
         if managed_context is not None:
             details["managed_context"] = managed_context
@@ -133,4 +188,7 @@ class ProtectedPolicy:
         # Free-form comments remain escaped in UI / SQLite, not collector payloads.
         return {"event": event, "ip": str(ip), "actor_subject": subject,
                 "actor_display_name": display_name, "actor_roles": roles,
-                "request_id": request_id, "scope": "fleet"}
+                "request_id": request_id, "scope": "fleet",
+                **({"managed_retired_targets": managed_context["retired_targets"],
+                    "managed_retirement_deferred": managed_context["retirement_deferred"]}
+                   if managed_context is not None else {})}

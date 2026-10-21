@@ -265,14 +265,32 @@ def test_retirement_cancels_only_unstarted_restoration(lab, running):
 
 
 @pytest.mark.parametrize("running", [False, True])
-def test_protection_has_atomic_priority_without_retiring_policy(lab, running):
+def test_protection_has_atomic_priority_and_permanently_retires_policy(lab, running):
     admit(lab)
     if running:
         claim(lab)
     policy = ProtectedPolicy(lab[0].store)
-    policy.change("add", IP, policy.revision(), "protector", "Protector", ("Operator",))
+    policy.change("add", IP, policy.revision(), "protector", "Protector", ("Operator",),
+                  managed_revision=lab[1].snapshot()["revision"])
     assert attempt(lab)["state"] == ("RUNNING" if running else "CANCELLED")
-    assert lab[1].snapshot()["entries"][0]["enabled"]
+    assert not lab[1].snapshot()["entries"][0]["enabled"]
+
+
+def test_running_add_settles_honestly_after_protection_without_restoring_retired_authority(lab):
+    admit(lab)
+    job = claim(lab)
+    policy = ProtectedPolicy(lab[0].store)
+    policy.change("add", IP, policy.revision(), "protector", "Protector", ("Viewer",),
+                  managed_revision=lab[1].snapshot()["revision"])
+    assert attempt(lab)["state"] == "RUNNING"
+    assert lab[0].queue.finish_addition(job["id"], "synthetic-worker", AdditionResult(True, "management")) == "VERIFIED"
+    policy.change("delete", IP, policy.revision(), "protector", "Protector", ("Viewer",),
+                  managed_revision=lab[1].snapshot()["revision"])
+    assert attempt(lab)["state"] == "VERIFIED"  # Keep evidence of the settled write.
+    assert not lab[1].snapshot()["entries"][0]["enabled"]
+    advance_clock(lab)
+    with pytest.raises(QueueConflict, match="retired"):
+        admit(lab)  # Protection release is never another standing grant.
 
 
 def test_initial_legacy_protection_cancels_system_work_in_the_same_transaction(lab, monkeypatch):
@@ -391,7 +409,8 @@ def test_audit_failure_rolls_back_every_domain_change(lab, monkeypatch, stage):
             change(lab[1], "RETIRE")
         elif stage == "protection":
             policy = ProtectedPolicy(lab[0].store)
-            policy.change("add", IP, policy.revision(), "protector", "Protector", ("Operator",))
+            policy.change("add", IP, policy.revision(), "protector", "Protector", ("Operator",),
+                          managed_revision=lab[1].snapshot()["revision"])
         else:
             lab[0].queue.finish_addition(job["id"], "synthetic-worker", AdditionResult(True, "management"))
     assert fingerprint(lab) == before

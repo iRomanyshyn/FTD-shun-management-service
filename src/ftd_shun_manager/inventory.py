@@ -7,6 +7,15 @@ from pathlib import Path
 from .store import Device
 
 
+def _unique_fields(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    fields: dict[str, object] = {}
+    for key, value in pairs:
+        if key in fields:
+            raise ValueError("device inventory has duplicate object fields")
+        fields[key] = value
+    return fields
+
+
 def _valid_interface(value: object) -> bool:
     """Accept only names that the agent can safely place into its fixed command form."""
     if not isinstance(value, str) or not 1 <= len(value) <= 64 or not value[0].isalpha():
@@ -16,25 +25,31 @@ def _valid_interface(value: object) -> bool:
 
 def load_devices(path: Path) -> list[tuple[Device, str]]:
     """Load the deliberately small JSON inventory and reject ambiguous definitions."""
-    raw = json.loads(path.read_text(encoding="utf-8"))
+    raw = json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=_unique_fields)
     if not isinstance(raw, list):
         raise TypeError("device inventory must be a JSON array")
+    if not raw:
+        raise ValueError("device inventory cannot be empty")
     devices: list[tuple[Device, str]] = []
     ids: set[int] = set()
     hostnames: set[str] = set()
     for entry in raw:
         if not isinstance(entry, dict):
             raise TypeError("every device inventory entry must be an object")
+        if entry.keys() - {"id", "hostname", "management_ip", "ssh_host_key", "allowed_interfaces", "addition_profile", "enabled"}:
+            raise ValueError("device inventory contains unknown fields; credentials belong in the agent-only mapping")
         device_id = entry.get("id")
         hostname = entry.get("hostname")
         management_ip = entry.get("management_ip")
         host_key = entry.get("ssh_host_key")
         allowed_interfaces = entry.get("allowed_interfaces")
         addition_profile = entry.get("addition_profile")
-        if not isinstance(device_id, int) or not 1 <= device_id <= 65535:
+        if type(device_id) is not int or not 1 <= device_id <= 65535:
             raise ValueError("device id must be an integer between 1 and 65535")
-        if not isinstance(hostname, str) or not hostname or len(hostname) > 255:
+        if not isinstance(hostname, str) or not hostname.strip() or len(hostname) > 255:
             raise ValueError("device hostname is invalid")
+        if type(entry.get("enabled", True)) is not bool:
+            raise ValueError("device enabled must be a boolean")
         if not isinstance(management_ip, str) or not isinstance(host_key, str) or not host_key.strip():
             raise ValueError("device management_ip and ssh_host_key are required")
         if (

@@ -483,6 +483,8 @@ def create_app(
             raise HTTPException(409, str(error)) from error
         except ValueError as error:
             raise HTTPException(422, str(error)) from error
+        except sqlite3.DatabaseError as error:
+            raise HTTPException(503, "Protected policy save was not confirmed. Inspect current policy before retrying.") from error
         synchronizer.note_state_change()
         return {"status": "saved", "policy": policy.snapshot()}
 

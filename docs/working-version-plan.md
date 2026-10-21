@@ -227,12 +227,12 @@ manuals still describe existing contracts until implementation is migrated.
 
 | Area | Existing implementation constraint | Agreed working-version target |
 | --- | --- | --- |
-| Credentials | Shared agent credential | Explicit per-device login/secret |
+| Credentials | Opt-in agent-only per-device mapping implemented; lab still uses explicit shared compatibility mode | Separately reviewed per-device rollout; no shared fallback within that mode |
 | Capacity | 1,000-pair policy/admission bounds | 10,000 input IPs across selected devices; bounded dispatch |
 | Existing shun | Adoption rejected | Explicitly reviewed managed adoption |
 | Invalid/protected rows | Whole-scope rejection in standing review | Visible exclusions and exact accepted-scope confirmation |
 | Scheduling | One fleet executor, global >=60s cooldown | Parallel devices, one stream each, continuous bounded writes |
-| Protection | Maintenance retained behind protection | Permanently retire matching maintenance |
+| Protection | Explicit protection saves now permanently retire matching maintenance; unknown state holds enabled protection until retirement can finish | Retain this lifecycle in the new bulk workflow |
 | Lost result | Latched offline attention/recovery | Automatic fresh-evidence reconciliation with original uncertainty retained |
 | Purge | No working-version global managed purge | Confirmed cancel/retire/urgent cleanup, authenticated access |
 | Correlation | No agreed rolling cross-device signal | Unmanaged rolling 24-hour badge and managed action |
@@ -254,6 +254,28 @@ Implementation order:
    and measured throughput. A 10,000-address target does not authorize a live bulk
    load or establish FTD capacity/production readiness.
 7. Implement SMTP delivery and notification aggregation after the core workflows.
+
+### Capacity contract for the next import increment
+
+Inspection on 2026-10-21 confirmed that raising one constant is insufficient.
+The current 1000-target registry, shared 1000-pair canonical request, 10000 immutable
+request slots with retirement reserve, 10000 lifetime restoration attempts and
+full-snapshot readers are coupled. They stay unchanged until the whole path is
+compatible. In particular, increasing targets beyond ledger capacity makes the
+current retirement-reserve calculation reject every new grant.
+
+Implement the new flow around one durable actor-attributed import root, an exact
+accepted/excluded scope and durable per-pair maintenance; do not turn 100000 pairs
+into 100000 immediately queued requests. Use paged policy/report reads and bounded
+rolling dispatch/restart cursors, with retained provenance and no request-TTL
+expiration of standing consent. Freeze managed/protection revisions and explicit
+adoption vs missing state; late changes conflict, never silently alter acceptance.
+Cancellation must distinguish completed/adopted retained targets, unsent cancelled
+targets and unsettled running attempts. Define total retained capacity/retirement
+reserve and legacy-latch compatibility together before migration or gate changes.
+Synthetic 10000-address/10-device tests must demonstrate storage, paged reads,
+backpressure, revocation and restart, not only a larger paste field. No new bulk
+schema, live migration or large fixture is authorized by this design note.
 
 Do not keep extending offline incident controls as the default next product
 milestone while the core working-version workflows remain unavailable. Existing

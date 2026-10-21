@@ -4813,6 +4813,186 @@ No deployment/restart, environment/secret read or edit, live DB access, migratio
 feature activation, device mutation or fixture reuse. Existing scoped lab
 authorization rules and consumed experiment permissions remain intact.
 
+## 2026-10-21 — Per-device credential foundation and compatible lab rollout
+
+Implemented the first working-version infrastructure increment rather than
+another offline incident feature. Explicit shared compatibility and opt-in
+per-device modes now select agent-owned ID/login/password-secret references.
+Strict mapping covers every configured stable ID, including disabled devices,
+and rejects duplicate/unknown/missing/zero IDs, unknown/duplicate JSON fields,
+unsafe login/basename values and >256 KiB input. References are distinct per
+device under `/run/secrets/ftd`; values never belong in JSON/public inventory.
+Per-device mode ignores shared settings, with no fallback after lookup/read/auth
+failure. Legacy read/removal and cycles v1/v2/v3 share one authentication helper.
+
+Secret reads preserve exact UTF-8 bytes, are bounded to 16 KiB, nonblocking and
+regular-file-only, rejecting empty/final-symlink/directory/FIFO input. Source
+buffers remain zeroized after authentication; files stay mounted for reconnects,
+without a claim that SSH library/kernel copies never exist. `--check-config`
+validates configuration/all secret files then exits with only mode/device count,
+never SSH/socket binding/database access. Unsupported CLI arguments fail closed.
+No protocol, credential-lifetime, policy authority or feature-gate redesign.
+
+Public inventory rejects private/unknown/duplicate fields, boolean/zero IDs,
+coerced enabled values, whitespace-only names and empty scope; agent also rejects
+zero IDs/duplicate hostnames. SQLite regression proves same-ID IPv4 replacement
+preserves observations/history. Both Compose consumers use the `.env`-configured
+public host path. New opt-in overlay gives only agent read-only mapping/secrets,
+removes legacy secret and refuses absent bind sources; requires Compose 2.24.4+.
+Real mapping joins Git/build exclusions. Structured manual covers ACL/provisioning,
+exact-byte rotation, non-network preflight, private config backup and matching
+image/Compose rollback; an older agent must not use the new overlay. Base Compose
+stays shared. Updated architecture, README, plans, manual index/deployment/
+development and status. DNS/ports, bulk-policy capacity/adoption/exclusions,
+permanent protection retirement and parallel dispatch remain next.
+
+Validation: compileall, **1158 Python tests (55.82s)**, locked release build,
+**43 Rust unit + 4 integration tests**, fmt, Ruff, all-target Clippy with warnings
+denied and diff checks. Existing test-only unwraps prevented all-target lint;
+replaced with propagated errors/context without weakening assertions. Initial
+sandbox Rust socket tests hit EPERM; rerun with local socket permissions passed,
+no skips. Python suite likewise uses synthetic temporary state/local sockets.
+No browser assets changed; Chromium not rerun. Tests cover ID ordering/scope,
+strict JSON/bounds, no fallback, unsafe references, missing/empty/oversized/
+invalid-UTF8/symlink secrets, exact whitespace and preflight without listener.
+Python adds inventory identity/type/private-field and SQLite/build-boundary checks.
+
+Temporary non-secret Compose validation checked both modes, matching public paths,
+agent-only read-only binds and legacy-secret removal. A disposable non-root,
+read-only/no-network agent container passed per-device preflight for two synthetic
+devices (one disabled), despite deliberately invalid shared settings. New image
+also passed unchanged lab shared preflight, reading but never printing passwords
+or contacting FTD. No real inventory/credential/environment/profile/gate edits,
+new mapping activation, optional-schema migration or policy admission.
+
+Authorized API/agent-only deployment retained prior images as
+`ftd-shun-api:rollback-per-device-credentials-20261021T0745` and
+`ftd-shun-agent:rollback-per-device-credentials-20261021T0745`. API stopped before
+agent replacement. Checked private 0700/0600 SQLite backup:
+`/var/lib/ftd-shun-manager/per-device-credentials-20261021T0745/before-update.sqlite3`,
+integrity/foreign-key checks pass, SHA256
+`65e896851ca2106b360ce8509a2ae1faf5b965efc83b60249785f14b1936b572`.
+New API `sha256:95f0812d19fa153365c3c525e6554e4a72c54f2b626e22cb97794b5a124d55a5`,
+agent `sha256:bdd040aef2720ae80fe2caf90b715904ea60eef024ed594b52a74cdaf14a0b34`.
+Web/Caddy/Authelia unchanged. API ready/socket, valid-TLS HTTPS 302; 12 queue/policy
+tables match backup exactly, 12 VERIFIED/1 NOOP/no pending, registry 4/suspended,
+enabled targets 0, seven retained managed tables/no incident ledgers. All six
+experimental flags/development auth/agent ADD false; mode remains shared.
+
+Pre-existing network failure is not called live-read acceptance: old agent last
+confirmed 07:35:41Z then timed out at SSH connection/host-key stage; new agent
+repeats that failure after restart. Host TCP/22 is reachable through `cscotun0`,
+but a disposable credential-free TCP-only diagnostic in the agent network
+namespace times out; no Docker-subnet overlap. This identifies differing network
+paths, not a proven VPN/firewall/ACL root cause. No routing/firewall/ACL changes,
+test device writes or consumed-fixture reuse. Fresh post-restart monitoring,
+per-device live authentication and bulk/parallel/recovery/production acceptance
+remain pending. Preserve honest stale-data/error presentation.
+
+Final review validated 214 local Markdown links/anchors across 10 changed
+documents and repeated Ruff/diff checks. The exact per-device Compose overlay
+also passed isolated no-network preflight with two synthetic devices and no
+legacy secret file; its four verified empty fixture volumes were removed.
+
+## 2026-10-21 — Permanent whitelist retirement and recovered lab monitoring
+
+The operator confirmed the earlier network interruption was their temporary VPN
+use and restored access. Ordinary monitoring confirmed08:37:32Z and08:52:58Z
+without errors; no routing/firewall/ACL/credential change was needed. Prior failure
+evidence remains historical, not a current blocker. Continued working-version
+delivery rather than more offline incident features.
+
+Implemented the protection-lifecycle prerequisite for managed imports. Every
+explicit enabled-protection save retires all matching enabled managed targets,
+including missing observations/disabled devices, under the same write lock as
+policy and claim validation. Preserve intent UUID/generation/original grant;
+increment managed revision once; append per-device MANAGED_SHUN_RETIRED events
+with real editor roles and the root policy event's request ID. This is fixed
+protection revocation for every authenticated editor, not role promotion or a
+MAINTAIN grant. It consumes no immutable managed-request slots, so a full ledger
+cannot prevent retirement. Root JSON logs include retired/deferred counts, not
+free-form text. Valid unstarted ADD/restoration cancels atomically; RUNNING ADD,
+waiting/admitted cleanup, unknown outcomes and original incident receipts remain.
+
+Disabling/deleting active protection never resumes old authority. Explicit saves
+also finish legacy/deferred retirement before release. Unknown/partial optional
+state still permits strengthening: preserve enabled protection as a durable
+barrier, report unknown/deferred honestly, and refuse weakening until repaired
+state can be retired atomically. Do not rewrite unverifiable queue evidence.
+No new schema, optional migration, GET/startup sweep, policy adoption or fake
+verified removal. Editing/deleting an already-disabled entry leaves separately
+and newly authorized maintenance alone. Old original-key grant receipts stay
+observational after protection release; new recurring consent is required.
+
+Forms bind managed revision including Add, preserve dirty revisions and show
+permanent-retirement consequences instead of a resume checkbox. Stale supplied
+revisions conflict and nonempty retirement requires current reviewed revision.
+The old strictly typed confirm_maintenance_resume field is compatibility only,
+not resume authority. HTTP SQLite-save failures return503/unconfirmed with no
+success or refresh hint. Actor/CSRF/sensitive-session boundaries are unchanged.
+
+Recorded the bulk storage constraint in the working-version plan:1000-target/
+canonical scope,10000 immutable requests with retirement reserve,10000 retained
+attempts and full-snapshot readers must be revised together. Raising targets
+alone can exhaust the revocation reserve before the first grant. Next flow needs
+durable import roots/exact accepted exclusions/adoption, paged policy reads,
+rolling bounded jobs/restart progress and explicit cancellation of unsent scope,
+not100000 immediately queued/expiring user requests. Current bounds/gates stay
+unchanged; no new bulk schema or lab load/migration is authorized by the note.
+
+Validation:1167 Python tests pass (55.55s),27 Chromium tests pass; compileall,
+Ruff and diff checks pass. Added scope/identity/Viewer audit/full-ledger revocation,
+deferred corruption/repair/restart barriers, old-key non-reenable, independently
+new policy on disabled entries and per-target/root/HTTP audit rollback cases.
+Integrated lifecycle now proves release/restart does not restore old policy;
+new explicit consent can authorize another generation. Existing fleet/control/
+scope tests updated for automatic retirement and stale scope rejection, not
+weakened to permit stale confirmations. Chromium checks original revision/input
+retention, clear permanent consequences, no resume field, mobile layout and no
+device hints. All fixtures are synthetic; agent/protocol/Compose unchanged this
+increment. Initial non-escalated targeted tests encountered the known local
+socket sandbox limitation; the complete permitted-socket suite has no skips.
+
+Authorized API/Web-only rollout retained prior images as
+`ftd-shun-api:rollback-protected-retirement-20261021T0855` and
+`ftd-shun-web:rollback-protected-retirement-20261021T0855`. Checked private SQLite
+backup `/var/lib/ftd-shun-manager/protected-retirement-20261021T0855/before-update.sqlite3`,
+integrity/foreign-key checks pass, SHA256
+`640140715118a8927567c766352855f01193609df6377c0ba06314279c26076a`.
+API stopped before paired recreation. Current API image
+`sha256:c3cf13f4e28c285bd4675e4eebf76756d910772c2e3de3021c2b01827562db0d`, Web
+`sha256:555268b734137a6ad9b6f9ef6d8edd0a043d125650441c0bc8d9109785c82329`;
+agent remains `sha256:bdd040aef2720ae80fe2caf90b715904ea60eef024ed594b52a74cdaf14a0b34`.
+API ready/socket, fresh complete read08:55:15Z/no error and valid-TLS HTTPS302.
+Twelve queue/policy tables match backup exactly,12 VERIFIED/1 NOOP/no pending,
+registry4/suspended, enabled targets0, seven managed tables/no incident ledger.
+All six experimental flags/development auth remain false. Agent/shared credentials,
+device inventory/profiles, Caddy/Authelia and optional schemas unchanged. No live
+grant, policy edit, test write, fixture reuse or startup retirement was performed.
+Older writers retain legacy protection-resume semantics: rollback must not release
+a deferred barrier or restore old enabled policy. Updated architecture, agreement,
+manuals, README, plan and status accordingly.
+
+Final hardening adds explicit RUNNING ADD settlement coverage: a verified write
+after protection retirement remains VERIFIED evidence, but protection release
+cannot restore its authority. Shared optional-state validation now requires the
+full retirement/authorization column set so partial schemas remain unknown to
+ordinary removal as well as the protection editor. Additional corruption case
+confirms strengthening is still possible while weakening/ordinary removal fail
+closed. Final complete suite: **1169 passed (55.91s)**;27 Chromium cases remain
+passing with unchanged browser assets since that run. Compileall/Ruff/diff checks
+pass;241 local links/anchors validated across14 documents. Paired final build was
+recreated with the same checked original backup/rollback images retained; no
+active work or enabled managed target existed at either rollout.
+
+Final running images supersede the first paired build above: API
+`sha256:e1b5cdd4384b80186843f81f3c2679753e6f62c186e721f539fa308de1fa87e9`, Web
+`sha256:047d15d16d2c8d815b03078c2e899d27d21801a808037ff0f4d98d6785c8e6f3`.
+Final read09:01:43Z/no error,12 queue/policy tables still match original backup,
+TLS-verified HTTPS302; agent unchanged. Stopped the initial sandbox-constrained
+targeted test process after the permitted full suite completed; no background
+test/fixture or live work was left running by the checks.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

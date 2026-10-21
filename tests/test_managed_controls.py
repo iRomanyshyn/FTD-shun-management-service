@@ -166,20 +166,28 @@ def test_unknown_reply_preserves_frozen_retry_key_and_never_submits_new_intent(l
     asyncio.run(scenario())
 
 
-def test_revocation_works_for_absent_protected_disabled_device_during_recovery(lab):
+@pytest.mark.parametrize("protected", [False, True])
+def test_revocation_works_for_absent_disabled_device_during_recovery_and_protection_already_retires(lab, protected):
     store, registry, api, app, _, _ = lab
     with store._connection() as db:
         db.execute("UPDATE devices SET enabled=0 WHERE id=1")
         db.execute("UPDATE operation_executor SET mutations_suspended=1 WHERE id=1")
     # The snapshot exposes protection independently; no adoption or device write.
-    api.state.synchronizer.policy.change("add", IP, api.state.synchronizer.policy.revision(),
-                                         "policy-admin", "Policy Admin", ("Administrator",))
+    if protected:
+        api.state.synchronizer.policy.change("add", IP, api.state.synchronizer.policy.revision(),
+                                             "policy-admin", "Policy Admin", ("Administrator",),
+                                             managed_revision=registry.snapshot()["revision"])
 
     async def scenario():
         async with browser(app) as client:
             page = await prepare(client)
+            if protected:
+                assert page.status_code == 409 and not registry.snapshot()["entries"][0]["enabled"]
+                assert api.state.synchronizer.queue.status()["counts"] == {}
+                assert api.state.synchronizer.queue.mutations_suspended()
+                return
             assert page.status_code == 200 and "Disabled — retirement is still allowed" in page.text
-            assert "Not currently observed" in page.text and "Enabled protection takes priority" in page.text
+            assert "Not currently observed" in page.text
             result = await client.post("/managed-shuns/retirement-confirm", data={
                 "csrf": client.cookies.get("ftd_shun_csrf"), "review": token(page), "confirm_ip": str(IP)})
             assert result.status_code == 200 and not registry.snapshot()["entries"][0]["enabled"]

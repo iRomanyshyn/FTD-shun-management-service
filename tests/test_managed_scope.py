@@ -118,7 +118,8 @@ def test_transactional_comparison_rejects_changed_scope_without_writes(state, mu
         change(registry, "MAINTAIN", [1])
     elif mutation == "protect":
         policy = ProtectedPolicy(store)
-        policy.change("add", IP, policy.revision(), "viewer", "Viewer", ("Viewer",))
+        policy.change("add", IP, policy.revision(), "viewer", "Viewer", ("Viewer",),
+                      managed_revision=ManagedShuns(store).snapshot()["revision"])
     else:
         store.upsert_device(Device(1, "renamed" if mutation == "rename" else "synthetic-1", IPv4Address("192.0.2.1"), mutation != "disable"), "ssh-ed25519 AAAA")
     before = fingerprint(store)

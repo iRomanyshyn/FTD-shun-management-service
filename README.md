@@ -17,8 +17,9 @@ implemented, with frozen reviews and separately gated confirmation. Composite
 [offline recovery controls](docs/manual/recovery.md) and a default-off shared
 cleanup-worker hook are implemented. [Revocation controls](docs/manual/managed-controls.md)
 now support policy-only stop-maintaining and waiting-cleanup cancellation.
-Protected-IP weakening requires reviewed acknowledgement when managed intents
-exist; ordinary removal cannot silently bypass enabled maintenance.
+Protected-IP saves permanently retire matching managed authority with reviewed
+revision checks; disabling/deleting protection never resumes old maintenance.
+Ordinary removal cannot silently bypass enabled maintenance.
 The [frozen fleet review](docs/manual/managed-removal-review.md#frozen-all-device-scope)
 includes observed and maintained-but-missing targets without submitting work.
 A [whole-scope fleet coordinator](docs/manual/managed-fleet-removals.md)
@@ -87,6 +88,7 @@ source used for build metadata; it does not imply production readiness. See
 - Web/BFF with Caddy/Authelia ForwardAuth trust boundary and CSRF protection.
 - Internal Unix-socket API backed by SQLite WAL state and append-only audit events.
 - Strict fixed binary protocol encoder/decoder and an isolated Rust FTD SSH agent.
+- Opt-in [per-device SSH credentials](docs/manual/per-device-credentials.md), with agent-only mapping/secrets, ID-based selection and non-network configuration checks. Existing lab credentials remain unchanged in explicit shared compatibility mode.
 - Default-off [large-snapshot extension](docs/manual/large-snapshots.md) with bounded multi-frame reads and complete-snapshot validation; synthetic 20,000-entry coverage, live small-read lab validation only.
 - Default-off [agent ADD/cycle v3](docs/manual/addition-contract.md) with an explicit creation profile, strict acknowledgement/post-read verification and shared mutation budgets. One approved [lab lifecycle](docs/manual/single-address-service-validation.md#recorded-service-result--2026-10-16) passed creation/NOOP/cleanup; traffic, large-load and production acceptance remain pending.
 - Default-off [private import staging](docs/manual/import-admission.md) with immutable batches, ADD/REMOVE conflicts and occurrence provenance; [browser review/confirmation](docs/manual/import-review.md) freezes exact targets and retries without enabling ADD.

@@ -259,8 +259,7 @@ test("refresh interaction in real Chromium", { timeout: 120000 }, async (t) => {
       }
       const ip = field("ip");
       const maintained = policy.entries.find((entry) => entry.ip === ip)?.maintained_devices || 0;
-      if (maintained && (url.pathname.endsWith("/delete") || field("enabled") !== "true")
-          && (Number(field("managed_revision")) !== policy.managed_revision || field("confirm_maintenance_resume") !== "true")) {
+      if (field("managed_revision") && Number(field("managed_revision")) !== policy.managed_revision) {
         response.statusCode = 409;
         response.end(JSON.stringify({ detail: "Managed policy changed. Reload saved values and review the maintenance warning." }));
         return;
@@ -699,7 +698,7 @@ test("refresh interaction in real Chromium", { timeout: 120000 }, async (t) => {
         assert.equal(postCount, hints, "Policy page background polling and CRUD do not request FTD refresh");
       } finally { await page.close(); }
     });
-    await t.test("managed protection acknowledgement retains its reviewed revision and resets on explicit reload", async () => {
+    await t.test("permanent protection retirement retains its reviewed revision until explicit reload", async () => {
       status = initial();
       status.policy_revision = 1;
       status.managed_policy_revision = 10;
@@ -714,7 +713,7 @@ test("refresh interaction in real Chromium", { timeout: 120000 }, async (t) => {
       try {
         assert.ok(await page.evaluate("document.querySelector('[data-maintenance-warning]').textContent.includes('Enabled maintenance: 2')"));
         await page.evaluate(`(() => { const form=document.getElementById('edit-policy-form-198.51.100.10'); form.closest('details').open=true;
-          form.elements.enabled.checked=false; form.elements.confirm_maintenance_resume.checked=true;
+          form.elements.enabled.checked=false;
           form.elements.enabled.dispatchEvent(new Event('input',{bubbles:true})); })()`);
         policy.managed_revision = status.managed_policy_revision = 11;
         policy.entries[0].maintained_devices = 3;
@@ -722,7 +721,7 @@ test("refresh interaction in real Chromium", { timeout: 120000 }, async (t) => {
         await wake(page);
         await page.until("document.querySelector('[data-maintenance-warning]').textContent.includes('Enabled maintenance: 3')");
         assert.equal(await page.evaluate("document.getElementById('edit-policy-form-198.51.100.10').elements.managed_revision.value"), "10");
-        assert.equal(await page.evaluate("document.getElementById('edit-policy-form-198.51.100.10').elements.confirm_maintenance_resume.checked"), true);
+        assert.equal(await page.evaluate("document.getElementById('edit-policy-form-198.51.100.10').elements.enabled.checked"), false);
         assert.equal(await page.evaluate("document.getElementById('delete-policy-form-198.51.100.10').elements.managed_revision.value"), "11");
         await page.evaluate("document.getElementById('edit-policy-form-198.51.100.10').requestSubmit()");
         await page.until("document.querySelector('[data-action-warning]').textContent.includes('Managed policy changed')");
@@ -731,8 +730,9 @@ test("refresh interaction in real Chromium", { timeout: 120000 }, async (t) => {
       const clean = await connectPage(debugOrigin, `${origin}/protected-ips`);
       try {
         assert.equal(await clean.evaluate("document.getElementById('edit-policy-form-198.51.100.10').elements.managed_revision.value"), "11");
-        assert.equal(await clean.evaluate("document.getElementById('edit-policy-form-198.51.100.10').elements.confirm_maintenance_resume.checked"), false);
-        assert.equal(await clean.evaluate("document.getElementById('delete-policy-form-198.51.100.10').elements.confirm_maintenance_resume.required"), true);
+        assert.equal(await clean.evaluate("document.querySelector('[name=confirm_maintenance_resume]')"), null);
+        assert.equal(await clean.evaluate("document.getElementById('add-policy-form').elements.managed_revision.value"), "11");
+        assert.ok(await clean.evaluate("document.querySelector('[data-maintenance-warning]').textContent.includes('permanently stop')"));
         await clean.call("Emulation.setDeviceMetricsOverride", { width: 375, height: 800, deviceScaleFactor: 1, mobile: true });
         assert.equal(await clean.evaluate("document.documentElement.scrollWidth<=window.innerWidth"), true);
         assert.equal(postCount, hints);

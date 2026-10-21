@@ -231,12 +231,14 @@ def test_retirement_can_revoke_missing_disabled_or_protected_targets(registry):
     change(registry, targets=[(1, IP), (2, IP)])
     reviewed = arguments(registry, action="RETIRE", targets=[(1, IP)])
     policy = ProtectedPolicy(registry.store)
-    policy.change("add", IP, 0, "fixture", "Fixture", ())
+    policy.change("add", IP, 0, "fixture", "Fixture", (), managed_revision=registry.snapshot()["revision"])
     registry.store.upsert_device(Device(1, "lab-1", IPv4Address("192.0.2.1"), False), "ssh-ed25519 AAAA")
     assert registry.snapshot()["entries"][0]["protected"]
-    registry.change(**reviewed)  # Protection changes do not veto revocation.
+    with pytest.raises(ManagedConflict, match="changed"):
+        registry.change(**reviewed)  # Protection retired the whole scope; old review cannot be rebased.
+    change(registry, action="RETIRE", targets=[(1, IP)])  # Fresh revocation remains valid/no-op.
     entries = registry.snapshot()["entries"]
-    assert not entries[0]["enabled"] and entries[1]["enabled"]
+    assert not entries[0]["enabled"] and not entries[1]["enabled"]
     assert not entries[0]["device_enabled"]
     assert entries[0]["actor_subject"] == "alice", "Keep original authorization, audit retiring actor separately"
 

@@ -5,6 +5,7 @@
 //! can cross the Web/API-to-agent boundary.
 
 mod addition;
+mod credentials;
 mod cycle;
 mod snapshot;
 
@@ -49,8 +50,7 @@ const FTD_PROMPT: &[u8] = b"> ";
 #[derive(Clone)]
 struct Agent {
     devices: BTreeMap<u16, Device>,
-    username: String,
-    password_file: PathBuf,
+    credentials: credentials::Credentials,
     operation_timeout: Duration,
     cycles_enabled: bool,
     large_snapshots_enabled: bool,
@@ -102,9 +102,16 @@ impl Agent {
         }
 
         let mut devices = BTreeMap::new();
+        let mut hostnames = BTreeSet::new();
         for entry in inventory {
+            if entry.id == 0 {
+                bail!("inventory device ID must be nonzero");
+            }
             if entry.hostname.trim().is_empty() || entry.hostname.len() > 255 {
                 bail!("inventory has an invalid hostname for device {}", entry.id);
+            }
+            if !hostnames.insert(entry.hostname.clone()) {
+                bail!("inventory has duplicate hostnames");
             }
             let host_key =
                 PublicKey::from_openssh(entry.ssh_host_key.trim()).with_context(|| {
@@ -179,9 +186,10 @@ impl Agent {
 
         Ok((
             Self {
+                credentials: credentials::Credentials::from_environment(
+                    &devices.keys().copied().collect(),
+                )?,
                 devices,
-                username: required_env("FTD_SHUN_SSH_USERNAME")?,
-                password_file: required_env_path("FTD_SHUN_SSH_PASSWORD_FILE")?,
                 operation_timeout,
                 cycles_enabled,
                 large_snapshots_enabled,
@@ -198,10 +206,7 @@ impl Agent {
             .get(&device_id)
             .filter(|device| device.enabled)
             .context("unknown or disabled device")?;
-        let mut session = {
-            let password = load_ssh_password(&self.password_file)?;
-            SshSession::connect(device, &self.username, password.as_str()).await?
-        };
+        let mut session = self.connect_device(device_id).await?;
 
         let before = session.show_shun(target).await?;
         let interfaces = parse_show_shun(&before, target, &device.allowed_interfaces)?;
@@ -223,14 +228,22 @@ impl Agent {
             .get(&device_id)
             .filter(|device| device.enabled)
             .context("unknown or disabled device")?;
-        let mut session = {
-            let password = load_ssh_password(&self.password_file)?;
-            SshSession::connect(device, &self.username, password.as_str()).await?
-        };
+        let mut session = self.connect_device(device_id).await?;
         session.large_snapshots = large;
         let entries = session.list_shuns(&device.allowed_interfaces).await?;
         session.close().await;
         Ok(entries)
+    }
+
+    async fn connect_device(&self, device_id: u16) -> Result<SshSession> {
+        let device = self
+            .devices
+            .get(&device_id)
+            .filter(|device| device.enabled)
+            .context("unknown or disabled device")?;
+        let credential = self.credentials.for_device(device_id)?;
+        let password = load_ssh_password(&credential.password_file)?;
+        SshSession::connect(device, &credential.username, password.as_str()).await
     }
 }
 
@@ -444,10 +457,30 @@ fn parse_shell_command_output(raw: &[u8], command: &str) -> Result<String> {
 }
 
 fn load_ssh_password(path: &Path) -> Result<Zeroizing<String>> {
-    let password = Zeroizing::new(
-        fs::read_to_string(path)
-            .with_context(|| format!("could not read SSH password secret {}", path.display()))?,
-    );
+    use std::io::Read;
+    use std::os::unix::fs::OpenOptionsExt;
+    const MAX_PASSWORD_BYTES: u64 = 16 * 1024;
+    // Operator-provisioned regular files only; never block on a FIFO or follow
+    // a secret basename symlink out of its mount. Preserve password bytes exactly.
+    let file = fs::OpenOptions::new()
+        .read(true)
+        .custom_flags(nix::libc::O_NOFOLLOW | nix::libc::O_NONBLOCK)
+        .open(path)
+        .context("could not open SSH password secret")?;
+    if !file
+        .metadata()
+        .context("could not inspect SSH password secret")?
+        .is_file()
+    {
+        bail!("SSH password secret must be a regular file");
+    }
+    let mut password = Zeroizing::new(String::new());
+    file.take(MAX_PASSWORD_BYTES + 1)
+        .read_to_string(&mut password)
+        .context("could not read SSH password secret as UTF-8")?;
+    if password.len() as u64 > MAX_PASSWORD_BYTES {
+        bail!("SSH password secret exceeds 16 KiB");
+    }
     if password.is_empty() {
         bail!("SSH password secret must not be empty");
     }
@@ -802,7 +835,27 @@ fn env_u64(name: &str, default: u64) -> Result<u64> {
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
+    let args: Vec<_> = env::args_os().skip(1).collect();
+    let check_only = match args.as_slice() {
+        [] => false,
+        [arg] if arg == "--check-config" => true,
+        _ => bail!("usage: ftd-shun-agent [--check-config]"),
+    };
     let (agent, socket_file, peer_uid) = Agent::from_environment()?;
+    if check_only {
+        for device_id in agent.devices.keys() {
+            let credential = agent.credentials.for_device(*device_id)?;
+            let _password = load_ssh_password(&credential.password_file)?;
+        }
+        println!(
+            "{}",
+            serde_json::json!({
+                "event": "agent.configuration.checked", "devices": agent.devices.len(),
+                "credential_mode": agent.credentials.mode(),
+            })
+        );
+        return Ok(());
+    }
     let runtime = Handle::current();
     tokio::task::spawn_blocking(move || serve(agent, socket_file, peer_uid, runtime))
         .await
@@ -822,15 +875,16 @@ mod tests {
     }
 
     #[test]
-    fn fixed_binary_remove_request_is_decoded() {
+    fn fixed_binary_remove_request_is_decoded() -> Result<()> {
         assert_eq!(
-            decode_request(&[0x03, 0x00, 0x07, 203, 0, 113, 17]).unwrap(),
+            decode_request(&[0x03, 0x00, 0x07, 203, 0, 113, 17])?,
             (
                 Operation::RemoveShun,
                 7,
                 Some(Ipv4Addr::new(203, 0, 113, 17))
             )
         );
+        Ok(())
     }
 
     #[test]
@@ -846,16 +900,17 @@ mod tests {
     }
 
     #[test]
-    fn parser_accepts_only_allowed_interfaces_for_the_requested_ip() {
+    fn parser_accepts_only_allowed_interfaces_for_the_requested_ip() -> Result<()> {
         let output = "shun (outside) 203.0.113.17 10.0.0.1 123 443 6\nshun (inside) 203.0.113.17 10.0.0.2 456 443 6\n";
         assert_eq!(
-            parse_show_shun(output, Ipv4Addr::new(203, 0, 113, 17), &interfaces()).unwrap(),
+            parse_show_shun(output, Ipv4Addr::new(203, 0, 113, 17), &interfaces())?,
             interfaces()
         );
+        Ok(())
     }
 
     #[test]
-    fn parser_accepts_recorded_fpr1010_766_management_output() {
+    fn parser_accepts_recorded_fpr1010_766_management_output() -> Result<()> {
         let output = "shun (management) 198.51.100.250 0.0.0.0 0 0 0\n";
         let allowed_interfaces = BTreeSet::from(["management".to_owned()]);
 
@@ -864,20 +919,20 @@ mod tests {
                 output,
                 Ipv4Addr::new(198, 51, 100, 250),
                 &allowed_interfaces,
-            )
-            .unwrap(),
+            )?,
             allowed_interfaces
         );
+        Ok(())
     }
 
     #[test]
-    fn list_parser_accepts_a_complete_multi_entry_snapshot() {
+    fn list_parser_accepts_a_complete_multi_entry_snapshot() -> Result<()> {
         let output = concat!(
             "shun (outside) 203.0.113.17 0.0.0.0 0 0 0\n",
             "shun (inside) 198.51.100.250 0.0.0.0 0 0 0\n"
         );
         assert_eq!(
-            parse_show_shun_entries(output, &interfaces()).unwrap(),
+            parse_show_shun_entries(output, &interfaces())?,
             BTreeSet::from([
                 ObservedShun {
                     target: Ipv4Addr::new(198, 51, 100, 250),
@@ -889,6 +944,7 @@ mod tests {
                 },
             ])
         );
+        Ok(())
     }
 
     #[test]
@@ -907,39 +963,41 @@ mod tests {
     }
 
     #[test]
-    fn list_response_has_only_typed_snapshot_fields() {
+    fn list_response_has_only_typed_snapshot_fields() -> Result<()> {
         let entries = BTreeSet::from([ObservedShun {
             target: Ipv4Addr::new(198, 51, 100, 250),
             interface: "management".to_owned(),
         }]);
         assert_eq!(
-            encode_list_shuns_response(entries).unwrap(),
+            encode_list_shuns_response(entries)?,
             b"\x00\x00\x01\xc6\x33\x64\xfa\x0a\x6d\x61\x6e\x61\x67\x65\x6d\x65\x6e\x74"
         );
+        Ok(())
     }
 
     #[test]
-    fn shell_output_strips_command_echo_and_prompt() {
+    fn shell_output_strips_command_echo_and_prompt() -> Result<()> {
         let command = "show shun 198.51.100.250";
         let raw =
             b"show shun 198.51.100.250\r\nshun (management) 198.51.100.250 0.0.0.0 0 0 0\r\n> ";
 
         assert_eq!(
-            parse_shell_command_output(raw, command).unwrap(),
+            parse_shell_command_output(raw, command)?,
             "shun (management) 198.51.100.250 0.0.0.0 0 0 0"
         );
+        Ok(())
     }
 
     #[test]
-    fn shell_output_accepts_an_empty_successful_command_response() {
+    fn shell_output_accepts_an_empty_successful_command_response() -> Result<()> {
         assert_eq!(
             parse_shell_command_output(
                 b"no shun 198.51.100.250 interface management\r\n\r\n> ",
                 "no shun 198.51.100.250 interface management",
-            )
-            .unwrap(),
+            )?,
             ""
         );
+        Ok(())
     }
 
     #[test]

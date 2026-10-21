@@ -82,7 +82,8 @@ def managed_state(db) -> dict | None:
     """Distinguish absent policy from malformed/partial policy, fail closed."""
     expected = {
         "managed_shun_registry": {"id", "revision", "restoration_suspended"},
-        "managed_shun_targets": {"device_id", "ip", "enabled", "intent_id", "generation"},
+        "managed_shun_targets": {"device_id", "ip", "enabled", "intent_id", "generation",
+                                 "authorization_request_id", "revision", "authorized_at", "updated_at", "retired_at"},
         "managed_shun_requests": {"id", "actor_subject", "payload_json", "result_json"},
     }
     try:

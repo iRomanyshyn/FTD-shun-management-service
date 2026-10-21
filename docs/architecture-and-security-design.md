@@ -3787,3 +3787,75 @@ validated before their gates are changed. This documentation approval neither
 clears old evidence nor authorizes a new lab fixture, live migration, bulk load,
 secret/gate change, or production rollout. Existing consumed authorizations remain
 consumed. Current implementation manuals describe their version until migrated.
+
+## Per-device SSH credentials — 2026-10-21
+
+The first working-version increment separates public inventory from an agent-only
+credential mapping. `FTD_SHUN_SSH_CREDENTIALS_MODE=per-device` requires an explicit
+mapping file, with exactly one login and password-secret name for every configured
+stable device ID (including disabled devices). Reject missing, duplicate, unknown
+or zero IDs, invalid logins, unknown fields and unsafe secret names before opening
+the agent socket. Secret names are single ASCII basenames resolved under the fixed
+agent-only `/run/secrets/ftd` mount; they are not paths supplied over RPC. Each device
+has a distinct secret reference. Password values never belong in either inventory.
+
+All legacy reads/removals and cycle v1/v2/v3 use the same ID-based credential
+lookup. Per-device mode ignores legacy shared variables and never falls back on
+a missing/unreadable/empty secret or authentication failure. Load the selected
+password only for SSH authentication and zeroize its source buffer afterward.
+Configuration changes require restart; changing the management IPv4 address under
+the same ID neither changes its credential mapping nor trusts a different host key.
+IDs must never be reassigned to a different physical/logical device.
+
+Password files must be nonempty UTF-8 regular files of at most 16 KiB, with exact
+bytes preserved (no newline trimming); reject final symlinks/FIFOs/directories.
+`--check-config` validates all configuration and secret-file reads then exits
+without SSH, socket binding or database access, reporting only mode/device count.
+It does not prove device authentication or host-key correctness. Unknown arguments
+fail rather than silently starting the service.
+
+Explicit `shared` mode remains the default solely for compatibility with existing
+deployments. It is not a fallback within per-device mode. The opt-in Compose overlay
+mounts the mapping/secrets only into the agent and removes the legacy secret mount.
+The shared public inventory source path becomes configurable; it contains no
+credential fields. No protocol, database, policy authority or feature-gate change
+is required. DNS/SSH-port configuration, concurrency and other working-version
+items remain separate increments. The lab retains shared mode until a separately
+approved credential migration; deploying the compatible binary does not activate
+the new mode. See [Per-Device Credentials](manual/per-device-credentials.md) for
+validation, migration, backup and paired configuration/image rollback.
+
+## Protected-IP permanent retirement — 2026-10-21
+
+An explicit user save of enabled protection permanently retires all matching
+enabled managed targets, including absent observations and disabled devices, in
+the protection transaction. This is fixed protection revocation authority for
+every authenticated policy editor, not an Operator-role promotion or MAINTAIN
+grant. Preserve intent/generation/original authorization, increment the managed
+revision once, and append actor-attributed per-target retirement audit linked to
+the policy event. Do not consume managed-request ledger capacity to revoke policy.
+Cancel unstarted ADD/restoration with existing validation; never change RUNNING
+outcomes, waiting cleanup, retained uncertainty or isolation/abandonment receipts.
+Device removal remains the independent protected-policy executor, not synchronous
+SSH or a success claim from saving the form.
+
+If optional managed state is missing, do not create it. If it is partial/invalid,
+allow protection strengthening but report retirement as deferred/unknown. The
+persisted enabled protection is the barrier: disabling/deleting it is refused
+until managed state is readable and all matching enabled maintenance is retired
+in that same weakening transaction. No GET/startup adopts or retires policy.
+An explicit edit of enabled protection also completes retirement of legacy held
+intents. Never infer invalid optional state means no intent. No new schema or
+optional-ledger initialization is needed for this barrier.
+
+Disabling/deleting active protection cannot re-enable old policy; stale supplied
+managed revisions conflict, and retiring a nonempty scope requires its reviewed
+current managed revision. Disabled entries do not suppress newly and explicitly
+authorized policy: deleting/editing an already-disabled entry leaves that policy
+alone. Legacy `confirm_maintenance_resume` remains a strictly typed compatibility
+field, not an authority to resume. New UI shows permanent retirement consequences
+instead of asking permission to resume. Old-key grants remain observational.
+Existing protected entries are not silently swept at startup/deployment; a user
+save performs the new transaction. Older images retain legacy resume semantics,
+so preserve matching API/Web rollback images and never restore old enabled policy
+or weaken a deferred barrier under an older writer.

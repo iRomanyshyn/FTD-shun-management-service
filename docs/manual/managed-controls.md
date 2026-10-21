@@ -25,8 +25,9 @@ Stop maintaining the relevant targets first, then use ordinary removal as two
 separate explicit actions until combined admission is released. A new MAINTAIN
 cannot overlap a queued/running removal. Existing original-key replay is still
 observational and does not submit work. Protected-IP automatic removal is a
-separate higher-priority policy path and keeps desired intent blocked, not
-retired; see [Protected IPs](protected-ips.md#managed-maintenance-acknowledgement).
+separate higher-priority policy path. Explicit protection saves permanently retire
+matching desired intent; legacy/deferred intent is retired before releasing active
+protection. See [Protected IPs](protected-ips.md#managed-maintenance-acknowledgement).
 
 ## Stop maintaining only
 

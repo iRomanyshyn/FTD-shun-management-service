@@ -113,7 +113,7 @@ services:
       - api-run:/run/ftd-shun-manager-api
       - agent-run:/run/ftd-shun-manager-agent
       - state:/var/lib/ftd-shun-manager
-      - ./devices.json:/etc/ftd-shun-manager/devices.json:ro
+      - ${FTD_SHUN_DEVICE_INVENTORY_PATH:-./devices.json}:/etc/ftd-shun-manager/devices.json:ro
     depends_on:
       socket-init:
         condition: service_completed_successfully
@@ -138,10 +138,11 @@ services:
       FTD_SHUN_DEVICE_INVENTORY: /etc/ftd-shun-manager/devices.json
       FTD_SHUN_AGENT_SOCKET: /run/ftd-shun-manager-agent/agent.sock
       FTD_SHUN_SSH_PASSWORD_FILE: /run/secrets/ftd_ssh_password
+      FTD_SHUN_SSH_CREDENTIALS_MODE: shared
       FTD_SHUN_AGENT_PEER_UID: "10001"
     volumes:
       - agent-run:/run/ftd-shun-manager-agent
-      - ./devices.json:/etc/ftd-shun-manager/devices.json:ro
+      - ${FTD_SHUN_DEVICE_INVENTORY_PATH:-./devices.json}:/etc/ftd-shun-manager/devices.json:ro
     secrets:
       - ftd_ssh_password
     depends_on:

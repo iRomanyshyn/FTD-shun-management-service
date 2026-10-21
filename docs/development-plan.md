@@ -1,6 +1,6 @@
 # Development Plan
 
-Last updated: 2026-10-20
+Last updated: 2026-10-21
 
 ## Current delivery priority — operator alignment, 2026-10-20
 
@@ -18,6 +18,22 @@ It does not change deployed behavior or permit bypassing current safety checks.
 Define and test compatible capacity, per-device ownership, automatic fresh-evidence
 reconciliation and migration/rollback before enabling the revised workflows.
 The checkpoints and older sequences below record prior design/implementation.
+
+First working-version increment: opt-in
+[per-device credentials](manual/per-device-credentials.md) now separate the
+agent-owned ID/login/secret mapping from public inventory, with strict validation,
+non-network preflight and configuration/image rollback. The lab keeps its existing
+shared credentials; no new mode/feature gate or policy is activated. Next: compatible
+durable bulk-policy capacity, managed adoption/exclusions and whitelist retirement,
+then the per-device dispatcher. DNS/custom ports remain an inventory follow-up.
+
+Protection lifecycle prerequisite now implemented: explicit protection saves
+permanently retire matching maintenance and release never resumes old policy.
+Unknown optional state retains enabled protection until retirement can finish;
+all-role identity, reviewed revisions, audit and RUNNING/evidence preservation
+remain. No startup sweep or optional migration. The working-version plan records
+the coupled target/request/attempt/read bounds to replace for bulk imports rather
+than raising the existing1000-pair limit alone.
 
 **Status: refresh/queue implemented; bounded removal sessions and priority reads experimental; parse-only import preview implemented, addition pending.** This document records
 the next product increments. It describes target behavior, not capabilities

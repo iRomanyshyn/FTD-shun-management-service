@@ -135,23 +135,24 @@ fn recorded_duplicate_success_cannot_establish_new_creation_or_ownership() -> Re
 }
 
 #[test]
-fn recorded_creation_requires_both_ack_and_source_only_verification() {
+fn recorded_creation_requires_both_ack_and_source_only_verification() -> Result<()> {
     for (ack, after) in [
         (ACK.to_owned(), OBSERVED.to_owned()),
         (ACK.replace('\n', "\r\n"), OBSERVED.replace('\n', "\r\n")),
         (format!("\n{ACK}\n"), format!("\n{OBSERVED}\n")),
     ] {
         assert_eq!(
-            assess(target(), &allowed(), "", Some(&ack), Some(&after)).unwrap(),
+            assess(target(), &allowed(), "", Some(&ack), Some(&after))?,
             Assessment::VerifiedCreation {
                 interface: "management"
             }
         );
     }
+    Ok(())
 }
 
 #[test]
-fn preexisting_target_is_noop_without_write_or_import_ownership() {
+fn preexisting_target_is_noop_without_write_or_import_ownership() -> Result<()> {
     for before in [
         OBSERVED.to_owned(),
         OBSERVED.replace("management", "outside"),
@@ -159,11 +160,12 @@ fn preexisting_target_is_noop_without_write_or_import_ownership() {
         format!("{OBSERVED}{}", OBSERVED.replace("management", "outside")),
     ] {
         assert_eq!(
-            assess(target(), &allowed(), &before, None, None).unwrap(),
+            assess(target(), &allowed(), &before, None, None)?,
             Assessment::AlreadyPresent
         );
         assert!(assess(target(), &allowed(), &before, Some(ACK), Some(OBSERVED)).is_err());
     }
+    Ok(())
 }
 
 #[test]

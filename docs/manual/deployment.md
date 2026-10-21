@@ -95,7 +95,15 @@ Generate Authelia password hashes with the official Authelia tooling and replace
 
 Replace the device example's hostname, management IPv4 address, SSH host key, and `allowed_interfaces` with values collected through an approved out-of-band process. `allowed_interfaces` must list every interface that the agent may remove from; the agent rejects an FTD-reported interface outside this list. The API rejects duplicate IDs/hostnames, invalid IPv4 addresses, a missing host key, and malformed interface names at startup.
 
-Set `FTD_SHUN_SSH_USERNAME` in `.env` to the dedicated FTD service account. FTD exposes the broad `Basic` and `Config` CLI roles rather than a per-command allowlist. Use `Basic`; the supported Firepower 1010 / FTD 7.6.6 laboratory fixture has verified that it permits both `show shun` and `no shun <IPv4> interface <name>`. A `Config` account is prohibited by the normal deployment profile; a version-specific exception requires explicit security approval, updated validation evidence, and a recorded risk acceptance. In every case, restrict the FTD management SSH ACL to this host's approved source address.
+In the base deployment's legacy shared mode, set `FTD_SHUN_SSH_USERNAME` in `.env`
+to the dedicated FTD service account. The opt-in
+[Per-Device Credentials](per-device-credentials.md) overlay instead maps every
+stable device ID to its own login and agent-only password-secret reference, with
+no shared fallback. Do not add credential fields to public `devices.json`.
+`FTD_SHUN_DEVICE_INVENTORY_PATH` selects its host source path relative to `deploy/`
+(or an absolute path); API and agent use the same public file.
+
+FTD exposes the broad `Basic` and `Config` CLI roles rather than a per-command allowlist. Use `Basic`; the supported Firepower 1010 / FTD 7.6.6 laboratory fixture has verified that it permits both `show shun` and `no shun <IPv4> interface <name>`. A `Config` account is prohibited by the normal deployment profile; a version-specific exception requires explicit security approval, updated validation evidence, and a recorded risk acceptance. In every case, restrict the FTD management SSH ACL to this host's approved source address.
 
 The agent reads the SSH password from the Compose secret at operation time, zeroizes its source buffer after authentication, and keeps no persistent writable volume. Never commit or back up `deploy/secrets/`.
 

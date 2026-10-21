@@ -1,5 +1,18 @@
 # Development Manual
 
+## Inventory and credential regression checks
+
+`agent/src/credentials.rs` and `agent/tests/credential_configuration.rs` exercise
+strict agent-owned ID/login/secret mapping, explicit legacy compatibility,
+no per-device fallback, bounded exact-byte secrets and preflight with an isolated
+process environment. `--check-config` validates configuration/secret files without
+opening SSH or the agent socket. Tests use synthetic private temporary files,
+never deployment settings or real passwords. Python inventory tests reject
+credentials/duplicate fields/coerced IDs and preserve identity across IPv4 changes.
+See [Per-Device Credentials](per-device-credentials.md) for Compose isolation,
+activation boundaries and paired configuration/image rollback. No optional
+schema/gate or current lab credential is changed by these checks.
+
 ## Offline managed-policy foundation
 
 `tests/test_managed_lifecycle.py` connects checked offline CLI migration/resume,
@@ -49,15 +62,15 @@ attention. No live schema, policy, secret, socket or FTD is used. Chromium also
 checks the fixed-height restoration-error warning. See
 [Managed Restoration](managed-restoration.md) for the independent gate and limits.
 
-`tests/test_managed_protection.py` exercises optional managed-state validation,
-enabled-intent counts, current-revision/acknowledgement checks before protection
-weakening, real all-role BFF forwarding, unchanged authority and no work hints.
-It covers audit rollback including unsent ADD cancellation, retained RUNNING ADD/
-waiting cleanup, missing/disabled targets, malformed optional state with healthy
-monitoring, guarded legacy fleet/device removal and serialized MAINTAIN/removal
-admission. All state and actors are synthetic. Chromium verifies dirty managed
-revision/checkbox retention, stale rejection, fresh acknowledgement reset and
-mobile warning layout; no lab policy/FTD mutation is performed.
+`tests/test_managed_protection.py` exercises atomic protection-driven permanent
+retirement, reviewed revisions/all-role BFF identity, full request-ledger revocation,
+old-key non-reenable, deferred protection across corruption/repair/restart, audit/
+HTTP failure rollback and no work hints. RUNNING ADD, waiting cleanup, uncertainty
+and unrelated/newly authorized maintenance remain intact. Synthetic lifecycle tests
+prove release/restart never restores old policy, while new explicit consent can
+authorize another generation. Chromium checks dirty managed revision retention,
+stale rejection, retirement wording and mobile layout without a resume checkbox.
+No test mutates lab policy, enables a feature or contacts FTD.
 
 `tests/test_managed_controls.py` covers the distinct executable revocation-only
 workflow: frozen/session-bound policy RETIRE, strict current role/CSRF/scope,

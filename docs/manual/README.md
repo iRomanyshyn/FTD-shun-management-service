@@ -12,6 +12,7 @@ not a runbook or permission to change gates, initialize schemas or run new fixtu
 | [Working-Version Plan](../working-version-plan.md) | Agreed product behavior, working-version priorities, implementation gaps and deferred SMTP notifications; not yet an operating procedure. |
 | [Versioning](versioning.md) | Single version source, manual release numbering, pre-1.0 compatibility and planned build identity. |
 | [Deployment](deployment.md) | Caddy, Authelia, Unix sockets, secrets, and container layout. |
+| [Per-Device Credentials](per-device-credentials.md) | Agent-only ID/login/secret mapping, configuration check, opt-in Compose migration and rollback; legacy compatibility retained. |
 | [Operations](operations.md) | Roles, removal workflow, logs, backup, health, and incident response. |
 | [Operation Queue](operation-queue.md) | Queued removal, progress/cancellation, limits, lease recovery, migration, backup restore, and rollback. |
 | [Offline Recovery](recovery.md) | Checked backup, durable mutation pause, composite queue/policy suspension and reviewed ordinary resume. |

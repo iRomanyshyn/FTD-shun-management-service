@@ -189,9 +189,13 @@ Do not rewrite historical log entries except to correct an objective error; add 
   cannot gain other authority; original receipts remain observational. Base
   initialization/startup/GET never creates the ledger. Do not invoke migration/
   abandonment in the lab without scoped approval. Follow docs/manual/managed-abandonment.md.
-  Protected-IP weakening checks matching intents and reviewed managed revision/
-  acknowledgement atomically; dirty forms retain that revision. Unknown optional
-  state is not zero. Ordinary manual removal is guarded against enabled policy,
+  Protected-IP saves now permanently retire matching maintenance in the same
+  transaction, with reviewed managed revision, original authority and real-actor
+  audit. Disabled/deleted protection never re-enables old policy. Unknown optional
+  state is not zero: allow strengthening, retain enabled protection as a barrier
+  and refuse weakening until retirement can finish after repair. GET/startup
+  never retires or initializes policy; RUNNING/uncertainty/cleanup evidence remains.
+  Dirty forms retain reviewed revisions. Ordinary manual removal is guarded against enabled policy,
   including missing fleet targets, and MAINTAIN rejects pending/running removal.
   Protected automatic removal remains independent. An offline system restoration
   source now binds fresh complete snapshots, intent/generation/authorization and

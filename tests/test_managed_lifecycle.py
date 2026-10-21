@@ -291,7 +291,7 @@ def test_migration_browser_consent_restoration_restart_and_final_cleanup(lifecyc
     lab.verify()
 
 
-def test_protection_cancels_queued_restoration_and_requires_review_before_release(lifecycle):
+def test_protection_permanently_retires_and_release_never_restores_old_policy(lifecycle):
     lab = lifecycle
     lab.initialize()
     async def scenario():
@@ -300,29 +300,31 @@ def test_protection_cancels_queued_restoration_and_requires_review_before_releas
         await lab.sweep()
         assert lab.jobs()[0]["state"] == "QUEUED"
         response = await lab.api_request("POST", f"/api/v1/protected-ips/{IP}/add", json={
-            "actor": ACTOR, "revision": lab.sync.policy.revision(), "name": "Synthetic office", "enabled": True})
+            "actor": ACTOR, "revision": lab.sync.policy.revision(), "name": "Synthetic office", "enabled": True,
+            "managed_revision": managed_shuns.ManagedShuns(lab.store).snapshot()["revision"]})
         assert response.status_code == 200, response.text
-        assert lab.jobs()[0]["state"] == "CANCELLED" and lab.entries()[0]["enabled"]
+        assert lab.jobs()[0]["state"] == "CANCELLED" and not lab.entries()[0]["enabled"]
         lab.restart(execute=True)
         await lab.sweep(361)
         assert not lab.agent.commands and len(lab.jobs()) == 1
         body = {"actor": ACTOR, "revision": lab.sync.policy.revision(), "enabled": False}
         response = await lab.api_request("POST", f"/api/v1/protected-ips/{IP}/edit", json=body)
-        assert response.status_code == 409
-        body.update(managed_revision=managed_shuns.ManagedShuns(lab.store).snapshot()["revision"], confirm_maintenance_resume=True)
-        response = await lab.api_request("POST", f"/api/v1/protected-ips/{IP}/edit", json=body)
         assert response.status_code == 200, response.text
         await lab.sweep(61)
-        assert not lab.agent.commands and len(lab.jobs()) == 2
+        assert not lab.agent.commands and len(lab.jobs()) == 1
+        # Only a genuinely new explicit consent may authorize another generation.
+        await lab.grant()
+        await lab.sweep(61)
         await lab.sweep(61)
         assert lab.agent.commands == [("ADD", 1, IP)]
-        # Protection also removes an already present maintained shun.
+        # Protection also retires/removes a newly maintained observed shun.
+        body.update(managed_revision=managed_shuns.ManagedShuns(lab.store).snapshot()["revision"])
         body.update(revision=lab.sync.policy.revision(), enabled=True)
         assert (await lab.api_request("POST", f"/api/v1/protected-ips/{IP}/edit", json=body)).status_code == 200
         await lab.sweep(61)
         assert lab.agent.commands[-1] == ("REMOVE", 1, IP) and not lab.agent.entries[1]
         await lab.sweep(3601)
-        assert lab.entries()[0]["enabled"] and len(lab.agent.commands) == 2
+        assert not lab.entries()[0]["enabled"] and len(lab.agent.commands) == 2
     asyncio.run(scenario())
     lab.verify()
 

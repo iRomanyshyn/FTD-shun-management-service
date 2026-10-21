@@ -282,10 +282,8 @@ pub(super) fn handle(
             .validate(&device.allowed_interfaces)?;
     }
     let step_timeout = agent.operation_timeout.min(MAX_STEP_DURATION);
-    let mut session = runtime.block_on(timeout(step_timeout, async {
-        let password = load_ssh_password(&agent.password_file)?;
-        SshSession::connect(device, &agent.username, password.as_str()).await
-    }))??;
+    let mut session =
+        runtime.block_on(timeout(step_timeout, agent.connect_device(device_id)))??;
     session.large_snapshots = version >= snapshot::VERSION;
     let mut cycle = Cycle {
         console: session,
@@ -705,8 +703,7 @@ mod tests {
                     addition_profile: None,
                 },
             )]),
-            username: "unused".into(),
-            password_file: PathBuf::from("/must-not-read/test-secret"),
+            credentials: credentials::Credentials::PerDevice(BTreeMap::new()),
             operation_timeout: Duration::from_secs(5),
             cycles_enabled: true,
             large_snapshots_enabled: true,
@@ -721,7 +718,8 @@ mod tests {
         for enabled in [false, true] {
             agent.additions_enabled = enabled;
             let error = handle(&agent, &receiver, runtime.handle(), &[BEGIN, 3, 0, 1])
-                .unwrap_err()
+                .err()
+                .context("ADD without gates/profile must be rejected")?
                 .to_string();
             assert!(error.contains(if enabled {
                 "no addition profile"
@@ -737,7 +735,8 @@ mod tests {
             agent.large_snapshots_enabled = large;
             assert!(
                 handle(&agent, &receiver, runtime.handle(), &[BEGIN, 3, 0, 1])
-                    .unwrap_err()
+                    .err()
+                    .context("disabled cycle capability must be rejected")?
                     .to_string()
                     .contains(expected)
             );
@@ -772,14 +771,15 @@ mod tests {
     }
 
     #[test]
-    fn addition_requires_explicit_v3_and_remains_outside_legacy_rpc() {
-        assert_eq!(decode_begin(&[BEGIN, 3, 0, 1]).unwrap(), (1, 3));
+    fn addition_requires_explicit_v3_and_remains_outside_legacy_rpc() -> Result<()> {
+        assert_eq!(decode_begin(&[BEGIN, 3, 0, 1])?, (1, 3));
         for version in [VERSION, snapshot::VERSION] {
             let packet = [0x14, version, 1, 198, 51, 100, 251];
             assert!(decode_step(&packet, 1, version).is_err());
             assert!(decode_request(&packet).is_err());
         }
         assert!(decode_request(&[ADD, 3, 1, 198, 51, 100, 251]).is_err());
+        Ok(())
     }
 
     #[test]
@@ -790,8 +790,7 @@ mod tests {
             .build()?;
         let mut agent = Agent {
             devices: BTreeMap::new(),
-            username: "unused".into(),
-            password_file: PathBuf::from("/unused/test-secret"),
+            credentials: credentials::Credentials::PerDevice(BTreeMap::new()),
             operation_timeout: Duration::from_secs(45),
             cycles_enabled: false,
             large_snapshots_enabled: false,

@@ -6,6 +6,7 @@
 # Deployment-only identity files contain password hashes and must not be committed.
 deploy/authelia/users.yml
 deploy/devices.json
+deploy/agent-credentials.json
 deploy/secrets/
 
 # Local Python tooling artifacts.
