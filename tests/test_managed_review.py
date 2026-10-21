@@ -95,7 +95,8 @@ def test_review_is_frozen_non_executable_and_server_refuses_direct_submission(la
     asyncio.run(scenario())
     assert (registry.snapshot(), store.list_events()) == before
     assert api.state.synchronizer.queue.status()["counts"] == {}
-    assert all(call.method == "GET" and call.url.path != "/api/v1/refresh-hint" for call in calls)
+    assert all((call.method == "GET" or call.url.path == "/api/v1/managed-shuns/selection")
+               and call.url.path != "/api/v1/refresh-hint" for call in calls)
     with store._connection() as db:
         assert not db.execute("SELECT 1 FROM sqlite_master WHERE name='managed_removal_handoffs'").fetchone()
 
@@ -125,7 +126,7 @@ def test_review_validates_current_identity_csrf_scope_and_exact_confirmation(lab
             assert (await client.post("/managed-shuns/removal-review", data={})).status_code == 401
             assert (await client.post("/managed-shuns/removal-confirm", data=fields)).status_code == 401
     asyncio.run(scenario())
-    assert all(call.method == "GET" for call in calls)
+    assert all(call.method == "GET" or call.url.path == "/api/v1/managed-shuns/selection" for call in calls)
 
 
 @pytest.mark.parametrize("target", ["", "01:198.51.100.251", "1:198.51.100.251:more", "1:555.555.555.666",

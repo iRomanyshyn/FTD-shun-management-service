@@ -293,6 +293,49 @@ controller for these tables and must not be advertised as managed-shun support.
 
 ## Read-only Managed shuns page
 
+### Exact selected-policy reads for single-pair reviews
+
+Single-pair standing-grant, stop-maintaining and combined-removal browser reviews
+now read `POST /api/v1/managed-shuns/selection` instead of the complete registry.
+This is a **read-only** private resource, not a mutation/admission endpoint. Its
+strict body contains `targets` (1–100 distinct `{device_id, ip}` selectors) and
+optional non-negative integer `revision`. IDs are literal integers; addresses
+are canonical IPv4 strings. Unknown/action/actor/route fields are refused.
+
+One read transaction returns the normalized `selection`, `read_scope=selected_pairs`,
+`read_only=true`, global `total`/`revision`/`limit` and only existing selected
+`entries`/`selected_count`. Missing pairs stay in `selection`, not fabricated as
+managed entries. Empty/uninitialized registry and “no selected pair exists in
+this nonempty registry” remain distinct. At most 100 policy and pair-summary rows
+are materialized; observations, original author metadata, older-generation
+attention and verified-only restoration times retain their existing meaning.
+
+Exact revision mismatch returns 409. Invalid selectors return 422; partial or
+orphaned state returns 503, even when damaged authority is outside the requested
+selection. No join/filter may make corruption look like a healthy empty result.
+The BFF refuses a substituted full snapshot/page or mismatched selector rather
+than falling back. All single-pair forms retain current identity/CSRF/review-age/
+count/typed-IP and final atomic backend revalidation; this read supplies no grant,
+retirement, cleanup, adoption, fresh Cisco evidence or queue authority.
+
+This removes another full-read prerequisite for larger capacity, **not the
+1000-key limit itself**. The [standing-list workflow](managed-batch-grants.md#bounded-whole-batch-policy-reads)
+now uses a separate whole-batch selector; complete-fleet contracts stay separate.
+Do not treat a selected page as their complete scope. Canonical request,
+attempt ledger, retirement reserve, report/cancellation limits and dispatch still
+need coordinated expansion. No schema/migration/gate/agent change is introduced.
+
+Validation uses `tests/test_managed_selection.py` and existing grant/control/
+cleanup suites with temporary SQLite/ASGI. It covers exact missing/existing scope,
+100-row bounds, legacy parity, corruption, stable read snapshots across concurrent
+retirement, strict private fields, response-substitution refusal and no full BFF
+fallback or mutation. For rollout retain paired API/Web rollback images and a
+checked SQLite backup, recreate only those services, and preserve all live gates/
+optional state. API restart may execute already admitted ordinary work. No new
+lab fixture, optional migration or device-write validation is authorized.
+
+### Paged registry browsing
+
 Open **Managed shuns** in the navigation. Every authenticated user may view it.
 The tab now uses `GET /api/v1/managed-shuns/page?page=1` and displays at most
 100 device/IP keys per page, ordered by stable device ID then numerical IPv4.
@@ -317,9 +360,10 @@ optional schema and change no policy, queue, provenance or audit.
 This is a bounded-read integration, **not increased standing-policy capacity**:
 the existing 1000-key/10000-request/10000-attempt limits still apply. Large-import
 confirmation/adoption, compatible retained capacity and rolling dispatch remain
-separate work. Legacy frozen review workflows continue to use the unchanged
-full private resource; do not replace their exact whole-scope validation with
-the visible page. Paged metadata does not grant mutation authority.
+separate work. Single-pair and standing-list Web reviews use their exact selector
+resources; remaining complete-view/offline contracts stay distinct. Do not replace
+exact whole-scope validation with the visible page. Paged metadata does not grant
+mutation authority.
 
 The private `GET /api/v1/managed-shuns` resource remains observational, with no
 write method on that path. Separate revocation-only POSTs now provide frozen

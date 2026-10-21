@@ -7,6 +7,7 @@ from uuid import UUID
 from .import_review import ReviewUnavailable
 from .managed_intent import canonical_managed_change
 from .managed_review import ManagedRemovalReviews
+from .managed_selection import require_selection
 
 
 @dataclass(frozen=True)
@@ -41,6 +42,7 @@ class ManagedGrantReviews(ManagedRemovalReviews):
     @staticmethod
     def validate(policy, classification, device_id, ip, label="", reason=""):
         """Pure pair validation, shared by single and whole-batch reviews."""
+        require_selection(policy, [(device_id, ip)])
         if (type(policy["initialized"]) is not bool or type(policy["revision"]) is not int
                 or policy["revision"] < 0 or (not policy["initialized"] and policy["revision"] != 0)):
             raise ValueError("Invalid managed registry view.")

@@ -41,6 +41,28 @@ Preparation uses cached local observations only, not a fresh Cisco query or
 proof of absence. The API rechecks the complete scope when saving. A review made
 with uninitialized policy remains unconfirmable even if policy is migrated later.
 
+### Bounded whole-batch policy reads
+
+Preparation uses read-only private `POST /api/v1/managed-shuns/selection/batch`
+with the complete exact selection (1–1000 distinct literal device/IPv4 pairs)
+and optional managed revision. `read_scope=selected_batch` distinguishes it from
+single-pair selectors, global snapshots and registry pages. The reply echoes
+all requested pairs, including absent ones, with global `total`/`limit`/`revision`
+and only existing selected policy/attempt summaries. A nonempty registry with no
+selected policy is not an empty/uninitialized registry.
+
+One read transaction processes at most 100 pairs per internal SQL chunk with
+one reference time; changes between chunks cannot mix policy revisions or cached
+observations. Invalid selectors return 422, exact revision conflict 409, unavailable/
+partial/orphaned state 503. Corruption outside the selection is not hidden.
+No fallback to a full view, independently read pages or per-pair API loop is used.
+The BFF verifies the complete echo before deriving bounded per-pair validations.
+
+Capacity checks use the **global** count, including stopped keys outside the
+selection. A selected existing stopped key consumes no new key slot. The list
+still must fit the current 1000-key registry; this read is not expanded capacity,
+adoption, schema initialization, a refresh hint or permission to submit work.
+
 ## Save, retry and stop
 
 Confirmation requires a current Operator/Administrator, valid CSRF/session, the
@@ -87,7 +109,10 @@ requests a Cisco refresh.
 Synthetic API/BFF/SQLite tests cover maximum scope, strict input, whole-scope
 rollback, concurrent keys, original-key replay after retirement, lost responses,
 sessions, CSRF/roles, default-off gates, no implicit initialization, and frozen
-100-row pagination. Real Chromium fixtures exercise count/checkbox validation,
+100-row pagination. `tests/test_managed_batch_selection.py` also checks 1000
+selectors with ten bounded SQL chunks, concurrent retirement in one read snapshot,
+global versus selected capacity, retained attention, late-chunk refusal and BFF
+preparation without full-registry reads. Real Chromium fixtures exercise count/checkbox validation,
 preserved drafts/consent and responsive layout without device hints or writes.
 This is not live bulk/load/restoration or production acceptance.
 

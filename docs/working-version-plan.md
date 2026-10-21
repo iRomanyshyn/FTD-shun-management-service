@@ -187,11 +187,25 @@ lists, search and IP details, rather than adding several permanent table columns
 Context is advisory: never use it as blocking reputation, proof of ownership or
 authority to add/remove/restore a shun or change protection.
 
-Use asynchronous deduplicated lookups with a bounded local cache, configurable
-TTL, negative caching/backoff, provider rate limits, response-size limits and short
-timeouts. Viewing a long list must not fan out into one live lookup per row or
-delay Web responses, refresh, queue dispatch or Cisco operations. No-data/errors
+Enrichment is occurrence-driven, not periodically refreshed (operator clarification
+2026-10-21). Schedule at most one lookup attempt when a new shun occurrence is
+detected. Keep its result or explicit unavailable/error status while that occurrence
+remains active. Polling, page views, cache expiry, failures and service restart
+must not trigger another lookup for it. Only a confirmed disappearance/removal
+followed by a newly detected occurrence permits another attempt; a failed/partial
+device read is not disappearance. Adopting an already observed shun is not a new
+detection. Retain an occurrence-bound completion marker across restart.
+An additional-device sighting while that IP is already active reuses its existing
+context rather than refreshing it merely because another FTD reported it.
+
+Use asynchronous deduplicated lookups with a bounded local cache, provider rate
+limits, response-size limits and short timeouts. Coalesce concurrent detections
+of the same IP across devices. Cache age may control reuse on a genuinely new
+occurrence, but never starts a background refresh or failure-retry loop for an
+existing one. Viewing a long list must not fan out into one live lookup per row
+or delay Web responses, refresh, queue dispatch or Cisco operations. No-data/errors
 must leave IP operations usable; stale cached context may be shown honestly.
+Do not automatically backfill every existing active record on feature activation.
 
 Before implementation, evaluate provider coverage/terms and query privacy:
 external requests reveal queried IPs to the provider. Specify enablement,
@@ -266,7 +280,7 @@ manuals still describe existing contracts until implementation is migrated.
 | --- | --- | --- |
 | Credentials | Opt-in agent-only per-device mapping implemented; lab still uses explicit shared compatibility mode | Separately reviewed per-device rollout; no shared fallback within that mode |
 | Preparation storage | Explicit 100,000-pair journal/private API/Web; gated confirmation and cancellation/settlement retain reports/canonical policy within current 1000-pair bounds | Compatible larger capacity and rolling dispatch/progress |
-| Policy display | Managed tab now reads 100-row policy/attempt summaries with revision-bound pagination; legacy full reviews and authority limits unchanged | Coordinate larger retained capacity, confirmed imports and bounded dispatch |
+| Policy display/reviews | Managed tab reads 100-row pages; single-pair and whole standing-list reviews use distinct exact selections with global totals; authority limits unchanged | Coordinate larger retained capacity, remaining full reviews and bounded dispatch |
 | Capacity | 1,000-pair policy/admission bounds | 10,000 input IPs across selected devices; bounded dispatch |
 | Existing shun | Gated prepared-confirmation Web/backend support adoption without ADD/provenance; legacy grants still reject it | Retain explicit selected-device adoption in the larger executable workflow |
 | Invalid/protected rows | Managed-import Web/backend bind visible diagnostics/protected exclusions and exact accepted scope; legacy standing review still rejects whole scope | Retain exclusions/reporting during rolling execution |
@@ -295,6 +309,20 @@ Implementation order:
 7. Implement SMTP delivery and notification aggregation after the core workflows.
 
 ### Capacity contract for the next import increment
+
+The [isolated version-2 SQLite component](manual/bulk-policy-storage.md) now
+implements actual root/membership/effective-policy persistence, owner recovery,
+100-row reads and a positive retirement reserve on a fresh suspended development
+profile. It deliberately blocks legacy services; no live profile or API limits
+were changed. Nonempty conversion and version-aware protection/cleanup/
+cancellation/attempt/dispatch integration remain prerequisites for exposure.
+
+The isolated [version-2 format foundation](manual/bulk-import-capacity.md) now
+binds a complete 100000-pair classified manifest in a small canonical descriptor,
+including explicit protected exclusions/adoption classification and original
+preparation identity/digest. A read-only internal journal proposal does not save
+authority, expand legacy limits or expose admission. The isolated persistence
+checkpoint above is separate; its coordinated runtime migration remains pending.
 
 Inspection on 2026-10-21 confirmed that raising one constant is insufficient.
 The current 1000-target registry, shared 1000-pair canonical request, 10000 immutable

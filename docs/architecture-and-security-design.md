@@ -4031,3 +4031,150 @@ request initializes optional schemas or activates profiles, restoration or ADD.
 The existing one-time import path remains a separate legacy gated workflow, not
 the default recommendation. This UI does not expand the 1000 accepted-pair limit
 or enable continuous dispatch. See [Managed Import Web](manual/managed-import-web.md).
+
+## Bounded selected-policy reads — 2026-10-21
+
+Before increasing standing capacity, remove whole-registry reads from single-pair
+browser reviews. A distinct private read-only POST accepts at most 100 distinct
+literal device/IPv4 selectors and an optional exact managed revision. Return the
+normalized requested scope, global total/revision/capacity and only existing
+selected policies with their pair-scoped observations/retained-attempt summaries.
+Missing selected policies stay distinguishable from an empty/uninitialized registry.
+Never present the returned entries as the entire registry or an executable batch.
+
+One SQLite read transaction validates global structural/device/authority integrity
+and bounds policy/summary results. Revision mismatch is explicit, not silent
+rebasing; malformed/partial state is unavailable, never empty. No read initializes
+schemas, emits audit/hints or grants/adopts/retires/enqueues policy. Web single-pair
+grant/retirement/removal reviews bind the exact returned selection; existing full
+and fleet/batch review contracts remain distinct. Future admission must still
+revalidate complete scope/revisions and all existing gates/holds atomically.
+This is a capacity prerequisite, not expanded limits, migration or live activation.
+
+## Whole-batch selected-policy reads — 2026-10-21
+
+Legacy standing-list browser preparation now reads a distinct fixed private
+`POST /api/v1/managed-shuns/selection/batch`, not the complete registry and not
+independently read pages. Accept 1–1000 distinct literal device/IPv4 selectors
+and optional exact revision, with the same strict unknown/coerced-field refusal.
+Return `read_scope=selected_batch`, the entire normalized requested selection,
+global totals/limit/revision and only existing selected entries. The original
+at-most-100 selector resource and its marker remain unchanged and cannot be
+substituted for a whole batch, even when that batch contains fewer than 100 pairs.
+
+One SQLite read transaction validates global integrity and reads selected policy,
+observations, holds and retained summaries in chunks of at most 100 pairs, using
+one reference time. No mixed-revision aggregation, whole-attempt materialization,
+partial successful result, silent truncation, fallback or schema initialization.
+The BFF validates exact scope once, indexes selected entries once and derives
+exact per-pair views for existing validators. New keys consume global capacity,
+including stopped keys outside selection; existing selected stopped keys do not
+consume another slot. Never mistake selected membership for registry capacity.
+
+This is read preparation only. Legacy all-or-nothing scope, invalid/protected/
+observed refusal, current actor/CSRF, frozen consent and final atomic backend
+revalidation remain unchanged. Existing authority, 1000-key/accepted-pair limits,
+retirement reserve, attempts, reports/cancellation and all live gates are unchanged.
+No migration, new fixture, device mutation or large executable-import acceptance
+is authorized. Deploy matching API/Web with checked backup and rollback images;
+agent/protocol/credentials and optional live schemas stay unchanged.
+
+## Large-import intent format foundation — 2026-10-21
+
+The next capacity increment defines an isolated version-2 proposed-import format,
+not an expanded legacy request or a second policy engine. A fixed-size canonical
+JSON descriptor binds operation/preparation UUIDs, original preparation digest,
+managed/protection revisions, normalized label/reason and a classified membership
+manifest. All existing unversioned canonical requests, hashes, idempotency keys,
+uncertain outcomes and authority checks retain their original semantics.
+
+The manifest covers the full selected-device/address product: 1–10 distinct
+explicit devices, 1–10000 distinct literal IPv4 addresses and at most 100000
+pairs, including exact protected exclusions. Stream rows in strict numerical
+device/IP order; refuse duplicates, missing cells, overflow, invalid/coerced fields
+and unknown classifications. Bind each pair and its PROPOSE_ADD/PROPOSE_ADOPT/
+ALREADY_MANAGED/EXCLUDED_PROTECTED classification with a domain-separated SHA-256.
+Use fixed seven-byte records (device unsigned big-endian16, IPv4 four bytes,
+classification byte 1/2/3/4 in that order) after the exact ASCII domain prefix
+`ftd-shun-manager:managed-import-manifest:v2` and one LF. Include total/accepted/
+address counts, explicit devices and all four classification counts in the
+descriptor; classifications cannot be swapped while preserving its digest.
+Bound descriptor storage to 8192 UTF-8 bytes. Reject duplicate JSON keys, unknown
+or noncanonical fields, wrong versions and any incomplete/corrupt stream. Hashes
+are integrity/review bindings, never bearer permissions or evidence of execution.
+
+An internal owner-bound preparation read may build this proposal in one read
+transaction from an intact, unexpired, uncancelled, unconfirmed journal. Stream
+existing rows in <=100-row chunks, check full preparation integrity first and
+require summary parity with its frozen header. Return explicitly non-executable
+metadata; create no policy, schema, retained root, receipt, audit, hint or job.
+Never translate an already confirmed legacy preparation to new authority.
+
+Existing runtime API/registry/dispatcher and offline maintenance commands still
+do not accept this format. The following isolated-storage amendment provides its
+first explicit development-only persistence. Integrated persistence must atomically commit actor-attributed
+root, independently retained indexed membership and effective policies, preserving
+one effective device/IP authority and original already-managed generations.
+Do not attach standing work to an expiring draft or use the immutable reports
+alone as replacement authority. Versioned migration must coordinate total retained
+keys, positive revocation reserve, attempts, reports/cancellation, paged readers
+and dispatch before larger admission is enabled. Legacy keys/receipts/latches
+must remain readable and cannot gain version-2 meaning. Older writers cannot
+be assumed to understand the new state; downgrade/migration needs explicit review.
+
+This foundation changes no SQL schema, live capacity, startup/GET behavior,
+feature gate, credential or binary RPC protocol and authorizes no live migration,
+load fixture or FTD mutation. Synthetic 100000-pair format/preparation checks are
+not storage-migration, queue-backpressure, throughput or production acceptance.
+
+## Isolated version-2 policy persistence — 2026-10-21
+
+Implement version-2 storage as an explicit, initially offline-only component,
+not a second effective-policy registry or an expanded legacy gate. Reuse immutable
+`managed_shun_requests` and the single `managed_shun_targets` device/IP key space.
+Independently retained manifest metadata/members bind the complete source header,
+classified scope and assigned/original intent references to each version-2 root.
+Canonical root, exact membership, effective grants/adoption and real-actor audit
+commit in one transaction; no device jobs, provenance or resume follows.
+
+Use an exact recognized `managed_bulk_registry` instead of the legacy
+`managed_shun_registry`. Initially permit only suspended restoration. Legacy
+readers/writers must see partial/unsupported managed state and fail closed,
+including when fewer than 1000 keys exist. There is no runtime fallback, HTTP,
+controller, migration CLI or profile activation. Explicit initialization accepts
+only an empty managed namespace under an ordinary mutation pause, with no lease,
+pending/uncertain jobs or existing incident/confirmation/cancellation state. It
+never converts the lab's retained legacy policy or deletes old evidence. Nonempty
+legacy conversion and executor/cleanup/attempt compatibility remain separate work.
+
+The fixed storage profile permits 200000 retained effective keys (stopped keys
+included), 400000 immutable requests, 128 import roots and 1000000 retained
+classified members. New authority/no-op churn cannot consume the final 200000
+request slots reserved for actual policy retirement. A root accepts at most
+100000 pairs and creates no executable backlog. Refuse capacity overflow whole,
+never evict/recycle keys. These are storage bounds, not FTD throughput claims.
+
+Trusted internal confirmation requires explicit default-false capability,
+current Operator/Administrator, recurring consent, typed accepted count, exact
+descriptor/source integrity, live preparation, frozen revisions/devices and
+unchanged classification/generation. Refuse any pending/uncertain queue work,
+lease or unsupported optional evidence in this initial profile; do not resolve
+or ignore it. Already-managed targets retain original authorization; adoption
+creates no ADD or historical service-created occurrence. New policy remains
+unexecutable/suspended. Original-key replay returns the retained historical result
+after draft expiry/pruning/retirement, without changing policy or restoring a grant.
+
+Owner-bound 100-row historical reports and current policy pages stream validation,
+survive restart/draft pruning and create no schemas. Exact-revision policy-only
+retirement uses bounded literal pairs and immutable original-key receipts; it
+works in the retirement reserve and while new authority is paused/disabled, sends
+no REMOVE and does not cancel independent jobs. Preserve earlier generations and
+all uncertain evidence. Unknown/partial schema is not empty or repairable by GET.
+
+Initialization and confirmation must roll back their own work even if composed
+into an outer transaction whose caller catches an error and commits. No lab
+invocation, bulk fixture, feature activation or service rollout is authorized.
+Before deployment with this profile, deliver reviewed nonempty migration/backup,
+version-aware protections/cleanup/attempts/readers, bounded dispatch and older-
+writer rollback. Do not downgrade a populated version-2 database or restore old
+enabled state as a software rollback. The present lab stays in legacy mode.

@@ -1,6 +1,7 @@
 """Policy revocation and waiting cancellation, using synthetic SQLite/ASGI only."""
 
 import asyncio
+import json
 import re
 import sqlite3
 from concurrent.futures import ThreadPoolExecutor
@@ -48,11 +49,11 @@ def lab(tmp_path, monkeypatch):
                 return httpx.Response(response.status_code, content=response.content, headers=response.headers)
 
         result = asyncio.run(send())
-        if request.method == "POST" and behavior.pop("lose_reply", False):
+        if request.method == "POST" and request.url.path != "/api/v1/managed-shuns/selection" and behavior.pop("lose_reply", False):
             raise httpx.ReadTimeout("Synthetic committed response lost")
-        if request.method == "POST" and behavior.pop("malformed", False):
+        if request.method == "POST" and request.url.path != "/api/v1/managed-shuns/selection" and behavior.pop("malformed", False):
             return httpx.Response(200, json={"status": "policy_saved"})
-        if request.method == "POST" and behavior.pop("wrong_revision", False):
+        if request.method == "POST" and request.url.path != "/api/v1/managed-shuns/selection" and behavior.pop("wrong_revision", False):
             return httpx.Response(200, json={**result.json(), "managed_revision": result.json()["managed_revision"] + 1})
         if request.method == "GET" and request.url.path == "/api/v1/status" and behavior.get("status_error"):
             return httpx.Response(503, json={"detail": "Synthetic status error"})
@@ -137,7 +138,9 @@ def test_frozen_retirement_is_policy_only_audited_and_old_replay_never_retires_n
             replay = await client.post("/managed-shuns/retirement-confirm", data=fields)
             assert replay.status_code == 200 and "Original-key replay" in replay.text
             assert (registry.snapshot(), store.list_events()) == before
-            posts = [r for r in calls if r.method == "POST"]
+            reads = [r for r in calls if r.url.path == "/api/v1/managed-shuns/selection"]
+            assert len(reads) == 1 and len(json.loads(reads[0].content)["targets"]) == 1
+            posts = [r for r in calls if r.method == "POST" and r.url.path != "/api/v1/managed-shuns/selection"]
             assert len(posts) == 2 and all(r.url.path == "/api/v1/managed-shuns/retire" for r in posts)
             assert posts[0].content == posts[1].content
             assert posts[0].headers["Idempotency-Key"] == posts[1].headers["Idempotency-Key"]
@@ -162,7 +165,7 @@ def test_unknown_reply_preserves_frozen_retry_key_and_never_submits_new_intent(l
             retry = await client.post("/managed-shuns/retirement-confirm", data=fields)
             assert retry.status_code == 200 and "Original-key replay" in retry.text
             assert (registry.snapshot(), store.list_events()) == before
-            assert len({r.headers["Idempotency-Key"] for r in calls if r.method == "POST"}) == 1
+            assert len({r.headers["Idempotency-Key"] for r in calls if r.url.path == "/api/v1/managed-shuns/retire"}) == 1
     asyncio.run(scenario())
 
 
@@ -220,7 +223,7 @@ def test_review_rechecks_roles_csrf_scope_binding_and_cross_purpose_tokens(lab):
             assert (await client.post("/managed-shuns/retirement-confirm", data=fields)).status_code == 401
     asyncio.run(scenario())
     assert registry.snapshot()["entries"][0]["enabled"]
-    assert all(r.method == "GET" for r in calls)
+    assert all(r.method == "GET" or r.url.path == "/api/v1/managed-shuns/selection" for r in calls)
 
 
 def test_stale_review_conflict_has_no_partial_change_and_status_failure_does_not_negate_receipt(lab):
@@ -364,7 +367,7 @@ def test_retirement_review_rejects_malformed_or_unmanaged_selection(lab, target)
         async with browser(app) as client:
             assert (await prepare(client, target=target)).status_code in (409, 422)
     asyncio.run(scenario())
-    assert all(r.method == "GET" for r in calls)
+    assert all(r.method == "GET" or r.url.path == "/api/v1/managed-shuns/selection" for r in calls)
 
 
 @pytest.mark.parametrize("failure", ["lose_reply", "malformed"])
@@ -461,4 +464,4 @@ def test_retirement_reason_validation_has_no_side_effects(lab, reason):
             assert (await prepare(client, reason=reason)).status_code == 422
     asyncio.run(scenario())
     assert (registry.snapshot(), store.list_events()) == before
-    assert all(r.method == "GET" for r in calls)
+    assert all(r.method == "GET" or r.url.path == "/api/v1/managed-shuns/selection" for r in calls)

@@ -61,8 +61,9 @@ def lab(tmp_path, monkeypatch):
                 return httpx.Response(200, json={**response.json(), "unexpected": True})
         if request.url.path == "/api/v1/status" and behavior.get("upstream_off"):
             return httpx.Response(200, json={**response.json(), "managed_policy_admission_enabled": False})
-        if request.url.path == "/api/v1/managed-shuns" and behavior.get("uninitialized"):
-            return httpx.Response(200, json={**response.json(), "initialized": False, "revision": 0, "entries": []})
+        if request.url.path == "/api/v1/managed-shuns/selection/batch" and behavior.get("uninitialized"):
+            return httpx.Response(200, json={**response.json(), "initialized": False, "revision": 0,
+                                           "entries": [], "total": 0, "selected_count": 0})
         return httpx.Response(response.status_code, content=response.content, headers=response.headers)
 
     monkeypatch.setattr(web, "api_client", lambda _: httpx.Client(transport=httpx.MockTransport(internal), base_url="http://internal"))

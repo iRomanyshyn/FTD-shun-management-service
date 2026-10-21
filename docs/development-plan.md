@@ -7,12 +7,48 @@ Last updated: 2026-10-21
 The operator requested RDAP or equivalent enrichment for IPs in the Web UI.
 Track a compact context view with available network/organization/range, optional
 ASN and registered-country fields, source and freshness; not geolocation or
-blocking reputation. Provider choice is deferred. Use asynchronous bounded caching
+blocking reputation. Provider choice is deferred. Lookup once per new shun
+occurrence, not again while it stays active, including after restart/cache expiry
+or failure. Confirmed disappearance followed by redetection permits a new lookup;
+coalesce same-IP detections across devices. Use asynchronous bounded caching
 and preserve all current network/credential boundaries; no Internet route for
 Web/API or the FTD agent, no per-row blocking lookups and no policy authority.
 See [the working-version follow-up](working-version-plan.md#deferred-ip-context--enrichment--requested-2026-10-21)
 for privacy, failure, SSRF and implementation-design prerequisites. Not implemented,
 not activated and not a change to the current core delivery order.
+
+## Selected-policy review prerequisite — 2026-10-21
+
+The isolated [version-2 storage component](manual/bulk-policy-storage.md) now
+atomically persists the root, complete independent classified membership and
+effective policy, with 100000-pair imports, paged reads and positive retirement
+reserve. It uses a distinct suspended registry so old services refuse it, not a
+second effective-policy engine. Fresh-development-state initialization only;
+the current lab stays untouched. Next integrate version-aware protection,
+cleanup/cancellation and attempts/dispatch, then nonempty conversion and Web/API.
+
+The next authority-format prerequisite is now isolated in
+[Large-Import Format and Capacity](manual/bulk-import-capacity.md): a bounded
+version-2 descriptor and complete classified streaming manifest support up to
+100000 proposed pairs without altering legacy canonical requests. Internal
+owner-bound journal composition is read-only/non-authoritative and refuses
+already confirmed/expired/cancelled plans. No live capacity/schema/gate change.
+Next is the coordinated retained root/member/effective-policy transition with
+positive retirement reserve and attempt/report/cancellation compatibility, then
+rolling dispatch. Do not put the new descriptor into the legacy request ledger.
+
+The next capacity prerequisite is implemented: strict private read-only selectors
+return at most 100 existing pairs, their bounded summaries and exact requested
+membership/global totals. Single-pair BFF grant/retirement/removal reviews use this
+resource, not the full registry, and reject substituted partial/global views.
+Whole standing-list BFF preparation now uses a distinct at-most-1000 selector
+resource with one read transaction and 100-pair SQL chunks. Exact batch markers,
+global capacity and retained whole-scope validation prevent partial-view reuse.
+No capacity, schema, admission or dispatch change. Remaining full/offline workflows
+remain bounded by the current contract. Next capacity work must coordinate
+versioned authority, canonical scope, retirement reserve, attempt/report/
+cancellation capacity and remaining full-review readers before raising limits.
+See [Managed shuns](manual/managed-shuns.md#exact-selected-policy-reads-for-single-pair-reviews).
 
 ## Prepared confirmation checkpoint — 2026-10-21
 

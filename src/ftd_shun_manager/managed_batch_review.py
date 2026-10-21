@@ -8,6 +8,7 @@ from .import_review import ReviewUnavailable
 from .managed_grant_review import ManagedGrantReviews
 from .managed_intent import canonical_managed_change
 from .managed_review import ManagedRemovalReviews
+from .managed_selection import require_selection
 
 
 def parse_standing_list(text, device_ids):
@@ -64,6 +65,25 @@ class ManagedBatchReviews(ManagedRemovalReviews):
         ips = [IPv4Address(ip) for ip in parsed["ips"]]
         pairs = [(device, ip) for device in device_ids for ip in ips]
         pairs, _, digest = canonical_managed_change("MAINTAIN", pairs, policy["revision"], classification["policy_revision"], label, reason)
+        require_selection(policy, pairs, batch=True)
+        entries = policy["entries"]
+        if (not isinstance(entries, list) or len(entries) > 1000
+                or type(policy["initialized"]) is not bool or (not policy["initialized"] and entries)):
+            raise ValueError("Invalid batch managed-policy entries.")
+        known = {}
+        for entry in entries:
+            device, address = entry["device_id"], entry["ip"]
+            if (type(device) is not int or not 1 <= device <= 65535 or type(address) is not str
+                    or str(IPv4Address(address)) != address or (device, address) in known):
+                raise ValueError("Invalid or ambiguous batch managed policy.")
+            known[device, address] = entry
+        # A selection contains only requested keys. Capacity is global, including
+        # stopped keys outside it, not len(selected entries). Legacy pure callers
+        # may still supply their original complete view.
+        total = policy["total"] if "selection" in policy else len(known)
+        if (type(total) is not int or not len(known) <= total <= 1000
+                or total + sum((device, str(ip)) not in known for device, ip in pairs) > 1000):
+            raise ReviewUnavailable("Registry capacity includes stopped records; the entire batch cannot fit.")
         if len(set(device_ids)) != len(device_ids) or not 1 <= len(device_ids) <= MAX_DEVICES:
             raise ValueError("Invalid batch device selection.")
         addresses = classification["addresses"]
@@ -87,14 +107,17 @@ class ManagedBatchReviews(ManagedRemovalReviews):
             address = address_map[str(ip)]
             device = next(device for device in address["devices"] if device["id"] == device_id)
             one = {"policy_revision": classification["policy_revision"], "addresses": [dict(address, devices=[device])]}
+            old = known.get((device_id, str(ip)))
+            # Derive an exact one-pair view only after validating the entire
+            # frozen batch selection. Do not rescan the batch for every target.
+            one_policy = {**policy, "read_scope": "selected_pairs", "read_only": True, "total": total,
+                          "selection": [{"device_id": device_id, "ip": str(ip)}],
+                          "selected_count": int(old is not None), "entries": [old] if old is not None else []}
             try:
-                values = ManagedGrantReviews.validate(policy, one, device_id, ip, label, reason)
+                values = ManagedGrantReviews.validate(one_policy, one, device_id, ip, label, reason)
             except ReviewUnavailable as error:
                 raise ReviewUnavailable(f"{device['hostname']} / {ip}: {error} The entire batch is unchanged.") from error
             targets.append(BatchTarget(device_id, ip, values["hostname"], values["intent_id"], values["generation"]))
-        known = {(entry["device_id"], entry["ip"]) for entry in policy["entries"]}
-        if len(known) + sum((device, str(ip)) not in known for device, ip in pairs) > 1000:
-            raise ReviewUnavailable("Registry capacity includes stopped records; the entire batch cannot fit.")
         return self._save(ManagedBatchReview, subject, cookie, targets=tuple(targets),
                           managed_revision=policy["revision"], protected_revision=classification["policy_revision"],
                           initialized=policy["initialized"], label=label.strip(), reason=reason.strip(), digest=digest,

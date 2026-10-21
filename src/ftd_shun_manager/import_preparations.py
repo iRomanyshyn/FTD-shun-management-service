@@ -1,6 +1,6 @@
 """Durable, owner-bound bulk preparations. Never standing authority or queue work.
 
-Explicit initialization only. No runtime/HTTP path imports this module yet.
+Explicit initialization only. Runtime construction/reads never create its schema.
 """
 
 import hashlib
@@ -122,6 +122,10 @@ def _state(row, current):
 def _confirmed_operation(db, row):
     # Optional retained receipts are separate from an expiring draft. Never
     # present cancelling a confirmed draft as cancellation of standing policy.
+    if db.execute("SELECT 1 FROM sqlite_master WHERE name GLOB 'managed_bulk_*' LIMIT 1").fetchone():
+        from .bulk_policy import confirmed_operation
+
+        return confirmed_operation(db, row)
     from .managed_imports import _present as imports_present
 
     if not imports_present(db):
@@ -138,6 +142,11 @@ class ImportPreparations:
     def __init__(self, store, *, clock=None):
         self.store = store
         self.clock = clock or (lambda: datetime.now(UTC))
+
+    @staticmethod
+    def _managed_state(db):
+        """The separate bulk-storage preparation subclass supplies its own reader."""
+        return managed_state(db)
 
     def initialize(self, *, connection=None):
         """Explicit empty schema only; no optional policy/attempt initialization."""
@@ -181,7 +190,7 @@ class ImportPreparations:
                     or db.execute("SELECT COUNT(*) FROM import_preparation_plans WHERE actor_subject=?",
                                   (subject,)).fetchone()[0] >= MAX_OWNER_PLANS):
                 raise PreparationCapacity("Preparation capacity reached; expired drafts require explicit pruning.")
-            state = managed_state(db)  # Unknown is never an invented unmanaged set.
+            state = self._managed_state(db)  # Unknown is never an invented unmanaged set.
             marks = ",".join("?" for _ in device_ids)
             devices = db.execute(f"SELECT id,hostname FROM devices WHERE enabled=1 AND id IN ({marks}) ORDER BY id",
                                  device_ids).fetchall()
@@ -312,6 +321,41 @@ class ImportPreparations:
             db.execute("BEGIN")
             self._verified_plan(db, plan_id, subject, expected_digest)
         return {"plan_id": plan_id, "integrity_verified": True, "can_execute": False}
+
+    def propose_bulk_intent(self, plan_id, subject, expected_digest, operation_id):
+        """Internal version-2 format read; not a policy grant or retained root.
+
+        No runtime/HTTP caller uses this capacity foundation. It deliberately
+        cannot translate an expired/cancelled/already confirmed preparation.
+        """
+        from .bulk_intent import canonical_bulk_intent
+
+        current = _stamp(self.clock())
+        with self.store._connection() as db:
+            db.execute("BEGIN")
+            row, header = self._verified_plan(db, plan_id, subject, expected_digest)
+            if (row["cancelled_at"] is not None or not row["created_at"] <= current < row["expires_at"]
+                    or _confirmed_operation(db, row) is not None):
+                raise PreparationUnavailable("Only an unexpired, unconfirmed and uncancelled preparation can supply a new proposal.")
+
+            def members():
+                cursor = db.execute("""SELECT device_id,ip,classification FROM import_preparation_targets
+                    WHERE plan_id=? ORDER BY device_id,ip""", (plan_id,))
+                while chunk := cursor.fetchmany(PAGE_SIZE):
+                    for member in chunk:
+                        yield member["device_id"], IPv4Address(member["ip"]), member["classification"]
+
+            summary, canonical, digest = canonical_bulk_intent(members(), tuple(device["id"] for device in header["devices"]),
+                operation_id, plan_id, expected_digest, header["managed_revision"], header["protected_revision"],
+                header["label"], header["reason"])
+            if (summary.pair_count != header["target_count"] or summary.address_count != header["address_count"]
+                    or summary.as_dict()["classification_counts"] != header["classification_counts"]):
+                raise PreparationUnavailable("Classified manifest does not match the complete frozen preparation.")
+            if not current <= _stamp(self.clock()) < row["expires_at"]:
+                raise PreparationUnavailable("Preparation expired or clock moved backwards during the proposal read.")
+        return {"intent_format": 2, "operation_id": operation_id, "preparation_id": plan_id,
+                "canonical": canonical, "digest": digest, "manifest": summary.as_dict(),
+                "can_execute": False, "policy_saved": False, "device_work_admitted": False}
 
     def _verified_plan(self, db, plan_id, subject, expected_digest):
         """Internal composition read: caller keeps the same transaction open."""

@@ -27,6 +27,8 @@ not a runbook or permission to change gates, initialize schemas or run new fixtu
 | [Protected IPs](protected-ips.md) | Shared authenticated policy editor, concurrency, one-time legacy import, audit, backup and rollback. |
 | [Import Preview](import-preview.md) | Non-executable paste parsing, local-state classification, supported syntax, limits and the pending ADD release gate. |
 | [Durable Import Preparations](managed-import-preparations.md) | Explicit, non-authoritative 100,000-pair journal, owner reports/restart, exclusions, integrity and draft-only expiry; no automatic initialization. |
+| [Large-Import Format and Capacity](bulk-import-capacity.md) | Isolated version-2 classified manifest, bounded proposal/verification and remaining coordinated persistence/migration requirements; no expanded live limits. |
+| [Version-2 Bulk Policy Storage](bulk-policy-storage.md) | Atomic 100000-pair SQLite authority/membership, bounded reads, retirement reserve and empty-development-profile boundary; no runtime dispatch/live migration. |
 | [Prepared Import Confirmation](managed-import-confirmation.md) | Gated confirmation/adoption/exclusions, immutable reports and original-key recovery within current 1000-pair policy bounds; no automatic execution/live migration. |
 | [Import Cancellation](import-cancellation.md) | Whole-import uncompleted-work revocation, retained additions/adoption, in-flight settlement and immutable receipts; explicit schema, no automatic activation. |
 | [Managed Import Web](managed-import-web.md) | Saved preparations, exact review/consent, retained receipts and uncompleted-work cancellation; current capacity/gates and unknown-reply recovery. |

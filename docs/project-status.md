@@ -6,11 +6,153 @@ Last updated: 2026-10-21
 
 **Minimal IP context (requested 2026-10-21):** RDAP or equivalent network/
 organization context in a compact Web view, with optional ASN/registered-country
-data where available, source attribution and freshness. Planning only; no provider,
+data where available, source attribution and freshness. Enrich once per newly
+detected occurrence; no periodic/view/restart/cache-expiry refresh while shunned.
+Confirmed removal/disappearance followed by redetection permits a new lookup.
+Planning only; no provider,
 lookup, cache/schema, new egress or activation exists. Core delivery retains
 priority. See [the planned constraints](working-version-plan.md#deferred-ip-context--enrichment--requested-2026-10-21).
 
 ## Current increment
+
+**Isolated version-2 SQLite policy storage (2026-10-21).** The new developer
+component atomically persists an actual root/real actor, independently retained
+classified membership, effective managed grants/adoption and audit for up to
+100000 pairs. It retains the existing single device/IP policy/request tables,
+not a parallel policy engine. Complete sealing prevents late member insertion;
+savepoints roll back the whole change even if an outer caller catches an error
+and commits. Already-managed authority and original uncertain evidence are not
+replaced. See [Version-2 Bulk Policy Storage](manual/bulk-policy-storage.md).
+
+The exact suspended profile uses a distinct registry name; legacy services refuse
+it even below 1000 keys. Explicit initialization permits fresh empty managed state
+only, under pause/quiescence; existing lab/legacy/partial/incident state is refused,
+not converted or erased. Limits are 200000 retained keys, 400000 request slots
+with a positive 200000-slot actual-retirement reserve, 128 roots/1000000 members.
+New authority refuses leases/pending/uncertain work and unsupported optional state.
+Owner recovery, 100-row historical/current pages, exact-revision policy retirement,
+restart/pruned-draft receipts and original-key non-reenable are implemented.
+
+This is **not connected to runtime API/Web, cancellation/protection or dispatch**.
+There is no migration CLI/new env gate or live activation. Nonempty development
+conversion, version-aware protection/cleanup/cancellation/attempts and bounded
+dispatch remain next. The current lab remains unchanged in its legacy profile;
+no production rollout is involved and no device work was added by this increment.
+
+Validation: **1522 Python tests pass** (109.34s), including **41 new storage cases**.
+The initial storage-only run passed 29 cases (23.46s), including actual 100000-pair
+storage/paging/restart/pruning and zero jobs; the final full run includes the
+additional strict/capacity/uncertainty/corruption cases. Compileall/Ruff/diff pass.
+Installed-image and documentation checks are recorded in the new development-log entry.
+
+Separate installed Python 3.12 validation passed: 100000 persisted pairs and
+members, restart/draft pruning, 100-row late pages, one policy retirement and
+original-root replay without re-enabling it; zero jobs, integrity/FK checks pass.
+The container had no network/lab mounts and used only a synthetic SQLite database.
+235 local links/anchors pass. Browser/agent/Compose assets are unchanged; their
+separate suites were not rerun. No service rollout or live data mutation occurred.
+
+### Previous format checkpoint
+
+**Large-import intent format foundation (2026-10-21).** A separate pure version-2
+descriptor now binds a complete classified manifest of up to 10000 addresses /
+ten explicit devices / 100000 pairs. Streaming verification binds exact cells,
+adoption/existing/protected-exclusion classifications, counts and original
+preparation/operation references without a full JSON target array. The descriptor
+stays within 8192 bytes. Duplicate/coerced/partial/unknown/noncanonical data fails;
+old unversioned hashes, keys and 1000-pair limits retain their original meaning.
+
+An internal owner-bound preparation read composes this proposal in one SQLite
+snapshot with <=100-row scans, full original digest/parity and expiry checks.
+It refuses already confirmed/cancelled/expired plans and reports non-executable,
+no policy saved/no work admitted. It writes no root, schema, policy, receipt,
+audit, hint or job; no API/Web/controller/maintenance caller accepts the format.
+See [Large-Import Format and Capacity](manual/bulk-import-capacity.md).
+
+This is **not expanded persisted authority or executable bulk import**. Versioned
+root/indexed membership/effective-policy persistence, positive retirement reserve,
+attempt/report/cancellation capacity and bounded dispatch still need coordinated
+implementation/migration. No lab restart, optional migration, gate/profile/secret
+change or FTD fixture is included. Validation details are recorded in the new
+development-log entry; the running lab remains the preceding API/Web release.
+
+Validation: **1481 Python tests pass** (85.19s), including **85 new format/journal
+cases** (6.66s focused). Compileall/Ruff/diff and 226 local links/anchors pass.
+Separate installed Python 3.12 image builds/reverifies a saved 100000-pair proposal
+with a 694-byte descriptor and restart stability: no policy schema, jobs or audit
+events, no network/lab mounts. The pure maximum-stream test checks <8 MiB peak
+traced working memory, not total application/database memory or hardware capacity.
+Browser assets, agent, Compose and runtime callers are unchanged; their separate
+suites were not rerun. The separately tagged validation image was not deployed;
+no running service, live data/configuration or FTD was touched in this increment.
+
+### Previous whole-list read checkpoint
+
+**Whole standing-list selected reads (2026-10-21).** Legacy standing-list Web
+preparation now fetches its exact complete selection through a separate strict
+read-only private resource, not the whole registry or an API loop over individual
+pairs. One SQLite transaction reads at most 1000 selectors in 100-pair policy/
+summary chunks, preserving shared revision/time and exact missing membership.
+The BFF rejects substituted single/global/page views, indexes selected entries
+once and validates every target. Capacity uses global retained keys, including
+stopped records outside selection. No new key is charged for an existing stopped
+selected target. See [Standing Address Lists](manual/managed-batch-grants.md#bounded-whole-batch-policy-reads).
+
+No capacity, schema, canonical authority, protocol, agent, credentials or gate
+change. All-or-nothing legacy consent/admission and final atomic revalidation
+remain; the current 1000-key limit is not raised. Larger versioned retained
+authority/attempt/report/cancellation capacity and rolling dispatch remain next.
+No live migration, import or test mutation is authorized by this increment.
+Validation and rollout are recorded in the new development-log entry.
+
+Validation: **1396 Python tests pass** (81.24s), including 30 new batch-selection
+cases; focused batch/selection checks **73 pass** (7.28s). Compileall/Ruff/diff
+and 173 local links/anchors pass. Built Python 3.12 image prepares 1000 synthetic
+pairs without full reads, queued work or state changes, with no network/lab mounts.
+Browser assets, agent and Compose are unchanged; separate suites were not rerun.
+
+Paired API/Web deployed to the existing lab with checked private SQLite backup
+and previous-image rollback tags. API ready/socket, fresh read 15:20:33Z/no error.
+Schema and all twelve retained queue/policy tables match backup exactly; registry
+revision 4/suspended, enabled managed 0, 12 VERIFIED/1 NOOP/no pending. Read-only
+batch smoke distinguishes global total 1 from two missing selectors. All six
+experimental flags/development auth remain false, addition profiles 0 and optional
+import tables absent. Anonymous Web401/TLS-verified auth redirect302; agent/Caddy/
+Authelia unchanged, API/Web network mode none, sole published loopback443. No new
+lab schema, fixture, FTD mutation, provider traffic or feature activation.
+
+### Previous selected-read checkpoint
+
+**Bounded selected-policy reviews (2026-10-21).** Single-pair grant, retirement
+and removal Web reviews now fetch only their exact pair through a strict private
+read-only POST (maximum 100 selectors). The result distinguishes global totals,
+requested/missing pairs and existing selected policy/attempt summaries in one
+SQLite read snapshot. BFF refuses substituted whole views/pages, duplicates and
+mismatched literal selectors. Global corruption, partial state and revision
+conflicts remain explicit; no read authorizes or initializes anything.
+See [selected-policy reads](manual/managed-shuns.md#exact-selected-policy-reads-for-single-pair-reviews).
+
+This removes a full-registry dependency before capacity expansion; the 1000-key/
+accepted-pair and existing ledger/retirement limits remain unchanged. At this
+checkpoint legacy whole/batch reviews were not replaced; the newer whole-batch
+increment above preserves complete scope in its own resource. No schema,
+protocol, credential, agent or feature-activation change is included. Validation/
+deployment details are recorded in the latest development-log entry.
+
+Validation: **1366 Python tests pass** (75.42s), including 35 new selected-read/
+BFF cases. Compileall/Ruff/diff pass. Built Python 3.12 image exercises all three
+single-pair Web reviews with no whole-registry fetch, changed policy, queued work,
+lab mount or network. Browser assets/agent/Compose are unchanged; their separate
+suites were not rerun for this read-transport increment.
+
+Paired API/Web deployed to the existing lab with checked SQLite backup and
+rollback tags. API ready/socket, fresh read 14:16:31Z/no error. Schema and twelve
+retained queue/policy tables match backup: 12 VERIFIED/1 NOOP/no pending, registry
+revision 4/suspended, enabled managed 0. Scoped smoke correctly distinguishes
+global total 1 from a missing selected pair without creating it. All experimental
+flags/development auth remain false, addition profiles 0, optional import tables
+absent. Agent unchanged; anonymous Web 401/TLS-verified auth redirect 302 and
+only Caddy loopback443 published. No schema/profile/credential/provider activation.
 
 **Managed-import Web workflow (2026-10-21).** Operator navigation now opens
 saved preparations, exact classified reports and retained owner receipts at

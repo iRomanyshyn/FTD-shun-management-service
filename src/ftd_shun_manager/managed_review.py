@@ -15,10 +15,12 @@ from .managed_intent import (
     canonical_managed_fleet_scope,
     canonical_managed_removal,
 )
+from .managed_selection import require_selection
 
 
 def select_managed_target(policy: dict, device_id: int, ip: IPv4Address, *, allow_disabled: bool = False) -> dict:
     """Validate one retained target for a frozen review, without trusting flags."""
+    require_selection(policy, [(device_id, ip)])
     if policy.get("initialized") is not True:
         raise ReviewUnavailable("Managed policy is not initialized; no review was prepared.")
     entries = policy["entries"]

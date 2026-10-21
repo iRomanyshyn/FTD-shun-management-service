@@ -1,5 +1,50 @@
 # Development Manual
 
+## Isolated version-2 SQLite policy tests
+
+`tests/test_bulk_policy.py` exercises actual 100000-pair policy/manifest persistence,
+original-key/owner recovery, restart/pruning, adoption/exclusions and bounded reads.
+It checks whole-scope conflicts, final audit rollback even when an outer caller
+commits, same-key concurrency, sealed membership, retained-key/ledger budgets,
+actual retirement reserve and preserved uncertainty. Legacy readers/initializers
+must refuse the new registry even for one key. Fixtures explicitly create a fresh,
+suspended development profile; no lab migration, old-state conversion or RPC.
+See [Version-2 Bulk Policy Storage](bulk-policy-storage.md) before extending it.
+
+## Large-import format regression checks
+
+`tests/test_bulk_intent.py` validates an isolated version-2 descriptor and complete
+classified membership: fixed binary/hash vectors, numerical order, literal types,
+complete 10000-address/ten-device product, 100000 accepted pairs, bounded memory/
+descriptor size, corruption, duplicate/unknown JSON fields and original legacy
+canonical hash/limit compatibility. This is neither a new agent RPC nor authority.
+`tests/test_bulk_preparation_intent.py` builds the proposal from actual disposable
+journals with <=100-row scans, owner/restart/expiry/clock/conflict checks and no
+independent writes. Already confirmed legacy drafts cannot acquire new meaning.
+No runtime caller or optional schema is added. See
+[the format and transition manual](bulk-import-capacity.md).
+
+## Selected-policy review regression checks
+
+`tests/test_managed_selection.py` validates at-most-100 exact read selectors,
+global totals versus selected/missing membership, parity with legacy views,
+retained attention, scoped SQL summaries and one-snapshot concurrent reads.
+It exercises strict API types/fields, revision conflicts, absent/partial/orphaned
+state, substituted/mismatched responses and actual single-pair BFF review paths
+with full-registry reads deliberately forbidden. Existing controls/review tests
+now explicitly distinguish the new read-only POST from mutation POSTs; all
+auth/CSRF/sensitive-review/old-key/uncertainty checks remain. See
+[selected-policy reads](managed-shuns.md#exact-selected-policy-reads-for-single-pair-reviews).
+
+`tests/test_managed_batch_selection.py` adds complete standing-list selections:
+one read transaction, at most 100 pairs per SQL/summary chunk and 1000 selectors
+overall; no independent-page aggregation or whole-registry BFF fallback. Check
+concurrent changes between chunks, original retained attention, strict scope
+markers/echoes, late-chunk failures, absent/partial state and global capacity
+including stopped/unselected keys. Existing batch admission, replay, authentication,
+consent and no-work assertions remain unchanged. Tests use disposable SQLite/ASGI,
+not lab schemas, credentials or device connections.
+
 ## Managed-import browser regression checks
 
 `tests/test_managed_import_web.py` connects actual BFF forms and strict private

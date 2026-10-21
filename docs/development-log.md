@@ -5361,6 +5361,288 @@ Validation: documentation-only change; `git diff --check` and changed-document
 local link/anchor checks. No code/tests, IP lookup/provider research, live service
 restart, configuration change or device operation was performed.
 
+## 2026-10-21 — Occurrence-driven IP context and bounded review selections
+
+Recorded the operator's refinement of the deferred RDAP/equivalent idea: enrich
+once on detection, retain its result/unavailable status while shunned and permit
+a new attempt only after confirmed disappearance/removal and redetection. Polling,
+views, cache expiry, failures/restart and an additional-device sighting of an
+already active IP must not restart lookup. Keep a durable occurrence completion
+marker and same-IP coalescing; no periodic backfill/retry loop. No lookup/provider
+research, implementation, new egress or live activation was performed.
+
+Implemented another read-side prerequisite for larger managed capacity rather
+than raising coupled constants prematurely. `ManagedShuns.selection()` and a
+strict fixed private read-only POST accept 1–100 distinct literal device/IPv4
+pairs and optional exact revision. One SQLite snapshot returns normalized requested
+scope, global total/revision/limit and at most 100 existing policies with scoped
+retained-attempt/queue summaries. Missing selected pairs are distinct from an
+empty/uninitialized registry. Global device/authority corruption and partial
+optional evidence remain unavailable, not silently filtered into a valid read.
+
+Single-pair BFF grant, retirement and removal reviews now use that resource,
+validate exact selection and refuse substituted global/page responses. Existing
+read/CSRF/identity/review-age/generation/uncertainty/gate and final atomic-admission
+contracts remain. No read grants/adopts/retires policy, submits work, refreshes
+Cisco, writes audit or initializes schemas. Legacy complete/batch contracts and
+all current capacity/ledger/retirement limits are unchanged; versioned larger
+authority, remaining full readers and rolling dispatch still need coordinated
+implementation. No new schema/protocol/agent/credential/Compose change.
+
+Added synthetic selection/parity/strict-type/corruption/transaction/bounded-SQL
+and real BFF-no-full-fallback cases. Updated existing test assertions/fault
+injection to distinguish the new read-only POST from actual retirement/cleanup
+POSTs, without relaxing no-mutation/auth/CSRF/old-key checks.
+
+Validation: **1366 Python tests passed (75.42s)**, including 35 new selector/API/
+BFF cases. Final affected review/control/grant/cleanup check: **181 passed
+(17.13s)**. Compileall/Ruff/diff pass. Tests cover exact/missing membership versus
+global totals, sorted maximum 100-row reads, legacy parity/older-generation
+attention, bounded SQL summaries, restart/revision refusal, concurrent retirement
+with consistent read metadata, orphan/partial-state refusal, strict/coerced/extra
+fields, response substitution and zero whole-registry BFF fallback. Earlier
+GET-only test assumptions were corrected to recognize the explicit read-only
+POST; mutation counts/fault injection still target actual semantic writes.
+
+Built paired Python 3.12 images and validated installed code through synthetic
+ASGI/SQLite in a non-root, read-only/no-network container without lab mounts.
+All three single-pair Web reviews pass without a whole-registry fetch, changed
+policy or queued job; integrity check passes. Browser templates/JavaScript/CSS,
+Rust agent and Compose are unchanged; their separate suites were not rerun.
+No provider request, FTD fixture or schema/gate/credential change was made.
+166 changed-document local links/anchors checked.
+
+Authorized service-only API/Web lab rollout completed with prior paired images
+retained as `ftd-shun-api:rollback-selected-policy-20261021T1415` and
+`ftd-shun-web:rollback-selected-policy-20261021T1415`. Checked SQLite online backup
+`/var/lib/ftd-shun-manager/selected-policy-20261021T1415/before-update.sqlite3`,
+0700 directory/0600 file, integrity/FK checks pass, SHA-256
+`61337cabe96eb777d48963708ad3e52b99d9ac15afb6154b2007247746274770`.
+Schema SHA-256 `d1f2cc47eea097f9d873514cd448d173e9e24abaef37dbfb891436dc0d8f6132`
+and every row of twelve retained queue/policy tables match backup after rollout;
+the active executor lease is intentionally excluded from row equality.
+
+Running API `sha256:7bc1aab618ca5ccce4f4fb97453057835b3bca2c37b57c3bc6e34fc560992da4`,
+Web `sha256:52a21c6b3f54c174502a798b142f99f75932b789eddfd32bbf6cf6ec193c0f2e`.
+Agent unchanged at
+`sha256:bdd040aef2720ae80fe2caf90b715904ea60eef024ed594b52a74cdaf14a0b34`;
+Caddy/Authelia unchanged. API ready/socket, successful read 14:16:31Z/no error,
+12 VERIFIED/1 NOOP/no pending, registry revision 4/suspended/enabled managed 0.
+The live read-only selector smoke returns global total 1/selected count 0 for an
+absent TEST-NET/device selector, without creating any policy/observation/fixture.
+All six experimental flags/development auth remain false, addition profiles 0,
+optional import tables absent. Anonymous Web401, TLS-verified Caddy auth redirect302,
+API/Web network mode none and sole loopback443 published. No authenticated live
+form or policy mutation was submitted. Rollback may restore prior paired code,
+not earlier enabled database state; no database restoration/table deletion occurred.
+
+## 2026-10-21 — Whole standing-list selected reads
+
+Extended the bounded-read prerequisite to legacy standing-list preparation. A
+distinct fixed private `POST /api/v1/managed-shuns/selection/batch` accepts at most
+1000 literal distinct device/IPv4 selectors and optional exact managed revision.
+It returns a separate `selected_batch` marker, complete normalized requested
+membership, global totals and only existing selected entries. The original
+100-selector resource remains separately bounded and cannot substitute for it.
+
+One SQLite read transaction uses at-most-100-pair SQL/attempt/hold chunks and one
+reference time. Global orphan/partial-state refusal remains, including outside
+selection; a late chunk error returns no partial success. Concurrent retirement
+cannot combine early old rows and later new rows. Reads initialize no optional
+schema and write no policy, audit, hint, origin or executable work.
+
+The BFF now reads one complete selected batch, never a full registry, independent
+pages or individual API calls. It validates exact scope once, indexes entries
+once and derives exact one-pair views for existing target validation. Capacity
+uses the global retained count, including stopped/unselected keys; selected
+stopped keys consume no extra slot. Legacy all-or-nothing conflict/observed/
+protected refusal, identity/CSRF, frozen consent and final atomic admission/replay
+are unchanged. Adapted the existing uninitialized-response fixture to the new
+read route without weakening confirmation guards.
+
+Added synthetic maximum-scope/bounded-SQL/parity/restart/concurrent-read cases,
+global versus selected capacity, stopped-key reuse, retained attention, strict
+private fields, response substitution, late-chunk/partial-state refusal and
+actual BFF preparation with full snapshots forbidden. Existing batch admission,
+unknown replies, old-key replay, default-off and no-work cases remain.
+
+Validation: **1396 Python tests passed (81.24s)**, including 30 new batch-selection
+cases; focused batch/selection suite **73 passed (7.28s)**. Compileall/Ruff/diff
+pass and 173 changed-document local links/anchors are valid. The initial full run
+identified the strict route-inventory expectation, which was extended with only
+the new fixed read route; no-init and admission checks remain. The maximum fixture
+uses its actual protection revision, not an assumed zero. Final full run is clean.
+
+The built Python 3.12 candidate exercised 1000 synthetic retired/absent selected
+pairs through actual BFF/API/SQLite in a non-root, read-only/no-network container
+without lab mounts. Exactly one batch read, no whole snapshot, ten review pages,
+no queue jobs, unchanged dump and integrity OK. Browser templates/JavaScript/CSS,
+agent and Compose are unchanged; their separate suites were not rerun. Python
+dependency ranges are still not locked; this image used FastAPI 0.157.0 and the
+installed-code smoke is not a reproducibility claim.
+
+Authorized paired API/Web rollout completed on the existing lab. Prior images
+are retained as `ftd-shun-api:rollback-batch-selection-20261021T1500` and
+`ftd-shun-web:rollback-batch-selection-20261021T1500`. Checked online backup:
+`/var/lib/ftd-shun-manager/batch-selection-20261021T1520/before-update.sqlite3`,
+directory0700/file0600, integrity/FK checks pass, SHA-256
+`7ed7bdb06e8b929f7000f0ced62b897b548d471c3a2900994883f1df9849a1e7`.
+Schema SHA-256 (JSON `[type,name,tbl_name,sql]`, sorted by type/name, non-null SQL):
+`8fb2366cda91358441071b2e24f86fe6df949adccba8c8b984e81a9e63ca47cd`.
+This explicitly stated hash encoding differs from earlier log encodings; direct
+schema equality to this backup passes. All rows in twelve retained queue/policy
+tables match exactly; the active executor lease is intentionally excluded.
+
+Running API `sha256:10f81188b79c5c34afb77d160fab96dbaaa9e55ef0fdf461b564f50c7d2718f4`,
+Web `sha256:ac2039ba4c6851d60a98627d435b40ff77880287a8d574f38819e39f668f8fe2`.
+Agent remains `sha256:bdd040aef2720ae80fe2caf90b715904ea60eef024ed594b52a74cdaf14a0b34`;
+Caddy/Authelia unchanged. API ready/socket, ordinary successful read 15:20:33Z,
+no error, 12 VERIFIED/1 NOOP/no pending, registry revision4/suspended/enabled managed0.
+Read-only smoke selects two absent TEST-NET/device pairs: global total1, selected0,
+exact requested2/no-store, with no fixture creation. All six experimental flags
+and development auth remain false, addition profiles0, optional import tables
+absent. Anonymous batch form401, TLS-verified Caddy auth redirect302, API/Web network
+mode none and sole published loopback443. No live authenticated form was submitted.
+Rollback restores matching prior code, not old enabled database state; no database
+restoration, table deletion or optional migration occurred.
+
+No capacity/schema/agent/protocol/credential/Compose change, optional lab migration, feature activation
+or new FTD fixture is included. This is not 10,000-IP executable-import acceptance;
+versioned retained authority, retirement reserve, attempts/reports/cancellation
+capacity and rolling dispatch remain separate coordinated work.
+
+## 2026-10-21 — Version-2 large-import intent foundation
+
+Defined and implemented an isolated proposed-import format before changing the
+coupled live authority limits. The pure `bulk_intent` module streams a complete
+10000-address/ten-explicit-device/100000-pair classified manifest with a fixed
+domain-separated seven-byte record encoding. Strict numerical order, literal
+types, bounded distinct-address memory and full product/count checks refuse
+duplicates, missing cells, oversized streams and unknown classifications rather
+than truncating. Bind ADD/adoption/already-managed/protected exclusions exactly.
+
+The compact canonical descriptor fixes version2/scope/MAINTAIN/standing mode and
+binds separate operation/preparation UUIDs, original preparation digest, revisions,
+normalized metadata and the complete manifest summary. It is limited to 8192
+UTF-8 bytes with duplicate/unknown/noncanonical JSON refusal. Full verification
+requires the separately retained original digest and complete matching stream;
+neither a digest nor a constructible summary is authority or execution evidence.
+Existing canonical requests/hashes/limits and all original key meanings remain.
+
+An internal `ImportPreparations.propose_bulk_intent` read composes existing saved
+journals with the format in one snapshot. It checks full original integrity,
+owner, <=100-row scans, summary parity and expiry/clock before returning explicitly
+non-executable/no-policy/no-work metadata. Already confirmed/expired/cancelled
+preparations cannot become new-format proposals. Current observations/protection
+do not rebase its frozen scope or authorize anything. No root/key reservation,
+policy, schema, receipt, audit, origin, job or hint is written.
+
+Added independent fixed vectors, maximum accepted and mixed classified streams,
+bounded descriptor/working memory, exact order/product/typing/JSON/version refusal,
+tampering with unchanged aggregate counts, legacy canonical hash/limit preservation,
+actual 100000-pair journal composition, restart/owner/source privacy, expiry/clock,
+confirmed-legacy refusal and unchanged independent state. Documented the format,
+remaining coordinated persistence/reserve/attempt/report/cancellation transition
+and the fact that no runtime route/controller/maintenance accepts it yet.
+
+Validation: **1481 Python tests passed (85.19s)**, including **85 new format/journal
+tests**; focused run **85 passed (6.66s)**. The broader existing import/preparation/
+cancellation check passed **197 tests (14.59s)** before the final three refusal
+cases were added; the subsequent full run includes all final cases. Compileall,
+Ruff and diff pass; 226 changed-document local links/anchors are valid. The pure
+maximum-stream test checks <8 MiB traced working memory and <1500-byte descriptor
+for its synthetic metadata, not total process/SQLite memory or performance SLA.
+
+Built a separate `ftd-shun-capacity-check:v2-format-20261021` Python 3.12 validation
+image without changing deployment tags or running containers. Installed code in
+a non-root, read-only/no-network container with no lab mounts creates/reopens a
+100000-pair synthetic journal, builds and fully reverifies 100000 accepted pairs
+with a 694-byte descriptor, and repeats the same proposal after restart. Integrity/
+foreign-key checks pass; no managed/confirmed/cancellation policy schemas, queue
+jobs or audit events are created. Python dependency ranges remain unlocked;
+installed-code validation is not a reproducibility claim. Browser assets, Rust
+agent and Compose are unchanged; their separate suites were not rerun.
+
+No lab service restart/rollout, optional migration, live UDS/form/agent/provider
+request, gate/profile/inventory/credential change, fixture or device mutation was
+performed. The deployed API/Web remain the preceding selected-batch release;
+this unused foundation does not need a runtime update. Corrected the preparation
+module's stale pre-API docstring to describe its existing explicit-init boundary.
+
+This adds no SQL schema, configured capacity, binary RPC, feature gate,
+credential/network or deployed runtime caller.
+No lab restart/migration, new fixture or FTD request is needed or authorized.
+The format is not the persisted/executable 10000-IP release or storage/dispatch/
+throughput acceptance. Retain all old receipts/latches and define migration/
+older-writer rollback before version2 can become durable authority.
+
+## 2026-10-21 — Isolated version-2 SQLite policy persistence
+
+Implemented actual version-2 policy persistence rather than another preview.
+`BulkPolicies` commits the canonical actor-attributed request, independent original
+header/classified membership, effective device/IP policy and audit in one write
+transaction. It reuses existing target/request tables with a distinct suspended
+`managed_bulk_registry`, never a parallel effective-policy engine. Legacy readers
+refuse partial/unsupported state even below 1000 keys; the legacy initializer
+also refuses bulk objects instead of recreating a registry.
+
+Explicit empty initialization accepts only a fresh managed namespace under an
+ordinary pause with no lease/pending/uncertain work. It neither converts nor
+erases the retained lab state. The fixed profile supports 200000 retained keys,
+400000 immutable requests with the last 200000 reserved for actual revocation,
+128 roots and 1000000 retained members. Deferred membership foreign keys and a
+final count-checked immutable seal forbid partial roots or later member insertion.
+Savepoint composition rolls back even when an outer caller catches an error.
+
+An explicit preparation subclass reads the bulk profile; the normal runtime
+classifier does not fall back to it. Shared optional preparation confirmation
+lookup recognizes its retained roots only when bulk objects exist. The pure
+descriptor decoder was factored from full manifest verification without changing
+golden vectors or legacy canonicalization. No normal API/controller writer uses
+the new storage path or initializes its schema.
+
+Trusted internal confirmation requires explicit default-false capability, current
+Operator/Administrator, consent/count/profiles and exact source/manifest/revision/
+device/classification/generation checks. Any lease, pending/uncertain job or
+unsupported optional evidence refuses new authority. Adoption emits no ADD or
+fake occurrence provenance; already-managed generations keep original author/
+authority. Original-key retries return historical results after pruning/retirement/
+newer generations, never re-enable policy. Owner lists and 100-row immutable/current
+pages survive restart. Separate exact-revision policy retirement works in reserve
+and during admission pause, without REMOVE, job cancellation or uncertainty repair.
+
+Added synthetic fresh-profile/initialization rollback/legacy refusal, real-actor
+audit/adoption/exclusion, TTL/revision/device/work/identity/type/gate conflicts,
+outer-commit late failure, same-key concurrency, actual retirement reserve,
+uncertainty preservation, sealed/partial/corrupt scope, owner paging and a complete
+100000-pair persistence/restart/pruning/idempotency scenario with zero queue work.
+Documented developer-only scope, schema/backup/downgrade boundaries and integration
+work. The operator reiterated this is development/non-production; no per-step
+development approval ceremony or production rollout is added.
+
+Validation: **1522 Python tests passed (109.34s)**, including **41 new storage
+cases**. Initial storage-only suite: **29 passed (23.46s)** before the additional
+strict/quota/uncertainty/corruption cases; the final full run contains them all.
+Compileall/Ruff/diff pass; 235 changed-document local links/anchors are valid.
+
+Built the separately tagged Python 3.12 validation image
+`ftd-shun-capacity-check:v2-storage-20261021`, image
+`sha256:ad534534c5035f54ee962dc4c9626d660c2af7878de6746e69789f33b3d11a4b`.
+Installed code in a non-root, read-only/no-network container without lab mounts
+persists 100000 policy pairs/members, prunes the draft, restarts the coordinator,
+reads late 100-row receipt/current pages, retires one target and replays the
+original grant without re-enabling it. No jobs; integrity/FK and legacy-refusal
+checks pass. Only a synthetic temporary database was used. Browser assets, Rust
+agent and Compose are unchanged; their separate suites were not rerun. Python
+dependency ranges remain unlocked; image validation is not a reproducibility claim.
+
+No lab database/schema/fixture, live API/agent request, profile/gate/secret change
+or service restart is included. No SSH/provider operation or production change.
+The profile remains suspended and unconnected to HTTP/Web, protections/cleanup/
+cancellation/attempts or a dispatcher. Nonempty development migration and those
+version-aware integrations remain necessary before a usable executable release;
+storage success is not hardware throughput or production acceptance.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

@@ -50,6 +50,8 @@ class ManagedShuns:
     def initialize(self, *, connection=None) -> None:
         """Add empty tables only; never adopt observations, old imports or jobs."""
         with schema_connection(self.store, connection) as db:
+            if db.execute("SELECT 1 FROM sqlite_master WHERE name GLOB 'managed_bulk_*' LIMIT 1").fetchone():
+                raise ManagedConflict("Bulk-profile storage cannot be initialized or repaired as a legacy registry.")
             execute_schema(db, """
                 CREATE TABLE IF NOT EXISTS managed_shun_registry (
                     id INTEGER PRIMARY KEY CHECK(id=1),
@@ -364,6 +366,68 @@ class ManagedShuns:
         return {**({"initialized": True} if if_present else {}),
                 "revision": state["revision"], "restoration_suspended": bool(state["restoration_suspended"]),
                 "limit": MAX_MANAGED_TARGETS, "entries": self._entries(rows, restoration, holds)}
+
+    def selection(self, pairs, *, revision=None, restoration_context=None, restoration_now=None):
+        """One consistent read of at most 100 explicit pairs, not all policy."""
+        return self._selection(pairs, revision=revision, restoration_context=restoration_context,
+                               restoration_now=restoration_now, batch=False)
+
+    def batch_selection(self, pairs, *, revision=None, restoration_context=None, restoration_now=None):
+        """One read transaction for a complete legacy batch, in <=100-pair SQL chunks.
+
+        This is not a collection of independently read pages or new authority.
+        The 1000-pair batch contract remains separate from single-pair selectors.
+        """
+        return self._selection(pairs, revision=revision, restoration_context=restoration_context,
+                               restoration_now=restoration_now, batch=True)
+
+    def _selection(self, pairs, *, revision, restoration_context, restoration_now, batch):
+        from .managed_discovery import describe
+        from .managed_restoration import read_scope, snapshot_targets
+        from .managed_selection import selected_pairs
+        from .operation_queue import OperationQueue
+
+        pairs = selected_pairs(pairs, batch=batch)
+        if revision is not None and (type(revision) is not int or revision < 0):
+            raise ManagedPageInvalid("Managed revision must be a non-negative integer.")
+        with self.store._connection() as db:
+            db.execute("BEGIN")
+            state = managed_state(db)
+            current = state["revision"] if state else 0
+            if revision is not None and revision != current:
+                raise ManagedPageChanged("Managed policy changed. Review the current exact selection again.")
+            total = db.execute("SELECT COUNT(*) FROM managed_shun_targets").fetchone()[0] if state else 0
+            entries = []
+            if state is not None:
+                # Preserve global integrity checks: a selected read cannot hide
+                # orphaned authority elsewhere in the registry.
+                if db.execute("""SELECT 1 FROM managed_shun_targets m
+                    LEFT JOIN devices d ON d.id=m.device_id
+                    LEFT JOIN managed_shun_requests r ON r.id=m.authorization_request_id
+                    WHERE d.id IS NULL OR r.id IS NULL LIMIT 1""").fetchone():
+                    raise ManagedConflict("Managed target is missing its device or retained authority.")
+                now = restoration_now or OperationQueue(self.store)._now()
+                for start in range(0, len(pairs), 100):
+                    raw_pairs = [(device, ip.packed) for device, ip in pairs[start:start + 100]]
+                    cte, parameters = read_scope(raw_pairs)
+                    rows = db.execute(cte + """SELECT m.*,d.hostname,d.enabled AS device_enabled,
+                        r.actor_subject,r.actor_display_name,r.actor_roles_json,r.payload_json,
+                        EXISTS(SELECT 1 FROM shun_state s WHERE s.device_id=m.device_id AND s.ip=m.ip AND s.active=1) AS observed_present,
+                        EXISTS(SELECT 1 FROM protected_ips p WHERE p.ip=m.ip AND p.enabled=1) AS protected
+                        FROM managed_shun_targets m JOIN selected x ON x.device_id=m.device_id AND x.ip=m.ip
+                        JOIN devices d ON d.id=m.device_id JOIN managed_shun_requests r ON r.id=m.authorization_request_id
+                        ORDER BY m.device_id,m.ip LIMIT 100""", parameters).fetchall()
+                    restoration = snapshot_targets(db, pairs=raw_pairs)
+                    holds = describe(db, rows, restoration_context, now, scoped=True) if restoration_context is not None else {}
+                    entries.extend(self._entries(rows, restoration, holds))
+            return {"initialized": state is not None, "revision": current,
+                    "restoration_suspended": bool(state["restoration_suspended"]) if state else True,
+                    "limit": MAX_MANAGED_TARGETS, "total": total,
+                    "read_scope": "selected_batch" if batch else "selected_pairs", "read_only": True,
+                    "controller_available": restoration_context is not None,
+                    **({"controller_enabled": restoration_context.enabled} if restoration_context is not None else {}),
+                    "selection": [{"device_id": device, "ip": str(ip)} for device, ip in pairs],
+                    "selected_count": len(entries), "entries": entries}
 
     def page(self, page=1, *, revision=None, restoration_context=None, restoration_now=None):
         """Read 100 policy rows and only their summaries in one SQLite snapshot.

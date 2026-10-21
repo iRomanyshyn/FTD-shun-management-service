@@ -82,6 +82,29 @@ class ManagedGrantRequest(ManagedRetirementRequest):
         return value
 
 
+class ManagedSelectionTarget(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    device_id: int = Field(strict=True, ge=1, le=65535)
+    ip: IPv4Address
+
+    @field_validator("ip", mode="before")
+    @classmethod
+    def canonical_ip(cls, value):
+        if not isinstance(value, str) or str(IPv4Address(value)) != value:
+            raise ValueError("Policy selectors require exact canonical IPv4 strings.")
+        return value
+
+
+class ManagedSelectionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    targets: list[ManagedSelectionTarget] = Field(min_length=1, max_length=100)
+    revision: int | None = Field(default=None, strict=True, ge=0)
+
+
+class ManagedBatchSelectionRequest(ManagedSelectionRequest):
+    targets: list[ManagedSelectionTarget] = Field(min_length=1, max_length=1000)
+
+
 class PreparedImportInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
     actor: ManagedControlActor
@@ -348,6 +371,31 @@ def create_app(
             raise HTTPException(422, str(error)) from error
         except (sqlite3.DatabaseError, ValueError, TypeError, KeyError) as error:
             raise HTTPException(503, "Managed policy page is unavailable; no policy was changed.") from error
+
+    @app.post("/api/v1/managed-shuns/selection")
+    def managed_selection(selection: ManagedSelectionRequest) -> dict:
+        return read_managed_selection(selection, batch=False)
+
+    @app.post("/api/v1/managed-shuns/selection/batch")
+    def managed_batch_selection(selection: ManagedBatchSelectionRequest) -> dict:
+        return read_managed_selection(selection, batch=True)
+
+    def read_managed_selection(selection, *, batch):
+        from .managed_selection import selected_pairs
+
+        try:
+            pairs = selected_pairs([(target.device_id, target.ip) for target in selection.targets], batch=batch)
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from error
+        try:
+            reader = managed.batch_selection if batch else managed.selection
+            return reader(pairs, revision=selection.revision,
+                          restoration_context=synchronizer.managed_discovery.context,
+                          restoration_now=synchronizer.queue._now())
+        except ManagedPageChanged as error:
+            raise HTTPException(409, str(error)) from error
+        except (sqlite3.DatabaseError, ValueError, TypeError, KeyError) as error:
+            raise HTTPException(503, "Selected policy is unavailable; no policy was changed.") from error
 
     @app.get("/api/v1/managed-removal-scope/{ip}")
     def managed_removal_scope(ip: IPv4Address) -> dict:

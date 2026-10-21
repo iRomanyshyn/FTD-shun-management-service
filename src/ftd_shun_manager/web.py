@@ -37,6 +37,7 @@ from .managed_grant_review import ManagedGrantReviews
 from .managed_import_web import register_import_web
 from .managed_retirement_review import ManagedRetirementReviews
 from .managed_review import ManagedRemovalReviews, validate_removal_receipt
+from .managed_selection import require_selection
 
 PROJECT_ROOT = Path(os.environ.get("FTD_SHUN_ASSET_ROOT", Path(__file__).resolve().parents[2]))
 templates = Jinja2Templates(directory=str(PROJECT_ROOT / "templates"))
@@ -134,6 +135,23 @@ def protected_policy_ips(refresh: object, *, enabled: bool = True) -> frozenset[
         for entry in entries
         if isinstance(entry, dict) and isinstance(entry.get("ip"), str)
     )
+
+
+def selected_policy_response(client, device_id, ip):
+    """Never accept a whole view/page as an exact private-read response."""
+    return selected_policy_read(client, [(device_id, ip)], batch=False)
+
+
+def selected_policy_read(client, pairs, *, batch):
+    """The complete batch is read once, never assembled from drifting pages."""
+    path = "/api/v1/managed-shuns/selection/batch" if batch else "/api/v1/managed-shuns/selection"
+    response = client.post(path, json={"targets": [{"device_id": device, "ip": str(ip)} for device, ip in pairs]})
+    if response.status_code == 200:
+        value = response.json()
+        if not isinstance(value, dict) or value.get("read_scope") != ("selected_batch" if batch else "selected_pairs"):
+            raise ValueError("Exact selected-policy response is unavailable.")
+        require_selection(value, pairs, batch=batch)
+    return response
 
 
 def refresh_metadata(refresh: object) -> dict[str, object]:
@@ -570,8 +588,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             parsed = parse_standing_list(text, selected)
             with api_client(settings) as client:
                 status_response = client.get("/api/v1/status")
-                policy = client.get("/api/v1/managed-shuns")
+                pairs = [(device, IPv4Address(ip)) for device in selected for ip in parsed["ips"]]
+                policy = selected_policy_read(client, pairs, batch=True)
                 classification = client.post("/api/v1/import-preview", json={"ips": parsed["ips"], "device_ids": selected})
+            if policy.status_code == 409:
+                raise ReviewUnavailable("Managed policy changed. Review the complete list again; nothing was saved.")
             if classification.status_code == 422:
                 raise ReviewUnavailable("Select currently enabled configured devices; no scope was prepared.")
             if any(response.status_code != 200 for response in (status_response, policy, classification)):
@@ -681,7 +702,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         try:
             with api_client(settings) as client:
                 state = client.get("/api/v1/status")
-                policy = client.get("/api/v1/managed-shuns")
+                policy = selected_policy_response(client, device, ip)
                 classification = client.post("/api/v1/import-preview", json={"ips": [str(ip)], "device_ids": [device]})
             if classification.status_code == 422:
                 raise ReviewUnavailable("Select one enabled configured device; no standing review was prepared.")
@@ -766,7 +787,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         try:
             raw_device, raw_ip = fields.get("target", [""])[0].split(":")
             device_id, ip = int(raw_device), IPv4Address(raw_ip)
-            if raw_device != str(device_id):
+            if raw_device != str(device_id) or not 1 <= device_id <= 65535:
                 raise ValueError("Non-canonical device ID")
         except ValueError as error:
             raise HTTPException(422, "Choose an exact managed device and IPv4 address.") from error
@@ -776,7 +797,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def prepare_retirement_review(request, identity, device_id, ip, reason):
         try:
             with api_client(settings) as client:
-                policy = client.get("/api/v1/managed-shuns")
+                policy = selected_policy_response(client, device_id, ip)
                 refresh = client.get("/api/v1/status")
             if policy.status_code != 200 or refresh.status_code != 200:
                 raise httpx.RequestError("Policy state unavailable")
@@ -891,7 +912,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         try:
             raw_device, raw_ip = fields.get("target", [""])[0].split(":")
             device_id = int(raw_device)
-            if raw_device != str(device_id):
+            if raw_device != str(device_id) or not 1 <= device_id <= 65535:
                 raise ValueError("Non-canonical device ID")
             ip = IPv4Address(raw_ip)
         except ValueError as error:
@@ -903,7 +924,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         try:
             with api_client(settings) as client:
                 refresh = client.get("/api/v1/status")
-                policy = client.get("/api/v1/managed-shuns")
+                policy = selected_policy_response(client, device_id, ip)
             if refresh.status_code != 200 or policy.status_code != 200:
                 raise httpx.RequestError("Managed review state unavailable")
             review = managed_reviews.prepare(
