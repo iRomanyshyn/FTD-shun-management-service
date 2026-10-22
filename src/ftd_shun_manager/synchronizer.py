@@ -115,6 +115,7 @@ class Synchronizer:
         self._last_retention_attempt_at: float | None = None
         self._last_retention_purge: str | None = None
         self._last_retention_error: str | None = None
+        self._stop_mutations = False
 
     async def start(self) -> None:
         if not self.enabled or self._task is not None:
@@ -392,7 +393,7 @@ class Synchronizer:
         failures = 0
         successful_devices = 0
         self._last_error = None
-        devices = self.store.list_devices()
+        devices = self._collection_devices()
         if not self._mutations_blocked:
             try:
                 discovery = self.bulk_discovery if self.bulk_dispatch_enabled else self.managed_discovery
@@ -491,6 +492,10 @@ class Synchronizer:
             "success" if failures == 0 else "partial" if successful_devices else "failed"
         )
 
+    def _collection_devices(self):
+        """The serial collector visits the inventory; scoped workers override this."""
+        return self.store.list_devices()
+
     def _publish_snapshot(self, device_id: int, snapshot) -> None:
         self.store.reconcile_snapshot(device_id, [(entry.ip, entry.interface) for entry in snapshot])
         self.queue.reconcile_unknown(device_id, {entry.ip for entry in snapshot})
@@ -540,6 +545,8 @@ class Synchronizer:
             self._admit_trusted(device_id, sorted({entry.ip for entry in snapshot
                                if entry.ip in allowed}, key=int))
             for _ in range(0 if self._mutations_blocked else MAX_CYCLE_MUTATIONS):
+                if self._stop_mutations:
+                    break  # Finish the session, never interrupt an operation/verification.
                 if self._priority_pending and not self._priority_used:
                     self._priority_pending = False
                     last = self._device_success_at.get(device_id)

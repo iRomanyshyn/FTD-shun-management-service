@@ -4494,3 +4494,55 @@ and fail closed on partial state. Keep checked SQLite-safe backup and matching
 code/configuration; never drop lease attention or restore enabled policy to force
 an older writer or downgrade. Runtime/agent coordination and multi-device FTD
 acceptance remain separately gated, with live configuration unchanged.
+
+## Internal parallel device-round coordinator — 2026-10-22
+
+Compose the existing fenced profile with actual semantic sessions in an internal,
+default-disabled ParallelSynchronizer. Do not add automatic startup/GET migration,
+API/environment/Web activation or lab writes. Preserve deployed serial behavior.
+Each worker owns an isolated Synchronizer context, token-bound shared queue and
+discovery state; never share mutable active-device/cycle/error state across FTDs,
+project a device owner into the global row or introduce a second job executor.
+
+Validate the exact profile and complete configured inventory scope before claims:
+no missing/out-of-scope enabled device or ADD profile, and explicitly supplied
+agent capacity must cover the immutable lease limit. Bound active sessions by
+both local slots and transactional device leases; at most ten tasks may wait.
+Slow/failed devices must not stall healthy devices in other slots. Retain source
+actors, original policy/attempt identity and every typed verification/result hook.
+
+Freeze a cutoff per device after token acquisition and before initial read.
+Discovery from complete initial/priority/final reads may admit at most 16 jobs and
+check at most 64 policy rows per device session, with a 16-unfinished-job window.
+Across ten devices this is at most 160 admissions/640 checks per round, still
+subject to existing global queue/journal capacity. This scoped budget replaces
+only the serial collector's global cycle budget in the new coordinator. Retain
+the 16-mutation agent/session cap, authority/freshness/backoff/uncertainty checks
+and original cutoff semantics; new discovery waits for a later round.
+
+Ordinary completion releases only that token after RPC/session settlement, without
+using/resetting the legacy global read cooldown. Caller cancellation requests
+orderly drain: stop waiting workers and new mutations/discovery, await the current
+operation with verification and session completion, then release its slot/fence.
+Repeated cancellation joins the same drain. Never cancel a to_thread await and
+treat that as RPC termination. Require the configured bounded RPC deadline to fit
+the 5..240-second operation bound; renew leases with that bound plus 30 seconds,
+not manual-read spacing. Callers must drain before event-loop shutdown.
+
+Any failed RPC retains its lease, even an initial/final read; timeout/rejection is
+not remote-quiescence proof or permission to reconnect. Keep known earlier typed
+results, original unknown/late outcomes and immutable expiry ATTENTION. Unexpected
+worker failure retains the fence. Forced internal/event-loop cancellation marks
+the coordinator broken and refuses replacement rounds in-process. Other devices'
+completed results and retained authority remain independent. Local detached status
+does not recover leases or claim successful Web freshness.
+
+This is a callable internal round, not continuous background dispatch, independent
+baseline/manual deadlines, coalesced browser demand, urgent REMOVE ordering or
+automatic uncertainty recovery. Retention remains with the owning service, not
+competing device workers. Matching real agent pool/END guard-release settlement,
+legacy migration and end-to-end Web/FTD acceptance still require coordinated work
+and scoped activation. No new DDL/backup/rollout was needed; preserve compatible
+code/checked SQLite-safe backup before eventual approved migration and never
+erase fences, uncertainty or disabled authority to downgrade. See
+[Parallel Device Rounds](manual/parallel-rounds.md).

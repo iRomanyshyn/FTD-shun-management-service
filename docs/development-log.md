@@ -6063,6 +6063,56 @@ proof, parallel Synchronizer integration, independent read timing/continuous
 dispatch, concurrent policy/cleanup and legacy conversion/Web activation remain
 separate next work. No simultaneous-FTD or production acceptance is claimed.
 
+## 2026-10-22 — Actual bounded parallel sessions over fenced device queues
+
+Added a default-disabled internal ParallelSynchronizer round coordinator, not an
+API/startup/environment selector. It validates exact existing sealed inventory
+scope and declared matching agent capacity before any claim/RPC. Independent
+Synchronizer contexts reuse the actual semantic collector, typed session/results,
+shared job/attempt journal, protected removal and exact deferral paths. The only
+serial-collector changes are a device-selection hook and stop-at-next-mutation
+checkpoint. Legacy scheduling/cooldown behavior is unchanged. No second job
+executor, fabricated actor or global-owner projection is used.
+
+Local session slots and transactional fences bound active work; a slow device
+does not block others. Per-device cutoffs freeze before initial read; fresh-read
+discovery admits at most 16 jobs/checks 64 rows per device session with the existing
+16-job unfinished window and global capacity. New discovery waits for a subsequent
+round. Persistent in-memory cursor hints remain non-authoritative. Successful
+rounds release device leases independently from the legacy global read cooldown;
+there is no new automatic background loop or independent poll deadline yet.
+
+Public cancellation requests drain rather than cancelling to_thread: retain the
+current RPC/verification and session-completion slot, stop waiting devices and
+new mutations/discovery, settle typed results, then rethrow cancellation. Repeated
+cancellation joins the same drain. RPC failures retain the fence even on read-only
+work; expiry uses original device-only uncertainty/immutable attention, never
+stealing or replay. Final-read failure preserves earlier verified results; late
+results cannot override expired fences. Forced internal/event-loop cancellation
+marks the coordinator broken instead of spinning/admitting replacement RPCs.
+Declared RPC bounds must fit the operation limit; orderly shutdown must be awaited
+before event-loop closure. Detached local status never performs recovery or
+claims successful Web freshness. Individual workers do not race retention passes.
+
+Added 30 disposable runtime cases: real blocking fake-RPC overlap/quota, healthy
+device progress, scope/capacity refusal without writes, actual shared ADD/protected
+REMOVE outcomes and original source preservation, exact deferral, failed open/
+ADD/final read, lease expiry, repeated cancellation during open/ADD and forced
+shutdown holds. Focused new/lease/serial-refill suite: **109 passed (12.33s)**.
+Full Python suite: **1847 passed (195.89s)**. Compileall, Ruff, diff and all **213
+changed/new-document local links/anchors** pass. Rust, browser assets and Compose
+are unchanged in this increment; their separate suites were not rerun. Architecture,
+structured runtime/lease/development manuals, working plan and status updated.
+
+No optional DDL/migration, lab policy/fixture/gate/profile, credential/inventory,
+agent/wire/Compose/network, image rollout, service restart or FTD operation changed.
+No live backup/restore was needed. Preserve a checked SQLite-safe backup and
+matching code/configuration before any separately approved migration; never erase
+fences/uncertainty or revive policy to downgrade. Actual agent END/device-guard
+settlement, continuous service dispatch/read-demand timing, urgent REMOVE/Web
+integration, automatic quiescence-backed convergence and legacy activation remain
+next. No simultaneous-FTD, throughput or production acceptance is claimed.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

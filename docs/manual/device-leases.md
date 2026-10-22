@@ -1,7 +1,8 @@
 # Fenced Per-Device API Leases
 
-Status: implemented optional lease/queue profile on disposable development state,
-not a parallel Synchronizer release or activation procedure. No lab migration,
+Status: implemented optional lease/queue profile on disposable development state.
+An internal [parallel round coordinator](parallel-rounds.md) now composes these
+primitives with actual sessions; there is no background/API activation procedure. No lab migration,
 feature gate, environment value, schema, service or FTD operation was changed.
 The deployed serial profile remains supported without implicit conversion.
 
@@ -47,7 +48,7 @@ capacity pressure, a new owner or disabling the device cannot resolve it.
 No release/rearm/HTTP decision route exists in this component.
 
 An expired lease converted to ATTENTION is no longer a valid LEASED owner, but
-that does **not** prove its old RPC has stopped. A future coordinator must still
+that does **not** prove its old RPC has stopped. A coordinator must still
 bound outstanding local tasks and agent slots and obtain quiescence evidence;
 do not treat a free lease quota as permission for unlimited replacement RPCs.
 The automatic evidence-based recovery contract remains separate work.
@@ -81,7 +82,7 @@ these optional tables or unpause/resume anything. There is no activation CLI,
 `.env` setting or Web route for this profile yet. Synthetic initialization and SQL
 activation in tests are not a lab runbook or authorization.
 
-## Shared behavior and remaining runtime integration
+## Shared behavior and runtime integration
 
 Bulk admission/discovery use the same scoped executor selector as queue claims
 and results. Current intent/generation, protected policy, fresh complete absence,
@@ -92,10 +93,12 @@ immutable wait settlement. Legacy global profiles keep their existing behavior.
 The global executor row remains the mutation-pause/revision/legacy metadata
 source, but it is never temporarily populated with a device's owner. Its old
 read cooldown is preserved, neither copied into each device nor erased to speed
-up work. Per-device baseline/manual-read timing, independent worker lifecycle,
-interactive priority, bounded session refill and continuous dispatch still need
-the actual parallel scheduler integration. No current Synchronizer automatically
-switches to this profile or runs a device queue in the background.
+up work. The internal [parallel coordinator](parallel-rounds.md) now provides
+independent worker/session lifecycles and per-device bounded refill over these
+queues, including cancellation drain without releasing an outstanding RPC slot.
+Per-device baseline/manual-read timing, interactive priority and continuous
+background dispatch still need service integration. No current service startup
+automatically switches to this profile or runs a device queue in the background.
 
 ## Backup, rollback and validation
 
@@ -119,5 +122,5 @@ competition, reused-nonce epoch fences, wrong-device/late ADD/REMOVE/deferral,
 original-source preservation, explicit/schema/audit rollback, expiry/unknown wait
 settlement, read-only attention/retention/restart, missing evidence, current
 protection/cancellation, independent global cooldown and strict configuration.
-No runtime worker, real FTD, SSH credential or lab inventory is used. These are
+The lease suite uses no runtime worker, real FTD, SSH credential or lab inventory. These are
 coordination tests, not simultaneous-FTD or production acceptance.

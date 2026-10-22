@@ -15,6 +15,37 @@ priority. See [the planned constraints](working-version-plan.md#deferred-ip-cont
 
 ## Current increment
 
+**Actual fenced parallel device rounds (2026-10-22).** An internal default-disabled
+coordinator now runs independent Synchronizer contexts through actual semantic
+sessions and the existing shared queue/typed result journal. Sealed device scope,
+explicit matching agent capacity, local slots and transactional fences bound
+concurrency; a slow FTD does not block healthy devices in other slots. Each device
+has separate cycle/error/read/discovery state and a pre-read cutoff. Refill remains
+bounded to 64 checks/16 admissions and 16 unfinished jobs per device/session;
+existing global queue/journal limits remain. No second executor/global projection.
+
+Caller cancellation drains current RPC/verification/session completion, stops
+waiting devices and further mutations/discovery, then releases eligible leases.
+Repeated cancellation cannot free a still-running RPC slot. RPC failure retains
+the device fence for immutable expiry attention; verified earlier results survive
+later read failure, and lost/late ADD replies cannot become guessed success or
+replay. Forced internal shutdown refuses further rounds in-process. Read-only
+local status is detached and does not claim Web freshness.
+
+This is not yet a service background loop: independent baseline/manual demand,
+continuous dispatch/urgent REMOVE scheduling, Web aggregation, transport slot-
+settlement proof and automatic uncertainty recovery remain next. No API/env/Web
+selector, migration or lab activation. Existing serial service, agent, Compose,
+gates/profiles, secrets/inventory and FTD remain unchanged. See
+[Parallel Device Rounds](manual/parallel-rounds.md). Validation: **109 focused
+cases passed (12.33s)**, including **30 new runtime cases**. Full regression and
+static validation: **1847 passed (195.89s)**; compileall, Ruff, diff and all **213
+changed/new-document local links/anchors** pass. Rust, browser assets and Compose
+are unchanged in this increment; their separate suites were not rerun. No image
+rollout, live migration, service or multi-FTD acceptance was performed.
+
+### Previous fenced-lease checkpoint
+
 **Fenced per-device API leases/shared queues (2026-10-22).** Added an explicit
 optional profile with sealed 1–10-device scope and 1–10 simultaneous owner limit
 (developer default four). Each claim has a canonical nonce, increasing epoch and

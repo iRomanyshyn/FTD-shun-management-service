@@ -52,6 +52,7 @@ not a runbook or permission to change gates, initialize schemas or run new fixtu
 | [Agent Cycle Protocol](agent-cycle-protocol.md) | Experimental bounded single-session removal/checkpoint protocol, feature gate, limits, and lab/rollback procedure. |
 | [Agent Connection Concurrency](agent-concurrency.md) | Opt-in bounded connection workers, device/address guards, fail-closed saturation and unchanged wire/gates; not yet parallel API scheduling. |
 | [Fenced Device Leases](device-leases.md) | Explicit optional per-device owner/epoch/deadline profile, shared queue fencing, retained expiry attention and legacy-writer exclusion; no runtime/lab activation. |
+| [Parallel Device Rounds](parallel-rounds.md) | Default-disabled actual bounded device sessions, shared typed queue/results and cancellation drain; no background/API/lab activation. |
 | [Large Snapshots](large-snapshots.md) | Default-off versioned multi-frame reads, complete-snapshot checks, console/transfer budgets and lab rollout/rollback. |
 | [FTD Laboratory Validation](ftd-lab-validation.md) | Controlled agent, snapshot, and parser-fixture validation. |
 | [Addition Readiness](addition-lab-validation.md) | Current snapshot-capacity blocker and staged Basic-account, one-address direct-CLI validation before ADD design. |

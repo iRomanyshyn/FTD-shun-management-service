@@ -64,10 +64,14 @@ Fenced per-device API lease/queue primitives are now implemented on an explicitl
 initialized optional developer profile (2026-10-22): immutable configured scope,
 concurrent owner limit, increasing epochs, live-deadline checks across shared
 admission/claim/results and retained expiry attention without stealing. Global
-writers are excluded. The parallel Synchronizer loop, independent read timing,
-continuous dispatch and automatic quiescence-backed recovery are still pending;
+writers are excluded. An internal default-disabled parallel round coordinator now
+runs actual independent bounded sessions/shared queue results and drains current
+RPCs on cancellation. Independent read timing, continuous background dispatch,
+API/Web integration and automatic quiescence-backed recovery are still pending;
 no profile or worker is activated by startup or deployed environment settings.
 See [Fenced Device Leases](manual/device-leases.md).
+See [Parallel Device Rounds](manual/parallel-rounds.md) for the implemented runner,
+per-device discovery budgets, shutdown guarantees and remaining activation gaps.
 
 ## 3. Bulk import and cancellation
 

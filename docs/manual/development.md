@@ -1,5 +1,18 @@
 # Development Manual
 
+## Parallel device-round regression checks
+
+`tests/test_parallel_synchronizer.py` runs the existing semantic collector with
+independent fenced workers, disposable bulk journals and bounded blocking fake
+RPC threads. Check actual overlap/quota and healthy-device progress, exact
+scope/capacity refusal, original roots and typed ADD/protected REMOVE results,
+deferral, lost/final/late responses, repeated cancellation and forced internal
+shutdown. Await orderly cancellation before closing the event loop. No FTD,
+credentials, Docker, optional live migration or gate activation is used. The
+internal coordinator has no startup/environment/Web selector; continuous dispatch,
+independent read timing and transport settlement remain follow-up work. See
+[Parallel Device Rounds](parallel-rounds.md).
+
 ## Isolated version-2 SQLite policy tests
 
 `tests/test_bulk_policy.py` exercises actual 100000-pair policy/manifest persistence,
