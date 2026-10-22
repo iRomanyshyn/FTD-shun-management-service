@@ -313,9 +313,20 @@ Implementation order:
 The [isolated version-2 SQLite component](manual/bulk-policy-storage.md) now
 implements actual root/membership/effective-policy persistence, owner recovery,
 100-row reads and a positive retirement reserve on a fresh suspended development
-profile. It deliberately blocks legacy services; no live profile or API limits
-were changed. Nonempty conversion and version-aware protection/cleanup/
-cancellation/attempt/dispatch integration remain prerequisites for exposure.
+profile. It deliberately blocks legacy managed services; no live profile or API
+limits were changed. The existing protection coordinator now supports narrow
+version-aware permanent revocation/weakening barriers (2026-10-22), without
+enabling runtime imports. Version-2 pre-execution cancellation and local progress/
+bounded candidate portions are also implemented (2026-10-22), without queue
+admission; see [their explicit limits](manual/bulk-cancellation-and-work.md).
+An optional bulk result journal now connects retained original evidence to shared
+completion/lease/retention hooks, without claim/admission or dispatch activation.
+Nonempty conversion, version-aware cleanup/atomic attempt claims and actual
+dispatch remain prerequisites for runtime exposure.
+A separately explicit captured-cancellation profile now handles owned in-flight
+settlement/completed-application retention while preserving earlier receipts.
+Atomic runtime admission/claim, actual dispatch and automatic reconciliation still
+remain unavailable; no live profile or fixture was activated by that integration.
 
 The isolated [version-2 format foundation](manual/bulk-import-capacity.md) now
 binds a complete 100000-pair classified manifest in a small canonical descriptor,

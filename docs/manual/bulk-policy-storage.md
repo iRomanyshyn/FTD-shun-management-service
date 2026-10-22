@@ -9,9 +9,11 @@ merely a saved preview. It does **not** execute commands, enqueue jobs, resume
 restoration or expose HTTP/Web admission. The current lab still uses the previous
 legacy profile; no production deployment is involved.
 
-The component deliberately uses a distinct, suspended storage profile. Existing
-services cannot safely interpret the new roots yet and refuse this profile even
-when it contains only one target. Do not start the old application against a
+The component deliberately uses a distinct, suspended storage profile. Legacy
+managed readers/writers cannot safely interpret the new roots yet and refuse this
+profile even when it contains only one target. The current Protected-IP coordinator
+has a narrow version-aware read/revocation integration described below; this is
+not general runtime compatibility. Do not start an old application against a
 version-2 test database or expect its maintenance commands to resume it.
 
 See [the format](bulk-import-capacity.md) and [working-version plan](../working-version-plan.md).
@@ -44,6 +46,18 @@ partial/unsupported state instead of assuming that a small version2 database is
 legacy-compatible. The current legacy initializer also explicitly refuses bulk
 objects instead of recreating a second registry. No startup/GET initializes or
 repairs this profile.
+
+The optional [bulk cancellation extension](bulk-cancellation-and-work.md) adds two
+explicitly initialized, immutable decision/member tables under ordinary pause and
+quiescence. Current readers recognize either exact profile, never partial or legacy
+cancellation state. Older version-2 code refuses the extended profile. This is not
+a nonempty legacy conversion or execution activation.
+An optional [attempt result journal](bulk-attempt-journal.md) is now recognized
+after cancellation controls. It preserves suspended policy and original receipts,
+supports only evidence/shared-result hooks and does not admit or dispatch work.
+A separately explicit [captured-cancellation profile](bulk-captured-cancellation.md)
+now retains original cancellation receipts while adding owned-result waits and
+immutable settlement. It still does not make the registry executable.
 
 ## Capacity and retirement reserve
 
@@ -107,6 +121,49 @@ cancellation follows. Missing members reject the entire retirement. Original-key
 replay is observational. A later explicit grant needs a new reviewed generation;
 pending/uncertain work still blocks it.
 
+## Protected IPs: permanent revocation
+
+The existing `ProtectedPolicy.snapshot/change` coordinator and its current private
+API routes now recognize exact version-2 storage for protection only. They do not
+initialize it, enable imports/restoration, submit a job or call the agent. Managed
+runtime readers, cleanup, attempts and dispatch still refuse this profile.
+
+Every authenticated editor retains the existing protection authority, including
+users without an application role. Save the reviewed Protected-IP and managed
+revisions; a changed revision or an unreviewed nonempty retirement scope conflicts.
+Enabling protection stops all matching enabled device/IP policies in the same
+transaction, including targets without observations and on disabled devices.
+Original intent/generation/root authority remain; the bulk revision advances once
+and per-device retirement events share the protection event's actual actor and
+request ID. No immutable request-ledger slot is consumed, so ordinary suspension
+or a full ledger does not prevent this fixed revocation.
+
+Existing queue hooks reject unsent ordinary ADDs and cancel obsolete protected
+removal intentions after weakening. RUNNING work and original unknown outcomes
+are not interrupted or relabelled; an independently coalesced manual removal stays
+active. This bulk profile still refuses optional legacy restoration/cleanup/
+cancellation schemas; only its separately recognized version-2 cancellation
+extension is supported. Integration never approximates this by ignoring evidence.
+Protection saves do not perform synchronous FTD removal or prove an unblock.
+
+Disable/delete never re-enables the retired generation. Retrying the original
+import only reads its historical result; a later grant requires new explicit
+consent and current classification after protection is disabled. Metadata edits
+or deletion of an already-disabled protection entry do not revoke a later,
+explicitly authorized generation.
+
+Partial/mixed/unsupported storage is unknown, not zero. Strengthening remains
+possible and durably stores enabled protection with deferred-retirement audit.
+Disabling/deleting that barrier is refused until state is repaired and a reviewed
+save can finish retirement before releasing it. Reads/restarts do not repair or
+retire policy. The identity scan uses at most 100 rows per Python chunk, not a
+whole-registry list. Failed retirement, cancellation or final policy audit rolls
+back the entire save, including both revisions and any unsent-job changes.
+
+See [Protected IPs](protected-ips.md) for existing UI, authentication, conflict,
+audit and weakening behavior. This is backend compatibility work, not permission
+to change the current lab profile or submit a new fixture.
+
 ## Initialization, backup and rollback
 
 There is intentionally no migration CLI, runtime profile switch or live runbook
@@ -132,17 +189,29 @@ The existing recovery tools describe their legacy profile, not this new one.
 
 ```bash
 python3 -m pytest -q tests/test_bulk_policy.py tests/test_bulk_intent.py tests/test_bulk_preparation_intent.py
+python3 -m pytest -q tests/test_bulk_protection.py tests/test_managed_protection.py tests/test_protected_policy.py
 ```
 
 Disposable SQLite tests cover real 100000-pair policy persistence, paged reads,
 restart/draft pruning, same-key concurrency, source/classification conflicts,
 adoption/exclusions, immutable sealing, late rollback including outer-commit
 composition, actual retirement reserve, unknown-result preservation and legacy
-fail-closed behavior. No lab fixture or FTD command is used.
+fail-closed behavior. Protection regressions cover all authenticated roles,
+actual actor audit, revised/missing scopes, full ledger and pause, simultaneous
+grant/protection, deferred barriers and repair, original-root replay, queue
+cancellation versus RUNNING/unknown/coalesced requests, and late rollback. The
+100000-pair storage scenario also protects one address across all ten devices,
+replays its original root and disables protection without re-enabling policy.
+Existing private API routes are exercised with a disabled agent and no worker.
+No lab fixture or FTD command is used.
 
-Remaining: version-aware protection retirement/weakening barriers, cleanup and
-import cancellation, retained attempt capacity and bounded rolling dispatch;
-then nonempty development migration, API/Web and end-to-end lab validation.
+Version-2 pre-execution cancellation, local progress and <=16-pair read-only work
+portions are implemented; see [their contract](bulk-cancellation-and-work.md).
+The optional journal now retains up to 1000000 attempts through shared completion/
+retention hooks without dispatch. The separately upgraded captured-wait backend
+also supports owned-result settlement. Remaining: version-aware cleanup, atomic
+runtime admission/claim and rolling dispatch, automatic reconciliation, nonempty
+development conversion, API/Web integration and end-to-end lab validation.
 The initial profile refuses unsupported optional state rather than bypassing it.
 This is not yet executable 10000-IP import, live restoration, measured console
 throughput, automatic uncertainty reconciliation or production acceptance.

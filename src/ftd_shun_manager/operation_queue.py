@@ -795,6 +795,10 @@ class OperationQueue:
                 WHERE r.state='ACTIVE' AND j.state IN ('QUEUED','RUNNING')"""
             progress_count = db.execute("SELECT COUNT(DISTINCT r.id) " + progress_filter).fetchone()[0]
             system_case = "WHEN EXISTS(SELECT 1 FROM managed_restoration_attempts a WHERE a.id=r.id) THEN 'managed_shun_policy'" if present(db) else ""
+            from .bulk_attempts import present as bulk_present
+
+            if bulk_present(db):
+                system_case = "WHEN EXISTS(SELECT 1 FROM managed_bulk_attempts a WHERE a.id=r.id) THEN 'managed_shun_policy'"
             progress_requests = db.execute(f"""SELECT DISTINCT r.id,r.actor_subject,r.actor_display_name,
                 CASE {system_case} WHEN EXISTS(SELECT 1 FROM manual_import_batches b WHERE b.id=r.id)
                 THEN 'manual_import' ELSE r.source END AS source,r.requested_at """ + progress_filter + " ORDER BY r.requested_at,r.id LIMIT 20").fetchall()
@@ -820,11 +824,25 @@ class OperationQueue:
         with self.store._connection() as db:
             db.execute("BEGIN IMMEDIATE")
             preserve = ""
+            from .bulk_attempts import present as bulk_present
+            from .bulk_attempts import validate_held_jobs
+            from .bulk_waits import present as bulk_waits_present
+            from .bulk_waits import validate_pending as validate_bulk_waits
             from .import_cancellations import present as cancellations_present
             from .import_cancellations import retained_job_ids as cancellation_job_ids
             from .incident_isolations import present as isolations_present
             from .incident_isolations import retained_job_ids
 
+            if bulk_present(db):
+                validate_held_jobs(db)
+                preserve += """ AND NOT EXISTS (SELECT 1 FROM managed_bulk_attempts a
+                    WHERE a.job_id=operation_jobs.id AND a.state IN ('QUEUED','RUNNING','UNVERIFIED'))"""
+            if bulk_waits_present(db):
+                validate_bulk_waits(db)
+                preserve += """ AND NOT EXISTS (SELECT 1 FROM managed_bulk_cancellation_members m
+                    WHERE m.job_id=operation_jobs.id AND m.state='WAITING_OUTCOME' AND NOT EXISTS (
+                        SELECT 1 FROM managed_bulk_wait_results r WHERE r.import_id=m.import_id
+                            AND r.device_id=m.device_id AND r.ip=m.ip))"""
             if cancellations_present(db):
                 cancellation_job_ids(db)  # Missing/malformed predecessors refuse pruning.
                 preserve += """ AND NOT EXISTS (SELECT 1 FROM import_cancellation_targets c

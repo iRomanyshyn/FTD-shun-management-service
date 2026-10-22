@@ -52,6 +52,13 @@ class ProtectedPolicy:
         """Preflight optional revocation fields/evidence without initializing anything."""
         from .managed_restoration import present
 
+        if db.execute("""SELECT 1 FROM sqlite_master WHERE name GLOB 'managed_bulk_*'
+                OR tbl_name GLOB 'managed_bulk_*' LIMIT 1""").fetchone():
+            from .bulk_policy import protection_state
+
+            # A narrow, version-aware revocation reader, not a legacy execution
+            # fallback. Partial/mixed bulk state must remain unknown, never empty.
+            return protection_state(db)
         state = managed_state(db)
         if state is not None:
             try:
@@ -84,7 +91,10 @@ class ProtectedPolicy:
                  "intent_id": row["intent_id"], "generation": row["generation"],
                  "authorization_request_id": row["authorization_request_id"],
                  "managed_revision": revision, "protected_revision": protected_revision}, timestamp=timestamp)
-        db.execute("UPDATE managed_shun_registry SET revision=? WHERE id=1", (revision,))
+        if state.get("format_version") == 2:
+            db.execute("UPDATE managed_bulk_registry SET revision=? WHERE id=1", (revision,))
+        else:
+            db.execute("UPDATE managed_shun_registry SET revision=? WHERE id=1", (revision,))
         return len(rows)
 
     def snapshot(self) -> dict:

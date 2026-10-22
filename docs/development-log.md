@@ -5643,6 +5643,223 @@ cancellation/attempts or a dispatcher. Nonempty development migration and those
 version-aware integrations remain necessary before a usable executable release;
 storage success is not hardware throughput or production acceptance.
 
+## 2026-10-22 — Version-2 permanent protection revocation
+
+Connected the existing Protected-IP coordinator to exact version-2 bulk storage
+for narrow read/revocation behavior, not generic legacy runtime compatibility.
+Any bulk object selects strict profile recognition; partial/mixed/unsupported
+optional state is unknown rather than empty. Enabled identity preflight uses
+100-row chunks instead of loading the entire large registry into Python.
+
+A freshly reviewed protection save retires all matching enabled targets in the
+same transaction, including absent observations and disabled devices. It keeps
+intent/generation/original grant, updates the bulk revision once and appends
+linked real-editor audit without a new managed request slot or role promotion.
+Every authenticated editor retains the existing protection authority. Full ledger
+and ordinary mutation pause do not obstruct this fixed revocation.
+
+Unknown state permits durable enabled protection with explicit deferred-retirement
+audit, but refuses weakening until repair and reviewed completion. GET/restart
+does not initialize, repair or retire policy. Disable/delete and original-root
+replay do not re-enable a retired generation; subsequent explicit consent is
+separate. Shared queue hooks reject eligible unsent ordinary ADDs, leave RUNNING
+and uncertain outcomes unchanged, and preserve a manual removal coalesced with
+an obsolete protected-policy intention. Late audit/cancellation failure rolls
+back protection, targets, both revisions, events and queue changes.
+
+Added 30 disposable protection cases: all actual roles, ten-device scope, old-key/
+restart/new-generation behavior, revision conflicts, full ledger/pause, three late
+failure boundaries, five unknown-state cases, repaired-barrier weakening, retained
+queue evidence, coalescing and simultaneous grant/protection. Existing private
+API routes are checked with explicit synthetic settings, disabled agent and no
+worker. Extended the real 100000-pair storage fixture with ten-device protection,
+historical replay and weakening without re-enable. No test uses the lab or FTD.
+
+Validation: focused storage/protection suite **129 passed (32.90s)**; full suite
+**1552 passed (112.59s)**. Compileall/Ruff/diff pass, as do 182 changed-document
+local links/anchors. Browser assets, Rust agent and Compose are unchanged; their
+separate suites were not rerun. No installed-image rebuild or service rollout was
+needed for this still-suspended development-profile integration.
+
+Updated normative integration contract, storage/protection/developer manuals,
+working-version plan and status. No SQL schema, RPC, credentials, gate/profile,
+network or Compose change. The legacy lab needs no migration/database restore
+for this code; populated version2 must stay on compatible code or offline, not
+be weakened through an older writer. No new fixture, live mutation, migration,
+service restart or production action was performed. Cleanup/cancellation/attempt
+capacity, rolling dispatch, nonempty conversion and executable Web integration
+remain follow-up work; protection compatibility alone does not enable imports.
+
+## 2026-10-22 — Bulk cancellation, local progress and bounded work preparation
+
+Added optional version-2 cancellation controls and read-only rolling-work
+preparation as successive product steps. The bulk reader recognizes the exact
+original profile or its exact additive extension; legacy/mixed/partial state
+remains unsupported. Explicit initialization adds two empty tables and six
+triggers under ordinary pause/quiescence, preserves existing policy/roots and
+rolls back DDL within caught outer transactions. Startup/GET never migrates.
+
+Whole-root cancellation requires current Operator owner/Administrator, actual
+actor, exact accepted-pair count and a five-minute streamed state-bound review.
+It retires original enabled unapplied ADD generations, preserves adopted/existing
+policy and leaves stopped/superseded authority untouched. Original classification,
+assigned authority, reviewed revision and dispositions are independently retained
+under one immutable count-checked seal; receipt, retirements and real-actor audit
+commit atomically. No request-ledger slot, REMOVE or queue work is admitted.
+Exact actor/review retries return immutable history after expiry/pruning/restart/
+new generations; old import replay cannot re-enable policy.
+
+The profile lacks a version-aware attempt ledger. Any retained ADD evidence or
+independent unfinished work for a current proposed-ADD member therefore refuses
+cancellation, rather than treating an unknown job as unsent/applied or pretending
+RUNNING settlement exists. Observations alone do not prove service application.
+Legacy attempt/cancellation hooks retain their original behavior; no evidence is
+pruned, relabelled or reset. Actual attempt integration remains required before
+execution, not bypassed by this increment.
+
+Added local original-classification/current-disposition progress and <=16-pair
+keyset portions with exact managed/protection revisions. Protection/device/work/
+evidence holds exclude candidates. Cached presence is explicitly not verified
+execution; missing policy is an error. Reads create no schemas/jobs/audit/grants,
+reserve nothing and advance no durable execution cursor. Later dispatcher claims
+still need fresh complete evidence, RPC settlement, capabilities and capacity.
+
+Added 60 new disposable cases, including full 100000-pair cancellation, late100-row
+pages, restart/pruning/replay, mixed adoption/exclusion, old/new generations,
+current owner/Admin, strict actor/review payloads, simultaneous original-key
+decisions, full ledger/pause, evidence refusal, late audit/clock/DDL savepoint
+rollback, immutable/corrupt/partial state, protection integration and bounded
+progress/portion scans. Initial focused 159-case run passed (78.52s); after final
+coverage, 59 nonmaximum new-module cases passed (2.97s). Final full suite:
+**1612 passed (157.96s)**, including all 60 new cases. Compileall/Ruff/diff and
+194 changed/new-document local links/anchors pass. A restricted-sandbox ASGI
+regression run stalled after 25 cases; its exact disposable pytest process was
+terminated and the focused/full suites rerun with local test permissions. No
+product process was affected. Browser assets, Rust agent and Compose are unchanged;
+their separate suites were not rerun. No installed-image rebuild or rollout.
+
+Updated architecture, storage/cancellation/developer manuals, working-version plan
+and status. No agent, binary RPC, credential, network, Compose or feature-gate
+change. No lab migration/database mutation, live fixture, service restart or
+production action. Older version-2 code refuses the extension: retain compatible
+code or keep data offline; never drop receipts or restore enabled policy for a
+downgrade. No live backup/restore operation was needed. These are developer
+components, not executable Web bulk imports, automatic reconciliation or measured
+FTD throughput. Next: version-aware attempt binding/in-flight settlement and
+shared bounded queue integration, then conversion and runtime/Web activation.
+
+## 2026-10-22 — Bulk attempt journal and shared queue result hooks
+
+Added the explicitly initialized optional `managed_bulk_attempts` ledger after
+cancellation controls, preserving the exact suspended registry and earlier
+roots/receipts. It retains up to 1000000 attempts with immutable authority,
+terminal evidence and guarded transitions; no eviction or uncertainty reset.
+Initialization requires pause/quiescence, rolls back caught outer-transaction
+DDL failures and never runs at startup/GET or converts legacy attempts.
+
+A default-false internal hook captures an already RUNNING exact system ADD before
+external send in a caller-owned transaction. It checks fresh complete absence,
+original intent/generation/root/revision, one original fixed-identity/no-role
+request/job/link, shared lease, original 900-second request deadline, enabled/
+unprotected device/policy and no earlier pending/uncertain work. Prior successful
+work must precede the read; keys cannot gain attempt meaning across namespaces.
+Capture creates no request/job, performs no claim, returns dispatch_authorized=false
+and has no deployed caller. Tests simulate the future pre-send transaction, not
+an implemented live admission path.
+
+The existing shared queue result hooks now recognize exact bulk evidence while
+legacy readers retain their meaning. Typed results, exact deferral, expired-lease
+UNVERIFIED recovery, system status and audit commit with the original journal
+and actual occurrence only for VERIFIED. NOOP is not service-created provenance.
+Late audit failure rolls back job/journal/occurrence/events; protected/retired
+policy is never re-enabled by in-flight success. Deferred bulk work cannot run
+even with the old restoration capability. No second worker/session or retry.
+
+Retention validates all pending/unknown bindings before pruning and retains their
+jobs/links/requests; missing/malformed evidence refuses pruning. Independent
+terminal journal evidence survives ordinary job/request pruning. Root-bound
+100-row evidence pages check current Operator owner/Administrator and return no
+execution authority. Reads never initialize, repair, retire or settle policy.
+Running bulk cancellation remains explicitly refused: captured-wait settlement
+and completed-application retention are not implied by this journal.
+
+Added 40 disposable cases for results/occurrences, protection/retirement, deferral,
+lease recovery, immutable keys/terminals, unknown/terminal retention, bad
+predecessors, capture source/deadline/evidence/capacity/namespace guards, current
+read permission, partial/no-init state and audit/DDL rollback. Initial 30 passed
+(1.33s); shared bulk/legacy regressions passed 157 (6.00s), then final journal
+suite passed all 40 (2.56s). Final full suite: **1652 passed (162.45s)**.
+Compileall/Ruff/diff and 201 changed/new-document local links/anchors pass.
+Browser assets, Rust agent and Compose are unchanged; their separate suites were
+not rerun. No installed-image rebuild, service rollout or live device validation.
+
+Updated architecture, manuals, working-version plan and status. No live database/
+schema, gate/profile, credential, binary RPC, agent, Compose/network or service
+change; no lab fixture, SSH request, production operation or backup restore.
+Before non-disposable migration retain a checked SQLite-safe backup and compatible
+code; older version-2 code refuses the journal extension. Do not delete evidence
+or restore enabled policy to force rollback. Next integration remains atomic
+admission/claim and captured-wait cancellation/reconciliation, not another executor.
+
+## 2026-10-22 — Captured bulk cancellation and immutable result settlement
+
+Implemented owned RUNNING capture and shared-result cancellation settlement as
+an explicit optional profile after the journal, not a second executor or runtime
+activation. Complete owned attempt history and original authority now bind review;
+unattributable/independent work still conflicts. Verified/no-op application remains
+maintained; failed/unknown/unsent first application is retired without changing
+its original result. Owned queued cancellation occurs only after the entire
+decision/member seal, scanning in <=100-row chunks rather than building a backlog.
+
+The initial WAITING_OUTCOME receipt/membership remains immutable. Shared result,
+typed pre-write deferral and expired-lease recovery append one immutable settlement
+with actual cancelling actor/roles; protection/retirement/newer generations win.
+Exact deferral settles before recursive queued cancellation. Late audit failure
+rolls back job, journal, occurrence, retirement and settlement together. No REMOVE,
+ADD replay, re-enable or uncertainty resolution is inferred.
+
+Current cancellation status overlays settlements in 100-row pages and exposes
+initial_state/current state, current counts, settled and attention separately
+from the historical receipt. Original-key retry never re-applies revocation.
+Pending captured jobs/requests survive retention, including a terminal result
+whose settlement an incompatible writer omitted. Missing/malformed predecessors
+refuse pruning; GET/restart does not repair. Quiescence now validates held journal
+bindings and refuses still-pending waits even when queue rows look terminal.
+Independent unknown latches remain after settlement/retirement/pruning.
+
+Explicit initialization under pause/quiescence checks every old root/receipt,
+transactionally rebuilds only cancellation membership with identical original
+nine fields plus nullable captured-job/history bindings and expanded states,
+reinstalls original immutable guards and adds the settlement ledger/three guards.
+It checks unchanged receipts/hashes afterward and rolls back all DDL/data copy
+on failure, including caught caller-owned transaction composition. Exact older
+profiles remain readable; startup/GET never upgrades/repairs. No old outcome,
+receipt or policy is converted into new authority.
+
+Added 31 disposable wait cases: running/completed outcomes, deferral/lease recovery,
+protection/retirement/coherent-newer-generation precedence, original receipt versus
+current counts, source/history conflicts, audit/migration rollback, immutable
+records, pending/unknown retention, incompatible-writer evidence holds and honest
+inconsistent-generation refusal. The coherent replacement fixture explicitly
+models a future compatible writer; normal RUNNING admission remains forbidden.
+Extended the actual 100000-member cancellation fixture with preservation upgrade,
+original-key receipt replay and late paging while keeping zero executable backlog.
+Focused wait/cancellation run: **91 passed (61.85s)**. Earlier focused nonmaximum
+bulk regressions: 128 passed (6.55s); first 20 wait cases passed (1.35s), then 31
+passed (2.17s) before the final full/capacity run. Full-suite/documentation results
+are now complete: **1683 passed (179.51s)**. Compileall/Ruff/diff and all 209
+changed/new-document local links/anchors pass. Browser assets, Rust agent and
+Compose are unchanged; their separate suites were not rerun. No installed-image
+rebuild, live migration/rollout or actual FTD validation was performed.
+
+Updated architecture, structured manuals, status and working-version plan. No
+live DB/schema migration, fixture, gate/profile/credential, HTTP, agent/RPC,
+Compose/network, service restart or FTD operation. Before eventual non-disposable
+upgrade retain checked private SQLite-safe backup and compatible code; do not
+drop history/settlements or restore enabled policy to force downgrade. No live
+backup/restore action was needed. Admission/claim, actual dispatch, automatic
+reconciliation, nonempty conversion and Web activation remain separate next work.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

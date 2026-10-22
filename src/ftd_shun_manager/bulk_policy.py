@@ -89,11 +89,23 @@ def _initialize(db):
     execute_schema(db, _DDL)
 
 
-@lru_cache(maxsize=1)
-def _expected():
+@lru_cache(maxsize=4)
+def _expected(cancellation=False, attempts=False, waits=False):
     with closing(sqlite3.connect(':memory:')) as db:
         db.execute('BEGIN')
         _initialize(db)
+        if cancellation:
+            from .bulk_cancellations import DDL
+
+            execute_schema(db, DDL)
+        if attempts:
+            from .bulk_attempts import DDL as attempts_ddl
+
+            execute_schema(db, attempts_ddl)
+        if waits:
+            from .bulk_waits import upgrade_schema
+
+            upgrade_schema(db)
         return _objects(db)
 
 
@@ -101,7 +113,13 @@ def _state(db):
     objects = _objects(db)
     if not objects:
         return None
-    if objects != _expected():
+    cancellation = any(name.startswith('managed_bulk_cancellation') or table.startswith('managed_bulk_cancellation')
+                       for _, name, table, _ in objects)
+    attempts = any(name.startswith(('managed_bulk_attempt', 'idx_managed_bulk_attempt')) or table == 'managed_bulk_attempts'
+                   for _, name, table, _ in objects)
+    waits = any(name.startswith('managed_bulk_wait') or table == 'managed_bulk_wait_results'
+                for _, name, table, _ in objects)
+    if (attempts and not cancellation) or (waits and not attempts) or objects != _expected(cancellation, attempts, waits):
         raise BulkUnavailable('Exact version-2 storage is required; legacy/partial/optional state was not converted.')
     row = db.execute('SELECT revision,restoration_suspended,format_version FROM managed_bulk_registry WHERE id=1').fetchone()
     if row is None or type(row[0]) is not int or row[0] < 0 or row[1:] != (1, 2):
@@ -122,6 +140,18 @@ def _state(db):
                 WHERE d.id IS NULL OR r.id IS NULL OR b.request_id IS NULL OR b.intent_id!=t.intent_id OR b.generation!=t.generation
                     OR b.authorization_request_id!=t.authorization_request_id OR b.classification='EXCLUDED_PROTECTED' LIMIT 1""").fetchone()):
         raise BulkUnavailable('Bulk policy or retained membership is incomplete.')
+    if cancellation:
+        from .bulk_cancellations import validate
+
+        validate(db)
+    if attempts:
+        from .bulk_attempts import validate as validate_attempts
+
+        validate_attempts(db)
+    if waits:
+        from .bulk_waits import validate as validate_waits
+
+        validate_waits(db)
     return {'revision': row[0], 'restoration_suspended': True}
 
 
@@ -134,6 +164,27 @@ def confirmed_operation(db, preparation):
     if row is not None and row['actor_subject'] != preparation['actor_subject']:
         raise BulkUnavailable('Preparation and bulk authority authors differ.')
     return row['id'] if row else None
+
+
+def protection_state(db):
+    """Recognize exact bulk storage for protection revocation only, never dispatch.
+
+    Validate enabled identities in bounded chunks; the legacy retirement reader
+    must not load a potentially 200000-key registry into one Python list.
+    """
+    try:
+        state = _state(db)
+        if state is None:
+            raise BulkUnavailable('Bulk protection requires an existing exact profile.')
+        rows = db.execute('SELECT intent_id,generation FROM managed_shun_targets WHERE enabled=1')
+        while chunk := rows.fetchmany(100):
+            for row in chunk:
+                if (str(UUID(row['intent_id'])) != row['intent_id']
+                        or type(row['generation']) is not int or row['generation'] < 1):
+                    raise ValueError('Invalid managed identity')
+        return {**state, 'format_version': 2}
+    except (sqlite3.DatabaseError, ValueError, TypeError, AttributeError) as error:
+        raise BulkUnavailable('Bulk retirement is unavailable; enabled protection must remain in place.') from error
 
 
 class BulkPreparations(ImportPreparations):
@@ -182,6 +233,15 @@ def _quiescent(db):
         raise ManagedConflict('Settle the executor lease before offline bulk storage changes.')
     if db.execute("SELECT 1 FROM operation_jobs WHERE state IN ('QUEUED','RUNNING','UNVERIFIED') LIMIT 1").fetchone():
         raise ManagedConflict('Pending or uncertain work remains; bulk storage never resolves it.')
+    from .bulk_attempts import present as attempts_present
+    from .bulk_attempts import validate_held_jobs
+    from .bulk_waits import present as waits_present
+    from .bulk_waits import validate_pending
+
+    if attempts_present(db):
+        validate_held_jobs(db)
+    if waits_present(db) and validate_pending(db):
+        raise ManagedConflict('Captured bulk cancellation remains unsettled; no new authority or migration.')
 
 
 class BulkPolicies:

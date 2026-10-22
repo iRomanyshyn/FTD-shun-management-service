@@ -35,12 +35,21 @@ def present(db):
 
 
 def attempt_for_job(db, job_id):
+    from .bulk_attempts import for_job
+    from .bulk_attempts import present as bulk_present
+
+    if bulk_present(db):
+        return for_job(db, job_id)
     return db.execute("SELECT * FROM managed_restoration_attempts WHERE job_id=?", (job_id,)).fetchone() if present(db) else None
 
 
 def key_reserved(db, key):
+    from .bulk_attempts import present as bulk_present
+    from .bulk_attempts import reserved
     from .managed_closures import key_reserved as closure_key_reserved
 
+    if bulk_present(db):
+        return reserved(db, key)
     return (closure_key_reserved(db, key) or (present(db) and db.execute(
         "SELECT 1 FROM managed_restoration_attempts WHERE id=? OR job_id=?", (key, key)).fetchone() is not None))
 
@@ -62,17 +71,24 @@ def validate_binding(db, attempt, job):
 
 
 def _event(db, store, attempt, state, timestamp, reason=None):
-    store._insert_event(db, "MANAGED_SHUN_RESTORATION_" + state, attempt["device_id"], IPv4Address(attempt["ip"]),
+    from .bulk_attempts import present as bulk_present
+
+    bulk = bulk_present(db)
+    registry = 'managed_bulk_registry' if bulk else 'managed_shun_registry'
+    store._insert_event(db, ("MANAGED_BULK_ATTEMPT_" if bulk else "MANAGED_SHUN_RESTORATION_") + state, attempt["device_id"], IPv4Address(attempt["ip"]),
                         attempt["interface"] if state == "VERIFIED" else None, ACTOR, "Managed shun policy", (), attempt["id"],
                         {"source": SOURCE, "operation_id": attempt["job_id"], "intent_id": attempt["intent_id"],
+                         **({"intent_format": 2} if bulk else {}),
                          "generation": attempt["generation"], "authorization_request_id": attempt["authorization_request_id"],
                          "snapshot_id": attempt["snapshot_id"], "reason": reason,
-                         "managed_revision": db.execute("SELECT revision FROM managed_shun_registry WHERE id=1").fetchone()[0],
+                         "managed_revision": db.execute(f"SELECT revision FROM {registry} WHERE id=1").fetchone()[0],
                          "protected_revision": db.execute("SELECT revision FROM protected_policy WHERE id=1").fetchone()[0],
                          "occurrence_id": attempt["occurrence_id"] if state == "VERIFIED" else None}, timestamp)
 
 
 def record_result(db, store, job, state, timestamp, reason=None):
+    from .bulk_attempts import present as bulk_present
+
     attempt = attempt_for_job(db, job["id"])
     if attempt is None:
         return
@@ -86,14 +102,20 @@ def record_result(db, store, job, state, timestamp, reason=None):
         if len(rows) != 1 or not rows[0]["occurrence_id"]:
             raise ManagedStateUnavailable("Verified restoration is missing its occurrence.")
         occurrence = rows[0]
-    db.execute("""UPDATE managed_restoration_attempts SET state=?,completed_at=?,occurrence_id=?,interface=?
+    table = 'managed_bulk_attempts' if bulk_present(db) else 'managed_restoration_attempts'
+    db.execute(f"""UPDATE {table} SET state=?,completed_at=?,occurrence_id=?,interface=?
         WHERE id=?""", (state, None if state in {"QUEUED", "RUNNING"} else timestamp,
                        occurrence["occurrence_id"] if occurrence else None,
                        occurrence["interface"] if occurrence else None, attempt["id"]))
     if state in {"VERIFIED", "NOOP", "FAILED", "UNVERIFIED", "CANCELLED"}:
         db.execute("UPDATE operation_requests SET state='CANCELLED' WHERE id=? AND state='ACTIVE'", (attempt["id"],))
-    updated = db.execute("SELECT * FROM managed_restoration_attempts WHERE id=?", (attempt["id"],)).fetchone()
+    updated = db.execute(f"SELECT * FROM {table} WHERE id=?", (attempt["id"],)).fetchone()
     _event(db, store, updated, state, timestamp, reason)
+    if table == 'managed_bulk_attempts':
+        from .bulk_waits import settle_result as settle_bulk_result
+
+        settle_bulk_result(db, store, updated, state, timestamp)
+        return
     from .import_cancellations import settle_result
 
     settle_result(db, store, updated, state, timestamp)
@@ -124,6 +146,15 @@ def authority_valid(db, attempt):
 
 
 def cancel_obsolete(db, queue):
+    from .bulk_attempts import present as bulk_present
+    from .bulk_policy import _state as bulk_state
+
+    if bulk_present(db):
+        bulk_state(db)
+        for job in db.execute("""SELECT j.* FROM operation_jobs j JOIN managed_bulk_attempts a ON a.job_id=j.id
+                WHERE j.state='QUEUED'""").fetchall():
+            queue._finish(db, job, 'CANCELLED', 'Bulk dispatch/retry is unavailable; original attempt evidence retained')
+        return
     if not present(db):
         return
     rows = db.execute("""SELECT j.* FROM operation_jobs j JOIN managed_restoration_attempts a ON a.job_id=j.id

@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-10-21
+Last updated: 2026-10-22
 
 ## Deferred product ideas
 
@@ -14,6 +14,144 @@ lookup, cache/schema, new egress or activation exists. Core delivery retains
 priority. See [the planned constraints](working-version-plan.md#deferred-ip-context--enrichment--requested-2026-10-21).
 
 ## Current increment
+
+**Captured bulk cancellation settlement (2026-10-22).** The separately explicit
+wait profile now freezes owned RUNNING predecessors without interrupting them,
+retains completed VERIFIED/NOOP application and stops unsent/failed/unknown first
+application. Exact owned attempt history binds the five-minute whole-scope review;
+independent/unattributable work still conflicts. Owned queued cancellation occurs
+only after the immutable root is sealed, with bounded scans instead of a job array.
+
+Shared typed-result/deferral/lease recovery atomically appends immutable settlement
+and actual-cancelling-actor audit. Original job/attempt outcomes and initial receipt
+remain unchanged. Protection/retirement/newer authority wins without re-enable.
+Current 100-row status separates initial states/counts from current settlement/
+attention. Pending captures, including incompatible-writer terminal gaps, retain
+original jobs/requests and block new authority/migration; GET never repairs them.
+
+The explicit pause/quiescence upgrade preserves original nine member fields and
+old scope hashes/receipts, adds nullable job/history bindings and a separate
+immutable settlement table, and verifies full original roots/receipts before and
+after. Failed DDL/copy/audit rolls back even inside caught outer transactions.
+Exact older profiles remain supported without implicit upgrade; older code refuses
+the expanded profile. See [Captured Bulk Cancellation](manual/bulk-captured-cancellation.md).
+
+This is backend cancellation/result coordination, **not bulk admission/dispatch**.
+The registry remains suspended; no HTTP/feature flag, agent/RPC/Compose, live
+schema/profile/fixture, service restart or FTD work changed. Atomic runtime
+claim/admission, actual dispatch, automatic reconciliation, nonempty conversion
+and Web integration remain pending.
+
+Validation: 31 new wait cases plus existing cancellation regressions passed
+**91 tests (61.85s)**, including actual 100000-member preservation upgrade and
+original-key/late-page stability with zero executable backlog. Compile/Ruff/diff
+pass. Final full suite: **1683 passed (179.51s)**. All 209 changed/new-document
+local links/anchors pass. Browser assets, Rust agent and Compose are unchanged;
+their separate suites were not rerun. No installed-image rebuild, live migration,
+service rollout or FTD validation was performed.
+
+### Previous shared-result journal checkpoint
+
+**Version-2 shared result journal (2026-10-22).** Added an explicit optional
+1000000-attempt ledger after bulk cancellation controls, with immutable identity/
+terminal outcomes and bounded original-root evidence pages. A default-false
+internal pre-send hook captures an already RUNNING exact system ADD in the caller's
+transaction, checking complete fresh absence, original authority, lease/deadline,
+protection/device/pause, earlier uncertainty and namespace separation. It admits
+no job, grants no dispatch authority and has no deployed caller.
+
+Existing shared queue hooks record typed VERIFIED/NOOP/failure/unknown results,
+exact pre-write deferral, expired-lease recovery and system status/audit without
+rewriting legacy contracts. Later success never re-enables retired/protected
+policy. Pending/unknown evidence survives retention; malformed held predecessors
+refuse pruning. Terminal journal evidence survives ordinary queue/request pruning.
+Bulk retry/dispatch remains unavailable even with the legacy restoration flag.
+
+This is **not** a running bulk dispatcher, automatic reconciliation or captured-
+wait cancellation. Running cancellation remains explicitly refused; journal
+visibility does not permit interrupt/replay. The registry stays suspended. No
+startup/GET migration, new HTTP/env/agent/Compose path, live schema/fixture or
+service restart is included. Initialization is explicit under pause/quiescence;
+old version-2 code refuses the additive journal profile. See
+[Bulk Attempt Result Journal](manual/bulk-attempt-journal.md).
+
+Validation: first 30 journal cases passed (1.33s); the shared bulk/legacy regression
+run passed 157 cases (6.00s), then all 40 final journal cases passed (2.56s).
+**1652 Python tests passed (162.45s)** in the final full suite. Compileall/Ruff/
+diff and 201 changed/new-document local links/anchors pass. Browser assets, Rust
+agent and Compose are unchanged; their separate suites were not rerun. No image
+rebuild, service rollout, live data/configuration mutation or FTD operation.
+
+### Previous cancellation/work checkpoint
+
+**Version-2 cancellation and rolling-work preparation (2026-10-22).** Added an
+explicit optional two-table cancellation extension of the exact suspended bulk
+profile. A five-minute state-bound owner/Administrator decision atomically stops
+the original import's unexecuted policy, retains adopted/existing targets and
+leaves stopped/newer generations untouched. Whole-scope membership, immutable
+sealed receipt, linked real-actor audit and revision changes commit together,
+including savepoint composition after caught errors. No managed-request slot or
+new admission capability is needed. Original-key replay never stops newer policy
+or re-enables old policy; 100-row reports survive restart/draft pruning.
+
+Added local progress and at-most-16-pair numerical keyset work portions, with
+managed/protection revision checks and protection/device/work/evidence holds.
+Observed presence is not verified execution; candidate reads are not reservations,
+do not queue commands and do not advance an execution cursor. This prepares
+bounded dispatch without creating a 100000-job backlog.
+
+**Execution boundary:** the bulk profile still has no compatible attempt ledger.
+Cancellation of a current unapplied member with retained ADD evidence/unfinished
+work conflicts instead of inventing completed/unsent outcomes. Full in-flight
+settlement, actual dispatch, nonempty conversion and Web/runtime bulk activation
+remain pending. Current code recognizes either exact bulk profile; old version-2
+code refuses the extension. Initialization is explicit under ordinary pause and
+quiescence, never startup/GET/legacy conversion. No lab migration, gate/profile,
+agent/protocol, secrets, service restart or FTD fixture is included.
+
+See [Bulk Cancellation and Work Preparation](manual/bulk-cancellation-and-work.md).
+Validation: initial focused 159-case storage/protection/cancellation run passed
+(78.52s), including actual 100000-pair revocation. After additional strict/replay/
+protection/hold coverage, all 59 nonmaximum new-module cases pass (2.97s).
+**1612 Python tests passed (157.96s)** in the final full suite, including all
+60 new cases. Compileall/Ruff/diff and 194 changed/new-document local links/
+anchors pass. Browser assets, Rust agent and Compose are unchanged; their separate
+suites were not rerun. No image rebuild, service rollout or live data mutation.
+
+### Previous protection checkpoint
+
+**Version-2 protection revocation integration (2026-10-22).** The existing
+Protected-IP coordinator/private routes recognize the exact suspended bulk
+profile for protection reads and permanent revocation only. A reviewed save
+atomically stops matching maintenance on all devices, including disabled devices
+and absent observations, retains original authority and appends linked actual-
+editor audit. Every authenticated protection editor keeps their actual roles;
+no promotion or extra managed request slot is needed, even at full ledger capacity
+or during ordinary suspension. Identity scans use 100-row chunks.
+
+Disable/delete and old import retries never re-enable retired policy. Unknown,
+partial/mixed or unsupported optional state still permits an enabled protection
+barrier with deferred-retirement audit, but refuses weakening until repair and
+reviewed retirement. GET/restart does not repair or retire. Eligible unsent
+ordinary ADDs are rejected, RUNNING/unknown evidence is preserved, and independent
+coalesced manual removal survives protection weakening. Late failures roll back
+policy, target state, revisions, audit and queue changes together.
+
+This is a narrow backend integration, **not bulk runtime activation**. Legacy
+managed readers/grants/cleanup/dispatch still refuse version2; no schema, new route,
+env gate, agent/protocol or deployment configuration changes. Bulk cancellation,
+attempts, rolling dispatch, nonempty conversion and API/Web import integration
+remain next. No lab database/configuration, service or FTD fixture is changed.
+See [the storage/protection contract](manual/bulk-policy-storage.md#protected-ips-permanent-revocation).
+
+Validation: focused storage/protection regressions **129 passed (32.90s)**,
+including 30 new protection cases, current private-route checks with a disabled
+agent and the extended actual 100000-pair lifecycle. **1552 Python tests passed
+(112.59s)** in the full suite. Compileall/Ruff/diff and 182 changed-document local
+links/anchors pass. Browser assets, Rust agent and Compose are unchanged; their
+separate suites were not rerun. No service rollout or live data mutation occurred.
+
+### Previous storage checkpoint
 
 **Isolated version-2 SQLite policy storage (2026-10-21).** The new developer
 component atomically persists an actual root/real actor, independently retained

@@ -2,6 +2,11 @@
 
 ## Delivery boundary
 
+This manual describes legacy confirmation/attempt integration. The separate
+[version-2 cancellation/work component](bulk-cancellation-and-work.md) now handles
+large suspended-profile imports before execution. It does not reuse this legacy
+schema, enable Web/runtime execution or claim in-flight bulk settlement exists.
+
 This backend cancels the uncompleted part of a
 [confirmed managed import](managed-import-confirmation.md). The separate
 [Web workflow](managed-import-web.md) now exposes review, confirmation and current

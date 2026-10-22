@@ -299,6 +299,41 @@ predecessor cases, healthy-policy resume, immutable latches and atomic migration
 audit rollback. All use disposable state; no live ledger or gate is enabled.
 See [Incident Isolation](incident-isolation.md).
 
+`tests/test_bulk_protection.py` exercises the existing protection coordinator and
+private API against disposable version-2 storage: permanent whole-address
+revocation, every authenticated role without promotion, full-ledger/pause access,
+revision/concurrent-grant conflicts, unknown-state barriers and repair, late
+rollback, original-key non-reenable and queued/RUNNING/uncertain/coalesced work.
+The 100000-pair storage fixture also validates ten-device protection and weakening.
+No test connects to an FTD, starts a worker or reads lab settings. This narrow
+integration does not make legacy managed readers or dispatch version2-compatible.
+
+`tests/test_bulk_cancellations.py` exercises the explicit version-2 cancellation
+extension and bounded work planning on disposable SQLite. It covers actual
+100000-pair revocation/restart/pruning/late pages with no executable backlog,
+retained adoption/existing grants, generation/replay safety, current owner/Admin,
+strict reviews, queue-evidence refusal, migration/audit/deadline rollback,
+protection barriers and <=16-pair keyset portions. Local observed presence is
+never counted as verified execution. See [Bulk Cancellation and Work Preparation](bulk-cancellation-and-work.md).
+No test reads lab settings, starts a worker or opens an FTD connection.
+
+`tests/test_bulk_attempts.py` constructs only synthetic future pre-send transactions
+and exercises the actual shared completion/deferral/lease/status/retention hooks.
+It covers original authority, verified versus no-op/unknown evidence, retirement/
+protection, immutable history, missing predecessors, expiry/namespace/type guards,
+late rollback and current owner/Admin read pages. No live claim, admission,
+controller, runtime gate or FTD connection is enabled. See
+[Bulk Attempt Result Journal](bulk-attempt-journal.md) for the precise boundary.
+
+`tests/test_bulk_waits.py` covers explicit preservation-checked upgrade, initial
+RUNNING/QUEUED/completed cancellation, shared typed-result/deferral/lease settlement,
+protection/retirement/new-generation precedence, original receipt versus current
+counts, old-writer pending evidence, strict retention/quiescence and atomic
+audit/DDL rollback. The 100000-member cancellation fixture also verifies upgrade
+without changing original checksums/receipts. All source jobs and hypothetical
+replacement generations are disposable fixtures, not live admissions. See
+[Captured Bulk Cancellation](bulk-captured-cancellation.md).
+
 ## Prerequisites
 
 - Python 3.12+

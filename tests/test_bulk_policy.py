@@ -363,6 +363,8 @@ def test_same_count_retained_classification_corruption_is_not_historical_success
 
 
 def test_maximum_100000_pairs_persist_without_jobs_and_survive_restart_pruning_and_paged_reads(bulk):
+    from ftd_shun_manager.protected_policy import ProtectedPolicy
+
     policy, clock = bulk
     text = '\n'.join(str(IPv4Address(0xC6120000 + i)) for i in range(10000))
     _, proposal = prepare(bulk, text, tuple(range(1,11)))
@@ -380,4 +382,16 @@ def test_maximum_100000_pairs_persist_without_jobs_and_survive_restart_pruning_a
         assert db.execute('SELECT COUNT(*) FROM managed_shun_targets').fetchone()[0] == 100000
         assert db.execute('SELECT COUNT(*) FROM managed_bulk_members').fetchone()[0] == 100000
     assert confirm((restarted, clock), proposal)['replayed']
+    editor = ProtectedPolicy(policy.store)
+    protected_ip = IPv4Address(0xC6120000)
+    editor.change('add', protected_ip, editor.revision(), 'synthetic-viewer', 'Policy editor', ('Viewer',), managed_revision=1)
+    assert editor.snapshot()['managed_revision'] == 2
+    assert editor.snapshot()['entries'][0]['maintained_devices'] == 0
+    with policy.store._connection() as db:
+        assert db.execute('SELECT COUNT(*) FROM managed_shun_targets WHERE enabled=1').fetchone()[0] == 99990
+        assert db.execute('SELECT COUNT(*) FROM managed_shun_requests').fetchone()[0] == 1
+    assert confirm((restarted, clock), proposal)['replayed']
+    editor.change('delete', protected_ip, editor.revision(), 'synthetic-viewer', 'Policy editor', (), managed_revision=2)
+    with policy.store._connection() as db:
+        assert db.execute('SELECT COUNT(*) FROM managed_shun_targets WHERE enabled=1').fetchone()[0] == 99990
     no_work(policy)

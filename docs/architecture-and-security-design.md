@@ -4178,3 +4178,163 @@ Before deployment with this profile, deliver reviewed nonempty migration/backup,
 version-aware protections/cleanup/attempts/readers, bounded dispatch and older-
 writer rollback. Do not downgrade a populated version-2 database or restore old
 enabled state as a software rollback. The present lab stays in legacy mode.
+
+## Version-2 protection revocation integration — 2026-10-22
+
+The existing Protected-IP coordinator may recognize the exact suspended version-2
+profile for its narrow protection read/revocation purpose. This is not a general
+fallback in legacy managed readers, grants, cleanup, restoration or dispatch.
+Recognize any bulk object before attempting the legacy reader: partial/mixed or
+unsupported optional state is unknown, not absent. Validate enabled identities
+in bounded chunks rather than materializing the entire retained registry.
+
+Protection saves retain their existing real-authenticated-actor authorization and
+reviewed protection/managed revisions. Under the same write transaction, retire
+every matching enabled target, including missing observations and disabled devices,
+preserve original intent/generation/authorizing root, increment the bulk revision
+once and append linked real-actor audit. Retirement needs no new managed request
+slot and remains possible at full ledger capacity and during ordinary suspension.
+Cancel eligible unsent ordinary ADDs through the existing queue hook; do not
+interrupt RUNNING work, rewrite uncertain outcomes or manufacture verification.
+This profile still refuses restoration-attempt/cleanup/cancellation schemas;
+their version-aware coordination remains separate, not silently skipped.
+
+When exact retirement state is unavailable, strengthening protection persists an
+enabled barrier and reports deferred retirement. Do not weaken/delete that barrier
+until a reviewed save can complete retirement after repair. Reads/restarts do not
+repair, retire or initialize optional state. Disable/delete never re-enables old
+policy, and original bulk-key replay remains historical. A new grant still needs
+new explicit consent, current classification and a new generation.
+
+No schema migration, runtime profile switch, dispatch/admission activation or new
+HTTP route accompanies this integration. Existing lab state stays legacy. Code
+rollback there requires no database restore; retain a populated version-2 database
+with compatible code or offline, never release a deferred barrier using an older
+writer that cannot perform its permanent retirement.
+
+## Version-2 cancellation and rolling-work preparation — 2026-10-22
+
+Extend the suspended bulk profile with explicitly initialized cancellation
+decisions and independently retained accepted-member dispositions. Support both
+the exact original profile and its exact additive extension; partial/mixed state
+is unknown. Initialization requires the existing bulk profile, ordinary pause and
+quiescent queue, rolls back within a caller-owned transaction and never converts
+legacy state, grants authority or resumes execution. Startup/GET does not migrate.
+
+Cancellation is one original-root-scoped revocation, not a new grant/key/action.
+Require current Operator owner or Administrator, actual actor audit, exact accepted
+pair count and a five-minute state-bound review. Stream complete original source
+verification and cancellation scope in bounded chunks. Bind original authority,
+current managed/protection revisions and every accepted member's disposition;
+concurrent changes conflict, never shrink/rebase the scope. Preserve historical
+confirmation. Retain adopted/already-managed members, leave stopped/superseded
+generations untouched, and retire exact original enabled unapplied ADD members
+together. No new managed-request slot, REMOVE, queue claim or network call follows.
+One immutable count-checked sealed decision and all member dispositions/retirements/
+audit commit together; original-review/actor retries return only the saved result.
+
+The initial extension has no version-aware attempt ledger. It must therefore
+refuse cancellation of a current unapplied member with any retained ADD job or
+independent unfinished work, rather than infer application from observation,
+overwrite an unknown result or pretend RUNNING work has settled. This is an
+explicit delivery limit, not the final working-version cancellation behavior.
+Version-aware attempts and in-flight settlement are required before bulk dispatch
+or executable import admission. Legacy cancellation hooks do not consume this
+new ledger. A cancelled unsent generation cannot be resurrected by original-key
+replay; new explicit consent remains a separate reviewed generation.
+
+Provide bounded read-only progress and rolling-work preparation against exact
+profile state: at most 16 candidate pairs per portion, numerical keyset cursor,
+exact revision binding and eligibility/protection/work holds. A read portion is
+not an executable capability, reserved job, receipt of dispatch or fresh FTD
+observation; never translate it directly into an ADD without the later claim/
+attempt/fresh-read contract. Reads do not initialize schemas, queue work, change
+authority or advance a durable execution cursor. Cancelled/stopped policies stay
+out; adopted/existing policy remains maintained. No old request TTL is renewed.
+
+No runtime profile activation, private admission route, lab schema change, fixture
+or service restart accompanies these developer components. Before using the new
+optional tables, retain a checked SQLite-safe backup and matching code; old
+version-2 code refuses the extension and must not be used as a populated downgrade.
+
+## Version-2 shared result journal — 2026-10-22
+
+Add an explicitly initialized optional bulk-attempt journal after cancellation
+controls, preserving the suspended registry and all original roots/receipts.
+Initialization requires ordinary pause/quiescence and never creates a queued job,
+resumes policy, enables dispatch or converts legacy attempts. Recognize exact base,
+cancellation and cancellation-plus-attempt profiles; partial/mixed state is unknown.
+Bound retained attempts to 1000000 without eviction or uncertainty reset.
+
+An internal default-false capture hook may bind an already RUNNING system ADD
+before its external send, inside its caller's write transaction. This is evidence
+capture for a future atomic dispatcher, not admission or permission to execute.
+Require the shared active lease, exact fixed system identity/no user roles, one
+request/job/link, original standing intent/generation/authorization, current target
+revision, eligible device/unprotected enabled policy and complete fresh absence
+evidence after the grant. Reject manual/import jobs and retroactive terminal
+history adoption. Capture neither manufactures a user role nor renews the original
+900-second request. No current runtime caller invokes capture.
+
+The existing queue result transaction records VERIFIED/NOOP/FAILED/UNVERIFIED and
+exact pre-write deferral in this journal with original authority and real occurrence
+evidence only for VERIFIED. Terminal evidence/identity are immutable. A retired or
+protected policy never becomes enabled again when its in-flight result arrives.
+Lease recovery records UNVERIFIED, never replay or guessed success. Pending or
+unknown evidence survives retention; malformed/missing predecessors refuse pruning.
+Completed independent journal evidence survives ordinary job/request pruning.
+
+Bulk queued dispatch remains unavailable regardless of the legacy restoration
+capability. Exact pre-write deferral can be cancelled through the same worker;
+no second executor or unsupported retry is introduced. Current whole-root bulk
+cancellation still refuses unattributable/in-flight ADD evidence; captured-wait
+admission/settlement, completed-application retention and fresh-evidence automatic
+reconciliation remain the next integration, not silently enabled by this journal.
+Shared completion/status/protection/retention hooks must recognize bulk evidence
+without treating it as a legacy grant or clearing its uncertainty.
+
+No HTTP route, runtime flag/controller activation, lab schema/fixture, migration of
+existing attempts or FTD operation accompanies this component. Keep exact old
+receipts and checked backup/compatible-code boundaries; older version-2 code
+refuses the journal profile. No database restore is needed on the unchanged lab.
+
+## Version-2 captured cancellation settlement — 2026-10-22
+
+Add a separately explicit optional captured-wait profile after the bulk result
+journal. Preserve original cancellation decisions/checksums and attempt outcomes.
+Under ordinary pause/quiescence, rebuild only the cancellation member table with
+the same original columns/data plus nullable captured-job/history bindings and
+expanded dispositions. Retain immutable original rows and add a separate immutable
+settlement ledger. Verify old root/receipt integrity before and after migration;
+all DDL/data copy/checks roll back together. Startup/GET never upgrades or repairs.
+
+New cancellation reviews bind the original accepted scope, exact owned attempt
+history and captured RUNNING/QUEUED predecessor. Unattributable ADD/independent
+unfinished work still conflicts. Retain previously VERIFIED/NOOP application,
+adoption and existing policy. Retire unsent/failed/unknown first application without
+rewriting original outcomes. Capture a first RUNNING ADD as WAITING_OUTCOME, not
+stopped/applied; do not interrupt it or send REMOVE. Cancel only an owned unsent
+job after the whole immutable decision is sealed. Original review/count/actor,
+TTL, conflict and original-key history rules remain unchanged.
+
+The shared result transaction settles a captured wait exactly once. VERIFIED/NOOP
+retains still-enabled original authority; failure/unknown/exact pre-write deferral
+retires it. Protection/prior retirement/newer generation wins: settlement never
+enables authority, touches a newer grant or clears uncertainty. Append immutable
+settlement and real-cancelling-actor audit with exact original references. Insert
+settlement before recursively cancelling an exactly deferred job. Any late result/
+audit/settlement failure rolls back job, occurrence, attempt and policy together.
+
+Initial cancellation receipts stay historical, including original WAITING counts.
+Current paged status overlays settlements and exposes pending/attention honestly;
+GET/restart never settles. Every pending captured job/request survives retention,
+including a terminal result left unsettled by an incompatible writer. Validate the
+entire captured binding before pruning; missing/malformed evidence is not absence
+or success. Terminal unknown attempt latches remain after settlement/retirement.
+
+This enables backend cancellation/result coordination, not bulk job admission,
+dispatch, profile activation or automatic uncertainty reconciliation. Keep the
+registry suspended, current worker defaults and lab unchanged. No new HTTP route,
+FTD fixture, live migration or external command is authorized. Older code refuses
+the expanded profile; preserve a checked SQLite-safe backup and compatible code,
+never drop history or restore enabled policy to force rollback.

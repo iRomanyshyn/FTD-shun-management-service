@@ -101,6 +101,22 @@ abandonment/isolation receipts are unchanged. Retirement does not resolve device
 uncertainty, erase cleanup or admit immediate commands. Actual gates remain off
 and no live managed-policy fixture is activated by this update.
 
+### Version-2 bulk compatibility
+
+The current protection coordinator also recognizes the exact suspended
+[version-2 bulk storage](bulk-policy-storage.md#protected-ips-permanent-revocation)
+profile, with the same reviewed-revision, permanent-retirement, actual-editor and
+deferred-barrier rules. A matching enabled target is retired even if no shun is
+observed or its device is disabled; a full bulk request ledger does not prevent
+revocation. Disable/delete and old import retries never re-enable that policy.
+Large identity scans use bounded chunks. Mixed/partial/unsupported optional bulk
+state is unknown and cannot be used to release a protection barrier.
+
+This narrow compatibility does not enable the bulk runtime/import/worker, initialize
+its schema or change the current legacy lab profile. Legacy managed readers and
+maintenance tools still refuse version2. New optional migration and live fixture
+activation are not part of a protection save or service upgrade.
+
 ## Audit
 
 `PROTECTED_IP_ADDED`, `PROTECTED_IP_UPDATED`, `PROTECTED_IP_DELETED`, and the
