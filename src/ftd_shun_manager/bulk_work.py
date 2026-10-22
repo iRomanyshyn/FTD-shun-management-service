@@ -52,9 +52,10 @@ class BulkWorkPlans:
 
     @staticmethod
     def _metadata(db):
-        return {'managed_revision': _state(db)['revision'],
+        state = _state(db)
+        return {'managed_revision': state['revision'],
                 'protected_revision': db.execute('SELECT revision FROM protected_policy WHERE id=1').fetchone()[0],
-                'mutations_suspended': mutations_suspended(db), 'restoration_suspended': True,
+                'mutations_suspended': mutations_suspended(db), 'restoration_suspended': state['restoration_suspended'],
                 'execution_available': False}
 
     def portion(self, key, subject, roles, *, limit=16, after=None, revision=None, protected_revision=None):

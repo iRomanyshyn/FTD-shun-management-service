@@ -32,6 +32,8 @@ not a runbook or permission to change gates, initialize schemas or run new fixtu
 | [Bulk Cancellation and Work Preparation](bulk-cancellation-and-work.md) | Whole-root 100000-pair pre-execution revocation, retained adoption, immutable pages, honest local progress and <=16-pair candidate portions; no executor/live migration. |
 | [Bulk Attempt Result Journal](bulk-attempt-journal.md) | Explicit pre-send evidence capture, shared completion/deferral/lease/retention hooks and original-root pages; no new admission/dispatch or live migration. |
 | [Captured Bulk Cancellation](bulk-captured-cancellation.md) | Optional preservation-checked upgrade, exact RUNNING predecessor waits, immutable shared-result settlement and current status/retention; no dispatcher/live migration. |
+| [Bulk Queue Admission and Claim](bulk-queue-admission.md) | Atomic <=16-pair enqueue, distinct default-off shared claim capability, fresh-read barrier, cancellation/results and explicit developer profile; no runtime/lab activation. |
+| [Bounded Bulk Refill](bulk-refill-controller.md) | Default-disabled existing-scheduler discovery/refill, 64 checks/16 new jobs, per-device windows, restart/fairness and unknown-evidence holds; no environment/lab activation. |
 | [Prepared Import Confirmation](managed-import-confirmation.md) | Gated confirmation/adoption/exclusions, immutable reports and original-key recovery within current 1000-pair policy bounds; no automatic execution/live migration. |
 | [Import Cancellation](import-cancellation.md) | Whole-import uncompleted-work revocation, retained additions/adoption, in-flight settlement and immutable receipts; explicit schema, no automatic activation. |
 | [Managed Import Web](managed-import-web.md) | Saved preparations, exact review/consent, retained receipts and uncompleted-work cancellation; current capacity/gates and unknown-reply recovery. |
@@ -48,6 +50,8 @@ not a runbook or permission to change gates, initialize schemas or run new fixtu
 | [Import Execution](import-execution.md) | Independent default-off scheduler gate, per-device v3, common FIFO/budgets, priority reads, no-replay recovery and disabled-mode rollout. |
 | [One-Address Service Validation](single-address-service-validation.md) | Scoped runbook and recorded one-fixture VERIFIED/NOOP/cleanup evidence, idempotent replay and restored gates; new tests require new approval. |
 | [Agent Cycle Protocol](agent-cycle-protocol.md) | Experimental bounded single-session removal/checkpoint protocol, feature gate, limits, and lab/rollback procedure. |
+| [Agent Connection Concurrency](agent-concurrency.md) | Opt-in bounded connection workers, device/address guards, fail-closed saturation and unchanged wire/gates; not yet parallel API scheduling. |
+| [Fenced Device Leases](device-leases.md) | Explicit optional per-device owner/epoch/deadline profile, shared queue fencing, retained expiry attention and legacy-writer exclusion; no runtime/lab activation. |
 | [Large Snapshots](large-snapshots.md) | Default-off versioned multi-frame reads, complete-snapshot checks, console/transfer budgets and lab rollout/rollback. |
 | [FTD Laboratory Validation](ftd-lab-validation.md) | Controlled agent, snapshot, and parser-fixture validation. |
 | [Addition Readiness](addition-lab-validation.md) | Current snapshot-capacity blocker and staged Basic-account, one-address direct-CLI validation before ADD design. |

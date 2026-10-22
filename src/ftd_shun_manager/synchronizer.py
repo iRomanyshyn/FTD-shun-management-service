@@ -14,6 +14,7 @@ from uuid import uuid4
 from .agent_client import AgentClient, AgentUnavailable
 from .agent_protocol import MAX_CYCLE_REMOVALS as MAX_CYCLE_MUTATIONS
 from .agent_protocol import AdditionResult
+from .bulk_discovery import BulkDiscovery
 from .managed_discovery import ManagedDiscovery
 from .managed_fleet_waits import ManagedFleetWaits
 from .managed_removals import ManagedRemovals
@@ -51,11 +52,15 @@ class Synchronizer:
         addition_device_ids: frozenset[int] = frozenset(),
         managed_removal_worker_enabled: bool = False,
         managed_restoration_enabled: bool = False,
+        bulk_dispatch_enabled: bool = False,
     ) -> None:
         if import_execution_enabled and not session_cycles_enabled:
             raise ValueError("import execution requires session cycles")
         if type(managed_restoration_enabled) is not bool or (managed_restoration_enabled and not import_execution_enabled):
             raise ValueError("managed restoration requires boolean configuration and API ADD execution")
+        if (type(bulk_dispatch_enabled) is not bool
+                or (bulk_dispatch_enabled and (not import_execution_enabled or managed_restoration_enabled or managed_removal_worker_enabled))):
+            raise ValueError('Bulk dispatch requires ADD/session execution and cannot share legacy managed controllers.')
         self.store = store
         self.agent = agent
         self.poll_interval_seconds = poll_interval_seconds
@@ -72,6 +77,9 @@ class Synchronizer:
         self._priority_used = False
         self.queue = self.policy.queue
         self.managed_restoration_enabled = managed_restoration_enabled
+        self.bulk_dispatch_enabled = bulk_dispatch_enabled
+        self.bulk_discovery = BulkDiscovery(store, self.queue, enabled=bulk_dispatch_enabled,
+                                            addition_device_ids=self.addition_device_ids if bulk_dispatch_enabled else frozenset())
         self.managed_discovery = ManagedDiscovery(store, self.queue, enabled=managed_restoration_enabled,
                                                    addition_device_ids=self.addition_device_ids)
         self._managed_restoration_error: str | None = None
@@ -194,7 +202,9 @@ class Synchronizer:
             "history_retention_error": self._last_retention_error,
             "devices": devices,
             "queue": self.queue.status(addition_device_ids=self.addition_device_ids,
-                                       managed_restoration_enabled=self.managed_restoration_enabled),
+                                       managed_restoration_enabled=self.managed_restoration_enabled,
+                                       bulk_dispatch_enabled=self.bulk_dispatch_enabled),
+            'bulk_discovery': self.bulk_discovery.status(),
             "managed_restoration": deepcopy(self.managed_discovery.status()),
             "managed_restoration_error": self._managed_restoration_error,
             "import_execution_enabled": self.import_execution_enabled,
@@ -270,7 +280,7 @@ class Synchronizer:
                 self.queue.expire_requests()
                 pending = self._has_pending()
             except (sqlite3.Error, ValueError):
-                if not self.managed_restoration_enabled:
+                if not (self.managed_restoration_enabled or self.bulk_dispatch_enabled):
                     raise
                 if not self._managed_restoration_error:
                     self._restoration_failed()
@@ -312,10 +322,11 @@ class Synchronizer:
             self.queue.expire_requests()
             self.queue.cancel_obsolete_policy()
         except (sqlite3.Error, ValueError):
-            if not self.managed_restoration_enabled:
+            if not (self.managed_restoration_enabled or self.bulk_dispatch_enabled):
                 raise
             self._restoration_failed()
         self.managed_discovery.begin_cycle()
+        self.bulk_discovery.begin_cycle()
         self._activity.clear()
         self._refresh_in_progress = True
         self._cycle_id += 1
@@ -364,7 +375,8 @@ class Synchronizer:
 
     def _has_pending(self, device_id: int | None = None) -> bool:
         if self.queue.has_pending(device_id, addition_device_ids=self.addition_device_ids,
-                                  managed_restoration_enabled=self.managed_restoration_enabled):
+                                  managed_restoration_enabled=self.managed_restoration_enabled,
+                                  bulk_dispatch_enabled=self.bulk_dispatch_enabled):
             return True
         if self.managed_removal_worker_enabled and device_id is None:
             try:
@@ -383,7 +395,8 @@ class Synchronizer:
         devices = self.store.list_devices()
         if not self._mutations_blocked:
             try:
-                devices = self.managed_discovery.ordered_devices(devices)
+                discovery = self.bulk_discovery if self.bulk_dispatch_enabled else self.managed_discovery
+                devices = discovery.ordered_devices(devices)
             except (sqlite3.Error, ValueError):
                 self._restoration_failed()
         for device in devices:
@@ -499,11 +512,12 @@ class Synchronizer:
         print(json.dumps({"event": "managed_shun.discovery.failed", "reason": self._managed_restoration_error}), flush=True)
 
     def _discover_snapshot(self, device_id, snapshot, started, completed):
-        if not self.managed_restoration_enabled or self._mutations_blocked:
+        if not (self.managed_restoration_enabled or self.bulk_dispatch_enabled) or self._mutations_blocked:
             return
         evidence = CompleteSnapshot(str(uuid4()), device_id, started, completed, frozenset(entry.ip for entry in snapshot))
         try:
-            if self.managed_discovery.discover(evidence, self.instance_id):
+            discovery = self.bulk_discovery if self.bulk_dispatch_enabled else self.managed_discovery
+            if discovery.discover(evidence, self.instance_id):
                 self.note_state_change()
         except (sqlite3.Error, ValueError, TypeError, KeyError, AttributeError):
             self._restoration_failed()
@@ -554,7 +568,8 @@ class Synchronizer:
                 cutoff = self._cycle_cutoff if self._cycle_cutoff is not None else self.queue.cutoff()
                 job = self.queue.claim_next_mutation(device_id, self.instance_id, cutoff,
                                                     additions_enabled=device_id in self.addition_device_ids,
-                                                    managed_restoration_enabled=self.managed_restoration_enabled)
+                                                    managed_restoration_enabled=self.managed_restoration_enabled,
+                                                    bulk_dispatch_enabled=self.bulk_dispatch_enabled)
                 if job is None:
                     break
                 target = IPv4Address(job["ip"])

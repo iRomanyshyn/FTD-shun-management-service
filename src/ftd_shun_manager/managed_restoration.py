@@ -63,6 +63,7 @@ def validate_binding(db, attempt, job):
     if (request is None or request["source"] != "trusted_policy" or request["actor_subject"] != ACTOR
             or json.loads(request["actor_roles_json"]) != [] or json.loads(request["payload_json"]) != expected
             or request["requested_at"] != attempt["requested_at"] or len(links) != 1
+            or job['requested_at'] != attempt['requested_at']
             or links[0]["request_id"] != attempt["id"] or links[0]["job_id"] != attempt["job_id"]
             or job["action"] != "ADD" or job["device_id"] != attempt["device_id"] or job["ip"] != attempt["ip"]
             or job["state"] != attempt["state"]
@@ -151,6 +152,12 @@ def cancel_obsolete(db, queue):
 
     if bulk_present(db):
         bulk_state(db)
+        from .bulk_dispatch import cancel_obsolete as cancel_bulk
+        from .bulk_dispatch import present as dispatch_present
+
+        if dispatch_present(db):
+            cancel_bulk(db, queue)
+            return
         for job in db.execute("""SELECT j.* FROM operation_jobs j JOIN managed_bulk_attempts a ON a.job_id=j.id
                 WHERE j.state='QUEUED'""").fetchall():
             queue._finish(db, job, 'CANCELLED', 'Bulk dispatch/retry is unavailable; original attempt evidence retained')

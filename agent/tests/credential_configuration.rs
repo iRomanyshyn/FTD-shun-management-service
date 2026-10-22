@@ -71,6 +71,7 @@ fn compatibility_check_exits_without_socket_or_ssh() -> Result<()> {
         let result: serde_json::Value = serde_json::from_slice(&output.stdout)?;
         assert_eq!(result["credential_mode"], "shared");
         assert_eq!(result["devices"], 1);
+        assert_eq!(result["max_concurrent_devices"], 1);
     }
     Ok(())
 }
@@ -132,5 +133,31 @@ fn zero_or_duplicate_inventory_identity_is_rejected_in_preflight() -> Result<()>
         fs::write(&path, serde_json::to_vec(&inventory)?)?;
         assert!(!fixture.run(&mut fixture.command())?.status.success());
     }
+    Ok(())
+}
+
+#[test]
+fn bounded_agent_concurrency_is_preflight_only_and_does_not_enable_other_gates() -> Result<()> {
+    let fixture = Fixture::new()?;
+    for count in ["1", "4", "10"] {
+        let mut command = fixture.command();
+        command.env("FTD_SHUN_AGENT_MAX_CONCURRENT_DEVICES", count);
+        let output = fixture.run(&mut command)?;
+        assert!(output.status.success());
+        let value: serde_json::Value = serde_json::from_slice(&output.stdout)?;
+        assert_eq!(value["max_concurrent_devices"], count.parse::<u64>()?);
+    }
+    for count in ["0", "11", "", "01", "+2", "4 ", "invalid"] {
+        let mut command = fixture.command();
+        command.env("FTD_SHUN_AGENT_MAX_CONCURRENT_DEVICES", count);
+        assert!(!fixture.run(&mut command)?.status.success());
+    }
+    let mut command = fixture.command();
+    command
+        .env("FTD_SHUN_AGENT_MAX_CONCURRENT_DEVICES", "4")
+        .env("FTD_SHUN_AGENT_ADDITIONS_ENABLED", "true");
+    let output = fixture.run(&mut command)?;
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("additions require both"));
     Ok(())
 }

@@ -334,7 +334,38 @@ without changing original checksums/receipts. All source jobs and hypothetical
 replacement generations are disposable fixtures, not live admissions. See
 [Captured Bulk Cancellation](bulk-captured-cancellation.md).
 
+`tests/test_bulk_dispatch.py` exercises actual bounded admission and shared queue
+claim on disposable version-2 state: 16-pair all-or-nothing creation, default-off
+capabilities, original authority, cutoff/device serialization, cancellation and
+typed outcomes, exact deferral, lease expiry, retained history, fresh-read barrier,
+literal/capacity/revision guards and late rollback. Synthetic SQL activation is
+limited to test fixtures, not a live enablement recipe. No runtime controller,
+network connection or lab mutation occurs. See [Bulk Queue Admission and Claim](bulk-queue-admission.md).
+
+`tests/test_bulk_discovery.py` additionally drives the actual existing Synchronizer
+with version-2 desired policy and a fake session agent. It covers bounded refill,
+windows/cursors/restart/device fairness, current holds, original-key avoidance,
+capacity/late rollback, creation and restoration, cutoff/cooldown, unsent expiry,
+unknown results and retained legacy observational barriers. Missing optional
+profiles remain errors without migration while read timestamps stay visible.
+No test accesses live credentials/settings or FTD. See [Bounded Bulk Refill](bulk-refill-controller.md).
+
 ## Prerequisites
+
+`tests/test_device_leases.py` exercises explicit exact-profile initialization,
+concurrent owners over the existing queue, same-device/quota contention, nonce/
+epoch fences for ADD/REMOVE/result/deferral, expiry without stealing, old-writer
+guards, original-source preservation, immutable attention, revocation/settlement
+and complete rollback. Fixtures use disposable SQLite/local threads only; no live
+profile or credentials. See [Fenced Device Leases](device-leases.md). This is not
+an automatically running parallel Synchronizer or a replacement job executor.
+
+Agent concurrency tests use a fixed bounded pool, synthetic device/address guards,
+local SOCK_SEQPACKET pairs and local Tokio timers, never SSH or live credentials.
+Process-isolated preflight tests check default/canonical limits and unchanged ADD
+gates without binding a listener. Run Rust fmt/Clippy/release/test commands from
+[Agent Connection Concurrency](agent-concurrency.md). The API's global lease remains
+serial; these tests are transport prerequisites, not end-to-end parallel acceptance.
 
 - Python 3.12+
 - Rust 1.89+ for the privileged agent

@@ -89,8 +89,8 @@ def _initialize(db):
     execute_schema(db, _DDL)
 
 
-@lru_cache(maxsize=4)
-def _expected(cancellation=False, attempts=False, waits=False):
+@lru_cache(maxsize=6)
+def _expected(cancellation=False, attempts=False, waits=False, dispatch=False, devices=False):
     with closing(sqlite3.connect(':memory:')) as db:
         db.execute('BEGIN')
         _initialize(db)
@@ -106,6 +106,16 @@ def _expected(cancellation=False, attempts=False, waits=False):
             from .bulk_waits import upgrade_schema
 
             upgrade_schema(db)
+        if dispatch:
+            from .bulk_dispatch import DDL
+
+            execute_schema(db, DDL)
+        if devices:
+            from .device_leases import DDL
+
+            # Expected-schema construction only: a trigger target, not live queue initialization.
+            db.execute('CREATE TABLE operation_executor(id INTEGER PRIMARY KEY,owner TEXT,lease_until TEXT)')
+            execute_schema(db, DDL)
         return _objects(db)
 
 
@@ -119,12 +129,22 @@ def _state(db):
                    for _, name, table, _ in objects)
     waits = any(name.startswith('managed_bulk_wait') or table == 'managed_bulk_wait_results'
                 for _, name, table, _ in objects)
-    if (attempts and not cancellation) or (waits and not attempts) or objects != _expected(cancellation, attempts, waits):
+    dispatch = any(name.startswith('managed_bulk_dispatch') for _, name, _, _ in objects)
+    devices = any(name.startswith('managed_bulk_device') for _, name, _, _ in objects)
+    if ((attempts and not cancellation) or (waits and not attempts) or (dispatch and not waits)
+            or (devices and not dispatch) or objects != _expected(cancellation, attempts, waits, dispatch, devices)):
         raise BulkUnavailable('Exact version-2 storage is required; legacy/partial/optional state was not converted.')
     row = db.execute('SELECT revision,restoration_suspended,format_version FROM managed_bulk_registry WHERE id=1').fetchone()
-    if row is None or type(row[0]) is not int or row[0] < 0 or row[1:] != (1, 2):
-        # sqlite3.Row slicing, as well as tuple slicing, returns a tuple.
+    if (row is None or type(row[0]) is not int or row[0] < 0 or row[2] != 2
+            or row[1] not in ((0, 1) if dispatch else (1,))):
         raise BulkUnavailable('Invalid or unsuspended bulk registry.')
+    if dispatch:
+        barrier = db.execute('SELECT dispatch_resume_after FROM managed_bulk_registry WHERE id=1').fetchone()[0]
+        try:
+            if (barrier is None and row[1] == 0) or (barrier is not None and _stamp(datetime.fromisoformat(barrier)) != barrier):
+                raise ValueError('Invalid resume barrier')
+        except (ValueError, TypeError) as error:
+            raise BulkUnavailable('Bulk dispatch requires an exact UTC fresh-read barrier.') from error
     for table, limit in (('managed_shun_targets', MAX_KEYS), ('managed_shun_requests', MAX_REQUESTS),
                          ('managed_bulk_manifests', MAX_ROOTS), ('managed_bulk_members', MAX_MEMBERS)):
         if db.execute(f'SELECT COUNT(*) FROM {table}').fetchone()[0] > limit:
@@ -152,7 +172,11 @@ def _state(db):
         from .bulk_waits import validate as validate_waits
 
         validate_waits(db)
-    return {'revision': row[0], 'restoration_suspended': True}
+    if devices:
+        from .device_leases import validate as validate_devices
+
+        validate_devices(db)
+    return {'revision': row[0], 'restoration_suspended': bool(row[1])}
 
 
 def confirmed_operation(db, preparation):
@@ -231,6 +255,10 @@ def _quiescent(db):
     row = db.execute('SELECT owner,lease_until FROM operation_executor WHERE id=1').fetchone()
     if row is None or row[0] is not None or row[1] is not None:
         raise ManagedConflict('Settle the executor lease before offline bulk storage changes.')
+    from .device_leases import present as devices_present
+
+    if devices_present(db) and db.execute("SELECT 1 FROM managed_bulk_device_executors WHERE state!='IDLE'").fetchone():
+        raise ManagedConflict('Settle every device lease/attention before offline bulk storage changes.')
     if db.execute("SELECT 1 FROM operation_jobs WHERE state IN ('QUEUED','RUNNING','UNVERIFIED') LIMIT 1").fetchone():
         raise ManagedConflict('Pending or uncertain work remains; bulk storage never resolves it.')
     from .bulk_attempts import present as attempts_present
@@ -288,6 +316,8 @@ class BulkPolicies:
                 return {**self._root(db, key, subject)[1], 'replayed': True}
             _key_free(db, key)
             _quiescent(db)
+            if not state['restoration_suspended']:
+                raise ManagedConflict('Policy-only bulk confirmation requires suspended execution; no concurrent admission yet.')
             if mutations_suspended(db):
                 raise ManagedConflict('New authority is paused; policy retirement remains available.')
             if not set(manifest['device_ids']).issubset(addition_device_ids):

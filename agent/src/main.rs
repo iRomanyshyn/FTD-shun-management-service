@@ -7,6 +7,7 @@
 mod addition;
 mod credentials;
 mod cycle;
+mod dispatch;
 mod snapshot;
 
 // Offline executable specification only; never linked into the shipped agent.
@@ -21,7 +22,7 @@ use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
 use std::os::unix::fs::{FileTypeExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result, bail};
 use nix::sys::socket::sockopt::PeerCredentials;
@@ -55,6 +56,7 @@ struct Agent {
     cycles_enabled: bool,
     large_snapshots_enabled: bool,
     additions_enabled: bool,
+    max_concurrent_devices: usize,
 }
 
 #[derive(Clone)]
@@ -154,6 +156,11 @@ impl Agent {
             "/run/ftd-shun-manager-agent/agent.sock",
         );
         let peer_uid = env_u32("FTD_SHUN_AGENT_PEER_UID", 10001)?;
+        let max_concurrent_devices = match env::var("FTD_SHUN_AGENT_MAX_CONCURRENT_DEVICES") {
+            Ok(value) => dispatch::worker_count(Some(&value))?,
+            Err(env::VarError::NotPresent) => dispatch::worker_count(None)?,
+            Err(_) => bail!("could not read agent concurrency"),
+        };
         let operation_timeout = Duration::from_secs(env_u64("FTD_SHUN_AGENT_TIMEOUT_SECONDS", 45)?);
         if !(5..=120).contains(&operation_timeout.as_secs()) {
             bail!("FTD_SHUN_AGENT_TIMEOUT_SECONDS must be between 5 and 120");
@@ -194,6 +201,7 @@ impl Agent {
                 cycles_enabled,
                 large_snapshots_enabled,
                 additions_enabled,
+                max_concurrent_devices,
             },
             socket_file,
             peer_uid,
@@ -609,21 +617,85 @@ fn serve(agent: Agent, socket_file: PathBuf, peer_uid: u32, runtime: Handle) -> 
     fs::set_permissions(&socket_file, fs::Permissions::from_mode(0o660))?;
     listen(&listener, Backlog::new(16)?)?;
 
+    let guards = Arc::new(dispatch::DeviceGuards::new(
+        agent
+            .devices
+            .iter()
+            .map(|(id, device)| (*id, device.management_ip)),
+    ));
+    let agent = Arc::new(agent);
+    let workers = if agent.max_concurrent_devices > 1 {
+        let agent = Arc::clone(&agent);
+        let guards = Arc::clone(&guards);
+        let runtime = runtime.clone();
+        Some(dispatch::Pool::new(
+            agent.max_concurrent_devices,
+            move |(connection, accepted): (OwnedFd, Instant)| {
+                respond(&agent, &connection, &runtime, &guards, accepted);
+            },
+        )?)
+    } else {
+        None
+    };
+
     loop {
         let connection = accept_connection(listener.as_raw_fd())?;
+        let accepted = Instant::now();
         if cycle::set_ipc_timeout(&connection, Duration::from_secs(10)).is_err() {
             continue;
         }
-        let response = match getsockopt(&connection, PeerCredentials) {
-            Ok(credentials) if credentials.uid() == peer_uid => {
-                handle_connection(&agent, &connection, &runtime)
-            }
-            Ok(_) => RESPONSE_REJECTED.to_vec(),
-            Err(_) => RESPONSE_REJECTED.to_vec(),
-        };
-        if !response.is_empty() {
-            let _ = send(connection.as_raw_fd(), &response, MsgFlags::MSG_NOSIGNAL);
+        if !authorized_peer(&connection, peer_uid) {
+            let _ = send(
+                connection.as_raw_fd(),
+                &RESPONSE_REJECTED,
+                MsgFlags::MSG_NOSIGNAL,
+            );
+            continue;
         }
+        if let Some(workers) = &workers {
+            if let Err(error) = workers.submit((connection, accepted)) {
+                let connection = match error {
+                    std::sync::mpsc::TrySendError::Full((connection, _)) => connection,
+                    std::sync::mpsc::TrySendError::Disconnected(_) => {
+                        bail!("all agent connection workers stopped")
+                    }
+                };
+                eprintln!("{{\"event\":\"agent.dispatch.saturated\"}}");
+                let _ = send(
+                    connection.as_raw_fd(),
+                    &RESPONSE_REJECTED,
+                    MsgFlags::MSG_NOSIGNAL,
+                );
+            }
+        } else {
+            respond(&agent, &connection, &runtime, &guards, accepted);
+        }
+    }
+}
+
+fn authorized_peer(connection: &OwnedFd, peer_uid: u32) -> bool {
+    getsockopt(connection, PeerCredentials).is_ok_and(|credentials| credentials.uid() == peer_uid)
+}
+
+fn respond(
+    agent: &Agent,
+    connection: &OwnedFd,
+    runtime: &Handle,
+    guards: &dispatch::DeviceGuards,
+    accepted: Instant,
+) {
+    // Fixed std workers do not inherit spawn_blocking's Tokio context. Timer/SSH
+    // futures are constructed below before Handle::block_on enters the runtime.
+    let _runtime_context = runtime.enter();
+    let remaining = Duration::from_secs(10).saturating_sub(accepted.elapsed());
+    let response = if remaining.is_zero() || cycle::set_ipc_timeout(connection, remaining).is_err()
+    {
+        RESPONSE_REJECTED.to_vec()
+    } else {
+        handle_connection(agent, connection, runtime, guards)
+    };
+    if !response.is_empty() {
+        let _ = send(connection.as_raw_fd(), &response, MsgFlags::MSG_NOSIGNAL);
     }
 }
 
@@ -634,15 +706,49 @@ fn accept_connection(listener: std::os::fd::RawFd) -> Result<OwnedFd> {
     Ok(unsafe { OwnedFd::from_raw_fd(raw_fd) })
 }
 
-fn handle_connection(agent: &Agent, connection: &OwnedFd, runtime: &Handle) -> Vec<u8> {
+fn handle_connection(
+    agent: &Agent,
+    connection: &OwnedFd,
+    runtime: &Handle,
+    guards: &dispatch::DeviceGuards,
+) -> Vec<u8> {
     let mut packet = [0u8; MAX_REQUEST_BYTES];
     let received = match recv(connection.as_raw_fd(), &mut packet, MsgFlags::MSG_TRUNC) {
         Ok(received) if received <= packet.len() => received,
         Ok(_) => return RESPONSE_REJECTED.to_vec(),
         Err(_) => return RESPONSE_REJECTED.to_vec(),
     };
+    let device_id = if packet.first() == Some(&0x10) {
+        cycle::decode_begin(&packet[..received]).map(|(device, _)| device)
+    } else {
+        decode_request(&packet[..received]).map(|(_, device, _)| device)
+    };
+    let Ok(device_id) = device_id else {
+        return RESPONSE_REJECTED.to_vec();
+    };
+    if !agent
+        .devices
+        .get(&device_id)
+        .is_some_and(|device| device.enabled)
+    {
+        return RESPONSE_REJECTED.to_vec();
+    }
+    guards
+        .run(device_id, || {
+            handle_packet(agent, connection, runtime, &packet[..received])
+        })
+        .unwrap_or_else(|| {
+            eprintln!(
+                "{}",
+                serde_json::json!({"event":"agent.device_busy", "device_id":device_id})
+            );
+            RESPONSE_REJECTED.to_vec()
+        })
+}
+
+fn handle_packet(agent: &Agent, connection: &OwnedFd, runtime: &Handle, packet: &[u8]) -> Vec<u8> {
     if packet.first() == Some(&0x10) {
-        return match cycle::handle(agent, connection, runtime, &packet[..received]) {
+        return match cycle::handle(agent, connection, runtime, packet) {
             Ok(response) => response,
             Err(error) => {
                 eprintln!(
@@ -653,7 +759,7 @@ fn handle_connection(agent: &Agent, connection: &OwnedFd, runtime: &Handle) -> V
             }
         };
     }
-    let (operation, device_id, ip) = match decode_request(&packet[..received]) {
+    let (operation, device_id, ip) = match decode_request(packet) {
         Ok(request) => request,
         Err(_) => return RESPONSE_REJECTED.to_vec(),
     };
@@ -852,6 +958,7 @@ async fn main() -> Result<()> {
             serde_json::json!({
                 "event": "agent.configuration.checked", "devices": agent.devices.len(),
                 "credential_mode": agent.credentials.mode(),
+                "max_concurrent_devices": agent.max_concurrent_devices,
             })
         );
         return Ok(());
@@ -866,6 +973,157 @@ async fn main() -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn synthetic_dispatch_agent() -> Result<Agent> {
+        let key = PublicKey::from_openssh(
+            "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        )?;
+        Ok(Agent {
+            devices: [1, 2, 3]
+                .into_iter()
+                .map(|id| {
+                    (
+                        id,
+                        Device {
+                            management_ip: Ipv4Addr::new(
+                                192,
+                                0,
+                                2,
+                                if id == 3 { 1 } else { id as u8 },
+                            ),
+                            pinned_host_key: key.clone(),
+                            allowed_interfaces: BTreeSet::from(["management".into()]),
+                            enabled: true,
+                            addition_profile: None,
+                        },
+                    )
+                })
+                .collect(),
+            credentials: credentials::Credentials::PerDevice(BTreeMap::new()),
+            operation_timeout: Duration::from_secs(5),
+            cycles_enabled: false,
+            large_snapshots_enabled: false,
+            additions_enabled: false,
+            max_concurrent_devices: 2,
+        })
+    }
+
+    #[test]
+    fn real_seqpacket_dispatch_keeps_busy_and_alias_devices_out_of_ssh() -> Result<()> {
+        use nix::sys::socket::socketpair;
+        let agent = Arc::new(synthetic_dispatch_agent()?);
+        let guards = Arc::new(dispatch::DeviceGuards::new(
+            agent
+                .devices
+                .iter()
+                .map(|(id, device)| (*id, device.management_ip)),
+        ));
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()?;
+        let cloned_agent = Arc::clone(&agent);
+        let cloned_guards = Arc::clone(&guards);
+        let handle = runtime.handle().clone();
+        let pool = dispatch::Pool::new(2, move |(connection, accepted): (OwnedFd, Instant)| {
+            respond(
+                &cloned_agent,
+                &connection,
+                &handle,
+                &cloned_guards,
+                accepted,
+            );
+        })?;
+        // Health is local-only: empty credential mappings make SSH unavailable by design.
+        for (opcode, device, expected) in [
+            (6, 1u8, RESPONSE_REJECTED),
+            (6, 2, RESPONSE_OK),
+            (6, 3, RESPONSE_REJECTED),
+            // Empty credentials fail before TCP; constructing the timeout still
+            // requires the actual production worker's explicit Tokio context.
+            (1, 2, RESPONSE_REJECTED),
+            (6, 2, RESPONSE_OK),
+        ] {
+            let (sender, receiver) = socketpair(
+                AddressFamily::Unix,
+                SockType::SeqPacket,
+                None,
+                SockFlag::SOCK_CLOEXEC,
+            )?;
+            cycle::set_ipc_timeout(&sender, Duration::from_secs(2))?;
+            let uid = getsockopt(&receiver, PeerCredentials)?.uid();
+            assert!(authorized_peer(&receiver, uid));
+            assert!(!authorized_peer(&receiver, u32::MAX));
+            send(
+                sender.as_raw_fd(),
+                &[opcode, 0, device],
+                MsgFlags::MSG_NOSIGNAL,
+            )?;
+            guards
+                .run(1, || -> Result<()> {
+                    // A free slot may finish its prior reply just after the peer receives it.
+                    let deadline = Instant::now() + Duration::from_secs(2);
+                    let mut item = (receiver, Instant::now());
+                    loop {
+                        match pool.submit(item) {
+                            Ok(()) => break,
+                            Err(std::sync::mpsc::TrySendError::Full(value))
+                                if Instant::now() < deadline =>
+                            {
+                                item = value;
+                                std::thread::yield_now();
+                            }
+                            Err(_) => bail!("synthetic dispatch unavailable"),
+                        }
+                    }
+                    let mut response = [0; 8];
+                    let length = recv(sender.as_raw_fd(), &mut response, MsgFlags::MSG_TRUNC)?;
+                    assert_eq!(&response[..length], expected);
+                    Ok(())
+                })
+                .context("synthetic device guard unavailable")??;
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn expired_assignment_rejects_without_reading_or_dispatching_packet() -> Result<()> {
+        use nix::sys::socket::socketpair;
+        let agent = synthetic_dispatch_agent()?;
+        let guards = dispatch::DeviceGuards::new(
+            agent
+                .devices
+                .iter()
+                .map(|(id, device)| (*id, device.management_ip)),
+        );
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()?;
+        let (sender, receiver) = socketpair(
+            AddressFamily::Unix,
+            SockType::SeqPacket,
+            None,
+            SockFlag::SOCK_CLOEXEC,
+        )?;
+        cycle::set_ipc_timeout(&sender, Duration::from_secs(2))?;
+        send(sender.as_raw_fd(), &[6, 0, 2], MsgFlags::MSG_NOSIGNAL)?;
+        respond(
+            &agent,
+            &receiver,
+            runtime.handle(),
+            &guards,
+            Instant::now() - Duration::from_secs(11),
+        );
+        let mut response = [0; 8];
+        let length = recv(sender.as_raw_fd(), &mut response, MsgFlags::MSG_TRUNC)?;
+        assert_eq!(&response[..length], RESPONSE_REJECTED);
+        let mut unread = [0; 8];
+        assert_eq!(
+            recv(receiver.as_raw_fd(), &mut unread, MsgFlags::MSG_TRUNC)?,
+            3
+        );
+        assert_eq!(&unread[..3], &[6, 0, 2]);
+        Ok(())
+    }
 
     fn interfaces() -> BTreeSet<String> {
         ["inside", "outside"]

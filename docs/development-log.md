@@ -5860,6 +5860,209 @@ drop history/settlements or restore enabled policy to force downgrade. No live
 backup/restore action was needed. Admission/claim, actual dispatch, automatic
 reconciliation, nonempty conversion and Web activation remain separate next work.
 
+## 2026-10-22 — Atomic bulk queue portions and shared claim capability
+
+Implemented real <=16-candidate same-device admission, not another read-only work
+page or seeded RUNNING fixture. One caller-composable transaction validates exact
+standing generation/authorization/target and global revisions, trusted device
+profile, lease, complete fresh absence, root integrity, protection/observations,
+earlier work/uncertainty, pair backoff/churn and shared queue/retained capacity.
+It creates fixed system delegations, jobs, links, QUEUED attempts and actual audit
+together. A final-member conflict/audit/expiry rolls back the entire portion even
+under a caught outer transaction. No coalescing, fabricated user role/import
+provenance, renewal or uncertainty replay. Deterministic keys return historical
+state after retirement/restart/pruning; mixed old/new portions explicitly conflict.
+
+Added a distinct default-false bulk capability to the existing shared queue claim,
+not the legacy restoration gate. It preserves cutoff/cooldown, serializes each
+device and revalidates original authority/evidence/lease/delegation before commit.
+Existing typed result, protection, cancellation, captured deferral and expired-
+worker hooks now compose with genuinely admitted jobs. Valid exact pre-write
+deferral may reclaim only the same original job; lost outcomes remain unknown.
+Read-only work metadata now reports actual profile suspension without granting
+execution authority. Existing policy-only confirmation refuses active execution
+until a separate concurrent standing admission contract is implemented.
+
+The explicit developer upgrade requires exact captured-cancellation storage,
+ordinary pause/suspension/quiescence, validates original roots, preserves rows and
+receipts, adds the canonical UTC fresh-read barrier and replaces only dispatch
+guards. It stays suspended/unset; older profiles retain their no-resume contract.
+No activation command, runtime caller, auto migration/repair or lab authorization
+is introduced. Older code refuses this new profile. Before eventual non-disposable
+migration retain a checked private SQLite-safe backup and compatible code/config;
+never delete evidence or restore enabled policy to force downgrade.
+
+Added 55 disposable actual-admission/claim cases: 16-member portions, concurrent
+duplicate keys, strict literals/revisions/evidence/profiles, capacity/backoff,
+cutoff/default gates, device serialization, typed outcomes, protection and queued/
+running cancellation, exact deferral, unknown lease recovery, pruning/restart,
+resume barrier, schema preservation and late audit/clock/lease rollback. Final
+review also made a device-level unknown block other IPs on that device and bound
+job creation time to its original delegation for claim/retention. First new suite
+passed 53 tests (3.44s); final focused new/legacy restoration run passed **109
+cases (5.16s)**. Earlier focused bulk result/wait/protection regressions passed
+135 cases (7.94s). First full suite passed **1736 cases (182.43s)**; final full
+run after the last two guards passed **1738 tests (187.06s)**. Compileall/Ruff/diff
+and all 196 changed/new-document local links/anchors pass. Browser assets, Rust
+and Compose are unchanged; their separate suites were not rerun. Updated normative
+architecture, working plan, status and manuals.
+
+No `.env`, inventory, credential, live schema/data/profile/gate, binary RPC, Rust,
+Compose/network, service rollout or FTD operation was changed. No backup/restore
+was needed on the unchanged lab. Runtime discovery/refill, continuous/per-device
+parallel scheduling, automatic uncertainty convergence, concurrent policy/cleanup,
+nonempty conversion and Web exposure remain follow-up integration work.
+
+## 2026-10-22 — Bounded bulk refill through the existing Synchronizer
+
+Added a default-disabled version-2 discovery/refill controller to the existing
+snapshot/session scheduler. It creates no executor, schema, authority or activation
+path. Under the shared lease/write transaction it checks at most 64 policy rows,
+admits at most 16 new jobs across all cycle snapshots/devices and applies a 16-job
+per-device unfinished-work window, counting independent mutations. Atomic source
+admission retains all identity/revision/root/evidence/protection/history/capacity
+checks. Local scan hints/counters publish after commit; late failure rolls back
+jobs and leaves hints unchanged. Capacity is an explicit held state, not eviction.
+
+Bounded numeric keyset hints persist in memory across cycles and reset on managed/
+protected revision or resume-barrier change. Restart rescans durable policy and
+attempt evidence without replaying used snapshot/intent identities or renewing
+requests. Retained last-admission times prioritize previously underserved devices
+across restart. Status defensively reports sampled check counts and bounded
+window/budget state, not total targets or verified progress percentages.
+
+Synchronizer's separate internal bulk capability requires ADD/session support and
+trusted profiles, and rejects mixed legacy restoration/cleanup modes. Pending/
+status/claim use that capability consistently; the old flag cannot mark bulk work
+executable. Successful initial/priority/final complete reads feed discovery; old
+cutoff/session budget/global lease/cooldown remain unchanged. Missing optional
+profiles show controller failure/skip mutations without migration while per-device
+read timestamps remain visible. Newly discovered ADD still waits for a later
+eligible cutoff. No deployed environment setting or Web activation was added.
+
+An expired/disabled QUEUED bulk delegation is now CANCELLED as unsent rather than
+FAILED as a fictitious CLI result; old failed/unknown latches are not rewritten.
+A separate fresh eligible attempt can satisfy still-enabled standing intent only
+after original backoff/evidence checks. Device-level unknown still blocks bulk
+ADD, including legacy read-only RECONCILED_ABSENT: observation alone cannot prove
+RPC quiescence. Dispatch-profile retention preserves those jobs and linked
+requests; age/read/restart never clears the barrier. Older schema-compatible
+writers may not honor the new barrier, so downgrade requires capabilities off,
+ordinary pause and compatible code/checked recovery, not schema recognition alone.
+
+Added 34 disposable refill cases, including actual existing-scheduler creation of
+36 managed entries and restoration after synthetic disappearance, bounded scans/
+windows, large present-prefix progress, epoch/reset/restart/device fairness,
+current controls, capacity/late rollback, used-key avoidance, unsent expiry,
+unknown/lost replies, legacy observational retention, strict config and missing-
+profile reads without initialization. Focused new/admission/legacy-scheduler run:
+**130 passed (11.10s)**. Full suite: **1772 passed (191.90s)**. Compileall/Ruff/diff
+and all 203 changed/new-document local links/anchors pass. Browser assets, Rust
+and Compose are unchanged; their separate suites were not rerun. No installed-
+image rebuild, rollout or actual FTD validation was performed. Architecture, structured manuals, working plan
+and status updated. No live inventory/credential, database/schema, feature gate,
+profile, environment, agent/RPC/Compose/network, service rollout or FTD operation
+changed. No live backup/restore was needed. Continuous writes, parallel device
+leases, automatic uncertainty convergence, concurrent policy/cleanup, legacy
+nonempty conversion and Web activation remain pending.
+
+## 2026-10-22 — Bounded agent workers and full-cycle device guards
+
+Inspection found that independent API scheduling would still stall behind the
+agent's serial accept/handle loop. Implemented that transport prerequisite first:
+a fixed opt-in 1–10 connection-worker limit with default one inline handler.
+Authenticated requests are assigned only to idle slots; active handlers have no
+queued successors and no new per-client thread is spawned. Saturation returns
+the original rejection and closes. Initial IPC budget includes assignment delay;
+expired assignments do not read/dispatch packets. Canonical environment validation
+and check-config output are covered without binding a listener or opening SSH.
+
+All semantic requests now use inventory-bounded try-lock guards, shared across
+IDs with the same management address. Guards span SSH/verification and full-cycle
+final snapshot/disconnect; duplicate/poisoned/unknown/disabled devices reject
+before SSH. A panicking worker stops without replacement and poisons its held
+device, preserving fail-closed behavior while other workers/devices continue.
+Fixed worker threads explicitly enter the existing Tokio context before timer/
+SSH future construction; the main runtime continues driving their asynchronous
+I/O. Local tests check timer progress as well as actual dispatch on socket pairs.
+No new opcode/status, arbitrary CLI, retry authority, credential exposure, timeout
+relaxation or feature/profile enablement. Rejection is never an exact pre-write
+deferral. Guards are process-local; restart never clears durable API uncertainty.
+
+Added concurrency unit/socket/timer tests and an isolated preflight process case
+for default/valid/invalid settings and unchanged ADD dependencies. Initial sandbox
+test execution passed pure cases but two local socket fixtures hit EPERM; the
+same local-only suite was rerun with socket-capable permissions, not lab/network
+access. Final Rust tests: **57 passed** (52 unit plus 5 isolated process checks),
+including 10 new concurrency/configuration cases. Rustfmt, Clippy with warnings
+denied and locked release build pass. Full Python suite: **1772 passed (189.49s)**;
+compileall/Ruff/diff and all 212 changed/new-document local links/anchors pass. Browser
+assets and Compose are unchanged; their separate suites were not rerun. No actual
+multi-FTD/load/production acceptance was performed. Updated architecture, operator/contributor manuals, status,
+working plan and tracked .env example with the serial default.
+
+No lab environment/inventory/credential, optional schema/migration, DB data,
+feature gate/profile, Compose/network, image/service or FTD operation changed.
+No live backup/restore was needed. Retain matching prior agent/configuration and
+checked SQLite-safe backup for eventual reviewed rollout/rollback; settle RPCs
+and preserve original unknown jobs rather than replaying or clearing latches.
+The API global lease/cooldown/device loop is unchanged: this is not end-to-end
+parallel dispatch, production capacity acceptance or permission to opt in on FTD.
+Independent API device scheduling remains the next integration.
+
+## 2026-10-22 — Fenced per-device API leases over the shared queue
+
+Implemented an explicit optional profile after exact bulk dispatch storage, with
+immutable configured device scope/concurrency and retained per-device executor
+rows. Initialization requires ordinary pause/desired suspension, settled global
+and device execution, no pending/unknown/captured wait, enabled existing devices
+and full original-root validation. It preserves policy/receipts/attempts and never
+resumes policy or grants work. All DDL/rows/sealing/checks roll back together,
+including caught caller-owned transactions. Exact expected-profile construction
+uses an in-memory dummy global trigger target only, not live queue initialization.
+
+Claims use canonical worker UUIDs and strictly increasing epochs with 5–300-second
+deadlines and an atomic 1–10 owner quota (default four). Same-device contention
+returns no token. DeviceOperationQueue binds a token to the existing jobs and
+shared admission/discovery/claim/result/deferral paths; it does not create a
+second queue/executor or project owners into the legacy global row. Wrong device,
+old nonce/epoch or expired deadline refuses ADD/REMOVE results, exact deferral,
+renewal/release and late transaction completion. Queue running/result/deferral
+audit retains actual request identity and adds the current executor fence only
+where it actually owns that device; cross-device revocation is not misattributed.
+
+Expiry never steals/replays: atomically mark only the expired device's RUNNING
+jobs UNVERIFIED through the original journal/wait-settlement hooks, then retain
+the captured lease as immutable ATTENTION. Read-only expiry also holds because
+the RPC may still run. Other devices' RUNNING work is untouched. Missing original
+evidence rolls back recovery, not reconstructing success. Age, restart, read-only
+status, retention or capacity pressure cannot clear attention. Release refuses
+RUNNING work; renewal cannot revive a previously expired deadline. Old global
+owners are DB-blocked, and offline quiescence/desired resume cannot ignore a
+device lease/attention. Global pause/revision/old cooldown remain unchanged.
+
+Added 45 disposable cases covering true concurrent shared-queue owners, quota/
+same-device races, reused-nonce epochs, wrong-device/expired ADD/REMOVE/deferral,
+in-flight cancellation/protection/settlement, immutable read-only attention,
+retention/restart, missing evidence/profile, original-root preservation, old-writer
+exclusion, current epochs in audit and late schema/audit/clock rollback. Final
+new suite: **45 passed (3.54s)**; earlier new/admission/discovery/serial scheduler
+regressions passed **173 cases (13.74s)** before the last two guard cases. Full
+suite: **1817 passed (191.80s)**. Compileall/Ruff/diff and all 220 changed/new-
+document local links/anchors pass. Agent, browser assets and Compose are unchanged
+in this increment; their separate suites were not rerun. No installed-image
+rebuild, live migration/rollout or FTD validation was performed.
+Architecture, structured manuals, working plan and status updated.
+
+No lab DB/schema/profile migration, environment/gate/credential, runtime worker,
+agent/RPC/Compose/network, service rollout or FTD operation changed. No live
+backup/restore was needed. Before eventual approved migration keep a checked
+SQLite-safe backup and matching code/configuration; never drop fences/attention,
+reset epochs or restore enabled policy to force downgrade. Automatic RPC-quiescence
+proof, parallel Synchronizer integration, independent read timing/continuous
+dispatch, concurrent policy/cleanup and legacy conversion/Web activation remain
+separate next work. No simultaneous-FTD or production acceptance is claimed.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

@@ -26,7 +26,7 @@ enum Step {
     End,
 }
 
-fn decode_begin(packet: &[u8]) -> Result<(u16, u8)> {
+pub(super) fn decode_begin(packet: &[u8]) -> Result<(u16, u8)> {
     if packet.len() != 4
         || packet[0] != BEGIN
         || !matches!(packet[1], VERSION | snapshot::VERSION | addition::VERSION)
@@ -708,6 +708,7 @@ mod tests {
             cycles_enabled: true,
             large_snapshots_enabled: true,
             additions_enabled: false,
+            max_concurrent_devices: 1,
         };
         let (_sender, receiver) = socketpair(
             AddressFamily::Unix,
@@ -795,6 +796,7 @@ mod tests {
             cycles_enabled: false,
             large_snapshots_enabled: false,
             additions_enabled: false,
+            max_concurrent_devices: 1,
         };
         let (sender, receiver) = socketpair(
             AddressFamily::Unix,
@@ -802,12 +804,13 @@ mod tests {
             None,
             SockFlag::SOCK_CLOEXEC,
         )?;
+        let guards = dispatch::DeviceGuards::new([]);
         set_ipc_timeout(&receiver, Duration::from_secs(1))?;
         let mut oversized = vec![0u8; 128];
         oversized[..4].copy_from_slice(&[BEGIN, VERSION, 0, 7]);
         send(sender.as_raw_fd(), &oversized, MsgFlags::MSG_NOSIGNAL)?;
         assert_eq!(
-            handle_connection(&agent, &receiver, runtime.handle()),
+            handle_connection(&agent, &receiver, runtime.handle(), &guards),
             RESPONSE_REJECTED
         );
         send(
@@ -816,7 +819,7 @@ mod tests {
             MsgFlags::MSG_NOSIGNAL,
         )?;
         assert_eq!(
-            handle_connection(&agent, &receiver, runtime.handle()),
+            handle_connection(&agent, &receiver, runtime.handle(), &guards),
             RESPONSE_REJECTED
         );
         agent.cycles_enabled = true;
@@ -826,7 +829,7 @@ mod tests {
         assert!(error.to_string().contains("large snapshots are disabled"));
         send(sender.as_raw_fd(), &[7, 0, 7], MsgFlags::MSG_NOSIGNAL)?;
         assert_eq!(
-            handle_connection(&agent, &receiver, runtime.handle()),
+            handle_connection(&agent, &receiver, runtime.handle(), &guards),
             RESPONSE_REJECTED
         );
         Ok(())

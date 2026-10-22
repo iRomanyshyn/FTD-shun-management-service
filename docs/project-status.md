@@ -15,6 +15,135 @@ priority. See [the planned constraints](working-version-plan.md#deferred-ip-cont
 
 ## Current increment
 
+**Fenced per-device API leases/shared queues (2026-10-22).** Added an explicit
+optional profile with sealed 1–10-device scope and 1–10 simultaneous owner limit
+(developer default four). Each claim has a canonical nonce, increasing epoch and
+live deadline. Token-bound queues reuse the actual existing admission, claim,
+typed ADD/REMOVE result, exact deferral, cancellation/protection and audit paths;
+wrong-device/old/expired owners cannot publish late results. End-of-transaction
+fence checks roll back job/occurrence/journal/audit together.
+
+Expired leases are not stolen: recover only that device's RUNNING jobs as original
+UNVERIFIED results and retain the captured lease as immutable ATTENTION, including
+read-only expiry. Other devices remain independent. Retention/restart/observation
+does not release attention; no rearm/resolution route exists. Status is read-only
+and exposes expiry separately. Global-owner guards exclude old executors; offline
+quiescence/desired resume also check device leases. Earlier exact profiles retain
+their serial behavior. Original standing roots/receipts and global pause/revision/
+legacy cooldown metadata are preserved.
+
+This is not a parallel Synchronizer loop or continuous dispatch yet. No startup/
+GET migration, activation CLI/env/Web switch, legacy conversion, live schema/
+fixture, service restart, agent/Compose/secret change or FTD operation. See
+[Fenced Device Leases](manual/device-leases.md). Runtime worker lifecycle, read
+timing/interactive priority and quiescence-backed automatic recovery remain next.
+Validation: **45 new cases passed (3.54s)**; the earlier new/serial-scheduler
+focused run passed **173 cases (13.74s)** before the last two guard cases. Full
+suite: **1817 passed (191.80s)**. Compileall/Ruff/diff and all 220 changed/new-
+document local links/anchors pass. Agent, browser assets and Compose are unchanged
+in this increment; their separate suites were not rerun. No live migration, image
+rollout, service or FTD validation was performed.
+
+### Previous agent-concurrency checkpoint
+
+**Bounded agent-side concurrency prerequisite (2026-10-22).** The Rust agent
+supports a fixed opt-in 1–10 connection-worker limit, defaulting to the existing
+serial inline path. Authenticated connections go only to idle workers; no backlog
+behind active handlers, no unbounded per-client threads. Initial IPC time includes
+assignment delay; expired assignments are rejected without reading their packet.
+
+Inventory-bounded nonblocking device/address guards span every semantic handler,
+including complete cycle verification/final-read/disconnect. Same-device/alias
+requests fail closed while other devices can use healthy workers. Panicked guards
+remain poisoned in-process; failed workers are not replaced. Fixed protocol,
+feature/profile gates, agent-only credentials/pinning and existing timeouts remain.
+`--check-config` reports the limit without opening SSH/listener. The tracked example
+documents value 1; actual lab settings remain unchanged.
+
+This is **not parallel API scheduling**: the API still has its global lease/
+cooldown/serial device loop. No API activation, DB/schema, Compose, secret/inventory,
+lab gate/profile, image rollout, service restart or FTD mutation. See
+[Agent Connection Concurrency](manual/agent-concurrency.md). Remaining core work
+includes independent API leases/workers, continuous dispatch/interactive priority,
+uncertainty convergence, concurrent policy/cleanup and compatible migration/Web
+enablement.
+
+Validation: **57 Rust tests passed** (52 unit plus 5 process-isolated configuration
+tests), including 10 new concurrency/preflight cases. Rustfmt, Clippy with warnings
+denied and locked release build pass. Full Python suite: **1772 passed (189.49s)**.
+Compileall/Ruff/diff and all 212 changed/new-document local links/anchors pass. Browser
+assets and Compose are unchanged; their separate suites were not rerun. No live
+simultaneous-device, executable-load or production acceptance was performed.
+
+### Previous bounded-refill checkpoint
+
+**Bounded bulk refill in the existing Synchronizer (2026-10-22).** An internal
+default-false bulk capability now composes successful complete initial/priority/
+final reads with atomic admission, rather than seeding RUNNING work. Across a
+cycle it checks <=64 current policy rows and admits <=16 jobs; a 16-job per-device
+unfinished window counts independent mutations too. No unbounded executable list.
+Bounded keyset hints reset on revisions/resume barrier; restart rescans retained
+evidence, and durable last-admission ordering provides device fairness.
+
+Pending/status/claim use the distinct bulk capability, not the legacy restoration
+flag. Missing/partial profiles report managed-controller errors and skip mutations
+without initialization, while successful device read timestamps remain visible.
+The existing cutoff, session limits/global lease/cooldown remain unchanged.
+Queued bulk expiry is CANCELLED, not a fabricated CLI failure. Original unknown/
+failed attempts are never replayed; read-only legacy RECONCILED_ABSENT outcomes
+remain device-level bulk barriers, with their jobs/requests preserved by retention.
+
+No environment/API/Web activation, optional schema migration, lab configuration/
+fixture/credential, agent/RPC/Compose, service restart or FTD change. No production-
+readiness claim. See [Bounded Bulk Refill](manual/bulk-refill-controller.md).
+Synthetic controller/admission/legacy-scheduler regressions passed **130 cases
+(11.10s)**, including 34 new refill cases and actual fake-agent creation/restoration.
+Full suite: **1772 passed (191.90s)**. Compileall/Ruff/diff and all 203 changed/
+new-document local links/anchors pass. Browser assets, Rust agent and Compose are
+unchanged; their separate suites were not rerun. No image rebuild/deployment or
+live FTD validation was performed.
+Continuous/per-device parallel dispatch, automatic quiescence-backed uncertainty
+recovery, concurrent policy/cleanup, nonempty conversion and Web enablement remain
+next delivery work.
+
+### Previous queue-admission checkpoint
+
+**Atomic bulk queue admission/shared claim (2026-10-22).** Added an internal
+all-or-nothing <=16-pair same-device admission that creates fixed system requests,
+jobs, links, QUEUED attempts and audit together under the shared lease. Exact
+standing identities/revisions, trusted device capability, complete fresh absence,
+original source integrity, protection, history/backoff and shared capacity are
+rechecked; duplicates recover immutable historical outcomes without new authority.
+Any device-level unknown blocks further bulk ADDs on that device without changing
+its original evidence; job creation time is bound to the original delegation.
+
+The existing queue supports a distinct default-false bulk claim capability, keeps
+the original cutoff/global cooldown and refuses simultaneous RUNNING commands on
+one device. Current authority/evidence and late lease/delegation expiry checks
+precede committed claim. Shared typed results, cancellation/protection, exact
+pre-write deferral and lease recovery retain their original evidence contracts.
+
+A separately explicit exact-profile upgrade retains all rows/receipts, adds a
+fresh-read resume barrier and replaces dispatch guards under pause/quiescence.
+It does not resume policy. Earlier profiles keep their suspended/no-dispatch
+contract; startup/GET never migrate or repair. No activation CLI/HTTP/env wiring,
+runtime controller, lab schema/profile/fixture, image/service restart, agent/RPC,
+Compose or FTD change. See [Bulk Queue Admission and Claim](manual/bulk-queue-admission.md).
+
+Validation: **55 new disposable queue tests**; final focused new/legacy restoration
+run passed **109 cases (5.16s)**. The previous focused
+bulk result/wait/protection suite passed 135 cases (7.94s), before the additional
+boundary tests. The first full regression run passed **1736 cases (182.43s)**;
+the final full run after the last two guards passed **1738 tests (187.06s)**.
+Compileall, Ruff, diff whitespace checks and all 196 changed/new-document local
+links/anchors pass. Browser assets, agent and Compose are unchanged; their separate
+suites were not rerun. No image rebuild, rollout or live migration/FTD validation.
+Continuous dispatch, independent device leases,
+automatic reconciliation, concurrent policy admission/cleanup, nonempty conversion
+and Web/runtime integration remain pending. No production-readiness claim.
+
+### Previous captured-cancellation checkpoint
+
 **Captured bulk cancellation settlement (2026-10-22).** The separately explicit
 wait profile now freezes owned RUNNING predecessors without interrupting them,
 retains completed VERIFIED/NOOP application and stops unsent/failed/unknown first

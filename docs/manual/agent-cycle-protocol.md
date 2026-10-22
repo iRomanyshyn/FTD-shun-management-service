@@ -58,6 +58,11 @@ Response envelope is `status:u8 01 opcode:u8 seq:u8`. Status values:
 
 ## Independent agent limits
 
+The separate [bounded connection dispatcher](agent-concurrency.md) defaults to
+one inline worker. Opt-in workers never overlap the same device/address and hold
+its guard across the complete cycle/verification/disconnect. This changes neither
+wire status meanings nor the limits below, and does not enable parallel API leases.
+
 Hard limits per connection: 16 REMOVE steps, 64 CLI commands, one optional
 SNAPSHOT, and 120 seconds from before SSH connection establishment. Every
 connect/step is additionally bounded by the smaller of 45 seconds and

@@ -52,6 +52,23 @@ default and configurable concurrency. Each device has one serialized command
 stream. Failure/reconnection on one device must not stall unrelated devices.
 These are product planning targets, not validated FTD hardware capacity claims.
 
+Transport prerequisite implemented 2026-10-22: the Rust agent now supports an
+explicit 1–10 fixed connection-worker limit (default 1), with one nonblocking guard
+per device/management address and no accepted backlog behind active workers.
+Peer UID, fixed wire formats, existing feature gates and operation/session limits
+remain unchanged. This does not supply independent API leases or end-to-end
+parallel/continuous scheduling; no lab setting or new fixture was activated.
+See [Agent Connection Concurrency](manual/agent-concurrency.md).
+
+Fenced per-device API lease/queue primitives are now implemented on an explicitly
+initialized optional developer profile (2026-10-22): immutable configured scope,
+concurrent owner limit, increasing epochs, live-deadline checks across shared
+admission/claim/results and retained expiry attention without stealing. Global
+writers are excluded. The parallel Synchronizer loop, independent read timing,
+continuous dispatch and automatic quiescence-backed recovery are still pending;
+no profile or worker is activated by startup or deployed environment settings.
+See [Fenced Device Leases](manual/device-leases.md).
+
 ## 3. Bulk import and cancellation
 
 Target up to 10,000 IPv4 addresses in one import, with explicit device selection.
@@ -325,8 +342,30 @@ Nonempty conversion, version-aware cleanup/atomic attempt claims and actual
 dispatch remain prerequisites for runtime exposure.
 A separately explicit captured-cancellation profile now handles owned in-flight
 settlement/completed-application retention while preserving earlier receipts.
-Atomic runtime admission/claim, actual dispatch and automatic reconciliation still
-remain unavailable; no live profile or fixture was activated by that integration.
+At that checkpoint, atomic runtime admission/claim, actual dispatch and automatic
+reconciliation were not yet supplied; no live profile or fixture was activated.
+
+The next backend increment (2026-10-22) now supplies actual atomic <=16-pair
+enqueue and shared queue claims behind a separate default-false bulk capability.
+Its explicit developer-profile upgrade retains suspension/history, requires a
+fresh-read resume barrier and never activates itself. Cancellation/protection,
+typed completion, exact deferral and lease recovery use the same journal/worker.
+There is still no runtime refill/controller/Web wiring, concurrent standing
+admission, continuous/per-device lease scheduler, automatic reconciliation or
+legacy nonempty conversion. See [Bulk Queue Admission and Claim](manual/bulk-queue-admission.md).
+No live profile, lab migration, fixture or FTD command accompanies this component.
+
+Bounded refill now composes that admission with the existing Synchronizer behind
+an internal default-false bulk capability (2026-10-22). It scans <=64 rows without
+adopting observations, admits <=16 new jobs per cycle and limits each device's unfinished
+shared-work window to 16. Keyset hints, revision/barrier resets and retained
+last-admission ordering provide bounded restart-safe scans and device fairness.
+The existing cutoff/cooldown still apply; continuous writes/parallel leases are
+not implemented by this integration. Pending/status/claim distinguish the bulk
+capability from legacy restoration. Unknown or merely read-reconciled original
+RPCs remain retained device barriers; unsent expired jobs are cancelled without
+rewriting old failed/unknown outcomes. See [Bounded Bulk Refill](manual/bulk-refill-controller.md).
+No environment/API/Web activation, new schema or live lab change was introduced.
 
 The isolated [version-2 format foundation](manual/bulk-import-capacity.md) now
 binds a complete 100000-pair classified manifest in a small canonical descriptor,

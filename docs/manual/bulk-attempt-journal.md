@@ -1,5 +1,9 @@
 # Bulk Attempt Result Journal
 
+The separately explicit [queue admission profile](bulk-queue-admission.md) now
+adds bounded admission/shared claim. This manual's capture-only and no-dispatch
+guarantees still apply to the earlier journal profile, not that optional upgrade.
+
 ## Delivery boundary
 
 `BulkAttempts` adds retained version-2 attempt evidence and connects it to the

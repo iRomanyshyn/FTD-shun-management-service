@@ -4338,3 +4338,159 @@ registry suspended, current worker defaults and lab unchanged. No new HTTP route
 FTD fixture, live migration or external command is authorized. Older code refuses
 the expanded profile; preserve a checked SQLite-safe backup and compatible code,
 never drop history or restore enabled policy to force rollback.
+
+## Version-2 bounded queue admission and claim — 2026-10-22
+
+Introduce a separately explicit dispatch-capable developer schema after captured
+cancellation controls. Upgrade only under ordinary pause, a settled executor and
+no pending/unknown work; retain all rows, immutable authority and receipts. It
+does not resume policy. Older exact profiles retain their no-resume/no-dispatch
+contract. The new profile recognizes both suspended and unsuspended registry
+states; changing suspension to active requires ordinary pause and quiescence.
+No activation command, HTTP route, startup migration, runtime flag wiring or lab
+permission is introduced here. A separately reviewed activation procedure and
+legacy conversion remain required before non-disposable use.
+The optional canonical UTC `dispatch_resume_after` barrier advances only during
+explicit resume; a read predating it cannot admit or claim work. Upgrade leaves
+that field unset and suspension enabled. Existing policy-only confirmation remains
+restricted to suspended execution until concurrent standing admission is reviewed.
+
+An internal default-false controller capability may atomically admit at most 16
+literal same-device candidates from a complete fresh absence snapshot. Bind each
+candidate's original intent/generation/authorization and target revision, plus
+the whole managed/protected revisions and an explicit trusted ADD-device profile.
+Require unsuspended policy, unpaused mutations, an active shared lease, current
+enabled device/policy, absent observations, full original root integrity and no
+independent pending work or earlier failed/uncertain ADD. Keep retained capacity,
+300-second pair backoff and three-attempt hourly churn limits; never evict evidence.
+Any retained device-level unknown outcome blocks new bulk ADD work on that device
+until a separate reviewed reconciliation contract proves it safe; a fresh snapshot
+alone cannot release that barrier. Bind job creation time to the original request
+and attempt, including before retention.
+Create fixed system requests (no invented human roles), jobs, links, QUEUED
+attempts and audit together. Backpressure/conflict/late failure rolls back the
+whole portion. Deterministic snapshot/intent identities recover historical
+admission without renewing deadlines, changing outcomes or re-enabling policy.
+
+Only the existing leased queue may claim these jobs, with a distinct default-false
+bulk capability, the original cutoff and fresh current-authority/evidence checks.
+Never infer permission from the legacy restoration flag. Keep one RUNNING command
+per device; do not add an executor or bypass existing cooldown/session safeguards.
+Recheck lease/delegation/evidence before committing a claim. Exact pre-write
+deferral may queue the same job again only while its original evidence/deadline
+remain valid; a captured cancellation settles first and prevents that retry.
+Timeout/unknown remains a retained latch, not replay authority. Cancellation,
+protection, typed results and lease recovery use the existing atomic journal hooks.
+Continuous dispatch, per-device parallel leases, automatic uncertainty convergence
+and Web admission are subsequent integrations, not supplied by this backend hook.
+
+## Version-2 bounded refill controller — 2026-10-22
+
+Add a default-disabled version-aware discovery/refill controller to the existing
+Synchronizer, mutually exclusive with legacy managed restoration/cleanup workers.
+It requires explicit ADD/session capability, trusted per-device profiles and the
+existing exact dispatch schema; it never initializes/migrates/resumes state.
+No environment/API activation path or lab activation accompanies this integration.
+Successful complete initial/priority/final reads may feed discovery under the
+shared lease. No cached, partial, failed or claimed browser snapshot is authority.
+
+Across a cycle, check at most 64 policy rows and admit at most 16 new jobs, in
+atomic portions through BulkDispatch. Limit unfinished shared work on each device
+to a 16-job refill window, counting independent mutations too. Preserve the global
+queue/journal bounds. Sampled hold counts are checks, not total targets or verified
+completion. Eligibility observes protection, current standing identity/revision,
+present observations, snapshot age/resume barrier, attempt history/backoff/churn,
+pending conflicts and device-level uncertainty. Never automatically retry a used
+snapshot/intent key or reconstruct missing evidence. Selection and admission share
+one write transaction; failures cannot partially admit a discovered portion.
+
+Use bounded numerical keyset scans with non-authoritative in-memory cursors, reset
+on managed/protected revision or resume-barrier changes. Restart discards scan
+position, not policy or original attempt identities; rescan skips retained work,
+observations and history without renewing authority. Rotate device order using
+retained last-admission times so a large first device does not consume every
+cycle. Do not load the full effective registry or create a durable execution cursor.
+
+Supply the separate bulk capability consistently to pending-work/status/claim;
+the legacy flag must not mislabel bulk work as executable. Preserve the existing
+frozen cutoff, session budgets, global lease and cooldown: newly discovered ADD
+waits for a later eligible cycle, not an implicit bypass. Unsent bulk delegations
+that expire are CANCELLED with original history, not fabricated failed CLI
+outcomes or cleared old FAILED/UNVERIFIED latches. Continuous dispatch, parallel
+device leases, automatic uncertainty convergence, legacy conversion and Web bulk
+activation remain subsequent work. Schema and lab configuration remain unchanged.
+Legacy REMOVE RECONCILED_ABSENT is observational, not RPC-quiescence proof: retain
+it as a device-level bulk barrier, including its linked job/request through queue
+retention. Older schema-compatible writers may lack this newer retention contract;
+keep capabilities off/mutations paused and preserve compatible code/checked backup
+for any downgrade rather than treating schema recognition as permission to write.
+
+## Bounded agent connection concurrency — 2026-10-22
+
+The current agent serializes accepted connections, independently of the API's
+global executor lease. Introduce an opt-in fixed connection-worker pool as the
+transport prerequisite for future independent device scheduling. Default to one
+inline worker; accept only canonical concurrency values 1..10. The working-version
+target remains four active devices, not a validated hardware capacity claim. No
+API lease/cooldown bypass, scheduler activation or lab change accompanies this step.
+
+Authenticate SO_PEERCRED before dispatch, preserve exact packet decoding and all
+existing version/feature/profile gates. Bound active handlers to the configured
+worker count: assign at most one connection to an idle worker, never queue behind
+an active handler. The initial IPC deadline starts at accept, including assignment
+delay, in addition to the existing fixed kernel backlog. On saturation return the existing generic
+rejection and close; never allocate one unbounded thread per connection.
+
+Acquire a nonblocking, inventory-bounded device guard before any semantic handler,
+including legacy, large-read and cycle v1/v2/v3 paths. Hold it through the entire
+SSH operation/cycle, verification, final snapshot and transport-disconnect cleanup.
+IDs sharing a management address share a guard, preventing alias-ID overlap.
+Different devices may progress concurrently; a duplicate/busy/poisoned device is
+rejected without opening SSH or waiting behind a cycle. A worker panic poisons
+its held guard and does not create permission to retry; do not automatically
+replace failed workers or clear the poisoned device until reviewed recovery.
+
+Busy/saturated rejection is not a typed pre-write deferral, success, RPC-quiescence
+proof or retry authority. Preserve unknown-result handling at callers; no new wire
+status/opcode, arbitrary command, credential exposure, request-size or session/
+operation/IPC timeout relaxation. Credentials remain agent-only with existing
+per-device loading/zeroization and host-key pinning. Validate using bounded local
+threads/UDS fixtures only; real simultaneous FTD sessions require separate scoped
+acceptance before enablement. No live gates/profiles or secrets are changed.
+
+## Fenced per-device API lease profile — 2026-10-22
+
+Add an explicitly initialized optional profile after exact bulk dispatch storage,
+under ordinary pause, desired suspension and global/pending/uncertainty quiescence.
+Freeze 1..10 configured stable device IDs and a 1..10 concurrent-lease limit
+(developer default four). Preserve all prior policy, receipts and outcomes.
+Startup/GET never initializes or activates it. Database guards reject legacy
+global-owner leases and desired resume while any device lease/attention remains;
+older writers must not execute beside the new mode. No lab migration/activation.
+
+Claim each device independently with a canonical worker nonce, strictly increasing
+epoch and bounded deadline. Count all LEASED rows, including expired ones, until
+their owner finishes or recovery records uncertainty. Never steal/reuse an expired
+lease: atomically mark its RUNNING jobs UNVERIFIED using the shared result journal
+and retain the captured lease as ATTENTION. Even a read-only expired lease can
+have an outstanding RPC. ATTENTION is retained, not cleared by age, restart,
+observation, capacity pressure or a new worker. No release/rearm route is added;
+automatic quiescence-backed reconciliation remains separate future work.
+
+A token-bound OperationQueue reuses the same admission, claims, typed results,
+deferral, protection/cancellation, audit and retention logic. Require exact device,
+nonce, epoch and unexpired lease before mutation claim, result, deferral, renewal
+and release; old/wrong-device tokens cannot publish late results. Bulk evidence
+capture/discovery must use the same scoped executor selector, never a temporary
+global-owner projection or fabricated lease. Recheck the fence at transaction
+end; errors roll back all journal/job/occurrence/lease updates together. Release
+only after RUNNING work has settled. No other device's jobs are recovered/changed.
+
+This component supplies actual concurrent lease/queue primitives, not a parallel
+Synchronizer loop, continuous dispatch, new retry authority or clock/timeout
+relaxation. Existing serial profiles retain their old behavior. Optional profile
+recognition, frozen device scope, fences/attention and old-writer guards are exact
+and fail closed on partial state. Keep checked SQLite-safe backup and matching
+code/configuration; never drop lease attention or restore enabled policy to force
+an older writer or downgrade. Runtime/agent coordination and multi-device FTD
+acceptance remain separately gated, with live configuration unchanged.

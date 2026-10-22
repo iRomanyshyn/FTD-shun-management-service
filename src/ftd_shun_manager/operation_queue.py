@@ -36,6 +36,15 @@ def stamp(value: datetime) -> str:
     return value.isoformat(timespec="milliseconds").replace("+00:00", "Z")
 
 
+def _system_enabled(db, attempt, legacy, bulk):
+    if attempt is None:
+        return True
+    from .bulk_attempts import present as bulk_present
+    from .bulk_dispatch import present as dispatch_present
+
+    return bulk and dispatch_present(db) if bulk_present(db) else legacy
+
+
 class OperationQueue:
     def __init__(self, store: Store) -> None:
         self.store = store
@@ -352,7 +361,7 @@ class OperationQueue:
         return {"operation_id": request_id, "status": "accepted", "replayed": True}
 
     def has_pending(self, device_id: int | None = None, *, addition_device_ids: frozenset[int] = frozenset(),
-                    managed_restoration_enabled: bool = False) -> bool:
+                    managed_restoration_enabled: bool = False, bulk_dispatch_enabled: bool = False) -> bool:
         from .managed_restoration import attempt_for_job
 
         with self.store._connection() as db:
@@ -362,7 +371,7 @@ class OperationQueue:
                 return db.execute("""SELECT 1 FROM operation_jobs WHERE state='QUEUED'
                     AND action='REMOVE' AND (? IS NULL OR device_id=?) LIMIT 1""", (device_id, device_id)).fetchone() is not None
             return any(row["action"] == "REMOVE" or (row["device_id"] in addition_device_ids
-                       and (managed_restoration_enabled or not attempt_for_job(db, row["id"])))
+                       and _system_enabled(db, attempt_for_job(db, row['id']), managed_restoration_enabled, bulk_dispatch_enabled))
                        for row in db.execute("""SELECT id,action,device_id FROM operation_jobs
                            WHERE state='QUEUED' AND (? IS NULL OR device_id=?)""", (device_id, device_id)))
 
@@ -382,7 +391,13 @@ class OperationQueue:
                 (stamp(self._now()),),
             ).fetchall()
             for job in jobs:
-                self._finish(db, job, "FAILED", "target disabled or all requesting authorizations expired/cancelled")
+                from .bulk_dispatch import present as dispatch_present
+                from .managed_restoration import attempt_for_job
+
+                unsent_bulk = dispatch_present(db) and attempt_for_job(db, job['id']) is not None
+                self._finish(db, job, 'CANCELLED' if unsent_bulk else 'FAILED',
+                             "target disabled or all requesting authorizations expired/cancelled"
+                             + ('; no write was sent' if unsent_bulk else ''))
             if changed:
                 self._bump(db)
 
@@ -432,9 +447,13 @@ class OperationQueue:
         return max([0.0, *((value - self._now()).total_seconds() for value in deadlines)])
 
     def claim_cycle(self, owner: str, lease_seconds: int) -> bool:
+        from .device_leases import present as device_leases_present
+
         current = self._now()
         with self.store._connection() as db:
             db.execute("BEGIN IMMEDIATE")
+            if device_leases_present(db):
+                raise QueueConflict('Global cycles cannot execute on device lease storage.')
             executor = db.execute("SELECT * FROM operation_executor WHERE id=1").fetchone()
             if any(value and datetime.fromisoformat(value) > current for value in
                    (executor["lease_until"], executor["next_eligible_at"])):
@@ -471,26 +490,38 @@ class OperationQueue:
         with self.store._connection() as db:
             return db.execute("SELECT COALESCE(MAX(seq),0) FROM operation_jobs").fetchone()[0]
 
+    def _executor(self, db, owner, device_id):
+        """One selector shared by claim/result/evidence; scoped queues override it."""
+        from .device_leases import present as device_leases_present
+
+        if device_leases_present(db):
+            raise QueueConflict('A fenced device queue is required on device lease storage.')
+        return db.execute('SELECT * FROM operation_executor WHERE id=1').fetchone()
+
     def claim_removal(self, device_id: int, owner: str, cutoff: int) -> dict | None:
         return self._claim_mutation(device_id, owner, cutoff, "REMOVE")
 
     def claim_next_mutation(self, device_id: int, owner: str, cutoff: int, *, additions_enabled: bool = False,
-                            managed_restoration_enabled: bool = False) -> dict | None:
+                            managed_restoration_enabled: bool = False, bulk_dispatch_enabled: bool = False) -> dict | None:
         """One atomic FIFO claim; the leased scheduler supplies device capability."""
         return self._claim_mutation(device_id, owner, cutoff, None if additions_enabled else "REMOVE",
-                                    managed_restoration_enabled=managed_restoration_enabled)
+                                    managed_restoration_enabled=managed_restoration_enabled, bulk_dispatch_enabled=bulk_dispatch_enabled)
 
     def claim_addition(self, device_id: int, owner: str, cutoff: int, *, execution_enabled: bool = False,
-                       managed_restoration_enabled: bool = False) -> dict | None:
+                       managed_restoration_enabled: bool = False, bulk_dispatch_enabled: bool = False) -> dict | None:
         """Explicit ADD-only domain hook; defaults disabled."""
         if not execution_enabled:
             return None
-        return self._claim_mutation(device_id, owner, cutoff, "ADD", managed_restoration_enabled=managed_restoration_enabled)
+        return self._claim_mutation(device_id, owner, cutoff, "ADD", managed_restoration_enabled=managed_restoration_enabled,
+                                    bulk_dispatch_enabled=bulk_dispatch_enabled)
 
-    def _claim_mutation(self, device_id: int, owner: str, cutoff: int, action: str | None, *, managed_restoration_enabled=False) -> dict | None:
+    def _claim_mutation(self, device_id: int, owner: str, cutoff: int, action: str | None, *, managed_restoration_enabled=False,
+                        bulk_dispatch_enabled=False) -> dict | None:
+        from .bulk_dispatch import authority_valid as bulk_authority_valid
+        from .bulk_dispatch import present as bulk_dispatch_present
         from .managed_restoration import ACTOR, attempt_for_job, record_result, validate_binding
 
-        if type(managed_restoration_enabled) is not bool:
+        if type(managed_restoration_enabled) is not bool or type(bulk_dispatch_enabled) is not bool:
             raise ValueError("Restoration capability must be boolean.")
         with self.store._connection() as db:
             db.execute("BEGIN IMMEDIATE")
@@ -502,9 +533,12 @@ class OperationQueue:
             # actor must not inherit origin from another actor's valid work.
             if self._expire_authorizations(db):
                 self._bump(db)
-            executor = db.execute("SELECT * FROM operation_executor WHERE id=1").fetchone()
+            executor = self._executor(db, owner, device_id)
             if executor["owner"] != owner or not executor["lease_until"] or executor["lease_until"] < stamp(self._now()):
                 raise QueueConflict("executor lease lost")
+            if bulk_dispatch_present(db) and db.execute(
+                    "SELECT 1 FROM operation_jobs WHERE device_id=? AND state='RUNNING'", (device_id,)).fetchone():
+                return None  # Never overlap command/verification on the same device.
             jobs = db.execute("""SELECT * FROM operation_jobs
                 WHERE device_id=? AND state='QUEUED' AND (? IS NULL OR action=?) AND (seq<=? OR EXISTS (
                     SELECT 1 FROM operation_links l JOIN operation_requests r ON r.id=l.request_id
@@ -516,8 +550,18 @@ class OperationQueue:
                 restoration = attempt_for_job(db, job["id"])
                 if restoration:
                     validate_binding(db, restoration, job)
-                    if not managed_restoration_enabled:
+                    bulk = bulk_dispatch_present(db)
+                    if not (bulk_dispatch_enabled if bulk else managed_restoration_enabled):
                         continue
+                    if bulk:
+                        if not bulk_authority_valid(db, restoration, self._now()):
+                            self._finish(db, job, 'CANCELLED', 'Bulk authority/evidence changed before claim')
+                            continue
+                        from .bulk_policy import BulkPolicies
+
+                        root = db.execute('SELECT actor_subject FROM managed_shun_requests WHERE id=?',
+                                          (restoration['authorization_request_id'],)).fetchone()
+                        BulkPolicies(self.store)._root(db, restoration['authorization_request_id'], root[0])
                 requests = db.execute("""SELECT r.* FROM operation_requests r
                     JOIN operation_links l ON l.request_id=r.id
                     WHERE l.job_id=? AND r.state='ACTIVE' AND r.expires_at>?
@@ -549,8 +593,10 @@ class OperationQueue:
                     self._event(db, "SHUN_OPERATION_RUNNING", request, job)
                 self._bump(db)
                 if restoration and (executor["lease_until"] <= stamp(self._now())
-                                    or not any(request["expires_at"] > stamp(self._now()) for request in requests)):
+                                    or not any(request["expires_at"] > stamp(self._now()) for request in requests)
+                                    or (bulk and not bulk_authority_valid(db, restoration, self._now()))):
                     raise QueueConflict("Restoration lease or delegation expired during claim.")
+                self._executor(db, owner, device_id)
                 return {**dict(job), "state": "RUNNING", "dispatch_kind": job_action}
         return None
 
@@ -587,7 +633,7 @@ class OperationQueue:
         with self.store._connection() as db:
             db.execute("BEGIN IMMEDIATE")
             job = db.execute("SELECT * FROM operation_jobs WHERE id=?", (job_id,)).fetchone()
-            executor = db.execute("SELECT owner FROM operation_executor WHERE id=1").fetchone()
+            executor = self._executor(db, owner, job['device_id'] if job else None)
             if job is None or job["action"] != action or job["state"] != "RUNNING" or executor["owner"] != owner:
                 raise QueueConflict("operation ownership lost")
             db.execute("""UPDATE operation_jobs SET state='QUEUED',started_at=NULL,dispatch_kind=NULL,
@@ -598,6 +644,7 @@ class OperationQueue:
             for request in requests:
                 self._event(db, "SHUN_OPERATION_DEFERRED", request, job, {"write_sent": False})
             self._bump(db)
+            self._executor(db, owner, job['device_id'])
         print(json.dumps({"event": "queue.addition.deferred" if action == "ADD" else "queue.removal.deferred", "operation_id": job_id,
                           "device_id": job["device_id"], "ip": str(IPv4Address(job["ip"])),
                           "write_sent": False}), flush=True)
@@ -617,7 +664,7 @@ class OperationQueue:
         with self.store._connection() as db:
             db.execute("BEGIN IMMEDIATE")
             job = db.execute("SELECT * FROM operation_jobs WHERE id=?", (job_id,)).fetchone()
-            executor = db.execute("SELECT owner FROM operation_executor WHERE id=1").fetchone()
+            executor = self._executor(db, owner, job['device_id'] if job else None)
             if job is None or job["action"] != "REMOVE" or job["state"] != "RUNNING" or executor["owner"] != owner:
                 raise QueueConflict("operation ownership lost")
             if state in {"VERIFIED", "NOOP"}:
@@ -647,6 +694,8 @@ class OperationQueue:
                         )
             self._finish(db, job, state, reason)
 
+            self._executor(db, owner, job['device_id'])
+
     def finish_addition(self, job_id: str, owner: str, result: AdditionResult | str, *, reason: str | None = None) -> str:
         """Commit an exact worker result; return persisted state, not assumed success."""
         from .managed_restoration import SOURCE, attempt_for_job
@@ -666,7 +715,7 @@ class OperationQueue:
         with self.store._connection() as db:
             db.execute("BEGIN IMMEDIATE")
             job = db.execute("SELECT * FROM operation_jobs WHERE id=?", (job_id,)).fetchone()
-            executor = db.execute("SELECT * FROM operation_executor WHERE id=1").fetchone()
+            executor = self._executor(db, owner, job['device_id'] if job else None)
             current = stamp(self._now())
             if (job is None or job["action"] != "ADD" or job["state"] != "RUNNING"
                     or executor["owner"] != owner or not executor["lease_until"] or executor["lease_until"] < current):
@@ -698,6 +747,7 @@ class OperationQueue:
                 for request in requests:
                     self._event(db, "SHUN_ADD_NOOP", request, job, {"created": False})
             self._finish(db, job, state, reason)
+            self._executor(db, owner, job['device_id'])
         print(json.dumps({"event": "queue.addition.completed", "operation_id": job_id,
                           "source": source, "state": state, "device_id": job["device_id"],
                           "ip": str(IPv4Address(job["ip"])), "interface": interface if state == "VERIFIED" else None}), flush=True)
@@ -738,7 +788,8 @@ class OperationQueue:
         print(json.dumps({"event": "queue.request.cancelled", "request_id": request_id,
                           "actor_subject": subject}), flush=True)
 
-    def status(self, *, addition_device_ids: frozenset[int] = frozenset(), managed_restoration_enabled: bool = False) -> dict:
+    def status(self, *, addition_device_ids: frozenset[int] = frozenset(), managed_restoration_enabled: bool = False,
+               bulk_dispatch_enabled: bool = False) -> dict:
         from .managed_restoration import SOURCE, attempt_for_job, present
 
         with self.store._connection() as db:
@@ -787,7 +838,7 @@ class OperationQueue:
                         and row["device_id"] in addition_device_ids and reason == "ADD execution is not enabled"):
                     reason = None  # Legacy placeholder, not a real deferral/error.
                 jobs.append({**dict(row), "ip": str(IPv4Address(row["ip"])), "reason": reason,
-                             "execution_enabled": (not restoration or managed_restoration_enabled)
+                             "execution_enabled": _system_enabled(db, restoration, managed_restoration_enabled, bulk_dispatch_enabled)
                              and (row["action"] == "REMOVE" or row["device_id"] in addition_device_ids),
                              "request_count": request_count, "requests": request_views})
             progress_filter = """FROM operation_requests r JOIN operation_links l ON l.request_id=r.id
@@ -826,6 +877,8 @@ class OperationQueue:
             preserve = ""
             from .bulk_attempts import present as bulk_present
             from .bulk_attempts import validate_held_jobs
+            from .bulk_dispatch import present as dispatch_present
+            from .bulk_policy import _state as bulk_state
             from .bulk_waits import present as bulk_waits_present
             from .bulk_waits import validate_pending as validate_bulk_waits
             from .import_cancellations import present as cancellations_present
@@ -837,6 +890,10 @@ class OperationQueue:
                 validate_held_jobs(db)
                 preserve += """ AND NOT EXISTS (SELECT 1 FROM managed_bulk_attempts a
                     WHERE a.job_id=operation_jobs.id AND a.state IN ('QUEUED','RUNNING','UNVERIFIED'))"""
+            if dispatch_present(db):
+                bulk_state(db)
+                # Absence is observational, not proof the original RPC has stopped.
+                preserve += " AND state!='RECONCILED_ABSENT'"
             if bulk_waits_present(db):
                 validate_bulk_waits(db)
                 preserve += """ AND NOT EXISTS (SELECT 1 FROM managed_bulk_cancellation_members m
