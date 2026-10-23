@@ -18,6 +18,8 @@ from ftd_shun_manager.import_review import ImportReviews
 from ftd_shun_manager.managed_review import ManagedRemovalReviews
 from ftd_shun_manager.managed_intent import canonical_managed_fleet_scope
 from ftd_shun_manager.managed_retirement_review import ManagedRetirementReviews
+from ftd_shun_manager.bulk_removal_review import ReadyRemovalReviews
+from ftd_shun_manager.bulk_removals import canonical_scope
 from ftd_shun_manager.managed_grant_review import ManagedGrantReviews
 from ftd_shun_manager.managed_batch_review import ManagedBatchReviews, parse_standing_list
 from ftd_shun_manager.managed_import_web import BrowserImportReviews
@@ -50,6 +52,14 @@ if p["template"] == "managed-remove-review.html":
         review = ManagedRemovalReviews().prepare("test", "fixture-token", p["managed"], 1, IPv4Address("198.51.100.251"), 900, "Fixture only")
 if p["template"] == "managed-retirement-review.html":
     review = ManagedRetirementReviews().prepare("test", "fixture-token", p["managed"], 1, IPv4Address("198.51.100.251"), "Fixture only")
+if p["template"] == "bulk-removal-review.html":
+    scope = dict(version=2,scope="fleet",ip="198.51.100.251",managed_revision=1,protected_revision=1,protected=False,
+        targets=[dict(device_id=i,hostname="<b>Fixture FTD</b>",device_enabled=True,observed_present=i==1,
+            maintenance_enabled=i==1,intent_id="11111111-1111-4111-8111-111111111111" if i==1 else None,
+            generation=1 if i==1 else None,authorization_request_id="22222222-2222-4222-8222-222222222222" if i==1 else None,
+            target_revision=1 if i==1 else None) for i in (1,2)])
+    review = ReadyRemovalReviews().prepare("test","fixture-token",dict(**scope,scope_digest=canonical_scope(scope)[1],
+        read_only=True,execution_available=False,device_work_admitted=False),IPv4Address(scope["ip"]),reason="<b>Synthetic only</b>")
 if p["template"] == "managed-grant-review.html":
     classification = dict(policy_revision=1, addresses=[dict(ip="198.51.100.252", protected=False,
         devices=[dict(id=1, hostname="lab-ftd", already_shunned=False)])])
@@ -79,7 +89,8 @@ print(templates.get_template(p["template"]).render(identity=Identity("test", "Te
     review=review, report=managed_import_report, accepted=None, result=None, confirm_ip="", message=None, admission_enabled=p["refresh"].get("managed_policy_admission_enabled" if p["template"] == "managed-import-review.html" else "import_admission_enabled", False),
     retry_available=p["refresh"].get("import_admission_enabled", False), execution_enabled=False,
     removal_admission_enabled=p["refresh"].get("managed_removal_admission_enabled", False),
-    frozen_view=p["template"] in ("import-confirm.html", "managed-remove-review.html", "managed-retirement-review.html", "managed-grant-review.html", "managed-batch-form.html", "managed-batch-review.html"),
+    frozen_view=p["template"] in ("import-confirm.html", "managed-remove-review.html", "bulk-removal-review.html", "managed-retirement-review.html", "managed-grant-review.html", "managed-batch-form.html", "managed-batch-review.html"),
+    ready_removal_local_enabled=p["refresh"].get("fixture_ready_local_enabled",False),
     admission_available=p["refresh"].get("managed_policy_admission_enabled", False),
     page=1, pages=2, page_targets=review.targets[:100] if p["template"] == "managed-batch-review.html" else [],
     confirm_count="", acknowledged=False, import_text_limit=1048576,
@@ -92,8 +103,8 @@ print(templates.get_template(p["template"]).render(identity=Identity("test", "Te
     source_text=p.get("source_text", ""), batch_label=p.get("label", ""), batch_reason=p.get("reason", ""),
     selected_devices=[1] if p.get("submitted") else [], preview=preview, preview_error=None,
     devices=[dict(id=1,hostname="lab-ftd",enabled=True),dict(id=2,hostname="disabled-ftd",enabled=False)],
-    active_page="managed" if p["template"] in ("managed-shuns.html", "managed-remove-review.html", "managed-retirement-review.html", "managed-grant-review.html", "managed-batch-form.html", "managed-batch-review.html") else "imports" if p["template"] == "import-preview.html" else "protected" if p["template"] == "protected-ips.html" else "history" if p["template"] == "history.html" else "shuns",
-    auto_request=p["template"] not in ("protected-ips.html", "history.html", "import-preview.html", "import-confirm.html", "managed-shuns.html", "managed-remove-review.html", "managed-retirement-review.html", "managed-grant-review.html", "managed-batch-form.html", "managed-batch-review.html")))
+    active_page="managed" if p["template"] in ("managed-shuns.html", "bulk-managed-shuns.html", "managed-remove-review.html", "bulk-removal-review.html", "managed-retirement-review.html", "managed-grant-review.html", "managed-batch-form.html", "managed-batch-review.html") else "imports" if p["template"] == "import-preview.html" else "protected" if p["template"] == "protected-ips.html" else "history" if p["template"] == "history.html" else "shuns",
+    auto_request=p["template"] not in ("protected-ips.html", "history.html", "import-preview.html", "import-confirm.html", "managed-shuns.html", "bulk-managed-shuns.html", "managed-remove-review.html", "bulk-removal-review.html", "managed-retirement-review.html", "managed-grant-review.html", "managed-batch-form.html", "managed-batch-review.html")))
 `;
 
 const initial = () => ({
@@ -160,7 +171,7 @@ async function connectPage(debugOrigin, url, readySelector = "[data-refresh-requ
   } };
 }
 
-test("refresh interaction in real Chromium", { timeout: 120000 }, async (t) => {
+test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
   let status = initial();
   let generation = 1;
   let failStatus = false;
@@ -227,7 +238,7 @@ test("refresh interaction in real Chromium", { timeout: 120000 }, async (t) => {
       response.setHeader("Content-Type", "application/json");
       response.statusCode = failPost ? 503 : 200;
       if (!failPost) {
-        const priority = status.refresh_in_progress && status.session_cycles_enabled;
+        const priority = status.refresh_in_progress && status.session_cycles_enabled && status.refresh_schedule_mode !== "per_device";
         status.refresh_in_progress = true;
         status.interactive_refresh_state = priority ? "checkpoint_pending" : "running";
         if (priority) {
@@ -324,7 +335,7 @@ test("refresh interaction in real Chromium", { timeout: 120000 }, async (t) => {
       confirmationPosts += 1;
       response.setHeader("Content-Type", "text/html");
       response.end("<p>Fixture admission received; no device work</p>");
-    } else if (["/", "/history", "/protected-ips", "/imports", "/imports/review", "/managed-imports/review", "/managed-shuns", "/managed-shuns/removal-review", "/managed-shuns/fleet-removal-review", "/managed-shuns/retirement-review", "/managed-shuns/grant-review", "/managed-shuns/bulk", "/managed-shuns/bulk-review"].includes(url.pathname) || url.pathname.startsWith("/shuns/")) {
+    } else if (["/", "/history", "/protected-ips", "/imports", "/imports/review", "/managed-imports/review", "/managed-shuns", "/managed-shuns/removal-review", "/managed-shuns/fleet-removal-review", "/managed-shuns/v2/removal-review", "/managed-shuns/retirement-review", "/managed-shuns/grant-review", "/managed-shuns/bulk", "/managed-shuns/bulk-review"].includes(url.pathname) || url.pathname.startsWith("/shuns/")) {
       pageReads += 1;
       let previewFields = {};
       if (url.pathname === "/imports/review") previewFields = {
@@ -367,8 +378,9 @@ test("refresh interaction in real Chromium", { timeout: 120000 }, async (t) => {
         ...previewFields,
         policy, managed: managedView, handoffs, fleet_cleanup: fleetCleanup, template: url.pathname === "/" ? "index.html" : url.pathname === "/history" ? "history.html"
           : url.pathname === "/protected-ips" ? "protected-ips.html" : url.pathname === "/imports" ? "import-preview.html"
-            : url.pathname === "/imports/review" ? "import-confirm.html" : url.pathname === "/managed-imports/review" ? "managed-import-review.html" : url.pathname === "/managed-shuns" ? "managed-shuns.html"
-              : ["/managed-shuns/removal-review", "/managed-shuns/fleet-removal-review"].includes(url.pathname) ? "managed-remove-review.html"
+            : url.pathname === "/imports/review" ? "import-confirm.html" : url.pathname === "/managed-imports/review" ? "managed-import-review.html" : url.pathname === "/managed-shuns" ? (managed.intent_format === 2 ? "bulk-managed-shuns.html" : "managed-shuns.html")
+              : url.pathname === "/managed-shuns/v2/removal-review" ? "bulk-removal-review.html"
+                : ["/managed-shuns/removal-review", "/managed-shuns/fleet-removal-review"].includes(url.pathname) ? "managed-remove-review.html"
                 : url.pathname === "/managed-shuns/retirement-review" ? "managed-retirement-review.html"
                   : url.pathname === "/managed-shuns/grant-review" ? "managed-grant-review.html"
                     : url.pathname === "/managed-shuns/bulk" ? "managed-batch-form.html"
@@ -564,6 +576,159 @@ test("refresh interaction in real Chromium", { timeout: 120000 }, async (t) => {
         assert.equal(status.refresh_in_progress, true);
         assert.equal(status.cycle_revision, 1, "Snapshot publication does not complete the batch");
         assert.equal(await page.evaluate("document.querySelector('[data-refresh-request]').disabled"), true);
+      } finally { await page.close(); }
+    });
+    await t.test("independent device demand stays clickable and timers never fabricate refreshed data", async () => {
+      status = initial();
+      Object.assign(status, { refresh_schedule_mode: "per_device", active_device_count: 1,
+        pending_refresh_device_count: 2, refresh_in_progress: true, device_cycle: {},
+        device_cycles: { "1": { action: "add_and_verify", ip: "198.51.100.20", completed: 3 } },
+        interactive_refresh_state: "checkpoint_pending", next_interactive_refresh: future(40) });
+      Object.assign(status.devices["1"], { active: true, refresh_pending: true,
+        next_interactive_refresh: future(40), next_baseline_refresh: future(250) });
+      status.devices["2"] = { hostname: "slow-ftd", state: "error", stale: true, active: false,
+        refresh_pending: true, last_successful_refresh: null, last_error: "Device fence held.",
+        next_interactive_refresh: future(0), next_baseline_refresh: future(0), retry_in_seconds: 5 };
+      const page = await connectPage(debugOrigin, `${origin}/?q=198.51`);
+      try {
+        await page.until("document.querySelector('[data-refresh-request]').textContent.includes('2 device(s)')");
+        assert.equal(await page.evaluate("document.querySelector('[data-refresh-request]').disabled"), false);
+        assert.match(await page.evaluate("document.querySelector('[data-status-indicator]').textContent"), /2 waiting/);
+        assert.match(await page.evaluate("document.querySelector('[data-device-status]').textContent"), /Device fence held/);
+        assert.match(await page.evaluate("document.querySelector('[data-cycle-progress]').textContent"), /Adding and verifying.*3 items/);
+        await page.evaluate("document.querySelector('#ip-search').value='203.0.113'; document.querySelector('#status-menu').open=true");
+        const before = postCount;
+        await page.evaluate("document.querySelector('[data-refresh-request]').click()");
+        await page.until("!document.querySelector('[data-refresh-request]').disabled");
+        await page.evaluate("document.querySelector('[data-refresh-request]').click()");
+        await page.until("!document.querySelector('[data-refresh-request]').disabled");
+        assert.equal(postCount, before + 2, "Repeated requests join server demand, not a disabled global cycle");
+        const reads = pageReads;
+        status.next_interactive_refresh = future(-1);
+        status.status_revision += 1;
+        await wake(page);
+        await page.until("document.querySelector('[data-refresh-request]').textContent.includes('waiting for verification')");
+        assert.equal(pageReads, reads, "Elapsed countdown is not new observation evidence");
+        status.pending_refresh_device_count = 1;
+        status.data_revision += 1;
+        status.status_revision += 1;
+        generation += 1;
+        await wake(page);
+        await page.until(`document.querySelector('#active-shuns').textContent.includes('FIXTURE_EVENT_${generation}')`);
+        assert.equal(await page.evaluate("document.querySelector('#ip-search').value"), "203.0.113");
+        assert.equal(await page.evaluate("document.querySelector('#status-menu').open"), true);
+        assert.match(await page.evaluate("document.querySelector('[data-status-indicator]').textContent"), /1 waiting/);
+      } finally { await page.close(); }
+    });
+    await t.test("restricted continuous API profile advertises only available controls", async () => {
+      status = initial();
+      Object.assign(status, { runtime_mode: "continuous-observation", refresh_schedule_mode: "per_device",
+        manual_mutations_available: false, managed_workflows_available: false, active_device_count: 0,
+        pending_refresh_device_count: 0, device_cycles: {} });
+      const page = await connectPage(debugOrigin, `${origin}/shuns/198.51.100.10`);
+      try {
+        assert.equal(await page.evaluate("document.querySelectorAll('[data-queue-form]').length"), 0);
+        assert.equal(await page.evaluate("document.querySelector('.primary-nav a[href=\"/managed-shuns\"]')"), null);
+        assert.equal(await page.evaluate("document.querySelector('.primary-nav a[href=\"/imports\"]').textContent"), "Import preview");
+        assert.equal(await page.evaluate("document.querySelector('[data-runtime-notice]').hidden"), false);
+        const before = postCount;
+        await page.evaluate("document.querySelector('[data-refresh-request]').click()");
+        await page.until("!document.querySelector('[data-refresh-request]').disabled");
+        assert.equal(postCount, before + 1);
+      } finally { await page.close(); }
+      const preview = await connectPage(debugOrigin, `${origin}/imports`);
+      try {
+        assert.equal(await preview.evaluate("document.querySelector('button[formaction=\"/imports/review\"]')"), null);
+        assert.equal(await preview.evaluate("document.querySelector('a[href=\"/managed-shuns/bulk\"]')"), null);
+        assert.match(await preview.evaluate("document.querySelector('#import-preview-form').textContent"), /admission are unavailable/);
+        assert.equal(await preview.evaluate("document.querySelector('#import-preview-form button[name=page]').textContent"), "Parse preview");
+      } finally { await preview.close(); }
+    });
+    await t.test("v2 policy pages stay bounded, preserve drafts, show retained attention and never admit commands", async () => {
+      const previous = managed;
+      status = initial();
+      Object.assign(status, { runtime_mode: "continuous-observation", managed_policy_format: 2,
+        manual_mutations_available: false, managed_workflows_available: false,
+        managed_policy_view_available: true, managed_policy_retirement_available: true });
+      managed = { initialized: true, intent_format: 2, limit: 200000, revision: 7,
+        restoration_suspended: true, attempt_ledger_initialized: true, read_only: true,
+        entries: Array.from({length: 101}, (_, i) => ({ device_id: 1, hostname: "Synthetic FTD", ip: `198.18.0.${i+1}`,
+          enabled: true, device_enabled: true, observed_present: i === 0, protected: i === 0,
+          generation: 1, intent_id: "11111111-1111-4111-8111-111111111111", pending_jobs: 0,
+          attention: i === 0, last_attempt_state: i === 0 ? "UNVERIFIED" : "NOOP",
+          last_attempt_generation: 1, missing_unknown_job: i === 0, actor_subject: "synthetic",
+          actor_display_name: "<b>Fixture author</b>", authorized_at: "2026-10-23T10:00:00Z",
+          label: "<b>Escaped label</b>", reason: "Synthetic only" })) };
+      const hints = postCount, executions = executionCount;
+      const page = await connectPage(debugOrigin, `${origin}/managed-shuns`);
+      try {
+        assert.equal(await page.evaluate("document.querySelectorAll('table[aria-label=\"Version-2 managed policy\"] tbody tr').length"), 100);
+        assert.equal(await page.evaluate("document.querySelector('.primary-nav a[aria-current=page]').textContent"), "Managed shuns");
+        assert.ok(await page.evaluate("document.querySelector('[data-runtime-notice]').textContent.includes('stop-maintaining is available')"));
+        assert.ok(await page.evaluate("document.querySelector('#managed-shun-state').textContent.includes('Original unknown queue evidence is missing')"));
+        assert.equal(await page.evaluate("document.querySelectorAll('#managed-shun-state td b').length"), 0);
+        assert.equal(await page.evaluate("document.querySelectorAll('[data-queue-form], [action=\"/managed-shuns/grant-review\"]').length"), 0);
+        await page.evaluate("document.querySelector('#retirement-target').closest('details').open=true; document.querySelector('#retirement-target').value='1:198.18.0.1'; document.querySelector('#retirement-reason').value='Keep this draft'; document.querySelector('#retirement-reason').focus()");
+        status.data_revision += 1;
+        const reads = pageReads;
+        await wake(page);
+        await page.until(`document.querySelector('#retirement-reason').value==='Keep this draft' && document.activeElement.id==='retirement-reason'`);
+        const deadline = Date.now() + 8000;
+        while (pageReads <= reads && Date.now() < deadline) await delay(50);
+        assert.ok(pageReads > reads);
+        assert.equal(await page.evaluate("document.querySelector('#retirement-target').value"), "1:198.18.0.1");
+        for (const width of [1100, 375]) {
+          await page.call("Emulation.setDeviceMetricsOverride", { width, height: 800, deviceScaleFactor: 1, mobile: width === 375 });
+          assert.equal(await page.evaluate("document.documentElement.scrollWidth<=window.innerWidth"), true);
+        }
+        const next = await page.evaluate("document.querySelector('a[rel=next]').getAttribute('href')");
+        assert.equal(next, "/managed-shuns?page=2&revision=7");
+        await page.call("Page.navigate", {url: origin + next});
+        await page.until("document.querySelectorAll('table[aria-label=\"Version-2 managed policy\"] tbody tr').length===1");
+        managed.revision += 1;
+        status.data_revision += 1;
+        await wake(page);
+        await page.until("document.querySelector('#managed-shun-state').textContent.includes('No scope was rebased')");
+        assert.equal(await page.evaluate("document.querySelector('#retirement-target')"), null);
+        assert.equal(postCount, hints);
+        assert.equal(executionCount, executions);
+      } finally { await page.close(); managed = previous; }
+    });
+    await t.test("v2 removal confirmation is independently gated, frozen, escaped and usable on mobile", async () => {
+      status = initial();
+      Object.assign(status, { runtime_mode: "continuous-observation", managed_policy_format: 2,
+        ready_removal_review_available: true, ready_removal_admission_enabled: true });
+      const hints = postCount, executions = executionCount;
+      const disabled = await connectPage(debugOrigin, `${origin}/managed-shuns/v2/removal-review`);
+      try {
+        assert.equal(await disabled.evaluate("document.querySelector('.import-confirm-form button').disabled"), true);
+      } finally { await disabled.close(); }
+      status.fixture_ready_local_enabled = true; // Renderer fixture, never a production status capability.
+      const page = await connectPage(debugOrigin, `${origin}/managed-shuns/v2/removal-review`);
+      try {
+        assert.equal(await page.evaluate("document.querySelectorAll('table[aria-label=\"Frozen v2 removal scope\"] tbody tr').length"), 2);
+        assert.equal(await page.evaluate("document.querySelector('.import-confirm-form button').disabled"), false);
+        assert.equal(await page.evaluate("document.querySelectorAll('td b').length"), 0);
+        assert.equal(await page.evaluate("document.querySelector('.import-confirm-form').checkValidity()"), false);
+        const key = await page.evaluate("document.querySelector('input[name=review]').value");
+        await page.evaluate("document.querySelector('#confirm-ready-ip').value='198.51.100.251'; document.querySelector('#confirm-ready-ip').focus()");
+        const reads = pageReads;
+        status.data_revision += 1;
+        status.status_revision += 1;
+        await wake(page);
+        await delay(300);
+        assert.equal(pageReads, reads);
+        assert.equal(await page.evaluate("document.querySelector('input[name=review]').value"), key);
+        assert.equal(await page.evaluate("document.querySelector('#confirm-ready-ip').value"), "198.51.100.251");
+        assert.equal(await page.evaluate("document.activeElement.id"), "confirm-ready-ip");
+        assert.equal(await page.evaluate("document.querySelector('.import-confirm-form').checkValidity()"), true);
+        for (const width of [1100, 375]) {
+          await page.call("Emulation.setDeviceMetricsOverride", { width, height: 800, deviceScaleFactor: 1, mobile: width === 375 });
+          assert.equal(await page.evaluate("document.documentElement.scrollWidth<=window.innerWidth"), true);
+          assert.ok(await page.evaluate("document.querySelector('.import-confirm-form button').getBoundingClientRect().top>document.querySelector('#confirm-ready-ip').getBoundingClientRect().bottom"));
+        }
+        assert.equal(postCount, hints);
+        assert.equal(executionCount, executions);
       } finally { await page.close(); }
     });
     await t.test("completed results collapse, errors remain separate, and long histories stay bounded", async () => {

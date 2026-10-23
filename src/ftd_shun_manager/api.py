@@ -8,6 +8,7 @@ from uuid import UUID, uuid4
 
 import uvicorn
 from fastapi import FastAPI, HTTPException, Query, Request, status
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, field_validator
 
 from .agent_client import (
@@ -194,6 +195,38 @@ class ManagedFleetCleanupRequest(BaseModel):
     ordered_wait: StrictBool = False
 
 
+class ReadyRemovalTarget(ManagedFleetCleanupTarget):
+    intent_id: str | None = Field(min_length=36, max_length=36)
+    authorization_request_id: str | None = Field(min_length=36, max_length=36)
+    target_revision: int | None = Field(strict=True, ge=0)
+
+
+class ReadyRemovalScope(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    version: int = Field(strict=True, ge=2, le=2)
+    scope: Literal['device', 'fleet']
+    ip: str = Field(min_length=7, max_length=15)
+    managed_revision: int = Field(strict=True, ge=0)
+    protected_revision: int = Field(strict=True, ge=0)
+    protected: StrictBool
+    targets: list[ReadyRemovalTarget] = Field(min_length=1, max_length=10)
+
+
+class ReadyRemovalActor(ManagedControlActor):
+    subject: str = Field(min_length=1, max_length=255)
+    display_name: str = Field(max_length=255)
+    roles: list[Literal['Viewer', 'Operator', 'Administrator']] = Field(max_length=3)
+
+
+class ReadyRemovalRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    actor: ReadyRemovalActor
+    reviewed: ReadyRemovalScope
+    confirmation_digest: str = Field(pattern=r'^[0-9a-f]{64}$')
+    ttl_seconds: int = Field(strict=True, ge=1, le=900)
+    reason: str = Field(default='', max_length=500)
+
+
 class ImportPreviewRequest(BaseModel):
     ips: list[IPv4Address] = Field(max_length=MAX_ROWS)
     device_ids: list[Annotated[int, Field(ge=1, le=65535)]] = Field(min_length=1, max_length=MAX_DEVICES)
@@ -268,23 +301,39 @@ def create_app(
     settings: Settings | None = None,
     store: Store | None = None,
     agent_client: AgentClient | None = None,
+    *,
+    continuous_dispatcher=None,
+    ready_removal_admission_enabled=False,
 ) -> FastAPI:
+    if type(ready_removal_admission_enabled) is not bool or (ready_removal_admission_enabled and continuous_dispatcher is None):
+        raise ValueError('Ready removal needs an explicit compatible continuous runtime and a literal capability.')
     settings = settings or Settings.from_environment()
     store = store or Store(settings.database_path)
-    store.initialize()
+    continuous = None
+    if continuous_dispatcher is not None:
+        from .continuous_api import ContinuousApiRuntime
+
+        continuous = ContinuousApiRuntime(settings, store, continuous_dispatcher, agent_client,
+                                          ready_removal_admission_enabled=ready_removal_admission_enabled)
+    else:
+        if store.path.is_file():
+            with store._connection() as db:
+                if db.execute("SELECT 1 FROM sqlite_master WHERE name GLOB 'managed_bulk_device*' OR tbl_name GLOB 'managed_bulk_device*' LIMIT 1").fetchone():
+                    raise QueueConflict('Fenced device storage requires explicit continuous API composition; legacy startup will not initialize or repair it.')
+        store.initialize()
     managed = ManagedShuns(store)  # Optional registry; never initialize policy here.
     import_preparations = ImportPreparations(store)  # No optional initialization.
     managed_imports = ManagedImports(store)
     import_cancellations = ImportCancellations(store)
     addition_device_ids = set()
-    if settings.device_inventory_path:
+    if continuous is None and settings.device_inventory_path:
         for device, host_key in load_devices(settings.device_inventory_path):
             store.upsert_device(device, host_key)
             if device.enabled and device.addition_profile is not None:
                 addition_device_ids.add(device.id)
     addition_device_ids = frozenset(addition_device_ids)
-    agent = agent_client or _agent(settings, addition_device_ids=addition_device_ids)
-    synchronizer = Synchronizer(
+    agent = continuous_dispatcher.runner.agent if continuous else agent_client or _agent(settings, addition_device_ids=addition_device_ids)
+    synchronizer = continuous or Synchronizer(
         store,
         agent,
         settings.poll_interval_seconds,
@@ -300,7 +349,8 @@ def create_app(
     )
     policy = synchronizer.policy
     managed_removals = synchronizer.managed_removals  # Optional schema; no startup initialization.
-    policy.migrate_legacy_environment()
+    if continuous is None:
+        policy.migrate_legacy_environment()
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -323,7 +373,25 @@ def create_app(
 
     @app.middleware("http")
     async def prevent_state_caching(request: Request, call_next):
-        response = await call_next(request)
+        if (request.method == 'POST' and request.url.path in {
+                '/api/v2/managed-removals/device', '/api/v2/managed-removals/fleet'}
+                and (continuous is None or continuous.ready_removal_admission_enabled is not True)):
+            response = JSONResponse(status_code=503, content={
+                'detail': 'Version-2 ready removal admission is disabled; no request was admitted. Inspect any earlier outcome.'})
+        elif continuous is not None and not continuous.supports(request.method, request.url.path):
+            response = JSONResponse(status_code=503, content={
+                'detail': 'This continuous API profile supports observations, refresh demand, Protected IPs, '
+                          'v2 policy views and policy-only retirement. Other managed/import/manual device '
+                          'mutation workflows are unavailable; no request was admitted.'})
+        else:
+            try:
+                response = await call_next(request)
+            except (sqlite3.DatabaseError, ValueError, TypeError, KeyError):
+                if continuous is None:
+                    raise
+                response = JSONResponse(status_code=503, content={
+                    'detail': 'Continuous API state is unavailable. Inspect retained state before retrying; '
+                              'no successful device operation is implied.'})
         response.headers["Cache-Control"] = "no-store"
         return response
 
@@ -331,7 +399,7 @@ def create_app(
     async def service_status() -> dict[str, object]:
         policy_state = policy.snapshot()
         try:
-            managed_metadata = managed.metadata()
+            managed_metadata = continuous.managed_metadata() if continuous else managed.metadata()
         except (sqlite3.DatabaseError, ManagedConflict, ManagedCapacity, ValueError, TypeError, KeyError):
             # A malformed optional registry must not stop ordinary fleet monitoring.
             managed_metadata = {"managed_policy_available": False, "managed_policy_initialized": None,
@@ -371,6 +439,89 @@ def create_app(
             raise HTTPException(422, str(error)) from error
         except (sqlite3.DatabaseError, ValueError, TypeError, KeyError) as error:
             raise HTTPException(503, "Managed policy page is unavailable; no policy was changed.") from error
+
+    @app.post('/api/v2/managed-removals/device', status_code=202)
+    def ready_device_removal(change: ReadyRemovalRequest, request: Request) -> dict:
+        return ready_removal(change, request, 'device')
+
+    @app.post('/api/v2/managed-removals/fleet', status_code=202)
+    def ready_fleet_removal(change: ReadyRemovalRequest, request: Request) -> dict:
+        return ready_removal(change, request, 'fleet')
+
+    def ready_removal(change, request, mode):
+        if continuous is None or continuous.ready_removal_admission_enabled is not True:
+            raise HTTPException(503, 'Version-2 ready removal admission is disabled; inspect any earlier outcome.')
+        require_operator(change.actor)
+        if change.reviewed.scope != mode:
+            raise HTTPException(422, 'The exact reviewed mode must match this fixed ready-removal route.')
+        if change.ttl_seconds > min(900, settings.sensitive_action_max_age_seconds):
+            raise HTTPException(422, 'Removal lifetime exceeds the configured sensitive-action maximum.')
+        try:
+            result = continuous.ready_removals.admit(request.headers.get('Idempotency-Key', ''),
+                change.reviewed.model_dump(), change.confirmation_digest, change.actor.subject,
+                change.actor.display_name, tuple(change.actor.roles), ttl_seconds=change.ttl_seconds,
+                reason=change.reason, enabled=True)
+        except (PermissionError, ValueError, sqlite3.DatabaseError) as error:
+            raise cleanup_error(error) from error
+        if not result['replayed']:
+            continuous.note_state_change()
+            continuous.dispatcher.signal_work()
+        return result
+
+    @app.get('/api/v2/managed-removal-scope/{ip}')
+    def bulk_removal_scope(ip: IPv4Address, device_id: Annotated[int | None, Query(ge=1, le=65535)] = None) -> dict:
+        if continuous is None:
+            raise HTTPException(503, 'Version-2 removal scope requires explicit compatible API composition.')
+        try:
+            return continuous.removal_scopes.snapshot(ip, device_id=device_id)
+        except ManagedConflict as error:
+            raise HTTPException(409, str(error)) from error
+
+    @app.get('/api/v2/managed-shuns/page')
+    def bulk_policy_page(page: Annotated[int, Query(ge=1, le=2**31 - 1)] = 1,
+                         revision: Annotated[int | None, Query(ge=0)] = None) -> dict:
+        if continuous is None:
+            raise HTTPException(503, 'Version-2 policy views require explicit compatible API composition.')
+        try:
+            return continuous.policy_views.page(page, revision=revision)
+        except ManagedPageChanged as error:
+            raise HTTPException(409, str(error)) from error
+        except ManagedPageInvalid as error:
+            raise HTTPException(422, str(error)) from error
+
+    @app.post('/api/v2/managed-shuns/selection')
+    def bulk_policy_selection(selection: ManagedSelectionRequest) -> dict:
+        if continuous is None:
+            raise HTTPException(503, 'Version-2 policy selections require explicit compatible API composition.')
+        from .managed_selection import selected_pairs
+        try:
+            pairs = selected_pairs([(target.device_id, target.ip) for target in selection.targets])
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from error
+        try:
+            return continuous.policy_views.selection(pairs, revision=selection.revision)
+        except ManagedPageChanged as error:
+            raise HTTPException(409, str(error)) from error
+
+    @app.post('/api/v2/managed-shuns/retire')
+    def bulk_policy_retirement(change: ManagedRetirementRequest, request: Request) -> dict:
+        if continuous is None:
+            raise HTTPException(503, 'Version-2 policy retirement requires explicit compatible API composition.')
+        try:
+            result = continuous.policy_revocation.retire(request.headers.get('Idempotency-Key', ''),
+                [(change.device_id, change.ip)], change.managed_revision, change.confirmation_digest,
+                change.actor.subject, change.actor.display_name, tuple(change.actor.roles), reason=change.reason)
+        except PermissionError as error:
+            raise HTTPException(403, str(error)) from error
+        except (ManagedConflict, ManagedCapacity) as error:
+            raise HTTPException(409, str(error)) from error
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from error
+        except sqlite3.DatabaseError as error:
+            raise HTTPException(503, 'Policy retirement was not confirmed. Inspect state and retry only the original key.') from error
+        if not result['replayed']:
+            continuous.note_state_change()
+        return {**result, 'intent_format': 2, 'policy_only': True, 'device_work_admitted': False}
 
     @app.post("/api/v1/managed-shuns/selection")
     def managed_selection(selection: ManagedSelectionRequest) -> dict:
@@ -714,7 +865,10 @@ def create_app(
 
     @app.post("/api/v1/refresh-hint", status_code=status.HTTP_202_ACCEPTED)
     async def refresh_hint() -> dict[str, object]:
-        refresh = synchronizer.request_activity()
+        try:
+            refresh = synchronizer.request_activity()
+        except QueueConflict as error:
+            raise HTTPException(503, 'Refresh coordinator is unavailable; no successful read was confirmed.') from error
         return {
             "status": str(refresh["interactive_refresh_state"]),
             "refresh": refresh,

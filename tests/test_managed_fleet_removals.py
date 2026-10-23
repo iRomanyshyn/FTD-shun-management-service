@@ -95,6 +95,7 @@ def test_normal_startup_and_reads_do_not_initialize_or_enable_fleet_admission(tm
         ("/api/v1/managed-fleet-removals", ("GET",)),
         ("/api/v1/managed-fleet-removals/{request_id}/cancel", ("POST",)),
         ("/api/v1/managed-removals/fleet", ("POST",)),
+        ("/api/v2/managed-removals/fleet", ("POST",)),
     }  # Admission route exists but its independent gate defaults off.
     assert app.state.synchronizer.managed_removal_worker_enabled is False
 

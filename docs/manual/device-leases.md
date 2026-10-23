@@ -96,8 +96,10 @@ read cooldown is preserved, neither copied into each device nor erased to speed
 up work. The internal [parallel coordinator](parallel-rounds.md) now provides
 independent worker/session lifecycles and per-device bounded refill over these
 queues, including cancellation drain without releasing an outstanding RPC slot.
-Per-device baseline/manual-read timing, interactive priority and continuous
-background dispatch still need service integration. No current service startup
+An internal [continuous lifecycle](continuous-dispatch.md) now adds independent
+baseline/manual timing, checkpoint demand and opt-in REMOVE priority. Application/
+Web integration and real transport acceptance remain pending; local strict
+settlement is now [implemented separately](cycle-settlement.md). No current service startup
 automatically switches to this profile or runs a device queue in the background.
 
 ## Backup, rollback and validation

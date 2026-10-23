@@ -25,6 +25,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result, bail};
+use dispatch::Completion;
 use nix::sys::socket::sockopt::PeerCredentials;
 use nix::sys::socket::{
     AddressFamily, Backlog, MsgFlags, SockFlag, SockType, UnixAddr, accept4, bind, getsockopt,
@@ -631,7 +632,11 @@ fn serve(agent: Agent, socket_file: PathBuf, peer_uid: u32, runtime: Handle) -> 
         Some(dispatch::Pool::new(
             agent.max_concurrent_devices,
             move |(connection, accepted): (OwnedFd, Instant)| {
-                respond(&agent, &connection, &runtime, &guards, accepted);
+                let settlement = respond(&agent, &connection, &runtime, &guards, accepted);
+                ConnectionCompletion {
+                    connection,
+                    settlement,
+                }
             },
         )?)
     } else {
@@ -668,7 +673,12 @@ fn serve(agent: Agent, socket_file: PathBuf, peer_uid: u32, runtime: Handle) -> 
                 );
             }
         } else {
-            respond(&agent, &connection, &runtime, &guards, accepted);
+            let settlement = respond(&agent, &connection, &runtime, &guards, accepted);
+            ConnectionCompletion {
+                connection,
+                settlement,
+            }
+            .complete();
         }
     }
 }
@@ -677,25 +687,60 @@ fn authorized_peer(connection: &OwnedFd, peer_uid: u32) -> bool {
     getsockopt(connection, PeerCredentials).is_ok_and(|credentials| credentials.uid() == peer_uid)
 }
 
+#[derive(Debug, PartialEq)]
+enum Reply {
+    Packet(Vec<u8>),
+    Settled([u8; 4]),
+}
+
+struct ConnectionCompletion {
+    connection: OwnedFd,
+    settlement: Option<[u8; 4]>,
+}
+
+impl dispatch::Completion for ConnectionCompletion {
+    fn complete(self) {
+        if let Some(record) = self.settlement {
+            // Handler/cleanup/guard have finished and the pool is already IDLE.
+            // A slow/disconnected peer must never hold a free worker here.
+            if send(
+                self.connection.as_raw_fd(),
+                &record,
+                MsgFlags::MSG_NOSIGNAL | MsgFlags::MSG_DONTWAIT,
+            ) != Ok(record.len())
+            {
+                eprintln!("{{\"event\":\"agent.cycle.settlement_failed\"}}");
+            }
+        }
+        // OwnedFd closes here. There is no SSH/CLI action in this postamble.
+    }
+}
+
 fn respond(
     agent: &Agent,
     connection: &OwnedFd,
     runtime: &Handle,
     guards: &dispatch::DeviceGuards,
     accepted: Instant,
-) {
+) -> Option<[u8; 4]> {
     // Fixed std workers do not inherit spawn_blocking's Tokio context. Timer/SSH
     // futures are constructed below before Handle::block_on enters the runtime.
     let _runtime_context = runtime.enter();
     let remaining = Duration::from_secs(10).saturating_sub(accepted.elapsed());
     let response = if remaining.is_zero() || cycle::set_ipc_timeout(connection, remaining).is_err()
     {
-        RESPONSE_REJECTED.to_vec()
+        Reply::Packet(RESPONSE_REJECTED.to_vec())
     } else {
         handle_connection(agent, connection, runtime, guards)
     };
-    if !response.is_empty() {
-        let _ = send(connection.as_raw_fd(), &response, MsgFlags::MSG_NOSIGNAL);
+    match response {
+        Reply::Settled(record) => Some(record),
+        Reply::Packet(response) => {
+            if !response.is_empty() {
+                let _ = send(connection.as_raw_fd(), &response, MsgFlags::MSG_NOSIGNAL);
+            }
+            None
+        }
     }
 }
 
@@ -711,27 +756,27 @@ fn handle_connection(
     connection: &OwnedFd,
     runtime: &Handle,
     guards: &dispatch::DeviceGuards,
-) -> Vec<u8> {
+) -> Reply {
     let mut packet = [0u8; MAX_REQUEST_BYTES];
     let received = match recv(connection.as_raw_fd(), &mut packet, MsgFlags::MSG_TRUNC) {
         Ok(received) if received <= packet.len() => received,
-        Ok(_) => return RESPONSE_REJECTED.to_vec(),
-        Err(_) => return RESPONSE_REJECTED.to_vec(),
+        Ok(_) => return Reply::Packet(RESPONSE_REJECTED.to_vec()),
+        Err(_) => return Reply::Packet(RESPONSE_REJECTED.to_vec()),
     };
-    let device_id = if packet.first() == Some(&0x10) {
+    let device_id = if matches!(packet.first().copied(), Some(0x10 | cycle::BEGIN_SETTLED)) {
         cycle::decode_begin(&packet[..received]).map(|(device, _)| device)
     } else {
         decode_request(&packet[..received]).map(|(_, device, _)| device)
     };
     let Ok(device_id) = device_id else {
-        return RESPONSE_REJECTED.to_vec();
+        return Reply::Packet(RESPONSE_REJECTED.to_vec());
     };
     if !agent
         .devices
         .get(&device_id)
         .is_some_and(|device| device.enabled)
     {
-        return RESPONSE_REJECTED.to_vec();
+        return Reply::Packet(RESPONSE_REJECTED.to_vec());
     }
     guards
         .run(device_id, || {
@@ -742,28 +787,29 @@ fn handle_connection(
                 "{}",
                 serde_json::json!({"event":"agent.device_busy", "device_id":device_id})
             );
-            RESPONSE_REJECTED.to_vec()
+            Reply::Packet(RESPONSE_REJECTED.to_vec())
         })
 }
 
-fn handle_packet(agent: &Agent, connection: &OwnedFd, runtime: &Handle, packet: &[u8]) -> Vec<u8> {
-    if packet.first() == Some(&0x10) {
+fn handle_packet(agent: &Agent, connection: &OwnedFd, runtime: &Handle, packet: &[u8]) -> Reply {
+    if matches!(packet.first().copied(), Some(0x10 | cycle::BEGIN_SETTLED)) {
         return match cycle::handle(agent, connection, runtime, packet) {
-            Ok(response) => response,
+            Ok(Some(record)) => Reply::Settled(record),
+            Ok(None) => Reply::Packet(Vec::new()),
             Err(error) => {
                 eprintln!(
                     "{}",
                     serde_json::json!({"event":"agent.cycle.rejected", "reason":error.to_string()})
                 );
-                RESPONSE_REJECTED.to_vec()
+                Reply::Packet(RESPONSE_REJECTED.to_vec())
             }
         };
     }
     let (operation, device_id, ip) = match decode_request(packet) {
         Ok(request) => request,
-        Err(_) => return RESPONSE_REJECTED.to_vec(),
+        Err(_) => return Reply::Packet(RESPONSE_REJECTED.to_vec()),
     };
-    match operation {
+    let response = match operation {
         Operation::Health
             if agent
                 .devices
@@ -774,7 +820,7 @@ fn handle_packet(agent: &Agent, connection: &OwnedFd, runtime: &Handle, packet: 
         }
         Operation::ListShunsLarge => {
             if !agent.large_snapshots_enabled {
-                return RESPONSE_REJECTED.to_vec();
+                return Reply::Packet(RESPONSE_REJECTED.to_vec());
             }
             let deadline = std::time::Instant::now() + agent.operation_timeout;
             let result = runtime
@@ -819,7 +865,7 @@ fn handle_packet(agent: &Agent, connection: &OwnedFd, runtime: &Handle, packet: 
         },
         Operation::RemoveShun => {
             let Some(ip) = ip else {
-                return RESPONSE_REJECTED.to_vec();
+                return Reply::Packet(RESPONSE_REJECTED.to_vec());
             };
             match runtime.block_on(timeout(
                 agent.operation_timeout,
@@ -844,7 +890,8 @@ fn handle_packet(agent: &Agent, connection: &OwnedFd, runtime: &Handle, packet: 
         | Operation::GetShun
         | Operation::GetRaAuthStatus
         | Operation::GetRaInitStatus => RESPONSE_REJECTED.to_vec(),
-    }
+    };
+    Reply::Packet(response)
 }
 
 fn log_remove_failure(device_id: u16, target: Ipv4Addr, reason: String) {
@@ -1006,6 +1053,115 @@ mod tests {
             additions_enabled: false,
             max_concurrent_devices: 2,
         })
+    }
+
+    #[test]
+    fn local_settlement_follows_cleanup_guard_release_and_worker_idle() -> Result<()> {
+        use nix::errno::Errno;
+        use nix::sys::socket::socketpair;
+        use std::sync::{Mutex, mpsc};
+        let guards = Arc::new(dispatch::DeviceGuards::new([(
+            7,
+            Ipv4Addr::new(192, 0, 2, 7),
+        )]));
+        let shared = Arc::clone(&guards);
+        let (release, cleanup) = mpsc::channel();
+        let cleanup = Mutex::new(cleanup);
+        let pool = dispatch::Pool::new(1, move |(connection, hold): (OwnedFd, bool)| {
+            let record = shared
+                .run(7, || -> Result<[u8; 4]> {
+                    let mut packet = [0; 8];
+                    let size = recv(connection.as_raw_fd(), &mut packet, MsgFlags::MSG_TRUNC)?;
+                    assert_eq!(cycle::decode_begin(&packet[..size])?, (7, 1));
+                    assert_eq!(packet[0], cycle::BEGIN_SETTLED);
+                    send(
+                        connection.as_raw_fd(),
+                        &[0, 1, cycle::BEGIN_SETTLED, 0, 0, 0, 0],
+                        MsgFlags::MSG_NOSIGNAL,
+                    )?;
+                    let size = recv(connection.as_raw_fd(), &mut packet, MsgFlags::MSG_TRUNC)?;
+                    assert_eq!(&packet[..size], &[0x13, 1, 1]);
+                    send(
+                        connection.as_raw_fd(),
+                        &[0, 1, 0x13, 1, 0, 0, 0],
+                        MsgFlags::MSG_NOSIGNAL,
+                    )?;
+                    if hold {
+                        cleanup
+                            .lock()
+                            .map_err(|_| anyhow::anyhow!("synthetic lock"))?
+                            .recv_timeout(Duration::from_secs(2))?;
+                    }
+                    Ok([0, 1, cycle::BEGIN_SETTLED, 1])
+                })
+                .and_then(Result::ok);
+            ConnectionCompletion {
+                connection,
+                settlement: record,
+            }
+        })?;
+        for index in 0..100 {
+            let (client, server) = socketpair(
+                AddressFamily::Unix,
+                SockType::SeqPacket,
+                None,
+                SockFlag::SOCK_CLOEXEC,
+            )?;
+            cycle::set_ipc_timeout(&client, Duration::from_secs(2))?;
+            cycle::set_ipc_timeout(&server, Duration::from_secs(2))?;
+            // No retry/yield loop: a received receipt really precedes the next assignment.
+            pool.submit((server, index == 0))?;
+            send(
+                client.as_raw_fd(),
+                &[cycle::BEGIN_SETTLED, 1, 0, 7],
+                MsgFlags::MSG_NOSIGNAL,
+            )?;
+            let mut packet = [0; 16];
+            assert_eq!(
+                recv(client.as_raw_fd(), &mut packet, MsgFlags::MSG_TRUNC)?,
+                7
+            );
+            send(client.as_raw_fd(), &[0x13, 1, 1], MsgFlags::MSG_NOSIGNAL)?;
+            assert_eq!(
+                recv(client.as_raw_fd(), &mut packet, MsgFlags::MSG_TRUNC)?,
+                7
+            );
+            if index == 0 {
+                assert_eq!(guards.run(7, || true), None);
+                assert_eq!(
+                    recv(client.as_raw_fd(), &mut packet, MsgFlags::MSG_DONTWAIT),
+                    Err(Errno::EAGAIN)
+                );
+                release.send(())?;
+            }
+            assert_eq!(
+                recv(client.as_raw_fd(), &mut packet, MsgFlags::MSG_TRUNC)?,
+                4
+            );
+            assert_eq!(&packet[..4], &[0, 1, cycle::BEGIN_SETTLED, 1]);
+            assert_eq!(guards.run(7, || true), Some(true));
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn nonblocking_settlement_does_not_wait_for_a_closed_peer() -> Result<()> {
+        use nix::sys::socket::socketpair;
+        let (peer, connection) = socketpair(
+            AddressFamily::Unix,
+            SockType::SeqPacket,
+            None,
+            SockFlag::SOCK_CLOEXEC,
+        )?;
+        drop(peer);
+        let started = Instant::now();
+        ConnectionCompletion {
+            connection,
+            settlement: Some([0, 1, cycle::BEGIN_SETTLED, 1]),
+        }
+        .complete();
+        assert!(started.elapsed() < Duration::from_secs(1));
+        Ok(())
     }
 
     #[test]

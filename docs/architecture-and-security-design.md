@@ -4546,3 +4546,360 @@ and scoped activation. No new DDL/backup/rollout was needed; preserve compatible
 code/checked SQLite-safe backup before eventual approved migration and never
 erase fences, uncertainty or disabled authority to downgrade. See
 [Parallel Device Rounds](manual/parallel-rounds.md).
+
+## Internal continuous dispatch and read demand — 2026-10-22
+
+Extend the explicitly enabled developer coordinator with independent device
+dispatch, not a fleet-round barrier. No API/env/Web activation, live migration,
+new authority, uncertain replay or lab writes follow. Retain exact profile/scope,
+transactional fences, bounded local slots, typed results and default-off bulk ADD.
+At most one task/session may run per configured device; slow devices cannot stop
+healthy devices from starting another bounded session when a slot is free.
+
+Track successful complete reads, baseline deadlines and coalesced manual demand
+independently per device. Default intervals remain 300/60 seconds. Repeated demand
+must not push its original deadline later. Required mutation verification/session
+snapshots may satisfy pending demand without scheduling redundant reads. Deadlines
+and local status never prove fresh data or clear failed/unknown work. Queue work
+may run between read deadlines; idle devices must not reconnect just because
+another device has pending jobs. Genuine errors/deferral/lease contention use a
+short bounded rescheduling delay, never a hot loop or a global minute-long write
+cooldown. In-memory timing is advisory and restart requires fresh observations.
+
+In this explicit fenced mode, admitted live REMOVE work takes the next mutation
+slot before bulk ADD, including REMOVE admitted after the original ADD cutoff.
+Preserve REMOVE FIFO, current authorization/expiry/pause/protection/isolation and
+same-device serialization; priority is not admission or conflict-override authority.
+ADD remains cutoff-bound. A priority REMOVE must use the agent's current target
+verification, not an initial snapshot's absence: an earlier command may already
+have added that target. Retain original uncertainty and typed no-op/results.
+Complete final snapshots may admit matching protected removal through the existing
+policy path, so protection enabled during ADD is not delayed until baseline.
+
+Manual demand due during an active session joins its next legal checkpoint,
+after the current command/verification. Respect the existing one-checkpoint and
+session command/time limits; join final reading or the next bounded session when
+needed. Do not abort or fabricate completion. Shutdown prevents new sessions and
+drains active RPCs as in parallel rounds, including repeated caller cancellation;
+forced internal cancellation disables replacement execution in-process. Status
+is detached local metadata, not a new HTTP contract. A read-only status request
+never enqueues device work or migrates state. Transport END/device-guard settlement,
+automatic uncertainty recovery, Web integration and actual lab activation remain
+separate prerequisites before real continuous execution.
+
+## Opt-in local cycle-settlement receipt — 2026-10-22
+
+Preserve legacy BEGIN `10 version device:u16`, versions 1/2/3, all mutation/gate/
+profile/command/time limits and END snapshot framing unchanged. Introduce explicit
+BEGIN_SETTLED `16 version device:u16` with the same exact four-byte length and
+sequence zero. Its initial complete snapshot is bound to opcode 16, so an old
+agent cannot silently satisfy the capability. Never fallback/reconnect/replay on
+rejection. The connection still binds one configured device; no command text,
+route, interface, nonce-controlled storage or arbitrary operation is added.
+
+After a successful ordinary END snapshot in this mode, require a separate exact
+four-byte local settlement record `00 version 16 end_sequence`. Only emit that
+record after bounded disconnect cleanup succeeds, the cycle/session resources
+are dropped, the device/address guard is released and the pool worker has been
+marked idle. A typed internal completion object retains the FD/record across that
+boundary; finalization sends at most one nonblocking terminal packet and closes
+the FD, with no SSH/CLI work or waiting for a slow peer. Do not expose IDLE while
+any semantic handler/verification/cleanup is still running. A newly assigned
+request may wait only for this bounded local postamble, not behind an active
+handler. Failed/panicked workers remain stopped; no replacement/rearm authority.
+
+The receipt attests local completed-handler/guard/slot ordering, not remote TCP
+termination, current process liveness, future capacity or resolution of a lost
+write. EOF, timeout, busy rejection and a final snapshot alone are not a receipt.
+Cleanup failure/timeout, malformed/missing/wrong-version/sequence receipt or send
+failure must fail closed. A strict client returns/publishes the final snapshot
+only after the receipt, within the original END deadline and at most five seconds
+after snapshot completion. Earlier verified job results remain intact; no unknown
+attempt, policy, latch or retained incident is cleared or retried by settlement.
+
+The internal continuous dispatcher requires explicit strict client capability and
+a confirmed settled cycle before normal release; ordinary serial/round clients
+remain legacy by default. No deployed environment/startup selector, migration,
+new fixture or feature activation accompanies this extension. Validate shared
+fixed vectors, real local SeqPacket receipt ordering and rapid consecutive
+sessions without SSH; live FTD/multi-device acceptance and Web/runtime migration
+remain separately scoped work.
+
+## Continuous browser-status projection — 2026-10-23
+
+The explicit continuous controller may expose its independent read demand through
+the existing browser revision envelope, with an explicit `per_device` scheduling
+mode. Preserve enabled/disabled inventory, per-device complete-read timestamps,
+errors/staleness, pending manual demand, monotonic-derived eligibility deadlines
+and concurrent semantic phases. Do not choose an arbitrary active device as a
+single fleet cycle or leak internal ownership/fencing identities into the browser
+projection. Fleet confirmation is the oldest enabled-device observation only when
+every enabled device has a successful complete observation; a healthy device must
+not mask an unread or failed one. Previous observations remain labelled honestly.
+
+Repeated manual requests join demand without postponing its original eligibility.
+In this mode keep the browser request control available during other device work,
+cooldown and held failures, except for its in-flight HTTP submission or unavailable
+controller. Pending counts and attention remain visible on panel indicators.
+Countdown expiry proves no read, settlement or mutation success. Publish browser
+data revisions for actual read/result publication and explicit already-committed
+API changes, not merely elapsed deadlines or accepted demand. Healthy-device
+updates must not wait for a held device; preserve user drafts and frozen reviews.
+
+Authenticated no-store status and CSRF-protected demand keep the existing explicit
+BFF field allowlist. Status never creates optional schema, admits policy/jobs,
+resumes execution or clears uncertainty. A missing database must not be created by
+the projection. Runtime selection is deliberately not added: existing API startup
+remains legacy until version-aware admission/cleanup, lifecycle/retention, schema
+compatibility and separately scoped transport/live acceptance are integrated.
+No gate/profile change, migration or new lab fixture follows from browser support.
+
+## Continuous runtime maintenance ownership — 2026-10-23
+
+The explicitly enabled continuous controller owns one maintenance lifecycle,
+separate from device workers and never alongside the legacy synchronizer.
+Run ordinary request expiry at startup and five seconds after each completed
+expiry pass; run existing evidence-aware queue/history retention at startup and
+24 hours after complete success. Retain the existing 366-day default and 1..3653
+configuration range. These timings are not device-write cooldowns or renewed
+authority. Monotonic scheduling and existing UTC queue/history cutoffs remain
+independent of browser traffic. Construction, disabled start and GET initialize
+no optional storage; an absent database is not created to service maintenance.
+
+Use the original queue expiry transaction without claiming device work or
+interfering with RUNNING commands. Keep original request deadlines/results;
+unsent bulk expiry remains CANCELLED, not a fabricated CLI failure. Pruning must
+preserve all existing uncertainty, captured predecessors, linked evidence and
+v2 absence barriers. Validate queue evidence before deletion; a queue-validation
+failure prevents the history stage. Never reconstruct missing settlement, resume
+policy, release/rearm fences or replay unknown writes as housekeeping. History
+retention remains the established exception to append-only event storage, keeping
+active observations and immutable policy/attempt/cancellation ledgers unchanged.
+
+Queue pruning and history pruning are separate committed transactions. Report a
+later-stage failure honestly: neither claim complete success nor pretend earlier
+commits rolled back. Expected database/OS/validation failures retry only the
+affected maintenance schedule after 60 seconds and remain visible while healthy
+monitoring continues. Status/attempt deadlines never prove a completed purge.
+Actual queue revisions/deletions publish data changes; unchanged passes do not
+cause periodic content reloads. Structured failure logging includes no device
+output/credentials or retained payload dumps.
+
+Run synchronous database maintenance off the event loop with at most one call in
+flight per lifecycle owner. SQLite still serializes database writes; no lock-free
+or distributed-leader guarantee follows. Stop prevents new stages, drains an
+already started call and device sessions, and must resist repeated stop-caller
+cancellation. Forced internal cancellation/unexpected failure marks the lifecycle
+broken and refuses in-process replacement. Cancelling a thread await is never
+proof that its synchronous operation stopped. The API still needs explicit
+version-aware runtime selection/admission and scoped migration/live acceptance;
+this internal lifecycle creates no deployed selector, schema or lab authority.
+
+## Restricted continuous API composition — 2026-10-23
+
+Permit an explicit trusted Python factory dependency for a continuous API runtime,
+without adding a browser/environment/CLI selector or changing deployed defaults.
+The first API surface is intentionally observations, refresh demand, local preview
+and existing Protected-IP policy. Require disabled ADD/bulk execution, empty ADD
+scope, all incompatible legacy admission/restoration/cleanup-controller gates off,
+socket/session/large-read mode, strict settlement and declared matching capacity.
+Development authentication is not allowed in this composition. A real Unix client
+must match socket/timeout/large/settled/empty-ADD settings, never silently fall back.
+
+Validate exact existing v2/device storage, Store/agent ownership, already loaded
+fixed inventory, read-spacing floors, timeout margin, retention and completed
+legacy-protection migration before any runtime starts. Recheck at lifespan entry.
+Refuse a configured inventory file rather than silently ignoring/upserting it;
+this developer surface does not yet implement configured runtime/inventory reload.
+No base/optional initialization, occurrence backfill, legacy environment import,
+policy resume or authority conversion is allowed at construction/GET/first worker.
+Default legacy startup refuses device-fence objects before initialization; partial
+or damaged profiles cannot acquire legacy meaning. Unavailable status returns 503,
+not a fake empty registry or successful device operation.
+
+Bind one inactive/unbroken dispatcher to one API application, start only that
+dispatcher and its maintenance owner, and drain both on shutdown. Do not adopt a
+running executor or construct a parallel serial synchronizer. Existing compatible
+legacy constructors retain their default initialization behavior; fenced workers
+and the restricted policy reader explicitly skip queue initialization.
+
+Before route handlers run, restrict this profile to the fixed supported methods/
+paths. Refuse incompatible managed/import/manual mutation and old policy-read
+workflows with explicit unavailability; never call them with fabricated legacy
+context or guess an empty v2 state. Publish v2-format and capability metadata to
+the existing no-store/authenticated BFF. Hide unsupported controls/navigation and
+explain the restriction, but retain API enforcement even for crafted direct calls.
+Absent/null capability fields preserve legacy rendering; only explicit false
+restricts controls. No new external listener or trusted identity mechanism exists.
+
+Protected-IP saves remain real-actor, revision/confirmation checked and atomically
+retire matching maintenance; automatic verified removal and existing admitted
+REMOVE work may still execute through the shared fenced queue. Observation profile
+does not mean a no-write mock or permission to enable ADD. Disabling protection
+never restores old standing authority. No migration, new live fixture, runtime
+activation, uncertainty resolution or production readiness follows. General v2
+write workflows, bounded managed views, nonempty migration and actual FTD/load
+acceptance remain separate work.
+
+## Version-2 policy views and policy-only revocation — 2026-10-23
+
+Extend only the explicit compatible continuous developer composition with three
+fixed private versioned operations: bounded policy page, exact selected-pair read
+and single-pair policy-only RETIRE. `/api/v2/managed-shuns/page`, `/selection` and
+`/retire` do not reinterpret v1 requests; all v1 managed workflows remain refused
+in that composition. No deployed environment selector or execution gate changes.
+
+Read at most 100 rows/pairs from the existing exact v2 registry (200000 retained
+keys), using a SQLite readonly transaction for metadata, rows and evidence in one
+snapshot. Missing/partial state is unavailable, never empty/initialized/repaired.
+Pin pagination to revision and return explicit conflict on membership changes;
+never silently expand/rebase a reviewed selection. Load original bulk authority
+metadata once per distinct request on a page, not repeated full manifests per
+target. No reader performs RPC, reconciliation, adoption, resume or admission.
+
+Represent desired policy independently from observations and actual ADD evidence.
+Retain original actor/generation/authorization, disabled devices, protection,
+pending jobs and FAILED/UNVERIFIED attention across generations. Only VERIFIED ADD
+supports a verified-application timestamp; NOOP/presence/missing evidence do not
+prove creation. Missing unknown-job evidence stays visibly missing. No response
+format grants execution capability or resolves uncertainty.
+
+Permit existing Operator/Administrator local RETIRE through a separate frozen
+review. Bind policy format, exact pair/generation/revision, actor/session, semantic
+digest and original UUID key; recheck current role/CSRF and typed IP. Confirm only
+the frozen versioned route, never current status to select a fallback. Require
+an explicit v2 policy-only/no-device-work receipt. Stale review conflicts; lost or
+malformed receipt is unknown and permits only the same-key retry. A validated
+receipt is not negated by an optional later status failure. Replay is observational
+and never disables a newer grant/generation.
+
+The existing retirement transaction atomically revokes local policy and records
+audit/receipt. It never admits REMOVE, interrupts RUNNING ADD, cancels independent
+jobs, clears uncertainty/latches or enables/resumes standing policy. Existing
+claim-time authority guards continue to reject retired standing work. Protection
+and previously admitted REMOVE retain their independent safeguards. New view/
+retirement capability flags are separate from unavailable general managed work.
+No optional DDL, migration/activation/lab fixture or production acceptance follows.
+
+## Version-2 ready-scope removal coordination — 2026-10-23
+
+Permit a separate internal, default-false ready-only coordinator on existing
+exact v2 fenced device storage. Read a frozen single-device or whole-fleet scope
+for one exact IPv4 in a readonly snapshot. Fleet scope is the complete union of
+active observations and enabled maintained targets, including disabled devices
+and maintained-but-missing entries; never silently omit an inconvenient member.
+Bind v2 format, mode, sorted device metadata, original intent/generation/authority,
+target and global managed revisions, observed membership and protection revision/
+state. A distinct action digest additionally binds 1..900-second delegation and
+bounded reason. These local reads/digests grant no device authority or freshness.
+
+Ready-only admission must recheck the entire original scope under one write lock.
+Require real Operator/Administrator, canonical original UUID, explicit internal
+capability, unpaused mutations, enabled devices inside the sealed executor scope
+and exact current bindings. Reject the whole request on any overlapping pending
+job, prior unresolved/failed ADD for a selected pair, unknown device outcome or
+retained expired/attention device fence. Do not cancel or replay ADD, convert to
+ordered waiting, shrink a fleet, or loop over single-target admissions. Ordered
+RUNNING-ADD cleanup remains a later separate contract, not an implicit fallback.
+
+Atomically retire all enabled managed targets and admit one whole-scope manual
+REMOVE request through the existing shared queue, then retain its immutable
+action/receipt in the existing managed request ledger. Preserve original grants,
+attempts and outcomes; unmanaged observations are cleanup-only, never adopted.
+Use one retained request slot and the existing reserved retirement budget; no new
+DDL or per-target retirement-root loop. Roll back policy, queue, links and audit
+together on late failure, even if an outer caller catches the error. Publish
+accepted logs only after commit. Admission is not verified device removal.
+
+Queue composition needs a separate literal default-false v2 ready-removal
+capability and fixed scope; a scope label alone never bypasses the legacy guard.
+Preserve all queue role/pause/rate/capacity/deadline/claim/fence/result checks.
+All retained bulk managed-request keys remain reserved against new queue work,
+including after ordinary queue pruning. Exact coordinator replay returns only
+its original immutable receipt, never recreates jobs, renews deadlines, retires
+new policy or clears uncertainty. Existing quiescent standing confirmation cannot
+create new authority while admitted removals remain pending; future concurrent
+grant admission must preserve that exclusion explicitly.
+
+Expose readonly scope inspection only in the explicit continuous API profile;
+no v2 removal POST, browser execution control, runtime selector, gate activation,
+startup/GET initialization, lab migration/fixture or production acceptance follows.
+Actual dispatched work still uses the existing continuous device worker, typed
+verified responses, local settlement and retained fences; no second executor.
+
+## Frozen v2 ready-removal Web/API admission — 2026-10-23
+
+Extend only explicit developer composition with independent literal default-false
+`ready_removal_admission_enabled` factory capabilities in API and Web. API enablement
+requires the compatible existing fenced continuous runtime; refuse legacy enablement
+before initialization. Web enablement requires socket/session/large-read mode and
+production identity handling. No environment/CLI/request selector or lab activation
+is introduced; legacy cleanup flags never enable this separate v2 workflow.
+
+Provide distinct fixed v2 device/fleet POSTs for ready-only action, strict bounded
+literal scope/actor/TTL/reason models and original UUID/digest. A disabled API
+capability refuses before legacy/body dispatch. An enabled endpoint verifies the
+route's exact device/fleet mode and sensitive-action lifetime, invokes the existing
+whole-scope coordinator once, then publishes/wakes committed work only. Return 202
+for admission/replay, never verified device removal. Keep all backend conflict,
+unknown-result, actor/rate/capacity, protection and fence guarantees unchanged.
+
+Web preparation is a CSRF-protected local read, even with execution off. Freeze
+the exact v2 inspection, original action/key, actor/cookie, reason/lifetime and
+expiry in a separate immutable review cache (at most ten minutes, five per subject,
+256 total). Read scope only from the fixed v2 resource; verify complete descriptor,
+expected IP/device/mode, readonly markers and digest. No arbitrary target/action
+JSON from forms, partial fleet, legacy fallback or status-driven rebase is allowed.
+
+Confirmation rechecks authentication/current Operator/Administrator, CSRF, typed
+exact IP and review binding/expiry. It needs the local Web capability plus fresh
+compatible API status/capability; status/DOM edits cannot enable a local disabled
+gate. Recheck review expiry after status I/O before POST. Frozen v2 confirmation
+never prepares a replacement scope or auto-retries/rekeys. Validate the complete
+202 receipt against frozen count, retirement/revision, action/mode, unique original
+job references and explicit admission-not-verification flags. Lost/malformed replies
+remain unknown and permit only same-review/key retry. Optional later status failure
+cannot negate a checked receipt. Native confirmation remains explicit while status
+polling continues without replacing the token, target list, typed IP or focus.
+
+Expose clear ready-only blockers and historical receipts: disabled devices stay
+visible, RUNNING ADD is not interrupted or silently converted to waiting, unmanaged
+targets are cleanup-only, and individual FTD outcomes remain separate from atomic
+local admission. Default-disabled code does not authorize migration, live test
+mutations, gate/profile changes or production acceptance. No new DDL or executor.
+
+## Version-2 ordered-removal preflight — 2026-10-23
+
+Introduce a separate local, read-only preflight before implementing ordered
+admission. Reuse the exact ready-removal single/fleet union, but never reinterpret
+its action, digest or receipt. Inspect all targets in one readonly SQLite snapshot
+on the existing exact fenced v2 profile. Return READY, WAITING_ADD or BLOCKED for
+each target, bounded stable blocker codes and an all-scope disposition. One
+blocked member blocks the whole fleet; a ready member must not be promoted alone.
+These classifications describe stored evidence at a supplied UTC inspection time,
+not verified remote state, an admission guarantee or permission to send work.
+
+Only a single RUNNING system ADD with its original linked request, current exact
+intent/generation/authorization/target revision, retained RUNNING attempt and
+matching live device executor may be proposed as a predecessor. Bind its original
+request/job/attempt identity, original deadline, complete-snapshot identity/times,
+started time and claim-audit owner/epoch. Refuse missing/mismatched audit, queued
+or independent ADD, pending REMOVE, expired delegation, disabled/out-of-scope
+device, pause, failed/unknown pair history, device uncertainty or expired/attention
+fence. An expired RUNNING RPC remains unknown, not cancelled or safe to replay.
+Malformed optional storage fails closed rather than appearing empty.
+
+Use a separate domain-separated digest over the complete bounded preflight,
+including inspection time, scope and captured predecessors/blockers. It is
+observational only: no confirmation/admission action, TTL extension, durable
+reservation, retirement, audit write, migration, startup hook, HTTP execution
+route or executor is introduced. Reinspection after settlement may change the
+descriptor; it never rebases an already frozen confirmation. Ready-only admission
+must continue to reject RUNNING ADD and must not consume this descriptor.
+
+Future ordered admission still requires a separately reviewed optional durable
+whole-scope barrier/reservation, original-deadline accounting, evidence retention,
+atomic retirement and shared-worker promotion. VERIFIED/NOOP, exact pre-write
+deferral and failed/unknown results need distinct settlement rules; fresh observed
+absence must never release unknown evidence. This preflight does not implement or
+authorize any of those transitions, lab migrations or new fixtures.

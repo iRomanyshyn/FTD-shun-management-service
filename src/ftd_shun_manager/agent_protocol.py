@@ -43,6 +43,7 @@ class CycleOperation(IntEnum):
     REMOVE = 0x12
     END = 0x13
     ADD = 0x14
+    BEGIN_SETTLED = 0x16
 
 
 def encode_cycle_request(operation: CycleOperation, sequence: int, *,
@@ -53,7 +54,7 @@ def encode_cycle_request(operation: CycleOperation, sequence: int, *,
     operation = CycleOperation(operation)
     if operation == CycleOperation.ADD and version != 3:
         raise ValueError("ADD requires cycle version 3")
-    if operation == CycleOperation.BEGIN:
+    if operation in {CycleOperation.BEGIN, CycleOperation.BEGIN_SETTLED}:
         if sequence != 0 or device_id is None or not 1 <= device_id <= 65535 or ip is not None:
             raise ValueError("invalid cycle begin fields")
         return bytes([operation, version]) + device_id.to_bytes(2, "big")
@@ -72,8 +73,9 @@ def decode_cycle_response(packet: bytes, operation: CycleOperation, sequence: in
     operation = CycleOperation(operation)
     if operation == CycleOperation.ADD and version != 3:
         raise ValueError("ADD requires cycle version 3")
-    if (operation == CycleOperation.BEGIN and sequence != 0) or (
-        operation != CycleOperation.BEGIN and not 1 <= sequence <= MAX_CYCLE_REMOVALS + 2
+    begin = operation in {CycleOperation.BEGIN, CycleOperation.BEGIN_SETTLED}
+    if (begin and sequence != 0) or (
+        not begin and not 1 <= sequence <= MAX_CYCLE_REMOVALS + 2
     ):
         raise ValueError("invalid cycle response sequence")
     if len(packet) > MAX_AGENT_RESPONSE_BYTES or len(packet) < 4:
@@ -105,6 +107,14 @@ def decode_cycle_response(packet: bytes, operation: CycleOperation, sequence: in
     if version >= 2:
         raise ValueError("versioned snapshots require the complete stream decoder")
     return decode_list_shuns_response(packet[4:])
+
+
+def decode_cycle_settlement(packet: bytes, sequence: int, *, version: int):
+    """Local completed-handler receipt, never mutation/recovery authority."""
+    if (type(version) is not int or version not in (1, 2, 3)
+            or type(sequence) is not int or not 1 <= sequence <= MAX_CYCLE_REMOVALS + 2
+            or packet != bytes([0, version, CycleOperation.BEGIN_SETTLED, sequence])):
+        raise ValueError('Missing or invalid exact cycle settlement receipt.')
 
 
 _IP_OPERATIONS = {Operation.GET_SHUN, Operation.REMOVE_SHUN}

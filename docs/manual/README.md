@@ -51,8 +51,16 @@ not a runbook or permission to change gates, initialize schemas or run new fixtu
 | [One-Address Service Validation](single-address-service-validation.md) | Scoped runbook and recorded one-fixture VERIFIED/NOOP/cleanup evidence, idempotent replay and restored gates; new tests require new approval. |
 | [Agent Cycle Protocol](agent-cycle-protocol.md) | Experimental bounded single-session removal/checkpoint protocol, feature gate, limits, and lab/rollback procedure. |
 | [Agent Connection Concurrency](agent-concurrency.md) | Opt-in bounded connection workers, device/address guards, fail-closed saturation and unchanged wire/gates; not yet parallel API scheduling. |
+| [Local Cycle Settlement](cycle-settlement.md) | Opt-in terminal receipt after cleanup/guard release/worker idle, strict deadlines and no replay/recovery authority; no live activation. |
 | [Fenced Device Leases](device-leases.md) | Explicit optional per-device owner/epoch/deadline profile, shared queue fencing, retained expiry attention and legacy-writer exclusion; no runtime/lab activation. |
 | [Parallel Device Rounds](parallel-rounds.md) | Default-disabled actual bounded device sessions, shared typed queue/results and cancellation drain; no background/API/lab activation. |
+| [Continuous Dispatch](continuous-dispatch.md) | Internal independent lifecycle, continuous work, priority and per-device browser status/demand contract; no API runtime selection or lab activation. |
+| [Continuous Runtime Maintenance](continuous-maintenance.md) | Single controller-owned expiry/retention lifecycle, evidence holds, backoff, status and cancellation drain; no lab activation. |
+| [Restricted Continuous API](continuous-api.md) | Explicit existing-profile API/BFF composition, lifecycle/compatibility checks and refused unavailable workflows; no environment selector or lab activation. |
+| [Version-2 Managed Policy Views](bulk-policy-views.md) | Bounded read-only policy/evidence pages and frozen policy-only stop-maintaining; no creation, combined removal or lab activation. |
+| [Version-2 Ready-Scope Removal](bulk-ready-removal.md) | Exact scope and default-off atomic retirement/shared queue admission for ready targets; no lab activation. |
+| [Version-2 Removal Confirmation](ready-removal-confirmation.md) | Independent default-off API/Web factory capabilities, frozen ready-only confirmation and admission-not-verification receipts. |
+| [Version-2 Ordered-Removal Preflight](bulk-ordered-preflight.md) | Read-only whole-scope readiness/blockers and exact RUNNING-ADD predecessor evidence; no ordered admission or activation. |
 | [Large Snapshots](large-snapshots.md) | Default-off versioned multi-frame reads, complete-snapshot checks, console/transfer budgets and lab rollout/rollback. |
 | [FTD Laboratory Validation](ftd-lab-validation.md) | Controlled agent, snapshot, and parser-fixture validation. |
 | [Addition Readiness](addition-lab-validation.md) | Current snapshot-capacity blocker and staged Basic-account, one-address direct-CLI validation before ADD design. |

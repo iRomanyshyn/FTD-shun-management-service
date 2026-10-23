@@ -208,7 +208,7 @@ class OperationQueue:
         subject: str, display_name: str, roles: tuple[str, ...], ttl_seconds: int = 900,
         source: str = "manual", scope: str = "device",
         *, batch_label: str = "", batch_reason: str = "", policy_revision: int | None = None,
-        confirmation_digest: str | None = None,
+        confirmation_digest: str | None = None, bulk_removal_enabled: bool = False,
     ) -> tuple[dict, list[dict]]:
         """Trusted composition hook; caller owns transaction, commit and accepted logs.
 
@@ -219,11 +219,13 @@ class OperationQueue:
         """
         if not db.in_transaction:
             raise ValueError("Queue admission requires a caller-owned transaction.")
+        if type(bulk_removal_enabled) is not bool:
+            raise ValueError('Bulk ready-removal composition capability must be boolean.')
         db.execute("SAVEPOINT queue_admission")
         try:
             result = self._apply_enqueue(
                 db, request_id, targets, subject, display_name, roles, ttl_seconds, source, scope,
-                batch_label, batch_reason, policy_revision, confirmation_digest,
+                batch_label, batch_reason, policy_revision, confirmation_digest, bulk_removal_enabled,
             )
         except Exception:
             db.execute("ROLLBACK TO queue_admission")
@@ -234,8 +236,10 @@ class OperationQueue:
 
     def _apply_enqueue(
         self, db, request_id, targets, subject, display_name, roles, ttl_seconds,
-        source, scope, batch_label, batch_reason, policy_revision, confirmation_digest,
+        source, scope, batch_label, batch_reason, policy_revision, confirmation_digest, bulk_removal_enabled,
     ) -> tuple[dict, list[dict]]:
+        if bulk_removal_enabled and (source != 'manual' or scope != 'managed_v2_ready_removal'):
+            raise ValueError('The v2 ready-removal capability requires its fixed manual semantic scope.')
         if source not in {"manual", "trusted_policy", "manual_import"} or not 1 <= ttl_seconds <= 900:
             raise ValueError("invalid queue request")
         if source in {"manual", "manual_import"} and not {"Operator", "Administrator"}.intersection(roles):
@@ -281,7 +285,12 @@ class OperationQueue:
         if source == "manual":
             # Combined admission retires policy under this very write lock
             # before it delegates removal. A scope label is not a bypass.
-            require_ordinary_removal(db, targets, fleet=scope == "all")
+            if bulk_removal_enabled:
+                from .bulk_removals import require_ready_queue_scope
+
+                require_ready_queue_scope(db, targets, scope)
+            else:
+                require_ordinary_removal(db, targets, fleet=scope == "all")
         if source in {"manual", "manual_import"}:
             from .incident_isolations import require_manual_scope
 
@@ -501,6 +510,9 @@ class OperationQueue:
     def claim_removal(self, device_id: int, owner: str, cutoff: int) -> dict | None:
         return self._claim_mutation(device_id, owner, cutoff, "REMOVE")
 
+    def _removal_priority(self):
+        return False  # Legacy/global claims retain FIFO and the original cutoff.
+
     def claim_next_mutation(self, device_id: int, owner: str, cutoff: int, *, additions_enabled: bool = False,
                             managed_restoration_enabled: bool = False, bulk_dispatch_enabled: bool = False) -> dict | None:
         """One atomic FIFO claim; the leased scheduler supplies device capability."""
@@ -539,12 +551,14 @@ class OperationQueue:
             if bulk_dispatch_present(db) and db.execute(
                     "SELECT 1 FROM operation_jobs WHERE device_id=? AND state='RUNNING'", (device_id,)).fetchone():
                 return None  # Never overlap command/verification on the same device.
+            priority = self._removal_priority()
             jobs = db.execute("""SELECT * FROM operation_jobs
-                WHERE device_id=? AND state='QUEUED' AND (? IS NULL OR action=?) AND (seq<=? OR EXISTS (
+                WHERE device_id=? AND state='QUEUED' AND (? IS NULL OR action=?) AND (seq<=? OR (action='REMOVE' AND ?) OR EXISTS (
                     SELECT 1 FROM operation_links l JOIN operation_requests r ON r.id=l.request_id
                     WHERE l.job_id=operation_jobs.id AND r.source='trusted_policy' AND r.state='ACTIVE'
                         AND operation_jobs.action='REMOVE'))
-                ORDER BY seq""", (device_id, action, action, cutoff)).fetchall()
+                ORDER BY CASE WHEN ? AND action='REMOVE' THEN 0 ELSE 1 END,seq""",
+                (device_id, action, action, cutoff, priority, priority)).fetchall()
             for job in jobs:
                 job_action = job["action"]
                 restoration = attempt_for_job(db, job["id"])

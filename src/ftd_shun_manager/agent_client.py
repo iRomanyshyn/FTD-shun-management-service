@@ -11,6 +11,7 @@ from .agent_protocol import (
     ObservedShun,
     Operation,
     decode_cycle_response,
+    decode_cycle_settlement,
     decode_list_shuns_response,
     encode_cycle_request,
     encode_request,
@@ -43,7 +44,10 @@ class DisabledAgentClient(AgentClient):
 
 class UnixAgentClient(AgentClient):
     def __init__(self, socket_path: str, timeout_seconds: int = 125, *, large_snapshots: bool = False,
-                 additions_enabled: bool = False, addition_device_ids: frozenset[int] | None = None) -> None:
+                 additions_enabled: bool = False, addition_device_ids: frozenset[int] | None = None,
+                 settled_cycles: bool = False) -> None:
+        if type(settled_cycles) is not bool:
+            raise ValueError('Settled cycle capability must be boolean.')
         if additions_enabled and not large_snapshots:
             raise ValueError("addition cycles require large snapshots")
         self.socket_path = socket_path
@@ -53,6 +57,7 @@ class UnixAgentClient(AgentClient):
         # None preserves explicit low-level v3 callers. The API always supplies
         # an exact validated set, including empty: no implicit fleet capability.
         self.addition_device_ids = addition_device_ids
+        self.settled_cycles = settled_cycles
 
     def remove_shun(self, device_id: int, ip: IPv4Address) -> None:
         request = encode_request(Operation.REMOVE_SHUN, device_id, ip)
@@ -95,7 +100,8 @@ class UnixAgentClient(AgentClient):
             self.addition_device_ids is None or device_id in self.addition_device_ids
         )
         return UnixAgentCycle(self.socket_path, self.timeout_seconds, device_id,
-                              version=3 if addition_cycle else 2 if self.large_snapshots else 1)
+                              version=3 if addition_cycle else 2 if self.large_snapshots else 1,
+                              settled_cycles=self.settled_cycles)
 
 
 def _receive_packet(connection: socket) -> bytes:
@@ -129,25 +135,31 @@ def _receive_snapshot(connection: socket, operation: int, sequence: int, deadlin
 class UnixAgentCycle:
     """One sequential, device-bound binary conversation; never retries a step."""
 
-    def __init__(self, path: str, timeout_seconds: int, device_id: int, *, version: int = 1) -> None:
+    def __init__(self, path: str, timeout_seconds: int, device_id: int, *, version: int = 1,
+                 settled_cycles: bool = False) -> None:
+        if type(settled_cycles) is not bool:
+            raise ValueError('Settled cycle capability must be boolean.')
         self.connection = socket(AF_UNIX, SOCK_SEQPACKET)
         self.sequence = 0
         self.closed = False
         self.version = version
         self.timeout_seconds = timeout_seconds
+        self.settled_cycles = settled_cycles
+        self.settled = False
         try:
             self.connection.settimeout(timeout_seconds)
             self.connection.connect(path)
-            self.initial_snapshot = self._exchange(CycleOperation.BEGIN, device_id=device_id)
+            self.initial_snapshot = self._exchange(
+                CycleOperation.BEGIN_SETTLED if settled_cycles else CycleOperation.BEGIN, device_id=device_id)
         except BaseException:
             self.abort()
             raise
 
-    def _exchange(self, operation: CycleOperation, **fields):
+    def _exchange(self, operation: CycleOperation, *, _deadline=None, **fields):
         if self.closed:
             raise AgentUnavailable("agent cycle is closed")
         try:
-            deadline = monotonic() + self.timeout_seconds
+            deadline = monotonic() + self.timeout_seconds if _deadline is None else _deadline
             self.connection.settimeout(self.timeout_seconds)
             request = encode_cycle_request(operation, self.sequence, version=self.version, **fields)
             if self.connection.send(request) != len(request):
@@ -175,7 +187,16 @@ class UnixAgentCycle:
 
     def finish(self) -> list[ObservedShun]:
         try:
-            return self._exchange(CycleOperation.END)
+            deadline = monotonic() + self.timeout_seconds
+            snapshot = self._exchange(CycleOperation.END, _deadline=deadline)
+            if self.settled_cycles:
+                decode_cycle_settlement(
+                    _receive_before(self.connection, min(deadline, monotonic() + 5)),
+                    self.sequence - 1, version=self.version)
+                self.settled = True
+            return snapshot
+        except (OSError, ValueError, AgentUnavailable) as error:
+            raise AgentUnavailable('Final cycle snapshot/settlement unavailable; no retry attempted.') from error
         finally:
             self.abort()
 

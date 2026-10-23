@@ -10,10 +10,11 @@
     <header><a href="/">FTD Shun Manager</a>{% if identity %}<span>{{ identity.display_name }} · {{ identity.roles | join(', ') or 'No role' }}</span>{% endif %}</header>
     {% if identity %}<nav class="primary-nav" aria-label="Primary">
       <a href="/"{% if active_page | default('shuns') == 'shuns' %} aria-current="page"{% endif %}>Shuns</a>
-      <a href="/managed-shuns"{% if active_page == 'managed' %} aria-current="page"{% endif %}>Managed shuns</a>
+      {% if (refresh or {}).managed_policy_view_available | default(false) or (refresh or {}).managed_workflows_available is not sameas false %}<a href="/managed-shuns"{% if active_page == 'managed' %} aria-current="page"{% endif %}>Managed shuns</a>{% endif %}
       <a href="/protected-ips"{% if active_page == 'protected' %} aria-current="page"{% endif %}>Protected IPs</a>
       <a href="/history"{% if active_page == 'history' %} aria-current="page"{% endif %}>History</a>
-      <a href="{{ '/managed-imports' if 'Operator' in identity.roles or 'Administrator' in identity.roles else '/imports' }}"{% if active_page == 'imports' %} aria-current="page"{% endif %}>{{ 'Imports' if 'Operator' in identity.roles or 'Administrator' in identity.roles else 'Import preview' }}</a>
+      {% set managed_imports_available = (refresh or {}).managed_workflows_available is not sameas false and ('Operator' in identity.roles or 'Administrator' in identity.roles) %}
+      <a href="{{ '/managed-imports' if managed_imports_available else '/imports' }}"{% if active_page == 'imports' %} aria-current="page"{% endif %}>{{ 'Imports' if managed_imports_available else 'Import preview' }}</a>
     </nav>{% endif %}
     <main>{% block content %}{% endblock %}</main>
     <footer class="app-footer" aria-label="Application version">FTD Shun Manager · <span data-product-version>v{{ product_version }}</span></footer>

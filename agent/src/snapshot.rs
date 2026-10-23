@@ -26,9 +26,9 @@ pub(super) fn encode_versioned(
 ) -> Result<Vec<Vec<u8>>> {
     if !matches!(version, VERSION | addition::VERSION)
         || (opcode == 7 && version != VERSION)
-        || !matches!(opcode, 7 | 0x10 | 0x11 | 0x13)
+        || !matches!(opcode, 7 | 0x10 | 0x11 | 0x13 | cycle::BEGIN_SETTLED)
         || entries.len() > MAX_ENTRIES
-        || (matches!(opcode, 7 | 0x10) && sequence != 0)
+        || (matches!(opcode, 7 | 0x10 | cycle::BEGIN_SETTLED) && sequence != 0)
         || (matches!(opcode, 0x11 | 0x13) && !(1..=18).contains(&sequence))
     {
         bail!("invalid large snapshot operation or entry count");

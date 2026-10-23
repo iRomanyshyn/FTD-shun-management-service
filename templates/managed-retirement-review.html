@@ -9,6 +9,7 @@
 <dt>IPv4 address</dt><dd>{{ review.ip }}</dd>
 <dt>Managed intent / generation</dt><dd><code>{{ review.intent_id }}</code> / {{ review.generation }}</dd>
 <dt>Managed revision</dt><dd>{{ review.managed_revision }} — checked atomically on a new request</dd>
+<dt>Policy format</dt><dd>Version {{ review.intent_format | default(1) }} · frozen with this review</dd>
 <dt>Retained local observation</dt><dd>{{ 'Observed present' if review.observed_present else 'Not currently observed' }}; not a fresh Cisco query</dd>
 <dt>Protected IP</dt><dd>{{ 'Enabled protection takes priority' if review.protected else 'Not protected by an enabled entry' }}; protection changes do not prevent retirement</dd>
 <dt>Reason</dt><dd>{{ review.reason or 'Not supplied' }}</dd>

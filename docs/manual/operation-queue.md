@@ -6,6 +6,22 @@ automatic evidence-based recovery. This manual still describes current queue/
 protocol limits and offline uncertainty controls; do not bypass them to emulate
 the new target. No gates, schemas or live authorizations change with this plan.
 
+An internal default-disabled [continuous fenced dispatcher](continuous-dispatch.md)
+now supports independent sessions/read timing and scoped opt-in REMOVE priority
+over this same queue. It is not selected by application startup or Web routes;
+the deployed legacy behavior below is unchanged. Already admitted requests still
+need their original authority; prioritization is not a new v2 removal-admission
+path, uncertainty override or live activation permission.
+
+The separate [v2 ready-removal backend](bulk-ready-removal.md) now supplies an
+explicit default-false composition hook for atomic whole-scope retirement and
+REMOVE admission on exact fenced storage. Its fixed scope label alone grants
+nothing; all retained bulk managed-request keys stay reserved after queue pruning.
+Readonly scope inspection and separate [frozen confirmation](ready-removal-confirmation.md)
+are available; API/Web ready-removal admission remains independently default-off,
+and no implicit RUNNING-ADD waiting is enabled. The ordinary legacy path remains
+unchanged and cannot reinterpret v2 policy.
+
 ## Scope
 
 The SQLite queue supports device-scoped and confirmed fleet-wide removals.

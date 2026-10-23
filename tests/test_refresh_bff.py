@@ -4,6 +4,7 @@ from ipaddress import IPv4Address
 from uuid import uuid4
 
 import httpx
+import pytest
 
 from ftd_shun_manager import web
 from ftd_shun_manager.config import Settings
@@ -11,7 +12,8 @@ from ftd_shun_manager.store import Device, Store
 from ftd_shun_manager.synchronizer import Synchronizer
 
 
-def test_bff_refresh_authentication_csrf_and_read_only_status(tmp_path, monkeypatch) -> None:
+@pytest.mark.parametrize('schedule', ['legacy', 'per_device'])
+def test_bff_refresh_authentication_csrf_and_read_only_status(tmp_path, monkeypatch, schedule) -> None:
     settings = Settings(
         database_path=tmp_path / "state.db", device_inventory_path=None,
         agent_socket="/unused/agent.sock", web_socket="/unused/web.sock",
@@ -25,12 +27,19 @@ def test_bff_refresh_authentication_csrf_and_read_only_status(tmp_path, monkeypa
     store.upsert_device(Device(1, "lab", IPv4Address("192.0.2.10"), True), "ssh-ed25519 AAAA")
     synchronizer = Synchronizer(store, object(), 300, 60)
     requests = []
+    metadata = ({'refresh_schedule_mode': 'per_device', 'active_device_count': 1,
+                 'pending_refresh_device_count': 2,
+                 'maintenance': {'phase': 'idle', 'retention_error': 'Synthetic evidence error'},
+                 'history_retention_days': 366, 'history_retention_error': 'Synthetic evidence error',
+                 'last_retention_purge': None,
+                 'device_cycles': {'1': {'action': 'add_and_verify', 'completed': 3}}}
+                if schedule == 'per_device' else {})
 
     def internal(request):
         requests.append((request.method, request.url.path))
         if request.url.path == "/api/v1/refresh-hint":
-            return httpx.Response(202, json={"refresh": synchronizer.request_activity()})
-        return httpx.Response(200, json={**synchronizer.status(), "private_unused": "excluded"})
+            return httpx.Response(202, json={"refresh": {**synchronizer.request_activity(), **metadata}})
+        return httpx.Response(200, json={**synchronizer.status(), **metadata, "private_unused": "excluded"})
 
     monkeypatch.setattr(web, "api_client", lambda _: httpx.Client(
         transport=httpx.MockTransport(internal), base_url="http://internal",
@@ -48,6 +57,8 @@ def test_bff_refresh_authentication_csrf_and_read_only_status(tmp_path, monkeypa
             assert response.headers["cache-control"] == "no-store"
             assert response.json()["devices"]["1"]["hostname"] == "lab"
             assert "private_unused" not in response.json()
+            for field, value in metadata.items():
+                assert response.json()[field] == value
             assert requests == [("GET", "/api/v1/status")]
             response = await client.post("/refresh", data={"csrf": "invalid"})
             assert response.status_code == 403
@@ -58,6 +69,8 @@ def test_bff_refresh_authentication_csrf_and_read_only_status(tmp_path, monkeypa
             )
             assert response.status_code == 200
             assert response.json()["interactive_refresh_state"] == "queued"
+            for field, value in metadata.items():
+                assert response.json()[field] == value
             assert response.headers["cache-control"] == "no-store"
             assert requests[-1] == ("POST", "/api/v1/refresh-hint")
 

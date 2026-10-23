@@ -13,10 +13,13 @@ from .store import Store, now
 
 
 class ProtectedPolicy:
-    def __init__(self, store: Store) -> None:
+    def __init__(self, store: Store, *, initialize_queue: bool = True) -> None:
+        if type(initialize_queue) is not bool:
+            raise ValueError('Queue initialization selection must be boolean.')
         self.store = store
         self.queue = OperationQueue(store)
-        self.queue.initialize()
+        if initialize_queue:
+            self.queue.initialize()
 
     def migrate_legacy_environment(self) -> None:
         """Read the obsolete setting only before the durable first-import marker."""

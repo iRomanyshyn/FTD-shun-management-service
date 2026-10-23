@@ -4,7 +4,10 @@ Status: implemented opt-in transport prerequisite, **not end-to-end parallel
 scheduling**. The deployed lab was not changed. The current API still uses one
 global executor lease/cooldown and serial device collection. A separately explicit
 [fenced API lease profile](device-leases.md) now supplies coordination primitives;
-actual parallel workers and continuous writes remain separate delivery work.
+the internal [parallel runner](parallel-rounds.md) and
+[continuous dispatcher](continuous-dispatch.md) now compose it in synthetic tests.
+The opt-in [local settlement extension](cycle-settlement.md) now closes normal
+completion ordering. Application activation and live acceptance remain pending.
 
 ## Configuration and limits
 
@@ -33,6 +36,12 @@ the chosen worker limit; validate host/device capacity before any opt-in.
 
 ## Device serialization
 
+After the semantic handler/cleanup and device guard finish, a typed bounded local
+postamble emits a strict settlement record only after marking its slot idle. It
+retains only the completed FD/record and uses one nonblocking send/close: no SSH,
+CLI or waiting for a slow peer. A next assignment may wait only for that postamble,
+not behind an active handler. Completion panic stops the worker too.
+
 All semantic wire requests acquire an inventory-owned nonblocking device guard,
 including legacy one-shot requests, large reads and cycle versions 1/2/3. The
 guard spans the handler's SSH work, verification and cycle final-read/disconnect
@@ -56,9 +65,10 @@ uncertainty barriers and future quiescence-backed reconciliation remain necessar
 
 ## Protocol, timeouts and errors
 
-SO_PEERCRED authorization occurs before assigning a worker. The fixed binary
-packet format, exact length/version/range checks, feature/profile gates and typed
-verification results are unchanged. Workers enter the existing live Tokio runtime
+SO_PEERCRED authorization occurs before assigning a worker. Legacy fixed binary
+packets, exact length/version/range checks, feature/profile gates and typed
+verification results are preserved; strict settlement is a separate explicit
+begin/receipt extension. Workers enter the existing live Tokio runtime
 context before constructing SSH/timer futures; there is no independent runtime or
 reactor per connection.
 

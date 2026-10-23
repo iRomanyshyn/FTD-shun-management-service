@@ -16,11 +16,11 @@
 {% if origin.reason %}<p>{{ origin.reason }}</p>{% endif %}
 Verified <time class="local-timestamp" datetime="{{ origin.verified_at }}">{{ origin.verified_at }}</time>.</li>{% endfor %}
 </ul></details>{% endif %}
-{% if 'Operator' in identity.roles or 'Administrator' in identity.roles %}<form method="post" action="/devices/{{ shun.device_id }}/shuns/{{ ip }}/remove" data-queue-form><input type="hidden" name="csrf" value="{{ csrf_token }}"><input type="hidden" name="request_id" value="{{ new_operation_key() }}"><button>Queue removal from this device</button></form>{% endif %}
+{% if (refresh or {}).manual_mutations_available is not sameas false and ('Operator' in identity.roles or 'Administrator' in identity.roles) %}<form method="post" action="/devices/{{ shun.device_id }}/shuns/{{ ip }}/remove" data-queue-form><input type="hidden" name="csrf" value="{{ csrf_token }}"><input type="hidden" name="request_id" value="{{ new_operation_key() }}"><button>Queue removal from this device</button></form>{% endif %}
 </li>{% else %}<li>No active shuns are currently recorded for this address.</li>{% endfor %}
 </ul>
 <section id="bulk-removal" data-live-region>
-{% if shuns and ('Operator' in identity.roles or 'Administrator' in identity.roles) %}
+{% if shuns and (refresh or {}).manual_mutations_available is not sameas false and ('Operator' in identity.roles or 'Administrator' in identity.roles) %}
 <h2>Remove from all listed devices</h2><form method="post" action="/shuns/{{ ip }}/remove-all" class="remove-all-form" data-queue-form><input type="hidden" name="csrf" value="{{ csrf_token }}"><input type="hidden" name="request_id" value="{{ new_operation_key() }}"><label>Type {{ ip }} to confirm <input name="confirm_ip" required></label><button>Queue removal from all devices</button></form>
 {% endif %}
 </section>

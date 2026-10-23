@@ -49,7 +49,7 @@ def key_reserved(db, key):
     from .managed_closures import key_reserved as closure_key_reserved
 
     if bulk_present(db):
-        return reserved(db, key)
+        return (reserved(db, key) or db.execute('SELECT 1 FROM managed_shun_requests WHERE id=?', (key,)).fetchone() is not None)
     return (closure_key_reserved(db, key) or (present(db) and db.execute(
         "SELECT 1 FROM managed_restoration_attempts WHERE id=? OR job_id=?", (key, key)).fetchone() is not None))
 

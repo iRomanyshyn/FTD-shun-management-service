@@ -1,5 +1,116 @@
 # Development Manual
 
+## Ordered-removal preflight checks
+
+```bash
+python3 -m pytest -q tests/test_bulk_ordered_removals.py tests/test_bulk_removals.py tests/test_device_leases.py tests/test_bulk_waits.py
+```
+
+Use disposable SQLite profiles only. Exercise actual parallel RUNNING claims,
+complete fleet membership, original request/claim/epoch binding, all terminal and
+pre-write-deferral outcomes, unavailable evidence, concurrent completion and
+unchanged storage. Corruption tests alter synthetic fixtures, never live audit.
+This local read-only component provides no ordered admission, durable barrier,
+HTTP/Web execution or lab activation. See [Ordered Preflight](bulk-ordered-preflight.md).
+
+## Gated v2 removal confirmation checks
+
+```bash
+python3 -m pytest -q tests/test_ready_removal_web.py tests/test_continuous_api.py tests/test_bulk_removals.py tests/test_managed_shuns.py tests/test_refresh_bff.py
+node --test tests/browser/freshness.cjs
+```
+
+Only disposable composition enables the separate API/Web factory capabilities.
+Check frozen mode/scope/key/expiry, independent gates, strict receipt validation,
+real identity/CSRF, post-I/O expiry and actual synthetic continuous execution.
+No runtime selector/migration/lab activation follows. See
+[V2 Removal Confirmation](ready-removal-confirmation.md).
+
+## Version-2 ready-removal regression checks
+
+```bash
+python3 -m pytest -q tests/test_bulk_removals.py tests/test_operation_queue.py tests/test_bulk_dispatch.py tests/test_bulk_attempts.py tests/test_continuous_api.py tests/test_managed_shuns.py
+```
+
+Use disposable exact fenced storage and semantic fake sessions only. Verify
+whole-scope atomic retirement/admission, no implicit RUNNING-ADD waiting, strict
+default-off capability, late rollback, original-key replay after pruning and
+actual shared continuous dispatch. Readonly scope GET must not grant authority.
+No live activation follows. See [Ready-Scope Removal](bulk-ready-removal.md).
+
+## Version-2 policy view and retirement checks
+
+```bash
+python3 -m pytest -q tests/test_bulk_policy_views.py tests/test_continuous_api.py tests/test_managed_controls.py tests/test_managed_view.py
+node --test tests/browser/freshness.cjs
+```
+
+Use disposable SQLite/ASGI/Chromium fixtures only. The new private v2 routes are
+distinct from v1; page/selected reads must never initialize state or admit work.
+Stop-maintaining uses the frozen version/revision and original key, not live
+status to select a fallback. No combined device removal or live policy activation
+is covered. See [Version-2 Policy Views](bulk-policy-views.md).
+
+## Restricted continuous API regression checks
+
+`tests/test_continuous_api.py` checks explicit ASGI ownership, existing-schema/
+settings/transport matching, read-spacing floors, no-DDL construction/GET/first
+worker, startup/status drift, no legacy fallback, refused unimplemented workflows,
+actual refresh/Protected-IP retirement and real BFF-to-API auth/CSRF/audit/metadata.
+Chromium checks restricted navigation, hidden mutation/review controls and usable
+demand against production templates/JavaScript; legacy cases remain in the same
+suite. All storage/agents/transports are disposable synthetic fixtures, not a
+live profile or migration. See [Restricted Continuous API](continuous-api.md).
+
+## Continuous maintenance regression checks
+
+`tests/test_continuous_maintenance.py` exercises actual ordinary expiry/retention
+on disposable SQLite, daily/five-second scheduling, unchanged data revisions,
+restart, independent error backoff, partial-stage failure and repeated/forced
+cancellation of bounded thread work. Continuous-controller tests add independent
+device reads during slow pruning, shared shutdown, browser error visibility,
+unexpected-task failure, actual bulk uncertainty/captured-predecessor retention
+and malformed-held-evidence refusal. No FTD, lab state, credentials or migration
+is involved. See [Continuous Runtime Maintenance](continuous-maintenance.md).
+
+## Continuous browser-contract regression checks
+
+`tests/test_continuous_dispatch.py` checks the real controller's detached browser
+projection, no-create disabled/missing storage, conservative partial-fleet
+confirmation, pending/held demand, revisions, coalescing and thread-safe committed
+state notifications. `tests/test_refresh_bff.py` checks explicit metadata fields
+through authenticated/no-store GET and CSRF-protected demand POST. The Chromium
+suite additionally exercises concurrent device phases, repeatedly usable demand,
+held warnings, countdown eligibility without fabricated reload and independent
+data updates with retained input/open menus. Legacy browser behavior remains in
+the same regression suite. See [the contract](continuous-dispatch.md#browser-projection-contract).
+No API runtime selector, optional migration or live activation is involved.
+
+## Local cycle-settlement regression checks
+
+`tests/test_agent_settlement.py` uses shared Rust/Python fixed vectors and actual
+local SeqPacket fixtures for strict v1/v2/v3 begin/final/terminal receipts. Check
+binding/length/status/range/truncation, delayed/missing proof, no old-agent/legacy-
+binding downgrade, the original END deadline, capability refusal before claims,
+withheld final publication and earlier verified ADD preservation. Rust tests also
+check unchanged gates/budgets, failed cleanup, guard/IDLE-before-postamble ordering,
+stopped completion panic and 100 immediate same-device socket handoffs without
+retries. No SSH, real inventory, credentials or live activation is involved.
+See [Local Cycle Settlement](cycle-settlement.md). Local ordering is not remote
+quiescence proof and never resolves an old uncertain job or authorizes retry.
+
+## Continuous dispatch regression checks
+
+`tests/test_continuous_dispatch.py` exercises actual repeated semantic sessions
+on disposable fenced journals: multi-batch work without advancing clocks, slow/
+healthy independence, idle isolation, per-device baseline/manual demand, repeated
+clicks/in-flight checkpoint reads, post-cutoff FIFO REMOVE, current agent target
+verification instead of stale absence, protection during ADD, strict request
+authority/pause/cancellation, exact-deferral backoff, unknown preservation, restart
+and orderly/forced stop. Fixtures with already admitted ordinary requests are not
+v2 Web admission or lab seeding permission. No real FTD, credential, Docker or live
+activation is involved. See [Continuous Dispatch](continuous-dispatch.md).
+
 ## Parallel device-round regression checks
 
 `tests/test_parallel_synchronizer.py` runs the existing semantic collector with
@@ -9,8 +120,9 @@ scope/capacity refusal, original roots and typed ADD/protected REMOVE results,
 deferral, lost/final/late responses, repeated cancellation and forced internal
 shutdown. Await orderly cancellation before closing the event loop. No FTD,
 credentials, Docker, optional live migration or gate activation is used. The
-internal coordinator has no startup/environment/Web selector; continuous dispatch,
-independent read timing and transport settlement remain follow-up work. See
+internal coordinator has no startup/environment/Web selector; the separate
+continuous lifecycle now supplies read timing/priority, while application
+integration and real transport acceptance remain follow-up work. See
 [Parallel Device Rounds](parallel-rounds.md).
 
 ## Isolated version-2 SQLite policy tests

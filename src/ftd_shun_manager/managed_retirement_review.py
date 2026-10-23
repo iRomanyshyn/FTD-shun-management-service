@@ -33,6 +33,7 @@ class ManagedRetirementReview:
     device_enabled: bool
     reason: str
     digest: str
+    intent_format: int = 1
 
 
 class ManagedRetirementReviews:
@@ -50,6 +51,9 @@ class ManagedRetirementReviews:
             raise ValueError("An authenticated session and CSRF cookie are required.")
         # Revocation must remain possible on disabled/protected/missing targets.
         entry = select_managed_target(policy, device_id, ip, allow_disabled=True)
+        intent_format = policy.get('intent_format', 1)
+        if type(intent_format) is not int or intent_format not in {1, 2}:
+            raise ValueError('Retirement review requires an explicit supported policy format.')
         if not entry["enabled"]:
             raise ReviewUnavailable("Maintenance is already stopped. Review current state.")
         _, _, digest = canonical_managed_change("RETIRE", [(device_id, ip)], policy["revision"], 0, reason=reason)
@@ -66,6 +70,7 @@ class ManagedRetirementReviews:
                 generation=entry["generation"], managed_revision=policy["revision"],
                 observed_present=entry["observed_present"], protected=entry["protected"],
                 device_enabled=entry["device_enabled"], reason=reason.strip(), digest=digest,
+                intent_format=intent_format,
             )
             self._entries[review.token] = review
             return review

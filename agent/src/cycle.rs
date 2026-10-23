@@ -8,6 +8,7 @@ use std::time::Instant;
 
 const VERSION: u8 = 1;
 const BEGIN: u8 = 0x10;
+pub(super) const BEGIN_SETTLED: u8 = 0x16;
 const SNAPSHOT: u8 = 0x11;
 const REMOVE: u8 = 0x12;
 const END: u8 = 0x13;
@@ -28,7 +29,7 @@ enum Step {
 
 pub(super) fn decode_begin(packet: &[u8]) -> Result<(u16, u8)> {
     if packet.len() != 4
-        || packet[0] != BEGIN
+        || !matches!(packet[0], BEGIN | BEGIN_SETTLED)
         || !matches!(packet[1], VERSION | snapshot::VERSION | addition::VERSION)
     {
         bail!("invalid cycle begin frame");
@@ -38,6 +39,26 @@ pub(super) fn decode_begin(packet: &[u8]) -> Result<(u16, u8)> {
         bail!("invalid cycle device");
     }
     Ok((device, packet[1]))
+}
+
+fn after_cleanup(
+    begin: u8,
+    version: u8,
+    sequence: u8,
+    cleanup: Result<()>,
+) -> Result<Option<[u8; 4]>> {
+    if !matches!(begin, BEGIN | BEGIN_SETTLED)
+        || !matches!(version, 1..=3)
+        || !(1..=18).contains(&sequence)
+    {
+        bail!("invalid local settlement binding");
+    }
+    if begin == BEGIN_SETTLED {
+        cleanup?;
+        Ok(Some([0, version, BEGIN_SETTLED, sequence]))
+    } else {
+        Ok(None) // Legacy cleanup failure never acquires new receipt semantics.
+    }
 }
 
 fn decode_step(packet: &[u8], expected: u8, version: u8) -> Result<Step> {
@@ -258,7 +279,7 @@ pub(super) fn handle(
     connection: &OwnedFd,
     runtime: &Handle,
     packet: &[u8],
-) -> Result<Vec<u8>> {
+) -> Result<Option<[u8; 4]>> {
     let started = Instant::now();
     let (device_id, version) = decode_begin(packet)?;
     if !agent.cycles_enabled {
@@ -303,12 +324,12 @@ pub(super) fn handle(
         sequence: 1,
         version,
     };
-    let result = (|| -> Result<Vec<u8>> {
+    let result = (|| -> Result<u8> {
         let initial = runtime.block_on(timeout(
             cycle
                 .remaining()
                 .min(step_timeout.saturating_sub(started.elapsed())),
-            cycle.snapshot(BEGIN, 0),
+            cycle.snapshot(packet[0], 0),
         ))??;
         snapshot::send_frames(connection, &initial, started + step_timeout)?;
         loop {
@@ -348,21 +369,25 @@ pub(super) fn handle(
             let (response, done) = execution?;
             snapshot::send_frames(connection, &response, deadline)?;
             if done {
-                return Ok(Vec::new());
+                return Ok(packet[2]);
             }
         }
     })();
     // No uncertain CLI exit command: disconnect the transport on failure.
-    runtime.block_on(async {
-        let _ = timeout(
+    let cleanup = runtime.block_on(async {
+        timeout(
             Duration::from_secs(2),
             cycle
                 .console
                 .handle
                 .disconnect(Disconnect::ByApplication, "", "en"),
         )
-        .await;
+        .await
     });
+    let cleanup = cleanup
+        .context("settled cycle disconnect timed out")
+        .and_then(|result| result.map_err(Into::into));
+    let result = result.and_then(|sequence| after_cleanup(packet[0], version, sequence, cleanup));
     eprintln!(
         "{}",
         serde_json::json!({
@@ -381,6 +406,73 @@ pub(super) fn handle(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn settled_cycles_share_fixed_vectors_and_legacy_end_budgets() -> Result<()> {
+        let vectors: serde_json::Value =
+            serde_json::from_str(include_str!("../../tests/fixtures/agent-settlement.json"))?;
+        let hex = |bytes: &[u8]| {
+            bytes
+                .iter()
+                .map(|byte| format!("{byte:02x}"))
+                .collect::<String>()
+        };
+        for vector in vectors.as_array().context("vectors")? {
+            let version = vector["version"].as_u64().context("version")? as u8;
+            let mut cycle = fixture();
+            cycle.version = version;
+            cycle.commands = 0;
+            assert_eq!(hex(&[BEGIN_SETTLED, version, 0, 7]), vector["begin"]);
+            assert_eq!(decode_begin(&[BEGIN_SETTLED, version, 0, 7])?, (7, version));
+            let initial = cycle.snapshot(BEGIN_SETTLED, 0).await?;
+            let initial = initial.iter().map(|frame| hex(frame)).collect::<Vec<_>>();
+            assert_eq!(serde_json::to_value(initial)?, vector["initial"]);
+            let end = [END, version, 1];
+            assert_eq!(hex(&end), vector["end"]);
+            let (frames, done) = cycle.execute(&end).await?;
+            assert!(done);
+            assert_eq!(
+                serde_json::to_value(frames.iter().map(|frame| hex(frame)).collect::<Vec<_>>())?,
+                vector["final"]
+            );
+            let record = after_cleanup(BEGIN_SETTLED, version, 1, Ok(()))?.context("receipt")?;
+            assert_eq!(hex(&record), vector["settled"]);
+            assert!(after_cleanup(BEGIN, version, 1, Ok(()))?.is_none());
+            assert_eq!(cycle.commands, 2);
+            assert_eq!(cycle.removals + cycle.additions, 0);
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn settlement_never_ignores_failed_cleanup_or_invalid_binding() -> Result<()> {
+        assert!(
+            after_cleanup(
+                BEGIN_SETTLED,
+                3,
+                1,
+                Err(anyhow::anyhow!("synthetic disconnect failure"))
+            )
+            .is_err()
+        );
+        assert!(
+            after_cleanup(BEGIN, 3, 1, Err(anyhow::anyhow!("legacy cleanup failure")))?.is_none()
+        );
+        for packet in [
+            vec![BEGIN_SETTLED],
+            vec![BEGIN_SETTLED, 1, 0],
+            vec![BEGIN_SETTLED, 1, 0, 0],
+            vec![BEGIN_SETTLED, 4, 0, 7],
+            vec![BEGIN_SETTLED, 1, 0, 7, 0],
+        ] {
+            assert!(decode_begin(&packet).is_err());
+        }
+        for (version, sequence) in [(0, 1), (4, 1), (1, 0), (3, 19)] {
+            assert!(after_cleanup(BEGIN_SETTLED, version, sequence, Ok(())).is_err());
+        }
+        assert!(after_cleanup(0x15, 1, 1, Ok(())).is_err());
+        Ok(())
+    }
 
     #[derive(Default)]
     struct FakeConsole {
@@ -718,15 +810,22 @@ mod tests {
         )?;
         for enabled in [false, true] {
             agent.additions_enabled = enabled;
-            let error = handle(&agent, &receiver, runtime.handle(), &[BEGIN, 3, 0, 1])
-                .err()
-                .context("ADD without gates/profile must be rejected")?
-                .to_string();
-            assert!(error.contains(if enabled {
-                "no addition profile"
-            } else {
-                "additions are disabled"
-            }));
+            for begin in [BEGIN, BEGIN_SETTLED] {
+                let error = handle(&agent, &receiver, runtime.handle(), &[BEGIN, 3, 0, 1])
+                    .err()
+                    .context("ADD without gates/profile must be rejected")?
+                    .to_string();
+                assert!(error.contains(if enabled {
+                    "no addition profile"
+                } else {
+                    "additions are disabled"
+                }));
+                let strict_error = handle(&agent, &receiver, runtime.handle(), &[begin, 3, 0, 1])
+                    .err()
+                    .context("strict ADD without gates/profile")?
+                    .to_string();
+                assert_eq!(strict_error, error);
+            }
         }
         for (cycles, large, expected) in [
             (false, true, "session cycles"),
@@ -734,13 +833,15 @@ mod tests {
         ] {
             agent.cycles_enabled = cycles;
             agent.large_snapshots_enabled = large;
-            assert!(
-                handle(&agent, &receiver, runtime.handle(), &[BEGIN, 3, 0, 1])
-                    .err()
-                    .context("disabled cycle capability must be rejected")?
-                    .to_string()
-                    .contains(expected)
-            );
+            for begin in [BEGIN, BEGIN_SETTLED] {
+                assert!(
+                    handle(&agent, &receiver, runtime.handle(), &[begin, 3, 0, 1])
+                        .err()
+                        .context("disabled cycle capability must be rejected")?
+                        .to_string()
+                        .contains(expected)
+                );
+            }
         }
         assert!(serde_json::from_str::<addition::Profile>("\"unknown\"").is_err());
         assert!(serde_json::from_str::<addition::Profile>("false").is_err());
@@ -811,7 +912,7 @@ mod tests {
         send(sender.as_raw_fd(), &oversized, MsgFlags::MSG_NOSIGNAL)?;
         assert_eq!(
             handle_connection(&agent, &receiver, runtime.handle(), &guards),
-            RESPONSE_REJECTED
+            Reply::Packet(RESPONSE_REJECTED.to_vec())
         );
         send(
             sender.as_raw_fd(),
@@ -820,7 +921,7 @@ mod tests {
         )?;
         assert_eq!(
             handle_connection(&agent, &receiver, runtime.handle(), &guards),
-            RESPONSE_REJECTED
+            Reply::Packet(RESPONSE_REJECTED.to_vec())
         );
         agent.cycles_enabled = true;
         let error = handle(&agent, &receiver, runtime.handle(), &[BEGIN, 2, 0, 7])
@@ -830,7 +931,7 @@ mod tests {
         send(sender.as_raw_fd(), &[7, 0, 7], MsgFlags::MSG_NOSIGNAL)?;
         assert_eq!(
             handle_connection(&agent, &receiver, runtime.handle(), &guards),
-            RESPONSE_REJECTED
+            Reply::Packet(RESPONSE_REJECTED.to_vec())
         );
         Ok(())
     }

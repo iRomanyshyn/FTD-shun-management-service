@@ -153,6 +153,15 @@
       } else if (manualPending) {
         label = "Requesting refresh…";
         disabled = true;
+      } else if (status.refresh_schedule_mode === "per_device") {
+        // Always accept/coalesce demand, including while another FTD is busy.
+        // Zero is eligibility, never confirmation; only server data revisions
+        // trigger content replacement after actual observations/results.
+        const pending = status.pending_refresh_device_count || 0;
+        label = pending ? cooldown > 0
+          ? `Refresh requested · ${pending} device(s) · ${duration(cooldown)}`
+          : `Refresh requested · ${pending} device(s) · waiting for verification`
+          : "Request refresh";
       } else if (status.refresh_in_progress && status.interactive_refresh_state === "checkpoint_pending") {
         label = "Refresh waiting for current operation…";
         disabled = true;
@@ -174,12 +183,23 @@
       if (errorMessage && !disabled) label = "Refresh unavailable — retry";
       button.disabled = disabled;
       button.textContent = label;
-      panel.querySelector(".baseline-countdown").textContent = status.refresh_in_progress
+      panel.querySelector(".baseline-countdown").textContent = status.refresh_in_progress && status.refresh_schedule_mode !== "per_device"
         ? "refreshing…" : baseline === null ? "not scheduled"
           : baseline > 0 ? `in ${duration(baseline)}` : "due now";
     };
 
     const render = () => {
+      const runtimeNotice = panel.querySelector("[data-runtime-notice]");
+      if (runtimeNotice) {
+        runtimeNotice.hidden = status.runtime_mode !== "continuous-observation";
+        runtimeNotice.textContent = "Continuous observation profile: "
+          + (status.managed_policy_view_available === true ? "managed policy viewing is available; " : "")
+          + (status.managed_policy_retirement_available === true ? "stop-maintaining is available; " : "")
+          + (status.ready_removal_admission_enabled === true
+            ? "ready-only removal API admission is available with separate Web confirmation; ADD/import admission remains unavailable. "
+            : "ADD/import admission and device-removal admission are unavailable. ")
+          + "Protected-IP policy and its automatic removal remain active under the existing safety checks.";
+      }
       const last = panel.querySelector(".last-successful-refresh");
       last.dateTime = status.last_successful_refresh || "";
       last.textContent = formatTime(status.last_successful_refresh);
@@ -190,10 +210,13 @@
       warning.textContent = status.last_error ? `Refresh warning: ${status.last_error}`
         : unsafe.length ? `Unconfirmed or stale data: ${unsafe.map((device) => device.hostname).join(", ")}. Check Status before acting.` : "";
       const summary = panel.querySelector("[data-status-summary]");
-      if (summary) summary.textContent = status.refresh_in_progress ? "Updating devices…"
+      if (summary) summary.textContent = status.refresh_schedule_mode === "per_device"
+        ? `${status.active_device_count || 0} updating · ${status.pending_refresh_device_count || 0} refresh pending`
+        : status.refresh_in_progress ? "Updating devices…"
         : `${devices.length} device(s) · ${unsafe.length ? `${unsafe.length} need attention` : "Observations current"}`;
       const indicator = panel.querySelector("[data-status-indicator]");
-      if (indicator) indicator.textContent = unsafe.length || status.last_error ? "· !" : "";
+      if (indicator) indicator.textContent = (unsafe.length || status.last_error ? "· !" : "")
+        + (status.refresh_schedule_mode === "per_device" && status.pending_refresh_device_count ? ` · ${status.pending_refresh_device_count} waiting` : "");
       message.textContent = errorMessage || actionError || (actionPending ? "Submitting operation…" : status.refresh_in_progress
         ? "Refreshing device information…"
         : status.cycle_revision > 0
@@ -214,8 +237,15 @@
         const row = document.createElement("tr");
         const state = ({ ready: "Current", refreshing: "Refreshing", error: "Error",
           stale: "Stale", pending: "Not yet confirmed", disabled: "Disabled" })[device.state] || "Unknown";
+        const timing = status.refresh_schedule_mode === "per_device" && device.state !== "disabled"
+          ? [device.refresh_pending ? `Refresh requested: ${remaining(device.next_interactive_refresh) > 0
+            ? duration(remaining(device.next_interactive_refresh)) : "waiting for verification"}.` : "",
+            `Next scheduled check: ${remaining(device.next_baseline_refresh) === null ? "not scheduled"
+              : duration(remaining(device.next_baseline_refresh))}.`,
+            device.retry_in_seconds > 0 ? `Retry eligibility: ${duration(device.retry_in_seconds)}; not a successful refresh.` : ""]
+            .filter(Boolean).join(" ") : "";
         [device.hostname, state + (device.stale && device.state === "refreshing" ? " — previous data stale" : ""),
-          formatTime(device.last_successful_refresh), device.last_error || "—"].forEach((text) => {
+          formatTime(device.last_successful_refresh), [device.last_error, timing].filter(Boolean).join(" ") || "—"].forEach((text) => {
           const cell = document.createElement("td");
           cell.textContent = text;
           row.append(cell);
@@ -239,7 +269,11 @@
           add_and_verify: "Adding and verifying",
           priority_snapshot: "Reading priority snapshot", final_snapshot: "Reading final snapshot",
           completed: "Cycle completed", failed: "Cycle failed" };
-        progress.textContent = status.session_cycles_enabled && cycle?.device_id
+        progress.textContent = status.refresh_schedule_mode === "per_device"
+          ? Object.entries(status.device_cycles || {}).filter(([id]) => status.devices?.[id]?.active).map(([id, phase]) =>
+            `${status.devices[id].hostname}: ${actions[phase.action] || phase.action || "Opening session"}`
+            + `${phase.ip ? ` ${phase.ip}` : ""}; ${phase.completed || 0} items completed.`).join(" ")
+          : status.session_cycles_enabled && cycle?.device_id
           ? `${status.devices?.[String(cycle.device_id)]?.hostname || cycle.device_id}: `
             + `${actions[cycle.action] || cycle.action}${cycle.ip ? ` ${cycle.ip}` : ""}. `
             + `${cycle.completed} items completed (cycle limit ${cycle.limit}). `
@@ -333,7 +367,7 @@
           running.setAttribute("aria-label", `Operation running for ${item.ip} on ${item.hostname}; outcome not yet verified`);
           row.children[1].append(running);
         }
-        if (item.state === "QUEUED" && panel.dataset.operator === "true") {
+        if (item.state === "QUEUED" && panel.dataset.operator === "true" && status.manual_mutations_available !== false) {
           requests.filter((request) => request.state === "ACTIVE" && ["manual", "manual_import"].includes(request.source)
             && (request.actor_subject === panel.dataset.subject || panel.dataset.administrator === "true"))
             .forEach((request) => {

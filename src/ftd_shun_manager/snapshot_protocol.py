@@ -15,8 +15,8 @@ SNAPSHOT_TRANSFER_SECONDS = 10
 class SnapshotDecoder:
     def __init__(self, manifest: bytes, opcode: int, sequence: int, *, version: int = 2):
         if (version not in (2, 3) or (opcode == 7 and version != 2)
-                or opcode not in (7, 0x10, 0x11, 0x13)
-                or (opcode in (7, 0x10) and sequence != 0)
+                or opcode not in (7, 0x10, 0x11, 0x13, 0x16)
+                or (opcode in (7, 0x10, 0x16) and sequence != 0)
                 or (opcode in (0x11, 0x13) and not 1 <= sequence <= 18)):
             raise ValueError("invalid snapshot request binding")
         if len(manifest) != 15 or manifest[:5] != bytes([0, version, opcode, sequence, 0]):

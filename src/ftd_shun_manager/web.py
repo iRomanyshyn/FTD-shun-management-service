@@ -21,6 +21,7 @@ from fastapi.templating import Jinja2Templates
 from starlette.concurrency import run_in_threadpool
 
 from . import __version__
+from .bulk_removal_web import register_ready_removal_web
 from .config import Settings
 from .import_preview import (
     MAX_FORM_BYTES,
@@ -137,20 +138,38 @@ def protected_policy_ips(refresh: object, *, enabled: bool = True) -> frozenset[
     )
 
 
-def selected_policy_response(client, device_id, ip):
+def selected_policy_response(client, device_id, ip, *, intent_format=1):
     """Never accept a whole view/page as an exact private-read response."""
-    return selected_policy_read(client, [(device_id, ip)], batch=False)
+    return selected_policy_read(client, [(device_id, ip)], batch=False, intent_format=intent_format)
 
 
-def selected_policy_read(client, pairs, *, batch):
+def policy_format_from_status(value):
+    if not isinstance(value, dict):
+        raise TypeError('Policy format status is unavailable.')
+    version = value.get('managed_policy_format')
+    if version is None:
+        return 1
+    if type(version) is not int or version not in {1, 2}:
+        raise ValueError('Unsupported policy format; no legacy fallback was selected.')
+    return version
+
+
+def selected_policy_read(client, pairs, *, batch, intent_format=1):
     """The complete batch is read once, never assembled from drifting pages."""
-    path = "/api/v1/managed-shuns/selection/batch" if batch else "/api/v1/managed-shuns/selection"
+    if type(intent_format) is not int or intent_format not in {1, 2} or (intent_format == 2 and batch):
+        raise ValueError('Unsupported versioned policy selection.')
+    path = ('/api/v2/managed-shuns/selection' if intent_format == 2 else
+            "/api/v1/managed-shuns/selection/batch" if batch else "/api/v1/managed-shuns/selection")
     response = client.post(path, json={"targets": [{"device_id": device, "ip": str(ip)} for device, ip in pairs]})
     if response.status_code == 200:
         value = response.json()
         if not isinstance(value, dict) or value.get("read_scope") != ("selected_batch" if batch else "selected_pairs"):
             raise ValueError("Exact selected-policy response is unavailable.")
         require_selection(value, pairs, batch=batch)
+        if intent_format == 2 and (type(value.get('intent_format')) is not int or value['intent_format'] != 2 or value.get('limit') != 200000):
+            raise ValueError('Version-2 policy selection was substituted or incomplete.')
+        if intent_format == 1 and value.get('intent_format') is not None and (type(value['intent_format']) is not int or value['intent_format'] != 1):
+            raise ValueError('A version-2 selection cannot be interpreted as a legacy review.')
     return response
 
 
@@ -168,6 +187,17 @@ def refresh_metadata(refresh: object) -> dict[str, object]:
         "cycle_completed_at",
         "cycle_outcome",
         "refresh_enabled",
+        "refresh_schedule_mode",
+        "runtime_mode",
+        "manual_mutations_available",
+        "managed_workflows_available",
+        "managed_policy_format",
+        "managed_policy_view_available",
+        "managed_policy_retirement_available",
+        "ready_removal_review_available",
+        "ready_removal_admission_enabled",
+        "active_device_count",
+        "pending_refresh_device_count",
         "server_time",
         "devices",
         "queue",
@@ -181,6 +211,11 @@ def refresh_metadata(refresh: object) -> dict[str, object]:
         "managed_removal_admission_enabled",
         "addition_device_count",
         "device_cycle",
+        "device_cycles",
+        "maintenance",
+        "history_retention_days",
+        "last_retention_purge",
+        "history_retention_error",
         "priority_refresh_available",
         "policy_revision",
         "managed_policy_revision",
@@ -199,8 +234,12 @@ def refresh_metadata(refresh: object) -> dict[str, object]:
     return {field: refresh.get(field) for field in fields}
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
+def create_app(settings: Settings | None = None, *, ready_removal_admission_enabled=False) -> FastAPI:
     settings = settings or Settings.from_environment()
+    if type(ready_removal_admission_enabled) is not bool or (ready_removal_admission_enabled and (
+            settings.agent_mode != 'socket' or settings.development_auth is not False
+            or settings.agent_cycles_enabled is not True or settings.large_snapshots_enabled is not True)):
+        raise ValueError('Web v2 removal needs a literal capability, socket/session/large mode and production identity.')
     app = FastAPI(title="FTD Shun Manager", docs_url=None, redoc_url=None, openapi_url=None)
     reviews = ImportReviews(settings.sensitive_action_max_age_seconds)
     managed_reviews = ManagedRemovalReviews(settings.sensitive_action_max_age_seconds)
@@ -458,9 +497,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         try:
             with api_client(settings) as client:
                 refresh = client.get("/api/v1/status")
-                policy = client.get("/api/v1/managed-shuns/page", params=parameters)
+                format_two = refresh.status_code == 200 and policy_format_from_status(refresh.json()) == 2
+                policy = client.get('/api/v2/managed-shuns/page' if format_two else "/api/v1/managed-shuns/page", params=parameters)
         except httpx.HTTPError as error:
             raise HTTPException(503, "Managed shun state is unavailable. No policy was changed.") from error
+        except (ValueError, TypeError) as error:
+            raise HTTPException(503, 'Managed policy format is unavailable; no fallback was selected.') from error
         if policy.status_code == 422:
             return render(request, "error.html", {"identity": identity,
                           "message": "Select a page within the current managed policy."}, 422)
@@ -477,7 +519,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 if (not isinstance(managed, dict) or managed.get("read_only") is not True
                         or type(managed.get("initialized")) is not bool or managed.get("page_size") != 100
                         or any(type(managed.get(key)) is not int for key in ("page", "pages", "total", "revision", "limit"))
-                        or not 0 <= managed["total"] <= managed["limit"] <= 1000
+                        or not 0 <= managed["total"] <= managed["limit"] <= (200000 if format_two else 1000)
+                        or (format_two and (type(managed.get('intent_format')) is not int or managed['intent_format'] != 2 or managed['limit'] != 200000))
                         or managed["revision"] < 0 or managed["page"] != page
                         or managed["pages"] != max(1, (managed["total"] + 99) // 100)
                         or not 1 <= page <= managed["pages"]
@@ -487,6 +530,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     raise ValueError("Invalid managed page response")
             except (ValueError, TypeError, KeyError) as error:
                 raise HTTPException(503, "Managed policy page is incomplete. No policy was changed.") from error
+        if format_two:
+            return render(request, 'bulk-managed-shuns.html', {'identity': identity, 'managed': managed,
+                'refresh': refresh.json(), 'active_page': 'managed', 'auto_request': False})
         cleanup, fleet_cleanup = None, None
         try:
             with api_client(settings) as client:
@@ -797,8 +843,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def prepare_retirement_review(request, identity, device_id, ip, reason):
         try:
             with api_client(settings) as client:
-                policy = selected_policy_response(client, device_id, ip)
                 refresh = client.get("/api/v1/status")
+                version = policy_format_from_status(refresh.json()) if refresh.status_code == 200 else 1
+                policy = selected_policy_response(client, device_id, ip, intent_format=version)
             if policy.status_code != 200 or refresh.status_code != 200:
                 raise httpx.RequestError("Policy state unavailable")
             review = retirement_reviews.prepare(identity.subject, request.cookies.get("ftd_shun_csrf", ""),
@@ -833,7 +880,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         result, message, status_code, state = None, None, 200, None
         try:
             with api_client(settings) as client:
-                response = client.post("/api/v1/managed-shuns/retire", headers={"Idempotency-Key": review.request_id},
+                response = client.post('/api/v2/managed-shuns/retire' if review.intent_format == 2 else "/api/v1/managed-shuns/retire", headers={"Idempotency-Key": review.request_id},
                                        json={"actor": identity.__dict__, "device_id": review.device_id,
                                              "ip": str(review.ip), "managed_revision": review.managed_revision,
                                              "confirmation_digest": review.digest, "reason": review.reason})
@@ -850,6 +897,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                             or value["managed_revision"] != review.managed_revision + 1
                             or type(value.get("replayed")) is not bool):
                         raise ValueError("Invalid policy receipt")
+                    if review.intent_format == 2 and (type(value.get('intent_format')) is not int or value['intent_format'] != 2
+                            or value.get('policy_only') is not True or value.get('device_work_admitted') is not False):
+                        raise ValueError('Version-2 retirement receipt is unavailable.')
                     result = value
         except (httpx.HTTPError, ValueError, TypeError):
             message = "Retirement outcome is unknown. Retry this same review/key; do not prepare a new request merely to retry."
@@ -1195,6 +1245,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     register_import_web(app, settings, render=render, identity_for=identity_from_request,
                         client_for=lambda config: api_client(config), form_for=preview_form, csrf_for=require_csrf)
+    register_ready_removal_web(app, settings, enabled=ready_removal_admission_enabled, render=render,
+        identity_for=identity_from_request, operator_for=require_managed_operator,
+        client_for=lambda config: api_client(config), form_for=preview_form, csrf_for=require_csrf)
     return app
 
 

@@ -58,13 +58,25 @@ const IDLE: u8 = 0;
 const BUSY: u8 = 1;
 const STOPPED: u8 = 2;
 
+/// Only a bounded nonblocking local postamble, never SSH/CLI or peer waiting.
+pub(super) trait Completion {
+    fn complete(self);
+}
+
+impl Completion for () {
+    fn complete(self) {}
+}
+
 struct Slot<T> {
     sender: SyncSender<T>,
     state: Arc<AtomicU8>,
 }
 
 impl<T: Send + 'static> Pool<T> {
-    pub(super) fn new(count: usize, handler: impl Fn(T) + Send + Sync + 'static) -> Result<Self> {
+    pub(super) fn new<C: Completion + 'static>(
+        count: usize,
+        handler: impl Fn(T) -> C + Send + Sync + 'static,
+    ) -> Result<Self> {
         if !(1..=MAX_WORKERS).contains(&count) {
             bail!("invalid bounded connection worker count");
         }
@@ -82,12 +94,20 @@ impl<T: Send + 'static> Pool<T> {
             workers.push(std::thread::Builder::new().name(format!("ftd-connection-{index}")).spawn(move || {
                 loop {
                     let Ok(work) = receiver.recv() else { return };
-                    if std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| handler(work))).is_err() {
+                    let completion = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| handler(work))) {
+                        Ok(completion) => completion,
+                        Err(_) => {
+                            state.store(STOPPED, Ordering::Release);
+                            eprintln!("{{\"event\":\"agent.worker.failed\",\"reason\":\"handler panicked; worker not replaced\"}}");
+                            return;
+                        }
+                    };
+                    state.store(IDLE, Ordering::Release);
+                    if std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| completion.complete())).is_err() {
                         state.store(STOPPED, Ordering::Release);
-                        eprintln!("{{\"event\":\"agent.worker.failed\",\"reason\":\"handler panicked; worker not replaced\"}}");
+                        eprintln!("{{\"event\":\"agent.worker.failed\",\"reason\":\"completion panicked; worker not replaced\"}}");
                         return;
                     }
-                    state.store(IDLE, Ordering::Release);
                 }
             }).context("could not start bounded connection worker")?);
         }
@@ -273,7 +293,7 @@ mod tests {
 
     #[test]
     fn panicked_worker_is_stopped_not_automatically_replaced() -> Result<()> {
-        let pool = Pool::new(1, |_: usize| {
+        let pool = Pool::new::<()>(1, |_: usize| {
             std::panic::resume_unwind(Box::new("synthetic"))
         })?;
         pool.submit(1)?;
@@ -286,6 +306,71 @@ mod tests {
         }
         assert!(matches!(pool.submit(2), Err(TrySendError::Disconnected(2))));
         assert_eq!(pool._workers.len(), 1);
+        Ok(())
+    }
+
+    #[test]
+    fn completion_runs_only_after_idle_and_guard_release() -> Result<()> {
+        struct Verify {
+            state: Arc<Mutex<Option<Arc<AtomicU8>>>>,
+            guards: Arc<DeviceGuards>,
+            done: mpsc::Sender<bool>,
+        }
+        impl Completion for Verify {
+            fn complete(self) {
+                let idle = self
+                    .state
+                    .lock()
+                    .ok()
+                    .and_then(|state| state.clone())
+                    .is_some_and(|state| state.load(Ordering::Acquire) == IDLE);
+                let _ = self
+                    .done
+                    .send(idle && self.guards.run(1, || true) == Some(true));
+            }
+        }
+        let state = Arc::new(Mutex::new(None));
+        let guards = Arc::new(DeviceGuards::new([(1, Ipv4Addr::new(192, 0, 2, 1))]));
+        let (done, received) = mpsc::channel();
+        let reference = Arc::clone(&state);
+        let pool = Pool::new(1, move |_: ()| {
+            assert!(guards.run(1, || ()).is_some());
+            Verify {
+                state: Arc::clone(&reference),
+                guards: Arc::clone(&guards),
+                done: done.clone(),
+            }
+        })?;
+        *state
+            .lock()
+            .map_err(|_| anyhow::anyhow!("synthetic lock"))? =
+            Some(Arc::clone(&pool.slots[0].state));
+        pool.submit(())?;
+        assert!(received.recv_timeout(Duration::from_secs(2))?);
+        Ok(())
+    }
+
+    #[test]
+    fn completion_panic_stops_worker_without_replacement() -> Result<()> {
+        struct Broken;
+        impl Completion for Broken {
+            fn complete(self) {
+                std::panic::resume_unwind(Box::new("synthetic completion"));
+            }
+        }
+        let pool = Pool::new(1, |_: ()| Broken)?;
+        pool.submit(())?;
+        let deadline = Instant::now() + Duration::from_secs(2);
+        while pool.slots[0].state.load(Ordering::Acquire) != STOPPED {
+            if Instant::now() >= deadline {
+                bail!("synthetic completion did not stop");
+            }
+            std::thread::yield_now();
+        }
+        assert!(matches!(
+            pool.submit(()),
+            Err(TrySendError::Disconnected(()))
+        ));
         Ok(())
     }
 

@@ -27,6 +27,11 @@ healthy devices progress in other slots. Distinct coordinators still compete
 through the same transactional lease quota/device fences. An already active
 round cannot be entered again on the same coordinator.
 
+Optional `settled_cycles_required=True` now requires the explicit
+[strict client/terminal receipt](cycle-settlement.md) before final publication and
+normal lease release. Default rounds remain legacy; ContinuousDispatcher requires
+strict mode. Missing proof retains the fence and earlier typed results.
+
 Each device freezes its queue cutoff after acquiring its token, before its initial
 read. Jobs admitted by discovery wait for a later round. Per-device refill checks
 at most 64 policy rows and admits at most 16 jobs across that session's complete
@@ -71,16 +76,19 @@ budgets. It is read-only and does not recover leases or claim browser freshness.
 
 ## Integration still required
 
-There is no `start`/environment/API/Web selection for this coordinator. The deployed
-serial service is unchanged. This step does not implement independent baseline/
-manual read deadlines, persistent/coalesced refresh demand, continuous between-poll
-dispatch, urgent REMOVE ordering, Web progress aggregation, agent-slot settlement
-proof or automatic uncertainty convergence. Retention belongs to the eventual
+The round coordinator has no `start`/environment/API/Web selection. A separate
+internal [ContinuousDispatcher](continuous-dispatch.md) now owns explicit start/
+stop, independent baseline/manual demand, continuous between-poll sessions and
+scoped REMOVE priority using the same runner. Neither is wired to application
+startup; the deployed serial service is unchanged. Web progress aggregation,
+Local slot settlement now has an explicit protocol; real transport acceptance,
+application integration and automatic uncertainty convergence remain pending.
+Retention belongs to the eventual
 owning service lifecycle; individual parallel workers do not run competing pruners.
 Do not activate this component on a real FTD by directly calling `sweep` as a smoke
-test. In particular, successful END reception is not a new transport-level proof
-that the agent has released its device guard; real immediate-reconnect acceptance
-still needs coordinated validation. Generic busy rejection is never retry authority.
+test. END reception alone still does not prove guard release: only the separate
+strict receipt attests local ordering. Real immediate-reconnect acceptance still
+needs validation. Generic busy rejection is never retry authority.
 
 ## Migration, rollback and validation
 

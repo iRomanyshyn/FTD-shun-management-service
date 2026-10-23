@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block content %}
+{% set scope = review.scope %}
+{% set disabled_scope = scope.targets | rejectattr('device_enabled') | list %}
+{% set admission = ready_removal_local_enabled and refresh and refresh.ready_removal_admission_enabled is sameas true and not disabled_scope %}
+<h1>Review v2 stop maintaining and remove</h1>
+{% if refresh %}{% include "refresh-panel.html" %}{% endif %}
+<p class="policy-warning"><strong>{{ 'Ready-only local admission — not verified removal.' if admission else 'Preparatory review — execution is unavailable.' }}</strong> Stop the exact reviewed maintenance and queue removal together, or change neither. Individual FTD results are separate; this does not promise atomic device changes.</p>
+{% if message %}<p class="preview-error" role="alert">{{ message }}</p>{% endif %}
+<p>Frozen {{ scope.scope }} scope: <strong>{{ scope.targets | length }} device/IP target(s)</strong>. Local observations are not a fresh Cisco query or proof the service created a shun. Unmanaged targets are cleanup-only, never adopted.</p>
+<p><strong>Ready-only:</strong> pending work, failed/unknown ADD or an unresolved device fence rejects the entire action. No RUNNING command is interrupted, no ADD is replayed and no ordered waiting is inferred. Expiry or failure never resumes retired maintenance.</p>
+{% if disabled_scope %}<p class="preview-error" role="alert">Disabled devices are included, not skipped. The whole removal is blocked; policy-only stop-maintaining remains separate.</p>{% endif %}
+<div class="table-scroll"><table aria-label="Frozen v2 removal scope"><thead><tr><th>Device / IP</th><th>Local observation</th><th>Desired policy</th><th>Original authority</th></tr></thead><tbody>
+{% for target in scope.targets %}<tr>
+<td>{{ target.hostname }} ({{ target.device_id }})<br>{{ scope.ip }}<br><span class="state-badge {{ 'policy-enabled' if target.device_enabled else 'policy-disabled' }}">{{ 'Device enabled' if target.device_enabled else 'Device disabled — blocks removal' }}</span></td>
+<td>{{ 'Observed present' if target.observed_present else 'Not currently observed — retained scope' }}</td>
+<td>{{ 'Maintain presence — will retire' if target.maintenance_enabled else 'Not maintained — cleanup only' }}</td>
+<td>{% if target.intent_id %}<code>{{ target.intent_id }}</code><br>Generation {{ target.generation }} · target revision {{ target.target_revision }}{% else %}No managed intent; no adoption{% endif %}</td>
+</tr>{% endfor %}</tbody></table></div>
+<dl class="import-review-metadata">
+<dt>Policy format / mode</dt><dd>Version 2 · {{ scope.scope }} · never substituted with a legacy route</dd>
+<dt>IPv4 address</dt><dd>{{ scope.ip }}</dd>
+<dt>Managed / protection revisions</dt><dd>{{ scope.managed_revision }} / {{ scope.protected_revision }} — rechecked atomically</dd>
+<dt>Protection</dt><dd>{{ 'Enabled protection takes priority' if scope.protected else 'Not protected by an enabled entry' }}</dd>
+<dt>Reason</dt><dd>{{ review.reason or 'Not supplied' }}</dd>
+<dt>Review expires</dt><dd><time class="local-timestamp" datetime="{{ review.expires_at }}">{{ review.expires_at }}</time></dd>
+<dt>Delegation lifetime</dt><dd>{{ review.payload().ttl_seconds }} seconds from original admission; retries never renew it.</dd>
+<dt>Request / retry key</dt><dd><code>{{ review.request_id }}</code></dd>
+</dl>
+{% if result %}
+<section aria-label="V2 removal admission receipt"><h2>Removal queued — not verified removal</h2>
+<p>{{ result.target_count }} targets · {{ result.retired_targets }} maintenance targets retired · saved revision {{ result.managed_revision }}.</p>
+<p>{{ 'Original-key replay: no new work, deadline renewal or policy changes.' if result.replayed else 'One whole-scope request was admitted to the existing Queue.' }}</p>
+<p>This is the original admission receipt, not current execution or current policy. Inspect Queue for verified, no-op, expired, failed or unknown outcomes. Pruned job history is unavailable, never inferred success.</p>
+<p>Original delegation expires: <time class="local-timestamp" datetime="{{ result.expires_at }}">{{ result.expires_at }}</time>.</p>
+</section>
+{% else %}
+<form method="post" action="/managed-shuns/v2/removal-confirm" class="import-confirm-form managed-grant-form">
+<input type="hidden" name="csrf" value="{{ csrf_token }}"><input type="hidden" name="review" value="{{ review.token }}">
+<label for="confirm-ready-ip">Type {{ scope.ip }} to confirm this exact {{ scope.scope }} scope</label>
+<input id="confirm-ready-ip" name="confirm_ip" value="{{ confirm_ip }}" autocomplete="off" inputmode="decimal" required>
+<button type="submit"{% if not admission %} disabled{% endif %}>Stop maintaining and queue removal{{ ' — unavailable' if not admission else '' }}</button>
+</form>
+{% endif %}
+<p class="preview-help">This immutable review is bound to your identity and CSRF cookie, expires within ten minutes and is lost on Web restart. Status updates cannot change its scope, key or typed IP. Web and API admission are independently default-off; DOM/status edits cannot enable a disabled local capability. After an unknown response, explicitly retry this same review/key only.</p>
+<a href="/managed-shuns">Back to Managed shuns</a>
+{% if refresh %}<script src="/static/freshness.js" defer></script>{% endif %}
+{% endblock %}

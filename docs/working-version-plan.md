@@ -66,14 +66,78 @@ concurrent owner limit, increasing epochs, live-deadline checks across shared
 admission/claim/results and retained expiry attention without stealing. Global
 writers are excluded. An internal default-disabled parallel round coordinator now
 runs actual independent bounded sessions/shared queue results and drains current
-RPCs on cancellation. Independent read timing, continuous background dispatch,
-API/Web integration and automatic quiescence-backed recovery are still pending;
+RPCs on cancellation. A separate internal continuous lifecycle now supplies
+independent read timing/coalesced demand, between-poll device sessions and
+scoped REMOVE priority. Application/API/Web integration, real transport acceptance
+and automatic quiescence-backed recovery are still pending;
 no profile or worker is activated by startup or deployed environment settings.
 See [Fenced Device Leases](manual/device-leases.md).
 See [Parallel Device Rounds](manual/parallel-rounds.md) for the implemented runner,
 per-device discovery budgets, shutdown guarantees and remaining activation gaps.
+See [Continuous Dispatch](manual/continuous-dispatch.md) for the explicit internal
+lifecycle, independent countdowns, priority rules and unchanged deployment gates.
+An opt-in [local settlement receipt](manual/cycle-settlement.md) now attests normal
+cleanup/guard-release/worker-idle ordering; continuous execution requires it.
+Legacy clients remain default and no runtime is activated. This does not resolve
+remote quiescence or historical uncertain attempts.
+
+Browser integration checkpoint (2026-10-23): an explicit per-device status/demand
+projection, BFF field allowlist and renderer now preserve independent pending
+counts/deadlines, held warnings and concurrent phases. The refresh button remains
+usable while other FTDs work; only actual data/result revisions reload content.
+This does not select the controller in API startup or provide v2 admission/cleanup,
+retention ownership, a legacy migration or live activation. See
+[the browser contract](manual/continuous-dispatch.md#browser-projection-contract).
+
+Lifecycle checkpoint (2026-10-23): the internal continuous dispatcher now owns
+one asynchronous maintenance task for ordinary expiry and evidence-aware daily
+retention, drained together with device work on shutdown. This does not select
+the runtime in the deployed API, enable authority or resolve old uncertainty.
+See [Continuous Runtime Maintenance](manual/continuous-maintenance.md).
+
+API checkpoint (2026-10-23): explicit developer factory composition now connects
+the continuous lifecycle/status/demand to actual API/BFF routes, with existing
+schema/settings/transport preflight, no startup initialization and honest v2
+metadata. Its initial surface supports observations/preview and Protected IPs,
+while explicitly refusing unavailable managed/import/manual mutation workflows.
+ADD remains off; there is no deployed environment selector, inventory reload or
+lab activation. This is not the completed bulk-managed release. See
+[Restricted Continuous API Composition](manual/continuous-api.md).
+
+Policy-view checkpoint (2026-10-23): that explicit composition now has dedicated
+v2 read-only 100-row pages/exact selected reads and one-target policy-only
+stop-maintaining. The Web freezes policy version/revision/actor/session/key;
+original-key retry never retires a newer grant. Presence, VERIFIED creation,
+NOOP and retained failed/unknown evidence remain distinct. This does not admit
+ADD/imports, combined device removal or automatic recovery, and does not activate
+the runtime/migrate the lab. See [Version-2 Policy Views](manual/bulk-policy-views.md).
+
+Removal checkpoint (2026-10-23): an internal default-false v2 coordinator now
+atomically retires ready targets and admits one whole-scope shared REMOVE request,
+using existing immutable storage and actual fenced continuous execution. Separate
+readonly single/fleet scope inspection is available in the developer API. Pending/
+failed/unknown work conflicts instead of being cancelled or silently converted
+into ordered waiting; no removal POST/Web control or lab activation is supplied.
+Captured RUNNING-ADD ordering and general concurrent admission remain. See
+[Version-2 Ready-Scope Removal](manual/bulk-ready-removal.md).
+
+Confirmation checkpoint (2026-10-23): dedicated v2 single/fleet Web reviews now
+freeze scope/action/key/session/expiry and submit to distinct private POSTs only
+with independent explicit API/Web factory capabilities (both default-false).
+Strict 202 receipts describe admission, not device success; lost replies permit
+only original-key retry. No environment/runtime selection, lab activation or
+ordered RUNNING-ADD cleanup is supplied. See
+[Version-2 Removal Confirmation](manual/ready-removal-confirmation.md).
 
 ## 3. Bulk import and cancellation
+
+Ordered-cleanup checkpoint (2026-10-23): a separate local read-only preflight now
+classifies the complete v2 single/fleet scope, exact owned RUNNING ADDs and explicit
+blockers, with original claim/epoch/deadline evidence and a separate observational
+digest. It never admits/removes/retires/reserves work, and does not change the
+ready-only confirmation. Durable whole-scope waiting/promotion, distinct ordered
+consent and feature activation remain pending. See
+[Ordered-Removal Preflight](manual/bulk-ordered-preflight.md).
 
 Target up to 10,000 IPv4 addresses in one import, with explicit device selection.
 An address/device pair is the maintained unit: 10,000 addresses on 10 selected FTDs

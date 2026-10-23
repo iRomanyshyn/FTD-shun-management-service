@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-10-22
+Last updated: 2026-10-23
 
 ## Deferred product ideas
 
@@ -14,6 +14,317 @@ lookup, cache/schema, new egress or activation exists. Core delivery retains
 priority. See [the planned constraints](working-version-plan.md#deferred-ip-context--enrichment--requested-2026-10-21).
 
 ## Current increment
+
+**Version-2 ordered-removal preflight (2026-10-23).** Added a separate local
+read-only component on existing exact fenced v2 storage. It classifies the entire
+single/fleet union as READY, WAITING_ADD or BLOCKED, retaining missing/disabled
+members and explicit pause/pending/uncertainty/fence blockers. One blocked target
+blocks the whole fleet; no ready subset is admitted. A waitable predecessor binds
+the exact original system RUNNING ADD, current intent/generation/authority/target
+revision, original request/deadline/snapshot and unique claim-audit owner/epoch.
+Missing, duplicate, malformed or stale-epoch evidence is blocked, never rebuilt.
+
+The separate observational digest binds inspection time, scope, predecessors and
+blockers. One readonly transaction remains coherent even when another connection
+finishes the ADD during inspection. Reinspection does not settle/cancel/retry work
+or promote a ready member. No admission method, durable reservation/barrier, HTTP
+route, Web execution, schema/migration, gate/runtime selector or live change is
+provided. Existing ready-only digests/confirmation remain unchanged and still
+reject RUNNING ADD. Ordered whole-scope admission/promotion is the next packet,
+not a completed feature. See [Ordered Preflight](manual/bulk-ordered-preflight.md).
+
+Validation: **2114 Python tests passed (232.57s)** on final code; focused ordered/
+ready/lease/settlement regression **159 passed (13.13s)**, including **42 new
+ordered-preflight cases**. Compileall, Ruff and tracked/new-file whitespace
+checks pass; changed/new-document local links/anchors are checked. Agent, Compose,
+templates and JavaScript are unchanged in this packet; Rust/Chromium were not
+rerun. No lab configuration, database, service, credentials or device changed.
+
+### Previous frozen-confirmation checkpoint
+
+**Frozen v2 ready-removal Web/API confirmation (2026-10-23).** Completed a packet
+of independent default-off factory capabilities, strict fixed v2 device/fleet
+admission routes and immutable browser review/confirmation. Both API and Web must
+explicitly enable `ready_removal_admission_enabled`; no environment/HTTP/status/
+DOM input or legacy cleanup flag enables them. Legacy API enablement refuses
+before initialization; compatible existing continuous storage/lifecycle is still
+required. No live gate/profile, migration or runtime selector changed.
+
+Managed v2 pages now offer one-device and complete-fleet read-only preparation,
+including with execution off. Exact scope/mode/revisions/original authority,
+reason/lifetime, subject/cookie, expiry and original UUID/digest are frozen in a
+bounded separate cache. Current role/CSRF/typed IP and expiry are checked again,
+including after capability-status I/O. Confirmation never switches to v1, shrinks
+scope, infers ordered waiting or prepares a replacement key. Disabled devices
+remain visible blockers. All existing backend atomicity/uncertainty guards remain.
+
+The API invokes one whole-scope coordinator, returns strict 202 admission/replay
+and only then wakes/publishes committed work. BFF validates exact target/retirement
+counts, revision, mode, unique original device/job IDs, UTC expiry and explicit
+admission-not-verification flags. Lost/malformed replies are unknown, with only
+same-review/key retry; optional later status failure cannot negate a checked
+receipt. Frozen form fields/token/focus survive metadata updates and mobile layout.
+Actual synthetic BFF → API → continuous workers verifies the complete pipeline.
+
+Validation: **2072 Python tests passed (228.74s)**; focused v2/legacy/BFF/queue
+regression **183 passed (18.01s)**; real Chromium **34 passed (112.82s)**.
+Added 23 Python cases and one browser scenario. Compileall, Ruff, JavaScript syntax,
+diff and all **306 changed/new-document local links/anchors** pass. Agent/Compose
+unchanged in this packet; their separate suites were not rerun.
+No lab database, secrets, images/services or FTD operation
+changed. Ordered RUNNING-ADD cleanup, concurrent grant/import intake, configured
+runtime/inventory, migration and scoped real-device acceptance remain. See
+[Version-2 Removal Confirmation](manual/ready-removal-confirmation.md).
+
+### Previous ready-removal backend checkpoint
+
+**Version-2 ready-scope removal backend (2026-10-23).** Completed three connected
+pieces: readonly exact single/fleet scope, default-false atomic ready-only
+retirement/shared REMOVE admission and actual continuous-worker integration
+coverage. Fleet inspection includes active observations plus enabled managed
+targets, missing/disabled devices and cleanup-only unmanaged observations, with
+at most ten devices and no silent shrinking. Format/mode, original authority,
+managed/protection/target revisions and observed membership are digest-bound.
+The explicit continuous API exposes only the readonly scope GET; all removal
+POSTs/Web execution controls and deployed defaults stay unavailable/unchanged.
+
+Ready admission rechecks the complete scope under one write lock and rejects
+pending jobs, failed/unknown ADD, device uncertainty and unresolved/expired fences.
+It does not silently wait for or cancel RUNNING ADD. One transaction retires all
+enabled matching policy, queues one whole-scope manual REMOVE request and stores
+one immutable actual-actor receipt/audit in existing tables. Late capacity/audit/
+clock/lease failure rolls back everything, including in caller-owned transactions.
+The existing reserved retirement budget, queue rate/capacity, roles, pause,
+deadlines and shared typed/fenced execution remain. No second executor/new DDL.
+
+Admission is not verified removal. Original-key replay is observational after
+pruning and cannot recreate jobs, renew TTL, stop newer policy or replay unknown
+outcomes. All retained bulk managed-request keys are now reserved against new
+ordinary queue authority. A synthetic end-to-end run confirms actual continuous
+workers execute newly admitted removals without waiting for baseline polling.
+No live database, gates/profile, secrets, images/services or FTD operation changed.
+General Web write admission, ordered RUNNING-ADD cleanup, automatic recovery,
+configured runtime/inventory and nonempty migration still remain.
+
+Validation: **2049 Python tests passed (227.66s)**; focused queue/journal/API/
+legacy/maintenance regression **248 passed (18.51s)**. Added **41 cases** and
+corrected an existing synthetic-clock test race, with five additional consecutive
+passes. Compileall, Ruff, diff and all **294 changed/new-document local links/
+anchors** pass. Agent/browser/Compose unchanged in this packet; their separate
+suites were not rerun. See [Version-2 Ready-Scope Removal](manual/bulk-ready-removal.md).
+
+### Previous policy-view checkpoint
+
+**Version-2 policy views and local stop-maintaining (2026-10-23).** Added three
+connected pieces to the explicit continuous developer profile: bounded readonly
+policy/evidence projection, separate private v2 routes and a dedicated Web page
+with frozen policy-only retirement. Pages contain at most 100 retained targets
+(200000-key registry capacity); exact selections contain at most 100 pairs.
+One readonly SQLite snapshot binds revision, membership and retained evidence;
+changed pagination never silently rebases scope. Missing/corrupt state is
+unavailable, not empty or interpreted as legacy. No GET creates a database/schema.
+
+The page distinguishes desired policy, observed presence, original authorization,
+disabled devices, protection, pending work and retained failed/unknown attempts.
+Only VERIFIED ADD contributes a verified application time; NOOP and missing
+unknown-job evidence never fabricate service creation. Bulk authority metadata is
+loaded once per distinct request, not copied for every displayed target.
+
+Operator/Administrator can review and confirm **Stop maintaining** for one exact
+target. Current actor/CSRF/typed-IP checks remain; the frozen version/revision and
+original key select the v2 retirement transaction. It records permanent local
+revocation and real-actor audit/receipt, not a `no shun` or queue request. RUNNING
+work/uncertainty remain intact. Old-key replay cannot retire newer policy; v2
+failure never falls back to v1. General v2 ADD/import/combined removal stays
+unavailable, all execution gates/profile defaults and deployed legacy behavior
+unchanged. No migration, lab database/service or FTD operation changed.
+
+Validation: **2008 Python tests passed (223.42s)**; focused v2/API/BFF/legacy
+regression **129 passed (12.64s)**; real Chromium **33 passed (103.03s)**.
+Compileall, Ruff, JavaScript syntax, diff and changed/new-document local links/
+anchors pass. Added 30 Python cases and one browser scenario; no live acceptance
+claimed. Agent/Compose unchanged in this packet; their suites were not rerun.
+See [Version-2 Policy Views](manual/bulk-policy-views.md).
+
+### Previous restricted-API checkpoint
+
+**Restricted continuous API/BFF integration (2026-10-23).** Completed a packet of
+three connected tasks: explicit developer API lifecycle composition, strict
+existing-schema/settings/transport compatibility, and capability-aware Web/BFF
+integration with actual end-to-end synthetic tests. The factory accepts a supplied
+inactive continuous dispatcher without constructing a serial synchronizer; it
+starts/drains that dispatcher and its one maintenance owner through ASGI lifespan.
+No environment/CLI/HTTP selector was added; deployed defaults remain legacy.
+
+The initial continuous profile supports observations/history/search, independent
+refresh demand, non-executable preview and existing Protected-IP CRUD/automatic
+removal. ADD/legacy admission/restoration gates and ADD scope must be off/empty.
+Unsupported managed/import/manual mutation workflows are explicitly 503 before
+legacy handler dispatch. v2 metadata and capability fields drive honest navigation,
+hidden unavailable controls and a Status explanation; backend refusal remains the
+enforcement boundary. Protected saves retain real actors and atomic permanent
+retirement; this is not a no-write mock mode or the completed managed release.
+
+Preflight checks exact Store/agent ownership, fixed existing inventory/profile,
+settlement/capacity, timer/retention agreement, read-spacing floors and completed
+legacy-protection migration without importing environment policy. No factory/GET/
+first-worker DDL or optional initialization. Startup rechecks drift; schema damage
+is unavailable state, not an empty legacy fallback. Default legacy startup refuses
+device-fence objects before initialization. No lab DB/profile/gates/credentials,
+schema migration, images/services or FTD operation changed.
+
+Validation: **1978 Python tests passed (216.10s)**; focused API/legacy/parallel/
+protection regression **146 passed (24.16s)**; real Chromium **32 passed (111.23s)**.
+Added **37 Python composition cases** and one browser scenario. Compileall, Ruff,
+JavaScript syntax, diff and all **272 changed/new-document local links/anchors**
+pass. Agent/Compose unchanged in this packet; their separate suites were not rerun.
+No live activation or acceptance occurred. See
+[Restricted Continuous API Composition](manual/continuous-api.md) for the supported
+surface, limitations and remaining runtime/inventory/migration/write workflows.
+
+### Previous continuous-maintenance checkpoint
+
+**Continuous owning-service maintenance (2026-10-23).** The internal dispatcher
+now starts/stops one maintenance task: ordinary expiry every five seconds and
+existing queue/history retention every 24 hours (default 366 days, configurable
+1..3653). Device workers do not race independent purgers. Synchronous database
+calls run off the event loop, with one in flight; shutdown drains that call as
+well as device sessions, including repeated stop-caller cancellation.
+
+Existing expiry/result/retention transactions remain authoritative. RUNNING and
+uncertain work, captured cleanup/cancellation predecessors, required requests/
+links, immutable attempts/receipts and v2 absence barriers remain held. Invalid
+held evidence refuses queue pruning and prevents history pruning in that pass.
+Expected errors have independent 60-second backoff and visible status; no hidden
+repair/replay/resume or schema initialization. Queue/history are separately
+committed stages; a later failure never fabricates an all-stage success/rollback.
+Unchanged housekeeping does not reload Web content. Unexpected/forced internal
+failure stops replacement execution; normal monitoring can survive a reported
+maintenance-stage error with all existing write guards intact.
+
+This is internal lifecycle integration, not a deployed runtime selector or a
+distributed maintenance leader. No migration, DDL, live gate/profile, image/service,
+lab database/secret/inventory or FTD operation changed. API startup remains on the
+legacy scheduler. Runtime selection, v2 concurrent admission/cleanup, legacy
+migration, automatic evidence-based recovery and real device acceptance remain.
+See [Continuous Runtime Maintenance](manual/continuous-maintenance.md).
+
+Validation: **1941 Python tests passed (209.76s)**; focused lifecycle/queue/bulk
+evidence regression **165 passed (19.07s)**. Added **20 cases** across maintenance
+and controller tests; BFF coverage additionally passes maintenance metadata through
+authenticated/no-store status and CSRF-protected demand responses. Compileall,
+Ruff, diff and all **264 changed/new-document local links/anchors** pass. Agent, browser assets and Compose are unchanged in
+this increment; their separate suites were not rerun. No live activation occurred.
+
+### Previous browser-contract checkpoint
+
+**Continuous browser-status contract (2026-10-23).** The internal continuous
+dispatcher now supplies a separate `refresh_status()` projection and owning-loop
+`request_activity()` contract, consumed by the existing BFF metadata allowlist and
+browser renderer. New explicit `per_device` mode keeps refresh demand available
+while other devices are working, shows pending counts/checkpoint waits, renders
+independent device deadlines/errors and concurrent mutation phases. The legacy
+runtime/rendering path remains unchanged. No arbitrary device is represented as
+a single fleet cycle. Fleet confirmation uses the oldest successful enabled-device
+observation only when every enabled device has one; partial reads never imply
+fleet success. Clock expiry is eligibility, not observation/result evidence.
+
+Data/status revisions follow actual published reads, device results and explicit
+committed-state notifications. Repeated demand keeps the original schedule;
+generic status GET does not schedule work. Disabled and missing-storage projections
+do not create a database. Held failures retain their demand and warnings. Auth,
+CSRF, no-store responses and field allowlisting remain in place.
+
+This prepares, but does **not** select the new runtime in API startup: no env
+selector, optional schema/migration, gate/profile, image/service or lab/FTD change.
+Application lifecycle/retention, v2 concurrent user admission/cleanup, legacy
+migration, automatic uncertainty recovery and real transport/FTD acceptance remain.
+See [the contract and validation](manual/continuous-dispatch.md#browser-projection-contract).
+
+Validation: **1921 Python tests passed (207.54s)**; focused controller/BFF
+regression **39 passed (12.12s)**; real Chromium **31 passed (94.26s)**. Compileall,
+Ruff, JavaScript syntax, diff and all **257 changed/new-document local links/
+anchors** pass. Seven new controller cases plus the additional BFF mode and
+browser scenario cover conservative partial-fleet status, held demand, detached
+GET, thread-safe revisions and repeated clicks without timer-fabricated success.
+Agent/Compose are unchanged in this increment; their separate suites were not
+rerun. No live activation or acceptance was performed.
+
+### Previous local-settlement checkpoint
+
+**Opt-in local cycle settlement (2026-10-22).** Added strict BEGIN `16` with exact
+version/device binding and a separate four-byte terminal receipt after successful
+bounded disconnect cleanup, resource drop, device/address guard release and pool
+IDLE publication. A typed completion object sends the receipt nonblockingly after
+handler completion; closed/full peers cannot hold the idle worker. Legacy BEGIN/
+END packets/default clients, gates/profiles, mutation/verification and time/count/
+snapshot limits remain. No fallback, guessed sleep or repeated ADD.
+
+Strict clients withhold final snapshots until the exact terminal record, within
+the original END deadline and <=5 seconds after snapshot completion. Missing or
+invalid proof retains the device fence, while earlier typed verified results
+remain committed. The internal continuous dispatcher now requires explicit strict
+client capability plus settled cycle proof; legacy rounds remain default. This
+attests local ordering only: no remote TCP/liveness/capacity guarantee and no
+historical uncertainty, attempt, policy or incident latch is cleared/rearmed.
+
+No API/Web/env selector, schema/migration, gate/profile/fixture, secret/inventory,
+Compose/network, image/service restart or FTD change. The lab remains on its
+existing legacy path. Application/Web/maintenance integration, concurrent v2 user
+admission/cleanup, nonempty legacy migration, automatic uncertainty recovery and
+real FTD/multi-device/load acceptance remain pending. See
+[Local Cycle Settlement](manual/cycle-settlement.md).
+
+Validation: **37 new Python and 6 new Rust cases**, including actual local socket
+ordering and 100 immediate same-device handoffs without retry/yield loops.
+**1913 Python tests passed (200.86s)**; **63 Rust tests passed** (58 unit plus five
+process-isolated configuration tests). Locked release build, Rustfmt and Clippy
+across all targets with warnings denied pass. Focused protocol/controller regression:
+**179 passed (16.18s)**. Compileall, Ruff, diff and all **254 changed/new-document
+local links/anchors** pass. Browser assets and Compose are unchanged; their separate
+suites were not rerun. No live acceptance or rollout was performed.
+
+### Previous continuous-dispatch checkpoint
+
+**Continuous internal device dispatch/read demand (2026-10-22).** Added an explicit
+default-disabled lifecycle over the existing parallel runner/fenced queue. Healthy
+devices can start another bounded session without waiting for a slow device or a
+fleet round. Work continues between polls with no global minute-long cooldown;
+idle devices do not reconnect merely because another device has pending work.
+Global capacity, per-device windows, 16-mutation sessions, fresh-evidence ADD
+cutoffs and original authority/results remain unchanged.
+
+Baseline/manual timing and coalesced demand are independent per device. Repeated
+requests preserve the first deadline; successful mandatory/in-flight reads can
+satisfy demand. Due active-session demand takes a legal checkpoint after current
+verification, within existing budgets. Scoped opt-in REMOVE priority preserves
+FIFO and all request/fence checks but can join after the ADD cutoff. Removal uses
+fresh agent target verification, not stale initial-snapshot absence. Protection
+enabled during ADD permanently retires matching authority and gets removal into
+the next slot after verified completion. Read-only status is detached local
+metadata; countdown expiry is not freshness proof.
+
+Failure/lease contention/exact deferral gets a short rescheduling delay, not a hot
+loop or replay permission. Original uncertainty/attention remains held while other
+devices proceed. Ordinary/repeatedly cancelled stop drains active RPCs/results;
+forced cancellation disables replacement/restart. Startup/restart require fresh
+reads; control revision/resume changes prompt fresh policy checks, but generic
+work hints alone do not poll idle devices.
+
+No application startup/env/Web/HTTP selector, new DDL, migration, live gate/profile,
+fixture, secret/inventory, agent/wire/Compose, image/service or FTD change. The
+deployed serial lab remains unchanged. Transport END/guard-release settlement,
+automatic evidence-based uncertainty recovery, concurrent v2 user removal/standing
+admission, application/Web/retention integration and nonempty legacy rollout remain
+pending. This is not live or production acceptance. See
+[Continuous Dispatch](manual/continuous-dispatch.md). Added **29 synthetic cases**;
+final focused new/legacy scheduler regression: **173 passed (23.29s)**. Full Python
+suite: **1876 passed (200.24s)**. Compileall, Ruff, diff and all **239 changed/new-
+document local links/anchors** pass. Rust, browser assets and Compose are unchanged;
+their separate suites were not rerun. No live migration, image rollout or device
+validation was performed.
+
+### Previous parallel-round checkpoint
 
 **Actual fenced parallel device rounds (2026-10-22).** An internal default-disabled
 coordinator now runs independent Synchronizer contexts through actual semantic
@@ -2162,6 +2473,32 @@ The foundation increment was checked with:
 - Rebuilt/recreated local API and Web/BFF after the explicit operator approval. The private API reported a successful refresh, 366-day retention with no error, and a trusted-policy request followed by one verified removal; active local state was empty afterward.
 
 ## Next work, in order
+
+Current working-version sequence (2026-10-23):
+
+1. Connect reviewed v2 exact-scope removal/retirement admission to the shared
+   fenced continuous queue, including captured RUNNING ADD ordering, protection,
+   immutable receipts and honest uncertainty. No legacy single-target loop may
+   pretend to implement an atomic fleet action. Ready-only backend coordination
+   and readonly scope inspection plus independently gated frozen Web/API
+   confirmation are implemented. Ordered read-only preflight is implemented;
+   next is its separately migrated durable whole-scope reservation/barrier,
+   shared-worker promotion and distinct frozen consent.
+2. Connect bounded managed import/adoption/cancellation review to the compatible
+   continuous runtime; retain 10000-IP selected-device limits, managed-only
+   authority, skip/report behavior and default-disabled execution gates until
+   separately scoped acceptance.
+3. Finish configured inventory/runtime selection and reviewed nonempty legacy
+   migration, then execute separately authorized transport/device/multi-device/
+   load and recovery validation. Do not activate experimental policy or fabricate
+   success from prior one-address evidence.
+
+The bounded v2 policy page and policy-only stop-maintaining are implemented;
+they do not complete steps 1–3. Email and occurrence-scoped RDAP remain deferred.
+Follow the [Working-Version Plan](working-version-plan.md) and current increment
+above for precedence over the historical legacy backlog below.
+
+### Historical legacy acceptance backlog
 
 The separately approved one-fixture service lifecycle is complete. Frozen BFF
 confirmation and the eligible-ADD reason fix are implemented with gates off.

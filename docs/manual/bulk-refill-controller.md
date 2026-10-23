@@ -118,7 +118,10 @@ unknown/lost replies, legacy observational reconciliation/retention and missing-
 profile monitoring. The agent is an in-process fake; tests never read `.env`,
 credentials or real inventory and never contact lab FTD.
 
-Remaining delivery: continuous dispatch and independent parallel device streams,
-automatic quiescence-backed uncertainty recovery, concurrent standing admission/
+The separate internal [continuous dispatcher](continuous-dispatch.md) now uses
+independent device streams and per-device 64-check/16-admission session budgets;
+the serial controller described here retains its global-cycle budget/cooldown.
+Neither is a new live activation path. Remaining delivery: application/Web
+integration, real transport acceptance, automatic quiescence-backed recovery, concurrent standing admission/
 version-aware cleanup, nonempty legacy conversion and Web/runtime enablement.
 Synthetic tests are not executable 100000-pair load/hardware/production acceptance.

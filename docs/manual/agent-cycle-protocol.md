@@ -5,6 +5,11 @@ This document remains the exact legacy v1 contract. The independently gated
 mutation semantics and bounded multi-frame full observations. Neither version
 supports ADD/import. Keep both feature flags false unless explicitly lab-approved.
 
+The separate opt-in [local settlement extension](cycle-settlement.md) adds strict
+BEGIN `16` and a post-cleanup/guard-release/worker-idle receipt across versions
+1/2/3. Legacy BEGIN `10` and the v1 packets/default behavior below are unchanged.
+No deployed client, feature gate or lab configuration selects the new mode.
+
 The separate [addition contract](addition-contract.md) implements cycle v3
 behind another default-off agent gate and explicit per-device creation profile.
 It does not change v1/v2 packets or default API scheduling. Its 16-step budget

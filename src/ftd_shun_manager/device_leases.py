@@ -244,16 +244,22 @@ class DeviceLeases:
 class DeviceOperationQueue(OperationQueue):
     """A fixed lease scope over the existing executor; never a second job queue."""
 
-    def __init__(self, store, token):
+    def __init__(self, store, token, *, priority_removals=False):
         _token(token)
+        if type(priority_removals) is not bool:
+            raise ValueError('Scoped removal priority must be boolean.')
         super().__init__(store)
         self.token = token
+        self.priority_removals = priority_removals
         self.leases = DeviceLeases(store, self)
 
     def _executor(self, db, owner, device_id):
         if owner != self.token.owner or device_id != self.token.device_id:
             raise QueueConflict('Operation is outside this fixed device lease.')
         return self.leases.check(db, self.token)
+
+    def _removal_priority(self):
+        return self.priority_removals
 
     def _event(self, db, event, request, job, details=None):
         # Revocation may sweep other devices too; never attribute those jobs to this token.

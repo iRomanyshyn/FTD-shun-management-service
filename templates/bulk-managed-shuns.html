@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Managed shuns</h1>
+{% include "refresh-panel.html" %}
+<p>Version-2 standing policy is separate from current device observations. This page reads local data only; it never adopts shuns or submits device commands.</p>
+<p class="policy-warning">{% if refresh.ready_removal_admission_enabled is sameas true %}Ready-only removal has a separate exact-scope review and independently gated confirmation. ADD/import admission remains unavailable.{% else %}ADD and combined device removal are unavailable in this API profile. Ready-removal preparation grants no execution authority.{% endif %} You can stop maintaining an exact target; that alone does not remove its existing shun or cancel a RUNNING command. Stopped policy is never re-enabled by an old request.</p>
+<section id="managed-shun-state" data-live-region>
+{% if managed.changed %}
+<p role="status" class="policy-warning">Policy changed while browsing. <a href="/managed-shuns">Open the current policy</a> before continuing. No scope was rebased.</p>
+{% else %}
+<p>Registry revision {{ managed.revision }} · {{ managed.total }} / {{ managed.limit }} retained target keys · Standing suspension {{ 'on' if managed.restoration_suspended else 'off' }}. ADD remains disabled regardless of this stored flag.</p>
+{% if not managed.attempt_ledger_initialized %}<p class="policy-warning">Attempt ledger is not initialized. No recorded attempt is not proof of a verified outcome.</p>{% endif %}
+<div class="table-scroll"><table aria-label="Version-2 managed policy"><thead><tr><th>Device / IP</th><th>Desired policy</th><th>Observed state</th><th>Retained evidence</th><th>Original authorization</th></tr></thead><tbody>
+{% for entry in managed.entries %}<tr{% if entry.protected %} class="protected-shun"{% endif %}>
+<td>{{ entry.hostname }}<br><a href="/shuns/{{ entry.ip }}">{{ entry.ip }}</a>{% if not entry.device_enabled %}<br><strong>Device disabled</strong>{% endif %}</td>
+<td><span class="state-badge {{ 'policy-enabled' if entry.enabled else '' }}">{{ 'Maintain presence' if entry.enabled else 'Stopped' }}</span><br>Generation {{ entry.generation }}</td>
+<td>{{ 'Observed present' if entry.observed_present else 'Not currently observed' }}{% if entry.protected %}<br><strong>Protected IP</strong>{% endif %}<br>Presence alone does not prove service creation.</td>
+<td>{% if entry.attention %}<strong class="preview-error">Retained failed or unverified ADD — needs attention</strong><br>{% endif %}{% if entry.missing_unknown_job %}<strong class="preview-error">Original unknown queue evidence is missing; no success inferred.</strong><br>{% endif %}{{ entry.pending_jobs }} pending/running job(s).{% if entry.last_attempt_state %}<br>Last attempt: {{ entry.last_attempt_state }} · generation {{ entry.last_attempt_generation }}{% else %}<br>No recorded ADD attempt.{% endif %}{% if entry.last_verified_application_at %}<br>Last verified ADD: <time class="local-timestamp" datetime="{{ entry.last_verified_application_at }}">{{ entry.last_verified_application_at }}</time>{% endif %}</td>
+<td>{{ entry.actor_display_name }} ({{ entry.actor_subject }})<br><time class="local-timestamp" datetime="{{ entry.authorized_at }}">{{ entry.authorized_at }}</time>{% if entry.label %}<br>{{ entry.label }}{% endif %}{% if entry.reason %}<p class="policy-comment">{{ entry.reason }}</p>{% endif %}</td>
+</tr>{% else %}<tr><td colspan="5">No retained managed targets.</td></tr>{% endfor %}
+</tbody></table></div>
+<nav class="history-pagination" aria-label="Managed policy pagination"><p>Page {{ managed.page }} of {{ managed.pages }} · Up to 100 target keys per page</p><div class="pagination-controls">
+{% if managed.page > 1 %}<a rel="prev" href="/managed-shuns?page={{ managed.page - 1 }}&amp;revision={{ managed.revision }}">Previous 100</a>{% endif %}
+{% if managed.page < managed.pages %}<a rel="next" href="/managed-shuns?page={{ managed.page + 1 }}&amp;revision={{ managed.revision }}">Next 100</a>{% endif %}
+<a href="/managed-shuns">Current policy</a></div></nav>
+{% endif %}
+</section>
+<section id="managed-retirement-preparation" data-live-region>
+{% if not managed.changed and refresh.managed_policy_retirement_available and ('Operator' in identity.roles or 'Administrator' in identity.roles) %}
+{% set maintained = managed.entries | selectattr('enabled') | list %}{% if maintained %}
+<details><summary>Stop maintaining one target — no device command</summary>
+<form method="post" action="/managed-shuns/retirement-review" class="import-confirm-form">
+<input type="hidden" name="csrf" value="{{ csrf_token }}"><label for="retirement-target">Exact target on this page</label><select id="retirement-target" name="target" required><option value="">Choose one device/IP</option>{% for entry in maintained %}<option value="{{ entry.device_id }}:{{ entry.ip }}">{{ entry.hostname }} — {{ entry.ip }}</option>{% endfor %}</select>
+<label for="retirement-reason">Reason (optional)</label><input id="retirement-reason" name="reason" maxlength="500"><button type="submit">Review stop maintaining only</button></form>
+</details>{% endif %}{% endif %}
+</section>
+<section id="ready-removal-preparation" data-live-region>
+{% if refresh.ready_removal_review_available is sameas true and ('Operator' in identity.roles or 'Administrator' in identity.roles) %}
+<details><summary>Review stop maintaining and remove — ready targets only</summary>
+<p>Preparation reads local scope only. Disabled devices and unresolved work block execution, not silently shrink the request. Web/API confirmation is independently gated.</p>
+{% if not managed.changed and managed.entries %}
+<form method="post" action="/managed-shuns/v2/removal-review" class="import-confirm-form">
+<input type="hidden" name="csrf" value="{{ csrf_token }}">
+<label for="ready-removal-target">One exact target on this page</label><select id="ready-removal-target" name="target" required><option value="">Choose one device/IP</option>{% for entry in managed.entries %}<option value="{{ entry.device_id }}:{{ entry.ip }}">{{ entry.hostname }} — {{ entry.ip }}</option>{% endfor %}</select>
+<label for="ready-removal-reason">Reason (optional)</label><input id="ready-removal-reason" name="reason" maxlength="500"><button type="submit">Review one-device removal</button></form>
+{% endif %}
+<form method="post" action="/managed-shuns/v2/fleet-removal-review" class="import-confirm-form">
+<input type="hidden" name="csrf" value="{{ csrf_token }}">
+<label for="ready-fleet-ip">Exact IPv4 across all observed or maintained devices</label><input id="ready-fleet-ip" name="ip" autocomplete="off" inputmode="decimal" required>
+<label for="ready-fleet-reason">Reason (optional)</label><input id="ready-fleet-reason" name="reason" maxlength="500"><button type="submit">Review complete fleet scope</button></form>
+</details>{% endif %}
+</section>
+<script src="/static/freshness.js" defer></script>
+{% endblock %}

@@ -106,6 +106,14 @@ the database offline for a separately reviewed recovery.
 
 ## Validation and remaining work
 
+A separate [ready-scope removal coordinator](bulk-ready-removal.md) now reuses
+the same fenced queue for atomic v2 retirement/REMOVE admission behind its own
+default-false internal capability. It is ready-only: pending/failed/unknown work
+conflicts, no RUNNING-ADD wait is inferred. Readonly scope GET and separate
+[frozen Web/API confirmation](ready-removal-confirmation.md) now exist
+behind independent default-off factory capabilities, with no live activation.
+This does not change the ADD/journal/continuous-admission gates described above.
+
 ```bash
 python3 -m pytest -q tests/test_bulk_dispatch.py
 ```

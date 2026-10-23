@@ -1,5 +1,6 @@
 """Offline desired-state lifecycle; temporary SQLite only, never FTD/queue dispatch."""
 
+import asyncio
 import json
 import sqlite3
 from concurrent.futures import ThreadPoolExecutor
@@ -8,6 +9,7 @@ from datetime import UTC, datetime, timedelta
 from ipaddress import IPv4Address
 from uuid import uuid4
 
+import httpx
 import pytest
 
 from ftd_shun_manager import managed_shuns
@@ -71,6 +73,9 @@ def test_registry_is_opt_in_and_normal_application_does_not_initialize_it(tmp_pa
     with store._connection() as db:
         assert not db.execute("SELECT name FROM sqlite_master WHERE name LIKE 'managed_shun_%'").fetchall()
     assert {route.path for route in app.routes if "managed" in route.path} == {
+        "/api/v2/managed-shuns/page", "/api/v2/managed-shuns/selection", "/api/v2/managed-shuns/retire",
+        "/api/v2/managed-removal-scope/{ip}",
+        "/api/v2/managed-removals/device", "/api/v2/managed-removals/fleet",
         "/api/v1/managed-shuns", "/api/v1/managed-shuns/page", "/api/v1/managed-shuns/selection", "/api/v1/managed-removal-handoffs",
         "/api/v1/managed-shuns/selection/batch",
         "/api/v1/managed-shuns/retire", "/api/v1/managed-shuns/maintain", "/api/v1/managed-removal-handoffs/{request_id}/cancel",
@@ -86,6 +91,23 @@ def test_registry_is_opt_in_and_normal_application_does_not_initialize_it(tmp_pa
     }
     assert next(route for route in app.routes if route.path == "/api/v1/managed-shuns").methods == {"GET"}
     assert app.state.synchronizer.queue.status()["counts"] == {}
+    with store._connection() as db:
+        before = tuple(db.iterdump())
+
+    async def scenario():
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://internal") as client:
+            assert (await client.get("/api/v2/managed-shuns/page")).status_code == 503
+            assert (await client.get(f"/api/v2/managed-removal-scope/{IP}")).status_code == 503
+            assert (await client.post("/api/v2/managed-shuns/selection", json={
+                "targets": [{"device_id": 1, "ip": str(IP)}]})).status_code == 503
+            assert (await client.post("/api/v2/managed-shuns/retire", json={
+                "actor": {"subject": "alice", "display_name": "Alice", "roles": ["Operator"]},
+                "device_id": 1, "ip": str(IP), "managed_revision": 0,
+                "confirmation_digest": canonical_managed_change("RETIRE", [(1, IP)], 0, 0)[2]},
+                headers={"Idempotency-Key": str(uuid4())})).status_code == 503
+    asyncio.run(scenario())
+    with store._connection() as db:
+        assert tuple(db.iterdump()) == before
 
 
 def test_initialize_is_empty_repeatable_and_never_adopts_one_time_history(registry):

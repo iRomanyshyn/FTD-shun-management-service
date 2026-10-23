@@ -53,6 +53,7 @@ class Synchronizer:
         managed_removal_worker_enabled: bool = False,
         managed_restoration_enabled: bool = False,
         bulk_dispatch_enabled: bool = False,
+        initialize_queue: bool = True,
     ) -> None:
         if import_execution_enabled and not session_cycles_enabled:
             raise ValueError("import execution requires session cycles")
@@ -65,7 +66,7 @@ class Synchronizer:
         self.agent = agent
         self.poll_interval_seconds = poll_interval_seconds
         self.interactive_min_interval_seconds = interactive_min_interval_seconds
-        self.policy = ProtectedPolicy(store)
+        self.policy = ProtectedPolicy(store, initialize_queue=initialize_queue)
         self.history_retention_days = history_retention_days
         self.enabled = enabled
         self.session_cycles_enabled = session_cycles_enabled
@@ -539,6 +540,10 @@ class Synchronizer:
                 except (QueueFull, QueueConflict):
                     break
 
+    def _priority_read_due(self, device_id):
+        last = self._device_success_at.get(device_id)
+        return last is None or monotonic() - last >= self.interactive_min_interval_seconds
+
     async def _session_mutations(self, device_id: int, cycle, snapshot) -> str | None:
         try:
             allowed = self.policy.enabled_ips()
@@ -549,8 +554,7 @@ class Synchronizer:
                     break  # Finish the session, never interrupt an operation/verification.
                 if self._priority_pending and not self._priority_used:
                     self._priority_pending = False
-                    last = self._device_success_at.get(device_id)
-                    if last is None or monotonic() - last >= self.interactive_min_interval_seconds:
+                    if self._priority_read_due(device_id):
                         self._priority_used = True
                         self._device_cycle.update(action="priority_snapshot", priority_state="reading")
                         self._status_revision += 1
@@ -590,7 +594,7 @@ class Synchronizer:
                     continue
                 self._device_cycle.update(action="remove_and_verify", ip=str(target))
                 self._status_revision += 1
-                if not any(entry.ip == target for entry in snapshot):
+                if not any(entry.ip == target for entry in snapshot) and not getattr(self.queue, 'priority_removals', False):
                     result = False
                 else:
                     try:
@@ -617,7 +621,7 @@ class Synchronizer:
                 self._device_cycle["budget_deferred"] = True
             self._status_revision += 1
             read_started = self.queue._now()
-            snapshot = await self._agent_call(cycle.finish)
+            snapshot = await self._finish_session(cycle)
             read_completed = self.queue._now()
             self._publish_snapshot(device_id, snapshot)
             self._discover_snapshot(device_id, snapshot, read_started, read_completed)
@@ -629,6 +633,9 @@ class Synchronizer:
             print(json.dumps({"event": "queue.cycle.failed", "device_id": device_id,
                               "reason": str(error)}), flush=True)
             return f"device cycle failed: {error}"
+
+    async def _finish_session(self, cycle):
+        return await self._agent_call(cycle.finish)
 
     async def _session_addition(self, device_id: int, cycle, job: dict, target: IPv4Address) -> bool:
         try:
