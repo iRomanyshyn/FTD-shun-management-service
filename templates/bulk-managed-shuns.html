@@ -50,5 +50,19 @@
 <label for="ready-fleet-reason">Reason (optional)</label><input id="ready-fleet-reason" name="reason" maxlength="500"><button type="submit">Review complete fleet scope</button></form>
 </details>{% endif %}
 </section>
+<section id="ordered-removal-preparation" data-live-region>
+{% if refresh.ordered_removal_review_available is sameas true and ('Operator' in identity.roles or 'Administrator' in identity.roles) %}
+<details><summary>Review ordered removal — wait for a current managed ADD</summary>
+<p>Separate explicit consent: stop matching maintenance, reserve the complete scope and wait for captured ADD/session settlement. No ready-only fallback, ADD replay or automatic retry. Inspection alone changes nothing.</p>
+{% if not managed.changed and managed.entries %}<form method="post" action="/managed-shuns/v2/ordered-removal-review" class="import-confirm-form">
+<input type="hidden" name="csrf" value="{{ csrf_token }}"><label for="ordered-removal-target">One exact target on this page</label>
+<select id="ordered-removal-target" name="target" required><option value="">Choose one device/IP</option>{% for entry in managed.entries %}<option value="{{ entry.device_id }}:{{ entry.ip }}">{{ entry.hostname }} — {{ entry.ip }}</option>{% endfor %}</select>
+<label for="ordered-removal-reason">Reason (optional)</label><input id="ordered-removal-reason" name="reason" maxlength="500"><button type="submit">Inspect one-device ordered removal</button></form>{% endif %}
+<form method="post" action="/managed-shuns/v2/ordered-fleet-removal-review" class="import-confirm-form">
+<input type="hidden" name="csrf" value="{{ csrf_token }}"><label for="ordered-fleet-ip">Exact IPv4 across all observed or maintained devices</label>
+<input id="ordered-fleet-ip" name="ip" autocomplete="off" inputmode="decimal" required><label for="ordered-fleet-reason">Reason (optional)</label>
+<input id="ordered-fleet-reason" name="reason" maxlength="500"><button type="submit">Inspect complete ordered fleet scope</button></form>
+</details>{% endif %}
+</section>
 <script src="/static/freshness.js" defer></script>
 {% endblock %}

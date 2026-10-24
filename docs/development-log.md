@@ -6767,6 +6767,72 @@ unchanged; Rust/Chromium are not required for this API-only packet. Frozen
 session/CSRF-bound ordered Web consent/status, configured runtime/inventory and
 separately scoped transport/multi-device/load/recovery acceptance remain next.
 
+## 2026-10-24 — Frozen ordered Web consent, durable local status and waiting revocation
+
+Implemented three sequential product tasks over the existing strict private API:
+separate ordered confirmation, a current-status permalink and local waiting
+revocation. Managed shuns exposes collapsed exact device/fleet preparation forms.
+Validate the complete bounded preflight digest, mode/IP/device, literal counts,
+dispositions/blockers and canonical RUNNING predecessor evidence. READY/BLOCKED
+inspection creates no token or action/fallback. WAITING_ADD freezes original
+scope/predecessors/action/digest/UUID/TTL/reason in a separate immutable detached
+actor/CSRF-cookie-bound cache (five per subject, 256 total, <=ten minutes).
+
+The new literal default-false Web factory capability cannot be enabled by DOM or
+API metadata. Production identity/socket/cycles/large-read compatibility remains
+mandatory. Confirmation accepts only CSRF/token/typed exact IP, rechecks actor/
+role/session and expiry after metadata I/O, then requires the separate compatible
+API admission and owning promotion capabilities. One fixed private device/fleet
+request uses the original cached body/key and actual actor. Strict checked 202
+receipts bind all historical flags/counts/revision and exact canonical original
+requested-at plus TTL; unknown replies permit only original-review/key retry.
+Later optional metadata failure cannot negate a checked reservation receipt.
+
+The authenticated canonical-UUID status permalink survives Web restart and
+validates complete original scope/owner/deadline, every captured ADD outcome,
+retained attention and every original delegated REMOVE job. Only all VERIFIED
+implies verified removal; ADMITTED or local revocation is not success. Added
+bounded owner/predecessor-count metadata to the existing API projection, no DDL.
+GET/passive updates read local evidence only: no expiry/promotion/policy mutation
+or device read hint. Frozen confirmation is never replaced; dirty live-status
+fields/focus/open sections survive refresh. Native exact-IP validation and existing
+responsive form classes keep confirmation separate and usable on mobile.
+
+Waiting revocation is a distinct CSRF/typed-IP owner/Admin fixed-UUID POST with
+actor-only private input, available under pause/disabled admission and after Web
+restart. It never resumes maintenance, changes a RUNNING ADD, clears attention or
+cancels delegated work. Race to ADMITTED conflicts. Checked cancellation receipt
+survives failed follow-up status without showing a stale snapshot as current;
+lost/malformed cancellation response remains unknown and retries only that root.
+
+Added 60 disposable SQLite/ASGI/fake-session tests for independent capabilities,
+strict preflight/receipts/status, CSRF/roles/session/cross-purpose controls, cache
+bounds/immutability/post-I/O expiry, stale scope, unknown replies/original-key
+retry, restart, owner/Admin pause/disabled revocation, ADMITTED races, malformed
+complete-scope job evidence and actual BFF/API/shared continuous fake execution.
+Added two real Chromium scenarios for frozen ordered consent and dynamic local
+status/dirty-form/attention/verification/mobile behavior without device demand.
+The first focused run caught an over-broad test assertion: device-only retirement
+must leave the independent second device's policy intact; corrected that assertion.
+The first Chromium run caught a real shared focus-restoration bug: reopening a
+details section after trying to focus its field silently loses focus. Reopen
+preserved details first; the new browser regression covers this sequence.
+Focused ordered Web/API/ready/continuous/reservation/promotion regression:
+**256 passed (48.10s)**. Final full suite: **2299 Python tests passed (278.63s)**;
+real Chromium **36 passed (132.40s)**. Compileall, Ruff, JavaScript syntax,
+diff/new-file whitespace and all **313 changed/new-document local links/anchors**
+pass. Synthetic fixture/session results are not live transport or production
+acceptance.
+
+Updated normative architecture, current status, working plan and structured Web/
+API/profile/queue/development manuals with limits, unknown-result behavior,
+operating impact and backup/rollback boundaries. No schema, runtime selector,
+agent/wire, Compose, real database/credential/inventory/gate/profile, services or
+FTD state changed; no lab migration/fixture/activation or production acceptance
+was invoked. Rust is not required for this Web/API-only packet. Configured runtime/
+inventory, nonempty migration, bounded managed import/adoption/cancellation and
+separately scoped transport/device/multi-device/load/recovery acceptance remain.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

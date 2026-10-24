@@ -5028,3 +5028,43 @@ modifies a running ADD. Already admitted work conflicts and remains governed by
 ordinary queue controls. Cancellation does not clear ATTENTION or uncertainty.
 Frozen session/CSRF-bound Web consent remains a separate delivery prerequisite;
 private API implementation alone does not enable a user-facing workflow.
+
+### Version-2 frozen ordered Web consent and status — 2026-10-24
+
+Provide separate device/fleet ordered review preparation and one fixed confirmation
+route. Preparation is authenticated Operator/Administrator plus CSRF, local reads
+only, and validates the complete bounded preflight digest, exact requested mode/IP/
+device, target dispositions/blockers and canonical predecessor evidence. READY or
+BLOCKED inspection is informational only: no confirmation token, silent ready
+fallback, scope shrink or automatic resubmission. WAITING_ADD freezes original
+scope/predecessors, separate action/digest, UUID, TTL and reason in an immutable
+bounded actor/CSRF-cookie-bound ephemeral cache (five per subject, 256 total,
+at most ten minutes). Confirmation accepts only CSRF, token and typed exact IP.
+Recheck current identity/role, local expiry after status I/O and independent
+literal default-false Web/API admission plus owning promotion capabilities.
+Neither DOM nor metadata edits enable a disabled local capability. Submit exactly
+one fixed private route with the original cached key/body and actual actor.
+
+Validate the complete historical 202 WAITING_ADD receipt, literal flags/counts,
+original UUID/scope/revision and exact canonical requested-at plus TTL deadline.
+A lost/malformed reply is unknown: retry only the same review/key, never a new
+scope/action/key. Later optional status failure cannot negate a checked receipt.
+Metadata refresh cannot replace a frozen confirmation form or its typed input.
+
+Provide a canonical-UUID authenticated read-only status permalink, including after
+Web restart, with complete original scope/owner/deadline, all captured predecessor
+outcomes, retained attention and all delegated REMOVE job states. Validate exact
+typed projection and full admission/verification invariants before rendering;
+missing/malformed evidence must remain explicitly unavailable, never success.
+Passive status updates fetch only local API state, never request/hint device reads,
+expire/promote work or overwrite dirty forms. Keep command completion and original
+expiry independent; ADMITTED or administrative cancellation is not verification.
+
+Owner/Administrator waiting revocation is a distinct CSRF/typed-IP POST to the
+fixed original UUID, with real actor-only private input and no admission gate.
+Recheck the original identity/scope locally and at the coordinator; a race to
+ADMITTED conflicts instead of cancelling delegated work. Preserve historical
+checked revocation separately if subsequent status fails. Disabled admission,
+pause or browser restart does not resume maintenance, clear attention or replay ADD.
+No schema/runtime selector, deployment/gate activation, migration, new fixture or
+live/production acceptance is authorized by these Web controls.

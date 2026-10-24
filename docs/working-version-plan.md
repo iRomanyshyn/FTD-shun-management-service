@@ -161,6 +161,19 @@ pause/disabled admission and never resumes policy or resolves attention. Frozen
 Web consent/status remains next; no new runtime selector, migration, lab feature
 activation or acceptance follows. See [Private Ordered API](manual/ordered-removal-api.md).
 
+Ordered Web checkpoint (2026-10-24): separate frozen device/fleet preparation and
+confirmation now bind original scope/predecessors, actor/CSRF session, UUID/digest
+and TTL behind independent literal default-off Web/API capabilities. READY/BLOCKED
+preflight is informational only; no token/fallback/rebase. A durable original-key
+status permalink shows complete original owner/scope/deadline, ADD outcomes,
+attention and all delegated REMOVE job results; only all VERIFIED implies verified
+removal. Local CSRF/typed-IP owner/Admin waiting revocation works while paused or
+admission-disabled, conflicts after delegation and never resumes policy. Metadata
+updates preserve frozen confirmation and dirty local-status forms without device
+refresh demand. Scope/unknown-reply/race checks and actual BFF/API/shared fake
+execution are covered; no runtime selection, migration or lab activation follows.
+See [Ordered Web Controls](manual/ordered-removal-web.md).
+
 Target up to 10,000 IPv4 addresses in one import, with explicit device selection.
 An address/device pair is the maintained unit: 10,000 addresses on 10 selected FTDs
 can require 100,000 policy pairs. Storage and admission limits must be revised

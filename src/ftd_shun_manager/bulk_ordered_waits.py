@@ -362,7 +362,7 @@ class BulkOrderedWaits:
                 raise BulkUnavailable('Incomplete ordered promotion evidence is unavailable.')
             admitted = receipt is not None and receipt['state'] == 'ADMITTED'
             state = receipt['state'] if receipt is not None and row['state'] == 'WAITING_ADD' else row['state']
-            original = db.execute('SELECT payload_json FROM managed_shun_requests WHERE id=?', (key,)).fetchone()
+            original = db.execute('SELECT payload_json,actor_subject FROM managed_shun_requests WHERE id=?', (key,)).fetchone()
             scope = json.loads(original['payload_json'])['reviewed']
             delegated = []
             result = json.loads(receipt['result_json']) if receipt else None
@@ -373,6 +373,7 @@ class BulkOrderedWaits:
                         raise BulkUnavailable('Original delegated REMOVE evidence is unavailable.')
                     delegated.append({**reference, 'state': job['state']})
             return {'operation_id': key, 'intent_format': 2, 'action': 'STOP_AND_REMOVE_ORDERED',
+                    'owner_subject': original['actor_subject'], 'predecessor_count': row['predecessor_count'],
                     'scope': scope, 'requested_at': row['requested_at'],
                     'state': state, 'expires_at': row['expires_at'], 'predecessors': outcomes,
                     'cleanup_jobs': delegated,

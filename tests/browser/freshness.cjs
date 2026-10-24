@@ -19,6 +19,8 @@ from ftd_shun_manager.managed_review import ManagedRemovalReviews
 from ftd_shun_manager.managed_intent import canonical_managed_fleet_scope
 from ftd_shun_manager.managed_retirement_review import ManagedRetirementReviews
 from ftd_shun_manager.bulk_removal_review import ReadyRemovalReviews
+from ftd_shun_manager.bulk_ordered_review import OrderedRemovalReviews, validate_ordered_status
+from ftd_shun_manager.bulk_ordered_removals import _DOMAIN, _digest
 from ftd_shun_manager.bulk_removals import canonical_scope
 from ftd_shun_manager.managed_grant_review import ManagedGrantReviews
 from ftd_shun_manager.managed_batch_review import ManagedBatchReviews, parse_standing_list
@@ -31,6 +33,8 @@ enabled_ips = frozenset(entry["ip"] for entry in policy_entries if entry["enable
 disabled_ips = frozenset(entry["ip"] for entry in policy_entries if not entry["enabled"])
 preview = None
 managed_import_report = None
+inspection = ordered_status = None
+ordered_key = "88888888-8888-4888-8888-888888888888"
 if p.get("submitted"):
     parsed = parse_blocklist(p["source_text"])
     preview = paginate_preview(summarize_preview(parsed, dict(policy_revision=1, devices=[dict(id=1,hostname="lab-ftd")],
@@ -52,14 +56,39 @@ if p["template"] == "managed-remove-review.html":
         review = ManagedRemovalReviews().prepare("test", "fixture-token", p["managed"], 1, IPv4Address("198.51.100.251"), 900, "Fixture only")
 if p["template"] == "managed-retirement-review.html":
     review = ManagedRetirementReviews().prepare("test", "fixture-token", p["managed"], 1, IPv4Address("198.51.100.251"), "Fixture only")
-if p["template"] == "bulk-removal-review.html":
+if p["template"] in ("bulk-removal-review.html", "bulk-ordered-review.html", "bulk-ordered-status.html"):
     scope = dict(version=2,scope="fleet",ip="198.51.100.251",managed_revision=1,protected_revision=1,protected=False,
         targets=[dict(device_id=i,hostname="<b>Fixture FTD</b>",device_enabled=True,observed_present=i==1,
             maintenance_enabled=i==1,intent_id="11111111-1111-4111-8111-111111111111" if i==1 else None,
             generation=1 if i==1 else None,authorization_request_id="22222222-2222-4222-8222-222222222222" if i==1 else None,
             target_revision=1 if i==1 else None) for i in (1,2)])
-    review = ReadyRemovalReviews().prepare("test","fixture-token",dict(**scope,scope_digest=canonical_scope(scope)[1],
-        read_only=True,execution_available=False,device_work_admitted=False),IPv4Address(scope["ip"]),reason="<b>Synthetic only</b>")
+    if p["template"] == "bulk-removal-review.html":
+        review = ReadyRemovalReviews().prepare("test","fixture-token",dict(**scope,scope_digest=canonical_scope(scope)[1],
+            read_only=True,execution_available=False,device_work_admitted=False),IPv4Address(scope["ip"]),reason="<b>Synthetic only</b>")
+    else:
+        predecessor = dict(request_id="33333333-3333-4333-8333-333333333333",job_id="44444444-4444-4444-8444-444444444444",
+            intent_id=scope["targets"][0]["intent_id"],generation=1,authorization_request_id=scope["targets"][0]["authorization_request_id"],
+            target_revision=1,snapshot_id="55555555-5555-4555-8555-555555555555",snapshot_started_at="2026-10-21T12:00:00.000Z",
+            snapshot_at="2026-10-21T12:00:00.000Z",requested_at="2026-10-21T12:00:00.000Z",expires_at="2026-10-21T12:15:00.000Z",
+            started_at="2026-10-21T12:00:01.000Z",executor_owner="66666666-6666-4666-8666-666666666666",executor_epoch=1,
+            lease_until="2026-10-21T12:02:15.000Z",claim_event_id="77777777-7777-4777-8777-777777777777",evidence_digest="a"*64)
+        inspection = dict(intent_format=2,mode="ordered-removal-preflight",inspected_at="2026-10-21T12:00:02.000Z",
+            scope=scope,scope_digest=canonical_scope(scope)[1],targets=[dict(device_id=i,disposition="WAITING_ADD" if i==1 else "READY",
+                blockers=[],predecessor=predecessor if i==1 else None) for i in (1,2)],global_blockers=[],blocked_target_count=0,
+            waiting_target_count=1,disposition="WAITING_ADD",read_only=True,execution_available=False,device_work_admitted=False)
+        inspection["preflight_digest"] = _digest(inspection,_DOMAIN)
+        if p["template"] == "bulk-ordered-review.html":
+            review = OrderedRemovalReviews().prepare("test","fixture-token",inspection,IPv4Address(scope["ip"]),reason="<b>Synthetic only</b>")
+        else:
+            phase = p["refresh"].get("fixture_ordered_phase","WAITING_ADD")
+            admitted = phase in ("ADMITTED","VERIFIED")
+            jobs = [dict(device_id=i,job_id=f"9999999{i}-9999-4999-8999-999999999999",state="VERIFIED" if phase=="VERIFIED" else "QUEUED") for i in (1,2)] if admitted else []
+            ordered_status = dict(operation_id=ordered_key,intent_format=2,action="STOP_AND_REMOVE_ORDERED",owner_subject="test",predecessor_count=1,
+                scope=scope,requested_at="2026-10-21T12:00:02.000Z",expires_at="2026-10-21T12:15:02.000Z",
+                state="ADMITTED" if admitted else phase,predecessors=[dict(device_id=1,job_id=predecessor["job_id"],state="NOOP" if admitted else "FAILED" if phase=="ATTENTION" else "RUNNING",missing_evidence=False)],
+                cleanup_jobs=jobs,verified_removal=phase=="VERIFIED",cleanup_reserved=not admitted,read_only=True,device_work_admitted=admitted,
+                attention=phase=="ATTENTION",decision=dict(jobs=[dict(device_id=j["device_id"],job_id=j["job_id"]) for j in jobs],requested_at="2026-10-21T12:00:02.000Z",expires_at="2026-10-21T12:15:02.000Z") if admitted else dict(reason="ADMISSION_CONFLICT") if phase=="ATTENTION" else None)
+            validate_ordered_status(ordered_key,ordered_status)
 if p["template"] == "managed-grant-review.html":
     classification = dict(policy_revision=1, addresses=[dict(ip="198.51.100.252", protected=False,
         devices=[dict(id=1, hostname="lab-ftd", already_shunned=False)])])
@@ -89,8 +118,10 @@ print(templates.get_template(p["template"]).render(identity=Identity("test", "Te
     review=review, report=managed_import_report, accepted=None, result=None, confirm_ip="", message=None, admission_enabled=p["refresh"].get("managed_policy_admission_enabled" if p["template"] == "managed-import-review.html" else "import_admission_enabled", False),
     retry_available=p["refresh"].get("import_admission_enabled", False), execution_enabled=False,
     removal_admission_enabled=p["refresh"].get("managed_removal_admission_enabled", False),
-    frozen_view=p["template"] in ("import-confirm.html", "managed-remove-review.html", "bulk-removal-review.html", "managed-retirement-review.html", "managed-grant-review.html", "managed-batch-form.html", "managed-batch-review.html"),
+    frozen_view=p["template"] in ("import-confirm.html", "managed-remove-review.html", "bulk-removal-review.html", "bulk-ordered-review.html", "managed-retirement-review.html", "managed-grant-review.html", "managed-batch-form.html", "managed-batch-review.html"),
     ready_removal_local_enabled=p["refresh"].get("fixture_ready_local_enabled",False),
+    ordered_removal_local_enabled=p["refresh"].get("fixture_ordered_local_enabled",False),
+    inspection=inspection,ordered=ordered_status,operation_id=ordered_key,cancellation=None,
     admission_available=p["refresh"].get("managed_policy_admission_enabled", False),
     page=1, pages=2, page_targets=review.targets[:100] if p["template"] == "managed-batch-review.html" else [],
     confirm_count="", acknowledged=False, import_text_limit=1048576,
@@ -103,8 +134,8 @@ print(templates.get_template(p["template"]).render(identity=Identity("test", "Te
     source_text=p.get("source_text", ""), batch_label=p.get("label", ""), batch_reason=p.get("reason", ""),
     selected_devices=[1] if p.get("submitted") else [], preview=preview, preview_error=None,
     devices=[dict(id=1,hostname="lab-ftd",enabled=True),dict(id=2,hostname="disabled-ftd",enabled=False)],
-    active_page="managed" if p["template"] in ("managed-shuns.html", "bulk-managed-shuns.html", "managed-remove-review.html", "bulk-removal-review.html", "managed-retirement-review.html", "managed-grant-review.html", "managed-batch-form.html", "managed-batch-review.html") else "imports" if p["template"] == "import-preview.html" else "protected" if p["template"] == "protected-ips.html" else "history" if p["template"] == "history.html" else "shuns",
-    auto_request=p["template"] not in ("protected-ips.html", "history.html", "import-preview.html", "import-confirm.html", "managed-shuns.html", "bulk-managed-shuns.html", "managed-remove-review.html", "bulk-removal-review.html", "managed-retirement-review.html", "managed-grant-review.html", "managed-batch-form.html", "managed-batch-review.html")))
+    active_page="managed" if p["template"].startswith("bulk-ordered-") or p["template"] in ("managed-shuns.html", "bulk-managed-shuns.html", "managed-remove-review.html", "bulk-removal-review.html", "managed-retirement-review.html", "managed-grant-review.html", "managed-batch-form.html", "managed-batch-review.html") else "imports" if p["template"] == "import-preview.html" else "protected" if p["template"] == "protected-ips.html" else "history" if p["template"] == "history.html" else "shuns",
+    auto_request=p["template"] not in ("protected-ips.html", "history.html", "import-preview.html", "import-confirm.html", "managed-shuns.html", "bulk-managed-shuns.html", "managed-remove-review.html", "bulk-removal-review.html", "bulk-ordered-review.html", "bulk-ordered-status.html", "managed-retirement-review.html", "managed-grant-review.html", "managed-batch-form.html", "managed-batch-review.html")))
 `;
 
 const initial = () => ({
@@ -335,7 +366,7 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
       confirmationPosts += 1;
       response.setHeader("Content-Type", "text/html");
       response.end("<p>Fixture admission received; no device work</p>");
-    } else if (["/", "/history", "/protected-ips", "/imports", "/imports/review", "/managed-imports/review", "/managed-shuns", "/managed-shuns/removal-review", "/managed-shuns/fleet-removal-review", "/managed-shuns/v2/removal-review", "/managed-shuns/retirement-review", "/managed-shuns/grant-review", "/managed-shuns/bulk", "/managed-shuns/bulk-review"].includes(url.pathname) || url.pathname.startsWith("/shuns/")) {
+    } else if (["/", "/history", "/protected-ips", "/imports", "/imports/review", "/managed-imports/review", "/managed-shuns", "/managed-shuns/removal-review", "/managed-shuns/fleet-removal-review", "/managed-shuns/v2/removal-review", "/managed-shuns/v2/ordered-removal-review", "/managed-shuns/retirement-review", "/managed-shuns/grant-review", "/managed-shuns/bulk", "/managed-shuns/bulk-review"].includes(url.pathname) || url.pathname.startsWith("/shuns/") || url.pathname.startsWith("/managed-shuns/v2/ordered-removals/")) {
       pageReads += 1;
       let previewFields = {};
       if (url.pathname === "/imports/review") previewFields = {
@@ -380,6 +411,8 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
           : url.pathname === "/protected-ips" ? "protected-ips.html" : url.pathname === "/imports" ? "import-preview.html"
             : url.pathname === "/imports/review" ? "import-confirm.html" : url.pathname === "/managed-imports/review" ? "managed-import-review.html" : url.pathname === "/managed-shuns" ? (managed.intent_format === 2 ? "bulk-managed-shuns.html" : "managed-shuns.html")
               : url.pathname === "/managed-shuns/v2/removal-review" ? "bulk-removal-review.html"
+                : url.pathname === "/managed-shuns/v2/ordered-removal-review" ? "bulk-ordered-review.html"
+                  : url.pathname.startsWith("/managed-shuns/v2/ordered-removals/") ? "bulk-ordered-status.html"
                 : ["/managed-shuns/removal-review", "/managed-shuns/fleet-removal-review"].includes(url.pathname) ? "managed-remove-review.html"
                 : url.pathname === "/managed-shuns/retirement-review" ? "managed-retirement-review.html"
                   : url.pathname === "/managed-shuns/grant-review" ? "managed-grant-review.html"
@@ -726,6 +759,76 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
           await page.call("Emulation.setDeviceMetricsOverride", { width, height: 800, deviceScaleFactor: 1, mobile: width === 375 });
           assert.equal(await page.evaluate("document.documentElement.scrollWidth<=window.innerWidth"), true);
           assert.ok(await page.evaluate("document.querySelector('.import-confirm-form button').getBoundingClientRect().top>document.querySelector('#confirm-ready-ip').getBoundingClientRect().bottom"));
+        }
+        assert.equal(postCount, hints);
+        assert.equal(executionCount, executions);
+      } finally { await page.close(); }
+    });
+    await t.test("ordered confirmation keeps separate gates, frozen scope, focus and mobile spacing", async () => {
+      status = initial();
+      Object.assign(status, { runtime_mode: "continuous-observation", managed_policy_format: 2,
+        ordered_removal_review_available: true, ordered_removal_admission_enabled: true,
+        ordered_removal_promotion_enabled: true });
+      const hints = postCount, executions = executionCount;
+      const disabled = await connectPage(debugOrigin, `${origin}/managed-shuns/v2/ordered-removal-review`);
+      try {
+        assert.equal(await disabled.evaluate("document.querySelector('.import-confirm-form button').disabled"), true);
+      } finally { await disabled.close(); }
+      status.fixture_ordered_local_enabled = true; // Synthetic renderer setting, not a production API capability.
+      const page = await connectPage(debugOrigin, `${origin}/managed-shuns/v2/ordered-removal-review`);
+      try {
+        assert.equal(await page.evaluate("document.querySelectorAll('table[aria-label=\"Frozen ordered removal scope\"] tbody tr').length"), 2);
+        assert.equal(await page.evaluate("document.querySelector('.import-confirm-form button').disabled"), false);
+        assert.equal(await page.evaluate("document.querySelectorAll('td b').length"), 0);
+        assert.equal(await page.evaluate("document.querySelector('.import-confirm-form').checkValidity()"), false);
+        const key = await page.evaluate("document.querySelector('input[name=review]').value");
+        await page.evaluate("document.querySelector('#confirm-ordered-ip').value='198.51.100.251';document.querySelector('#confirm-ordered-ip').focus()");
+        const reads = pageReads;
+        status.data_revision += 1;
+        await wake(page);
+        await delay(300);
+        assert.equal(pageReads, reads);
+        assert.equal(await page.evaluate("document.querySelector('input[name=review]').value"), key);
+        assert.equal(await page.evaluate("document.activeElement.id"), "confirm-ordered-ip");
+        assert.equal(await page.evaluate("document.querySelector('.import-confirm-form').checkValidity()"), true);
+        for (const width of [1100, 375]) {
+          await page.call("Emulation.setDeviceMetricsOverride", { width, height: 800, deviceScaleFactor: 1, mobile: width === 375 });
+          assert.equal(await page.evaluate("document.documentElement.scrollWidth<=window.innerWidth"), true);
+          assert.ok(await page.evaluate("document.querySelector('.import-confirm-form button').getBoundingClientRect().top>document.querySelector('#confirm-ordered-ip').getBoundingClientRect().bottom"));
+        }
+        assert.equal(postCount, hints);
+        assert.equal(executionCount, executions);
+      } finally { await page.close(); }
+    });
+    await t.test("ordered status updates local evidence, retains dirty waiting form and never implies premature success", async () => {
+      status = initial();
+      Object.assign(status, { runtime_mode: "continuous-observation", managed_policy_format: 2,
+        ordered_removal_review_available: true, fixture_ordered_phase: "WAITING_ADD" });
+      const hints = postCount, executions = executionCount;
+      const page = await connectPage(debugOrigin, `${origin}/managed-shuns/v2/ordered-removals/88888888-8888-4888-8888-888888888888`);
+      try {
+        assert.ok(await page.evaluate("document.querySelector('[data-ordered-phase]').textContent.includes('not confirmed')"));
+        await page.evaluate("document.querySelector('#ordered-wait-cancellation').open=true;document.querySelector('#cancel-ordered-ip').value='198.51.100.251';document.querySelector('#cancel-ordered-ip').focus()");
+        status.fixture_ordered_phase = "ATTENTION";
+        status.data_revision += 1;
+        await wake(page);
+        await page.until("document.querySelector('[data-ordered-phase]').textContent.includes('ATTENTION')");
+        assert.equal(await page.evaluate("document.querySelector('#ordered-wait-cancellation').open"), true);
+        assert.equal(await page.evaluate("document.querySelector('#cancel-ordered-ip').value"), "198.51.100.251");
+        assert.equal(await page.evaluate("document.activeElement.id"), "cancel-ordered-ip");
+        status.fixture_ordered_phase = "ADMITTED";
+        status.data_revision += 1;
+        await wake(page);
+        await page.until("document.querySelector('[data-ordered-phase]').textContent.includes('ADMITTED')");
+        assert.equal(await page.evaluate("document.querySelector('#cancel-ordered-ip')"), null);
+        assert.ok(await page.evaluate("document.querySelector('[data-ordered-phase]').textContent.includes('not confirmed')"));
+        status.fixture_ordered_phase = "VERIFIED";
+        status.data_revision += 1;
+        await wake(page);
+        await page.until("document.querySelector('[data-ordered-phase]').textContent.includes('All original REMOVE jobs verified')");
+        for (const width of [1100, 375]) {
+          await page.call("Emulation.setDeviceMetricsOverride", { width, height: 800, deviceScaleFactor: 1, mobile: width === 375 });
+          assert.equal(await page.evaluate("document.documentElement.scrollWidth<=window.innerWidth"), true);
         }
         assert.equal(postCount, hints);
         assert.equal(executionCount, executions);

@@ -38,10 +38,15 @@ unchanged and cannot reinterpret v2 policy.
 The separate [private ordered API](ordered-removal-api.md) now exposes fixed
 device/fleet reservation and local owner/Admin waiting revocation on an explicit
 developer composition. Admission needs its own default-false capability and the
-already complete promotion profile/capability; no Web consent or live activation
-is supplied. Original 202 waiting receipts are not current progress. Read-only
+already complete promotion profile/capability; it is not Web consent or live
+activation. Original 202 waiting receipts are not current progress. Read-only
 status keeps frozen scope, predecessor outcomes, delegated REMOVE job states and
 all-jobs-VERIFIED removal separate, without expiry/promotion or device-read hints.
+The distinct default-off [ordered Web controls](ordered-removal-web.md) now
+provide immutable session/CSRF-bound confirmation, a durable original-key local
+status permalink and typed-IP owner/Admin waiting revocation. The current phase
+is separate from a historical 202 receipt; admission, cancellation and elapsed time
+never imply verified removal. No schema, runtime selector or lab activation follows.
 
 ## Scope
 

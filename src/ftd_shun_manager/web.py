@@ -21,6 +21,7 @@ from fastapi.templating import Jinja2Templates
 from starlette.concurrency import run_in_threadpool
 
 from . import __version__
+from .bulk_ordered_web import register_ordered_removal_web
 from .bulk_removal_web import register_ready_removal_web
 from .config import Settings
 from .import_preview import (
@@ -196,6 +197,9 @@ def refresh_metadata(refresh: object) -> dict[str, object]:
         "managed_policy_retirement_available",
         "ready_removal_review_available",
         "ready_removal_admission_enabled",
+        "ordered_removal_review_available",
+        "ordered_removal_admission_enabled",
+        "ordered_removal_promotion_enabled",
         "active_device_count",
         "pending_refresh_device_count",
         "server_time",
@@ -234,12 +238,17 @@ def refresh_metadata(refresh: object) -> dict[str, object]:
     return {field: refresh.get(field) for field in fields}
 
 
-def create_app(settings: Settings | None = None, *, ready_removal_admission_enabled=False) -> FastAPI:
+def create_app(settings: Settings | None = None, *, ready_removal_admission_enabled=False,
+               ordered_removal_admission_enabled=False) -> FastAPI:
     settings = settings or Settings.from_environment()
     if type(ready_removal_admission_enabled) is not bool or (ready_removal_admission_enabled and (
             settings.agent_mode != 'socket' or settings.development_auth is not False
             or settings.agent_cycles_enabled is not True or settings.large_snapshots_enabled is not True)):
         raise ValueError('Web v2 removal needs a literal capability, socket/session/large mode and production identity.')
+    if type(ordered_removal_admission_enabled) is not bool or (ordered_removal_admission_enabled and (
+            settings.agent_mode != 'socket' or settings.development_auth is not False
+            or settings.agent_cycles_enabled is not True or settings.large_snapshots_enabled is not True)):
+        raise ValueError('Ordered Web consent needs a literal capability, socket/session/large mode and production identity.')
     app = FastAPI(title="FTD Shun Manager", docs_url=None, redoc_url=None, openapi_url=None)
     reviews = ImportReviews(settings.sensitive_action_max_age_seconds)
     managed_reviews = ManagedRemovalReviews(settings.sensitive_action_max_age_seconds)
@@ -1246,6 +1255,9 @@ def create_app(settings: Settings | None = None, *, ready_removal_admission_enab
     register_import_web(app, settings, render=render, identity_for=identity_from_request,
                         client_for=lambda config: api_client(config), form_for=preview_form, csrf_for=require_csrf)
     register_ready_removal_web(app, settings, enabled=ready_removal_admission_enabled, render=render,
+        identity_for=identity_from_request, operator_for=require_managed_operator,
+        client_for=lambda config: api_client(config), form_for=preview_form, csrf_for=require_csrf)
+    register_ordered_removal_web(app, settings, enabled=ordered_removal_admission_enabled, render=render,
         identity_for=identity_from_request, operator_for=require_managed_operator,
         client_for=lambda config: api_client(config), form_for=preview_form, csrf_for=require_csrf)
     return app

@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Ordered removal status</h1>
+{% if refresh %}{% include "refresh-panel.html" %}{% endif %}
+<p>Original request: <code>{{ operation_id }}</code>. This page reads retained local evidence only, not a new Cisco query.</p>
+{% if cancellation %}<section aria-label="Waiting revocation receipt"><h2>Waiting authority revoked — not device removal</h2><p>Checked local receipt: {{ cancellation.state }}{{ ' · original revocation replay' if cancellation.replayed else '' }}. Maintenance stays stopped; ADD outcomes and attention remain unchanged. This is a historical receipt, not current execution.</p></section>{% endif %}
+{% if message %}<p class="preview-error" role="alert">{{ message }}</p>{% endif %}
+<section id="ordered-removal-state" data-live-region aria-live="polite">
+{% if ordered %}
+<p data-ordered-phase><span class="state-badge {{ 'policy-disabled' if ordered.attention else 'policy-enabled' if ordered.verified_removal else '' }}">{{ ordered.state }}</span> · {{ 'All original REMOVE jobs verified' if ordered.verified_removal else 'Verified whole-scope removal is not confirmed' }}.</p>
+{% if ordered.attention %}<p class="preview-error" role="alert">Retained attention: {{ ordered.decision.reason }}. Cancellation or elapsed time does not resolve the original uncertainty.</p>{% endif %}
+<p>Owner: {{ ordered.owner_subject }} · {{ ordered.scope.scope }} · {{ ordered.scope.ip }} · {{ ordered.scope.targets | length }} original target(s).</p>
+<p>Requested: <time class="local-timestamp" datetime="{{ ordered.requested_at }}">{{ ordered.requested_at }}</time>. Original authority expires: <time class="local-timestamp" datetime="{{ ordered.expires_at }}">{{ ordered.expires_at }}</time>. The shared worker owns expiry; a stored waiting phase never extends this deadline.</p>
+<p>{{ 'REMOVE was delegated to the shared queue; inspect each outcome below.' if ordered.device_work_admitted else 'No REMOVE delegation is recorded for this request.' }} Maintenance stopped by acceptance is not resumed by cancellation, expiry or failure.</p>
+<div class="table-scroll"><table aria-label="Original ordered scope"><thead><tr><th>Original device / IP</th><th>Captured ADD outcome</th><th>Delegated REMOVE outcome</th></tr></thead><tbody>
+{% for target in ordered.scope.targets %}<tr><td>{{ target.hostname }} ({{ target.device_id }})<br>{{ ordered.scope.ip }}</td>
+<td>{% set predecessors = ordered.predecessors | selectattr('device_id', 'equalto', target.device_id) | list %}{% if predecessors %}{{ predecessors[0].state }}<br><code>{{ predecessors[0].job_id }}</code>{% else %}No captured ADD on this target{% endif %}</td>
+<td>{% set jobs = ordered.cleanup_jobs | selectattr('device_id', 'equalto', target.device_id) | list %}{% if jobs %}{{ jobs[0].state }}<br><code>{{ jobs[0].job_id }}</code>{% else %}Not delegated{% endif %}</td></tr>{% endfor %}
+</tbody></table></div>
+{% if ordered.state in ('WAITING_ADD', 'ATTENTION') and ('Operator' in identity.roles or 'Administrator' in identity.roles) and (ordered.owner_subject == identity.subject or 'Administrator' in identity.roles) %}
+<details id="ordered-wait-cancellation"><summary>Cancel waiting authority — leave maintenance stopped</summary>
+<p>This does not interrupt a RUNNING ADD, clear attention or remove a shun. If REMOVE was already delegated, cancellation will be refused.</p>
+<form method="post" action="/managed-shuns/v2/ordered-removals/{{ operation_id }}/cancel" class="import-confirm-form managed-grant-form">
+<input type="hidden" name="csrf" value="{{ csrf_token }}"><label for="cancel-ordered-ip">Type {{ ordered.scope.ip }} to cancel this original waiting request</label>
+<input id="cancel-ordered-ip" name="confirm_ip" pattern="{{ ordered.scope.ip | replace('.', '[.]') }}" autocomplete="off" inputmode="decimal" required><button type="submit">Cancel waiting only</button></form></details>
+{% endif %}
+{% else %}<p class="preview-error">Current ordered evidence is unavailable. No success, absence, cancellation or rollback is inferred.</p>{% endif %}
+</section>
+<p><a href="/managed-shuns/v2/ordered-removals/{{ operation_id }}">Check local status now</a> · <a href="/managed-shuns">Back to Managed shuns</a></p>
+<p class="preview-help">Passive updates read local state only, preserve dirty forms and never request a device refresh. Command verification is historical evidence, not a fresh guarantee of current absence.</p>
+<script src="/static/freshness.js" defer></script>
+{% endblock %}

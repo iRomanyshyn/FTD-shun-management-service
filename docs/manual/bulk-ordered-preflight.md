@@ -7,8 +7,8 @@ inspector still does not admit or initialize anything. Worker coordination is no
 implemented separately in the default-off [ordered promoter](bulk-ordered-promotion.md).
 A separate [private ordered API](ordered-removal-api.md) now exposes this
 read-only inspection and independently gated reservation/status/revocation.
-Frozen Web execution control, an environment setting and live activation remain
-unavailable. The
+Separate default-off [Web consent/status](ordered-removal-web.md) is now available;
+an environment setting and live activation remain unavailable. The
 existing [ready-only confirmation](ready-removal-confirmation.md) remains separate
 and rejects pending ADD rather than silently switching modes.
 

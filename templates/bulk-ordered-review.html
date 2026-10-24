@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block content %}
+{% set scope = inspection.scope %}
+{% set admission = review and ordered_removal_local_enabled and refresh and refresh.ordered_removal_admission_enabled is sameas true and refresh.ordered_removal_promotion_enabled is sameas true %}
+<h1>Review ordered stop maintaining and remove</h1>
+{% if refresh %}{% include "refresh-panel.html" %}{% endif %}
+{% if message %}<p class="preview-error" role="alert">{{ message }}</p>{% endif %}
+<p class="policy-warning"><strong>{{ 'Ordered reservation — not verified removal.' if admission else 'Inspection only — execution is unavailable.' }}</strong> This is a separate action, not a ready-only fallback. Preparation has changed nothing.</p>
+<p>Frozen {{ scope.scope }} scope: <strong>{{ scope.targets | length }} device/IP target(s)</strong> for {{ scope.ip }}. Confirmation permanently stops matching maintenance and reserves the complete removal scope. Removal waits for all captured ADD commands <em>and their sessions</em> to settle. Failed or unknown evidence retains attention; no ADD is replayed.</p>
+<p>Cancellation, expiry or failure never resumes stopped maintenance. Individual device results are separate, not an atomic fleet device change.</p>
+<p>Inspection: <span class="state-badge {{ 'policy-enabled' if inspection.disposition == 'WAITING_ADD' else 'policy-disabled' }}">{{ inspection.disposition }}</span> · <time class="local-timestamp" datetime="{{ inspection.inspected_at }}">{{ inspection.inspected_at }}</time>.</p>
+{% if inspection.global_blockers %}<p class="preview-error">Whole-scope blockers: {{ inspection.global_blockers | join(', ') }}</p>{% endif %}
+<div class="table-scroll"><table aria-label="Frozen ordered removal scope"><thead><tr><th>Device / IP</th><th>Policy / observation</th><th>Disposition</th><th>Captured ADD</th></tr></thead><tbody>
+{% for target in scope.targets %}{% set item = inspection.targets[loop.index0] %}<tr>
+<td>{{ target.hostname }} ({{ target.device_id }})<br>{{ scope.ip }}<br>{{ 'Device enabled' if target.device_enabled else 'Device disabled — blocks entire scope' }}</td>
+<td>{{ 'Maintain presence — will retire' if target.maintenance_enabled else 'Cleanup only — no adoption' }}<br>{{ 'Observed present' if target.observed_present else 'Not currently observed — retained scope' }}</td>
+<td><span class="state-badge {{ 'policy-disabled' if item.disposition == 'BLOCKED' else '' }}">{{ item.disposition }}</span>{% for blocker in item.blockers %}<br>{{ blocker }}{% endfor %}</td>
+<td>{% if item.predecessor %}<code>{{ item.predecessor.job_id }}</code><br>Generation {{ item.predecessor.generation }} · epoch {{ item.predecessor.executor_epoch }}<br>Original ADD expires <time class="local-timestamp" datetime="{{ item.predecessor.expires_at }}">{{ item.predecessor.expires_at }}</time>{% else %}No waitable RUNNING ADD{% endif %}</td>
+</tr>{% endfor %}</tbody></table></div>
+{% if review %}
+<dl class="import-review-metadata"><dt>Managed / protection revisions</dt><dd>{{ scope.managed_revision }} / {{ scope.protected_revision }} — rechecked atomically</dd>
+<dt>Reason</dt><dd>{{ review.reason or 'Not supplied' }}</dd>
+<dt>Review expires</dt><dd><time class="local-timestamp" datetime="{{ review.expires_at }}">{{ review.expires_at }}</time></dd>
+<dt>Original delegation lifetime</dt><dd>{{ review.payload().ttl_seconds }} seconds from admission; retries never renew it.</dd>
+<dt>Request / retry key</dt><dd><code>{{ review.request_id }}</code></dd></dl>
+{% if result %}<section aria-label="Ordered reservation receipt"><h2>Waiting reserved — not verified removal</h2>
+<p>{{ result.target_count }} targets · {{ result.predecessor_count }} captured ADD(s) · {{ result.retired_targets }} maintenance targets stopped.</p>
+<p>{{ 'Original-key replay — no new work or deadline renewal.' if result.replayed else 'One whole-scope reservation was accepted.' }} This historical WAITING_ADD receipt is not current execution.</p>
+<p>Original expiry: <time class="local-timestamp" datetime="{{ result.expires_at }}">{{ result.expires_at }}</time>.</p></section>
+{% else %}<form method="post" action="/managed-shuns/v2/ordered-removal-confirm" class="import-confirm-form managed-grant-form">
+<input type="hidden" name="csrf" value="{{ csrf_token }}"><input type="hidden" name="review" value="{{ review.token }}">
+<label for="confirm-ordered-ip">Type {{ scope.ip }} to stop maintenance and reserve this exact {{ scope.scope }} removal</label>
+<input id="confirm-ordered-ip" name="confirm_ip" value="{{ scope.ip if message else '' }}" pattern="{{ scope.ip | replace('.', '[.]') }}" autocomplete="off" inputmode="decimal" required>
+<button type="submit"{% if not admission %} disabled{% endif %}>Stop maintaining and reserve ordered removal{{ ' — unavailable' if not admission else '' }}</button></form>{% endif %}
+<p><a href="/managed-shuns/v2/ordered-removals/{{ review.request_id }}">Inspect original request status</a> — available after acceptance, including after Web restart. After an unknown reply, retry only this original review/key.</p>
+<p class="preview-help">This immutable review is bound to your identity and CSRF cookie, expires within ten minutes and is lost on Web restart. Metadata refresh cannot change its scope, key or typed IP. Web/API admission and owning promotion are separate capabilities.</p>
+{% else %}<p class="policy-warning">{{ 'No captured RUNNING ADD remains. Prepare a separate ready-only review if appropriate.' if inspection.disposition == 'READY' else 'The entire scope is blocked. Inspect the listed blockers before preparing a new review.' }} No confirmation token was created; no scope was silently replaced.</p>{% endif %}
+<a href="/managed-shuns">Back to Managed shuns</a>
+<script src="/static/freshness.js" defer></script>
+{% endblock %}

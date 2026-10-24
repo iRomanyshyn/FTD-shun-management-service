@@ -98,6 +98,11 @@
     ));
     const replacement = document.importNode(nextRegion, true);
     oldRegion.replaceWith(replacement);
+    // Reopen details before restoring focus: a field in a closed details body
+    // cannot receive focus, even if the body is reopened immediately afterward.
+    replacement.querySelectorAll("details[id]").forEach((element) => {
+      if (opened.has(element.id)) element.open = opened.get(element.id);
+    });
     replacement.querySelectorAll("input, textarea, select").forEach((field) => {
       const saved = values.get(fieldKey(field));
       if (!saved) return;
@@ -110,9 +115,6 @@
           field.setSelectionRange(saved.start, saved.end);
         }
       }
-    });
-    replacement.querySelectorAll("details[id]").forEach((element) => {
-      if (opened.has(element.id)) element.open = opened.get(element.id);
     });
     localize(replacement);
   };
@@ -195,7 +197,9 @@
         runtimeNotice.textContent = "Continuous observation profile: "
           + (status.managed_policy_view_available === true ? "managed policy viewing is available; " : "")
           + (status.managed_policy_retirement_available === true ? "stop-maintaining is available; " : "")
-          + (status.ready_removal_admission_enabled === true
+          + (status.ordered_removal_admission_enabled === true
+            ? "ordered removal API admission is available with separate Web confirmation; ADD/import admission remains unavailable. "
+            : status.ready_removal_admission_enabled === true
             ? "ready-only removal API admission is available with separate Web confirmation; ADD/import admission remains unavailable. "
             : "ADD/import admission and device-removal admission are unavailable. ")
           + "Protected-IP policy and its automatic removal remain active under the existing safety checks.";

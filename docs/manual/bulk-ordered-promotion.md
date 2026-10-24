@@ -3,8 +3,9 @@
 Status: explicitly migrated, default-disabled internal coordination. **Not migrated,
 enabled or deployed in the lab.** The separate default-off
 [private ordered API](ordered-removal-api.md) supplies reservation/status/revocation;
-frozen Web consent, an environment selector, unknown-outcome recovery and
-production acceptance remain unavailable. Read
+separately gated [Web consent/status](ordered-removal-web.md) is now implemented.
+An environment selector, unknown-outcome recovery and production acceptance
+remain unavailable. Read
 [Ordered Reservations](bulk-ordered-reservations.md) and
 [Local Cycle Settlement](cycle-settlement.md) first.
 

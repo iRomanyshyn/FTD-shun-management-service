@@ -3,8 +3,9 @@
 Status: default-disabled internal reservation/revocation foundation. A separate
 explicit optional schema migration is implemented, **not applied to the lab**.
 Separate default-off [private ordered API](ordered-removal-api.md) routes now
-expose reservation/status/revocation. Frozen Web consent, a configured runtime
-selector and live activation remain unavailable.
+expose reservation/status/revocation. Separate default-off
+[Web controls](ordered-removal-web.md) now provide frozen consent/local status.
+A configured runtime selector and live activation remain unavailable.
 A separately migrated/default-off [ordered promoter](bulk-ordered-promotion.md)
 now transfers eligible whole scopes into existing shared workers; this reservation
 coordinator still creates no REMOVE jobs by itself.

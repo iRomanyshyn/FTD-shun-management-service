@@ -116,9 +116,11 @@ null; only explicit false restricts them. Existing authentication, real-actor au
 CSRF, form revisions, typed deletion, frozen reviews and data-revision updates stay
 in force. Runtime selection/capabilities cannot be changed by browser requests.
 
-Ordered API support does not add a frozen Web consent/status workflow; that
-remains a distinct delivery step with its own session/CSRF-bound confirmation.
-The existing ready-only Web form never silently becomes ordered admission.
+Separate [ordered Web controls](ordered-removal-web.md) now provide frozen
+session/CSRF-bound confirmation behind an independent default-false Web capability,
+read-only original-scope/current-outcome status and owner/Admin waiting revocation.
+Neither API metadata nor a DOM edit enables a false local Web capability. The
+existing ready-only Web form never silently becomes ordered admission.
 
 ## Rollout, rollback and remaining work
 

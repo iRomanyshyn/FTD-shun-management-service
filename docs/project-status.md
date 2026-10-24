@@ -15,6 +15,48 @@ priority. See [the planned constraints](working-version-plan.md#deferred-ip-cont
 
 ## Current increment
 
+**Frozen ordered Web consent, live local status and waiting revocation
+(2026-10-24).** Added a separate collapsed Managed-shuns ordered workflow with
+exact one-device/full-fleet inspection and explicit frozen confirmation. Complete
+preflight/digest/mode/disposition/predecessor validation precedes preparation;
+READY/BLOCKED has no token, scope substitution or ready fallback. Eligible reviews
+freeze scope, predecessors, distinct action/digest, original UUID, bounded TTL and
+reason in a detached immutable subject/CSRF-cookie-bound five-per-subject/256-total
+cache lasting at most ten minutes. Confirmation accepts only CSRF/token/typed IP,
+rechecks expiry after metadata I/O and requires independent literal default-off
+Web/API admission plus owning promotion capabilities. Only one fixed private
+route/body/key and the actual actor can be submitted.
+
+Strict historical 202 receipt checks preserve original requested-at/TTL and do not
+infer current progress or success. Unknown/malformed replies retain the original
+review/key for explicit retry; optional later metadata failure cannot negate a
+checked receipt. A canonical-UUID local-status permalink survives Web restart,
+validates complete original owner/scope/predecessor/delegated-job projection, and
+reports verification only after every original REMOVE is VERIFIED. Missing or
+inconsistent evidence is unavailable, never empty success. GET/passive updates
+do not hint device reads, expire/promote work or change policy.
+
+Separate CSRF/typed-IP owner/Admin waiting revocation remains available during
+pause and with admission/promotion disabled. Race-to-ADMITTED conflicts, retained
+attention survives, and no RUNNING ADD is interrupted or maintenance resumed.
+Checked cancellation survives failed follow-up status; an unknown cancellation
+reply permits only original-request inspection/retry. Dirty status-page fields,
+focus and open sections survive local updates; a real Chromium failure uncovered
+the need to reopen details before restoring field focus, now corrected. Frozen
+review scope/key/input never changes during metadata refresh. API status adds
+bounded owner/predecessor-count metadata; no DDL/agent/wire/Compose/runtime selector
+or lab database/gate/service/device was changed. See
+[Ordered Web Controls](manual/ordered-removal-web.md).
+
+Validation: **2299 Python tests passed (278.63s)**; focused ordered Web/API/ready/
+continuous/reservation/promotion regression **256 passed (48.10s)**, with **60 new
+Python cases**. Real Chromium **36 passed (132.40s)**, including two new ordered
+scenarios. Compileall, Ruff, JS syntax, diff/new-file whitespace and **313 changed/
+new-document local links/anchors** pass. All execution used disposable synthetic
+profiles/fake sessions; no live migration, rollout or device acceptance was implied.
+
+### Previous private ordered API checkpoint
+
 **Version-2 private ordered-removal API (2026-10-24).** Added distinct strict
 device/fleet reservation routes behind an independent literal default-false API
 factory capability. Enablement requires compatible continuous ownership, strict
@@ -2598,8 +2640,10 @@ Current working-version sequence (2026-10-24):
    whole-scope promotion/attention with original TTL/capacity transfer is now
    implemented behind a separate optional profile/default-off
    factory capability. Separate strict ordered private API admission/current status/
-   local revocation are implemented. Next is frozen session/CSRF-bound ordered
-   Web consent/status with its independent default-off capability.
+   local revocation and frozen session/CSRF-bound ordered Web consent/current
+   status/typed revocation are implemented, with an independent default-off Web
+   capability. Configured runtime/inventory, migration and scoped executable
+   device/multi-device/load/recovery acceptance remain before activation.
    No live migration/activation follows.
 2. Connect bounded managed import/adoption/cancellation review to the compatible
    continuous runtime; retain 10000-IP selected-device limits, managed-only

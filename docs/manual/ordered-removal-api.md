@@ -2,7 +2,9 @@
 
 Status: developer composition on existing exact fenced storage, default-disabled.
 **Not migrated, enabled or deployed in the lab.** This is not a public API, a
-runtime selector, frozen browser consent or permission to issue live mutations.
+runtime selector or permission to issue live mutations. The separate default-off
+[ordered Web workflow](ordered-removal-web.md) now supplies frozen browser consent,
+status and waiting revocation; the API is not consent by itself.
 Read [Ordered Reservations](bulk-ordered-reservations.md),
 [Ordered Promotion](bulk-ordered-promotion.md) and
 [Continuous API Composition](continuous-api.md) first.
@@ -76,7 +78,8 @@ unrecognized reply must be inspected/retried using that exact original key, neve
 re-keyed or reduced to a ready subset.
 
 Use the distinct GET status for current state. It includes the immutable `scope`,
-`requested_at`, `expires_at`, captured `predecessors`, `cleanup_reserved`,
+`owner_subject`, exact `predecessor_count`, `requested_at`, `expires_at`, captured
+`predecessors`, `cleanup_reserved`,
 `device_work_admitted`, retained `attention`, `decision`, and bounded
 `cleanup_jobs` with original device/job IDs and current job states.
 `verified_removal` becomes true only when every original delegated REMOVE job is
@@ -115,7 +118,8 @@ take checked SQLite-safe backups with matching images/configuration, following
 the prerequisite migration manuals. Older images must not write or prune ordered
 evidence. Disable new admission/promotion and use compatible pause/queue controls
 for rollback; never delete receipts or restore pre-retirement enabled policy to
-force a downgrade. Frozen session/CSRF-bound Web confirmation/status remains next.
+force a downgrade. The separately gated
+[Web confirmation/status](ordered-removal-web.md) never changes these controls.
 
 ## Synthetic validation
 

@@ -1,5 +1,29 @@
 # Development Manual
 
+## Ordered Web consent, local status and revocation checks
+
+```bash
+python3 -m pytest -q tests/test_ordered_removal_web.py tests/test_ordered_removal_api.py tests/test_ready_removal_web.py tests/test_continuous_api.py tests/test_bulk_ordered_waits.py tests/test_bulk_ordered_promotion.py
+node --test tests/browser/freshness.cjs
+```
+
+Use disposable profiles/semantic agents and local Chromium only. The BFF tests
+forward actual synchronous private requests to the ASGI API; real queue/policy
+transactions and the shared fake worker are exercised, not substituted responses
+for the write path. Check separate literal capabilities; complete preflight,
+historical receipt/current job projection; actor/role/CSRF/session/cross-purpose
+refusal; immutable caches and post-I/O expiry; stale membership; unknown replies
+and original-key retries; status after Web restart; owner/Admin revocation while
+paused/disabled; race-to-ADMITTED conflict; checked revocation followed by failed
+status; and malformed whole-scope evidence without success inference.
+
+Chromium checks frozen input/key/focus, literal default-off gates, escaping/native
+typed-IP validation, mobile form spacing and dynamic local status/dirty fields
+with no device refresh or execution requests. Reopen preserved details before
+restoring field focus, otherwise Chromium silently refuses focus in closed bodies.
+No new pytest/npm dependency, lab fixture, gate, migration or deployment is needed.
+See [Ordered Web Controls](ordered-removal-web.md).
+
 ## Private ordered-removal API checks
 
 ```bash
