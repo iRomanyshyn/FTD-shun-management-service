@@ -6716,6 +6716,57 @@ force downgrade. Frozen ordered Web/API consent/status, configured runtime/
 inventory, nonempty migration and real transport/multi-device/load/recovery
 acceptance remain. See [Ordered Promotion](manual/bulk-ordered-promotion.md).
 
+## 2026-10-24 — Strict private ordered-removal API and current outcome projection
+
+Added distinct fixed v2 private device/fleet ordered reservation routes on the
+explicit continuous composition, behind an independent literal default-false API
+capability. Admission requires the compatible strict-settlement owner, its separate
+promotion capability and an already complete exact reservation/promotion profile.
+Validate before lifecycle binding and again at startup. No constructor/GET/admit
+initializes optional state, enables ADD or falls back to legacy/ready admission.
+Readonly preflight still works with admission disabled and no optional ordered
+tables, using the shared queue's explicit UTC clock on the exact base fenced profile.
+
+Strict request models bind the original canonical scope, typed complete sorted
+RUNNING predecessor/request/claim/epoch/deadline evidence, distinct digest,
+actual Operator/Administrator actor, original UUID and bounded TTL/reason. The
+existing coordinator reserves/retires the entire scope atomically; changed scope,
+wrong mode/actor/digest, coerced fields or late audit failure admit nothing.
+New commits notify the existing owner; immutable original-key replay reports the
+historical WAITING_ADD receipt with replay marker, without renewing TTL or waking
+work. No new executor, device operation or arbitrary CLI field was introduced.
+
+Expanded local status with original frozen scope/requested-at, explicit original
+delegated REMOVE job states and all-jobs-VERIFIED removal. ADMITTED is not success;
+failed/unknown attention survives waiting revocation. GET does not promote,
+expire, renew, hint device reads or mutate policy. A dedicated absent-root exception
+keeps 404 distinct from malformed retained evidence (503). Fixed actor-only
+owner/Admin cancellation works while paused/admission disabled, audits the actual
+actor and cannot alter a RUNNING ADD, resume retired policy, clear uncertainty or
+revoke already delegated work as waiting.
+
+Added 40 synthetic SQLite/ASGI/fake-session tests covering independent/literal
+capabilities and startup drift, optional-profile absence, exact device/fleet scope,
+strict metadata/actor/mode/digest/TTL, same-key concurrency/lost-reply retry,
+unchanged original expiry, late transaction rollback, truthful partial/completed
+job status, absent versus malformed state, pause/disabled-mode owner/Admin
+revocation and actual API-lifecycle/shared continuous fake REMOVE execution.
+Initial focused failures exposed an incorrect test expectation: replay intentionally
+changes only the response replay marker; corrected tests, not stored receipts.
+Focused ordered/API/legacy regression: **241 passed (25.67s)**. Final full suite:
+**2239 Python tests passed (255.23s)**. Compileall, Ruff, diff/new-file whitespace
+and all **299 changed/new-document local links/anchors** pass.
+
+Updated normative architecture, working plan, current status and structured
+API/queue/profile/development manuals, including prerequisites, original-receipt
+semantics, failure handling, backup/rollback and operating impact. This packet
+adds no DDL or configuration selector. No real database, credentials, inventory,
+feature gate/profile, services/images or FTD state was changed; no lab migration,
+fixture authorization or production acceptance was consumed. Agent/Compose/UI
+unchanged; Rust/Chromium are not required for this API-only packet. Frozen
+session/CSRF-bound ordered Web consent/status, configured runtime/inventory and
+separately scoped transport/multi-device/load/recovery acceptance remain next.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

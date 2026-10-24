@@ -12,13 +12,15 @@ from .protected_policy import ProtectedPolicy
 class ContinuousApiRuntime:
     """Restricted existing-profile API, not general v2 write-workflow activation."""
 
-    def __init__(self, settings, store, dispatcher, agent=None, *, ready_removal_admission_enabled=False):
+    def __init__(self, settings, store, dispatcher, agent=None, *, ready_removal_admission_enabled=False,
+                 ordered_removal_admission_enabled=False):
         if type(dispatcher) is not ContinuousDispatcher:
             raise ValueError('An explicit continuous dispatcher is required.')
         self.settings, self.store, self.dispatcher = settings, store, dispatcher
         if type(ready_removal_admission_enabled) is not bool:
             raise ValueError('Ready removal admission capability must be a literal boolean.')
         self.ready_removal_admission_enabled = ready_removal_admission_enabled
+        self.ordered_removal_admission_enabled = ordered_removal_admission_enabled
         self._started = False
         self._validate(agent)
         if getattr(dispatcher, '_api_application_bound', False):
@@ -26,6 +28,7 @@ class ContinuousApiRuntime:
         dispatcher._api_application_bound = True
         self.policy = ProtectedPolicy(store, initialize_queue=False)
         self.queue = dispatcher.runner.queue
+        from .bulk_ordered_waits import BulkOrderedWaits
         from .bulk_policy import BulkPolicies
         from .bulk_policy_views import BulkPolicyViews
         from .bulk_removals import BulkRemovals, BulkRemovalScopes
@@ -34,12 +37,15 @@ class ContinuousApiRuntime:
         self.policy_revocation = BulkPolicies(store, clock=self.queue._now)
         self.removal_scopes = BulkRemovalScopes(store)
         self.ready_removals = BulkRemovals(store, self.queue)
+        self.ordered_removals = BulkOrderedWaits(store, self.queue)
         # Legacy routes are explicitly refused before handler dispatch.
         self.managed_removals = None
 
     def _validate(self, agent=None):
         if type(self.ready_removal_admission_enabled) is not bool:
             raise ValueError('Ready removal admission capability must be a literal boolean.')
+        if type(self.ordered_removal_admission_enabled) is not bool:
+            raise ValueError('Ordered removal admission capability must be a literal boolean.')
         settings, service = self.settings, self.dispatcher
         runner, config = service.runner, service.runner.configuration
         if (runner.store is not self.store or settings.database_path != self.store.path
@@ -76,6 +82,10 @@ class ContinuousApiRuntime:
         if not self.store.path.is_file():
             raise QueueConflict('Continuous API requires existing storage; nothing was initialized.')
         runner._configured_devices()  # Exact optional profile/scope/settlement/capacity; no migration.
+        if self.ordered_removal_admission_enabled:
+            if service.ordered_promotion_enabled is not True:
+                raise ValueError('Ordered API admission requires the separate owning promotion capability.')
+            service.ordered_promoter.require_storage()  # Existing exact storage; never migrate.
         with self.store._connection() as db:
             db.execute('BEGIN')
             marker = db.execute('SELECT legacy_imported FROM protected_policy WHERE id=1').fetchone()
@@ -102,12 +112,17 @@ class ContinuousApiRuntime:
                                  '/api/v1/history', '/api/v1/history-page', '/api/v1/search', '/api/v1/protected-ips',
                                  '/api/v2/managed-shuns/page'}
                         or re.fullmatch(r'/api/v1/(?:shuns|history)/[^/]+', path)
-                        or re.fullmatch(r'/api/v2/managed-removal-scope/[^/]+', path))
+                        or re.fullmatch(r'/api/v2/managed-removal-scope/[^/]+', path)
+                        or re.fullmatch(r'/api/v2/managed-ordered-removal-scope/[^/]+', path)
+                        or re.fullmatch(r'/api/v2/managed-ordered-removals/[0-9a-f-]{36}', path))
         if method == 'POST':
             return bool(path in {'/api/v1/refresh-hint', '/api/v1/import-preview',
                                  '/api/v2/managed-shuns/selection', '/api/v2/managed-shuns/retire'}
                         or (self.ready_removal_admission_enabled is True and path in {
                             '/api/v2/managed-removals/device', '/api/v2/managed-removals/fleet'})
+                        or (self.ordered_removal_admission_enabled is True and path in {
+                            '/api/v2/managed-ordered-removals/device', '/api/v2/managed-ordered-removals/fleet'})
+                        or re.fullmatch(r'/api/v2/managed-ordered-removals/[0-9a-f-]{36}/cancel', path)
                         or re.fullmatch(r'/api/v1/protected-ips/[^/]+/(?:add|edit|delete)', path))
         return False
 
@@ -130,7 +145,10 @@ class ContinuousApiRuntime:
                 'manual_mutations_available': False, 'managed_workflows_available': False,
                 'managed_policy_view_available': True, 'managed_policy_retirement_available': True,
                 'ready_removal_review_available': True,
-                'ready_removal_admission_enabled': self.ready_removal_admission_enabled}
+                'ready_removal_admission_enabled': self.ready_removal_admission_enabled,
+                'ordered_removal_review_available': True,
+                'ordered_removal_admission_enabled': self.ordered_removal_admission_enabled,
+                'ordered_removal_promotion_enabled': self.dispatcher.ordered_promotion_enabled is True}
 
     def request_activity(self):
         self.dispatcher.request_activity()

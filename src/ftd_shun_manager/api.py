@@ -17,6 +17,7 @@ from .agent_client import (
     MockAgentClient,
     UnixAgentClient,
 )
+from .bulk_ordered_waits import OrderedReservationNotFound
 from .config import Settings
 from .import_cancellations import ImportCancellations
 from .import_preparations import ImportPreparations, PreparationCapacity, PreparationUnavailable
@@ -227,6 +228,42 @@ class ReadyRemovalRequest(BaseModel):
     reason: str = Field(default='', max_length=500)
 
 
+class OrderedPredecessorEvidence(BaseModel):
+    model_config = ConfigDict(extra='forbid', strict=True)
+    request_id: str = Field(min_length=36, max_length=36)
+    job_id: str = Field(min_length=36, max_length=36)
+    intent_id: str = Field(min_length=36, max_length=36)
+    generation: int = Field(ge=1, le=2**63 - 1)
+    authorization_request_id: str = Field(min_length=36, max_length=36)
+    target_revision: int = Field(ge=0)
+    snapshot_id: str = Field(min_length=36, max_length=36)
+    snapshot_started_at: str = Field(min_length=24, max_length=24)
+    snapshot_at: str = Field(min_length=24, max_length=24)
+    requested_at: str = Field(min_length=24, max_length=24)
+    expires_at: str = Field(min_length=24, max_length=24)
+    started_at: str = Field(min_length=24, max_length=24)
+    executor_owner: str = Field(min_length=36, max_length=36)
+    executor_epoch: int = Field(ge=1, le=2**63 - 1)
+    lease_until: str = Field(min_length=24, max_length=24)
+    claim_event_id: str = Field(min_length=36, max_length=36)
+    evidence_digest: str = Field(pattern=r'^[0-9a-f]{64}$')
+
+
+class OrderedPredecessor(BaseModel):
+    model_config = ConfigDict(extra='forbid', strict=True)
+    device_id: int = Field(ge=1, le=65535)
+    evidence: OrderedPredecessorEvidence
+
+
+class OrderedRemovalRequest(ReadyRemovalRequest):
+    predecessors: list[OrderedPredecessor] = Field(min_length=1, max_length=10)
+
+
+class OrderedCancellationRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    actor: ReadyRemovalActor
+
+
 class ImportPreviewRequest(BaseModel):
     ips: list[IPv4Address] = Field(max_length=MAX_ROWS)
     device_ids: list[Annotated[int, Field(ge=1, le=65535)]] = Field(min_length=1, max_length=MAX_DEVICES)
@@ -304,9 +341,12 @@ def create_app(
     *,
     continuous_dispatcher=None,
     ready_removal_admission_enabled=False,
+    ordered_removal_admission_enabled=False,
 ) -> FastAPI:
     if type(ready_removal_admission_enabled) is not bool or (ready_removal_admission_enabled and continuous_dispatcher is None):
         raise ValueError('Ready removal needs an explicit compatible continuous runtime and a literal capability.')
+    if type(ordered_removal_admission_enabled) is not bool or (ordered_removal_admission_enabled and continuous_dispatcher is None):
+        raise ValueError('Ordered removal needs an explicit compatible continuous runtime and a literal capability.')
     settings = settings or Settings.from_environment()
     store = store or Store(settings.database_path)
     continuous = None
@@ -314,7 +354,8 @@ def create_app(
         from .continuous_api import ContinuousApiRuntime
 
         continuous = ContinuousApiRuntime(settings, store, continuous_dispatcher, agent_client,
-                                          ready_removal_admission_enabled=ready_removal_admission_enabled)
+                                          ready_removal_admission_enabled=ready_removal_admission_enabled,
+                                          ordered_removal_admission_enabled=ordered_removal_admission_enabled)
     else:
         if store.path.is_file():
             with store._connection() as db:
@@ -378,6 +419,11 @@ def create_app(
                 and (continuous is None or continuous.ready_removal_admission_enabled is not True)):
             response = JSONResponse(status_code=503, content={
                 'detail': 'Version-2 ready removal admission is disabled; no request was admitted. Inspect any earlier outcome.'})
+        elif (request.method == 'POST' and request.url.path in {
+                '/api/v2/managed-ordered-removals/device', '/api/v2/managed-ordered-removals/fleet'}
+                and (continuous is None or continuous.ordered_removal_admission_enabled is not True)):
+            response = JSONResponse(status_code=503, content={
+                'detail': 'Version-2 ordered removal admission is disabled; no request was admitted. Inspect any earlier outcome.'})
         elif continuous is not None and not continuous.supports(request.method, request.url.path):
             response = JSONResponse(status_code=503, content={
                 'detail': 'This continuous API profile supports observations, refresh demand, Protected IPs, '
@@ -476,6 +522,70 @@ def create_app(
             return continuous.removal_scopes.snapshot(ip, device_id=device_id)
         except ManagedConflict as error:
             raise HTTPException(409, str(error)) from error
+
+    @app.get('/api/v2/managed-ordered-removal-scope/{ip}')
+    def ordered_removal_scope(ip: IPv4Address, device_id: Annotated[int | None, Query(ge=1, le=65535)] = None) -> dict:
+        if continuous is None:
+            raise HTTPException(503, 'Version-2 ordered inspection requires explicit compatible API composition.')
+        try:
+            return continuous.ordered_removals.scopes.snapshot(ip, device_id=device_id, now=continuous.queue._now())
+        except (PermissionError, ValueError, sqlite3.DatabaseError) as error:
+            raise cleanup_error(error) from error
+
+    @app.post('/api/v2/managed-ordered-removals/device', status_code=202)
+    def ordered_device_removal(change: OrderedRemovalRequest, request: Request) -> dict:
+        return ordered_removal(change, request, 'device')
+
+    @app.post('/api/v2/managed-ordered-removals/fleet', status_code=202)
+    def ordered_fleet_removal(change: OrderedRemovalRequest, request: Request) -> dict:
+        return ordered_removal(change, request, 'fleet')
+
+    def ordered_removal(change, request, mode):
+        if continuous is None or continuous.ordered_removal_admission_enabled is not True:
+            raise HTTPException(503, 'Version-2 ordered removal admission is disabled; inspect any earlier outcome.')
+        require_operator(change.actor)
+        if change.reviewed.scope != mode:
+            raise HTTPException(422, 'The exact reviewed mode must match this fixed ordered-removal route.')
+        if change.ttl_seconds > min(900, settings.sensitive_action_max_age_seconds):
+            raise HTTPException(422, 'Ordered removal lifetime exceeds the configured sensitive-action maximum.')
+        try:
+            result = continuous.ordered_removals.reserve(request.headers.get('Idempotency-Key', ''),
+                change.reviewed.model_dump(), [row.model_dump() for row in change.predecessors],
+                change.confirmation_digest, change.actor.subject, change.actor.display_name,
+                tuple(change.actor.roles), ttl_seconds=change.ttl_seconds, reason=change.reason, enabled=True)
+        except (PermissionError, ValueError, sqlite3.DatabaseError) as error:
+            raise cleanup_error(error) from error
+        if not result['replayed']:
+            continuous.note_state_change()
+            continuous.dispatcher.signal_work()
+        return result
+
+    @app.get('/api/v2/managed-ordered-removals/{operation_id}')
+    def ordered_removal_status(operation_id: str) -> dict:
+        if continuous is None:
+            raise HTTPException(503, 'Version-2 ordered status requires explicit compatible API composition.')
+        try:
+            return continuous.ordered_removals.status(operation_id)
+        except OrderedReservationNotFound as error:
+            raise HTTPException(404, 'Ordered reservation not found.') from error
+        except (PermissionError, ValueError, sqlite3.DatabaseError) as error:
+            raise cleanup_error(error) from error
+
+    @app.post('/api/v2/managed-ordered-removals/{operation_id}/cancel')
+    def cancel_ordered_removal(operation_id: str, change: OrderedCancellationRequest) -> dict:
+        if continuous is None:
+            raise HTTPException(503, 'Version-2 ordered revocation requires explicit compatible API composition.')
+        require_operator(change.actor)
+        try:
+            result = continuous.ordered_removals.cancel(operation_id, change.actor.subject,
+                change.actor.display_name, tuple(change.actor.roles))
+        except OrderedReservationNotFound as error:
+            raise HTTPException(404, 'Ordered reservation not found.') from error
+        except (PermissionError, ValueError, sqlite3.DatabaseError) as error:
+            raise cleanup_error(error) from error
+        if not result['replayed']:
+            continuous.note_state_change()  # Local revocation only; no device-work hint.
+        return result
 
     @app.get('/api/v2/managed-shuns/page')
     def bulk_policy_page(page: Annotated[int, Query(ge=1, le=2**31 - 1)] = 1,

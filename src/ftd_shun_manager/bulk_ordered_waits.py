@@ -31,6 +31,12 @@ DOMAIN = b'ftd-shun-manager:ordered-removal:v2\n'
 _PREDECESSOR_FIELDS = {'request_id', 'job_id', 'intent_id', 'generation', 'authorization_request_id',
     'target_revision', 'snapshot_id', 'snapshot_started_at', 'snapshot_at', 'requested_at', 'expires_at',
     'started_at', 'executor_owner', 'executor_epoch', 'lease_until', 'claim_event_id', 'evidence_digest'}
+
+
+class OrderedReservationNotFound(KeyError):
+    """An absent root, distinct from malformed retained evidence."""
+
+
 DDL = """
 CREATE TABLE managed_bulk_ordered_roots (
     id TEXT PRIMARY KEY REFERENCES managed_shun_requests(id),
@@ -345,7 +351,7 @@ class BulkOrderedWaits:
                 raise BulkUnavailable('Existing ordered storage is required.')
             row = db.execute('SELECT * FROM managed_bulk_ordered_roots WHERE id=?', (key,)).fetchone()
             if row is None:
-                raise KeyError('Ordered reservation not found.')
+                raise OrderedReservationNotFound('Ordered reservation not found.')
             outcomes = []
             for member in db.execute('SELECT * FROM managed_bulk_ordered_members WHERE root_id=? AND job_id IS NOT NULL ORDER BY device_id', (key,)):
                 job = db.execute('SELECT state FROM operation_jobs WHERE id=?', (member['job_id'],)).fetchone()
@@ -356,11 +362,25 @@ class BulkOrderedWaits:
                 raise BulkUnavailable('Incomplete ordered promotion evidence is unavailable.')
             admitted = receipt is not None and receipt['state'] == 'ADMITTED'
             state = receipt['state'] if receipt is not None and row['state'] == 'WAITING_ADD' else row['state']
-            return {'operation_id': key, 'state': state, 'expires_at': row['expires_at'], 'predecessors': outcomes,
+            original = db.execute('SELECT payload_json FROM managed_shun_requests WHERE id=?', (key,)).fetchone()
+            scope = json.loads(original['payload_json'])['reviewed']
+            delegated = []
+            result = json.loads(receipt['result_json']) if receipt else None
+            if admitted:
+                for reference in result['jobs']:
+                    job = db.execute('SELECT state FROM operation_jobs WHERE id=?', (reference['job_id'],)).fetchone()
+                    if job is None:
+                        raise BulkUnavailable('Original delegated REMOVE evidence is unavailable.')
+                    delegated.append({**reference, 'state': job['state']})
+            return {'operation_id': key, 'intent_format': 2, 'action': 'STOP_AND_REMOVE_ORDERED',
+                    'scope': scope, 'requested_at': row['requested_at'],
+                    'state': state, 'expires_at': row['expires_at'], 'predecessors': outcomes,
+                    'cleanup_jobs': delegated,
+                    'verified_removal': admitted and bool(delegated) and all(job['state'] == 'VERIFIED' for job in delegated),
                     'cleanup_reserved': row['state'] == 'WAITING_ADD' and not admitted,
                     'read_only': True, 'device_work_admitted': admitted,
                     'attention': receipt is not None and receipt['state'] == 'ATTENTION',
-                    'decision': json.loads(receipt['result_json']) if receipt else None}
+                    'decision': result}
 
     def cancel(self, key, subject, display_name, roles):
         from .bulk_ordered_promotion import decision
@@ -375,7 +395,7 @@ class BulkOrderedWaits:
             row = db.execute('''SELECT r.*,a.actor_subject FROM managed_bulk_ordered_roots r
                                 JOIN managed_shun_requests a ON a.id=r.id WHERE r.id=?''', (key,)).fetchone()
             if row is None:
-                raise KeyError('Ordered reservation not found.')
+                raise OrderedReservationNotFound('Ordered reservation not found.')
             if row['actor_subject'] != subject and 'Administrator' not in roles:
                 raise PermissionError('Only the owner or Administrator may cancel ordered waiting.')
             receipt = decision(db, key)

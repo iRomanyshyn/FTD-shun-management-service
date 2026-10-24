@@ -15,6 +15,40 @@ priority. See [the planned constraints](working-version-plan.md#deferred-ip-cont
 
 ## Current increment
 
+**Version-2 private ordered-removal API (2026-10-24).** Added distinct strict
+device/fleet reservation routes behind an independent literal default-false API
+factory capability. Enablement requires compatible continuous ownership, strict
+session settlement and the already complete reservation/promotion profile plus
+its separate owning promotion capability. Validate before binding and again at
+startup; no constructor, GET or admission migrates optional storage or enables ADD.
+Inspection works with admission disabled and no optional ordered tables on an
+exact base fenced profile. Ready and ordered capabilities/actions cannot substitute.
+
+Requests freeze original canonical scope, typed sorted RUNNING predecessor
+evidence, separate digest, actor, UUID and bounded TTL/reason. One existing
+whole-scope transaction retires/reserves or changes nothing. Original-key retry
+preserves the historical 202 WAITING_ADD values (with replay marker), expiry and
+retired policy, without duplicate work or a new dispatch hint. Current no-store
+status separately projects original scope/deadline, predecessor outcomes, retained
+attention and delegated REMOVE jobs; verification requires every original job to
+be VERIFIED, not merely ADMITTED. Missing retained evidence is unavailable, not
+empty success or absent-root 404. GET never promotes/expires/hints work.
+
+Owner/Administrator actor-only waiting cancellation remains available during
+pause and with new admission/promotion disabled. It never resumes maintenance,
+changes a RUNNING ADD, clears attention or cancels already delegated jobs. No
+schema, agent/wire, UI, Compose, live gate/profile or lab service/device changed.
+Frozen ordered Web consent/status, configured runtime/inventory and separately
+scoped acceptance remain next. See [Private Ordered API](manual/ordered-removal-api.md).
+
+Validation: **2239 Python tests passed (255.23s)**; focused ordered/API/legacy
+regression **241 passed (25.67s)**, including **40 new API cases**. Compileall,
+Ruff, diff/new-file whitespace and **299 changed/new-document local links/anchors**
+pass. No agent, Compose or UI change; Rust/Chromium were not rerun. Synthetic
+SQLite/ASGI/fake-session evidence is not lab transport or production acceptance.
+
+### Previous whole-scope promotion checkpoint
+
 **Version-2 whole-scope ordered promotion (2026-10-24).** Added a separate explicit
 additive decision profile and default-off local coordinator over the existing
 shared queue. It revalidates the entire frozen scope and original ADD evidence,
@@ -2563,7 +2597,9 @@ Current working-version sequence (2026-10-24):
    whole-scope durable reservation/revocation/expiry are implemented. Shared-worker
    whole-scope promotion/attention with original TTL/capacity transfer is now
    implemented behind a separate optional profile/default-off
-   factory capability. Next is distinct frozen ordered Web/API consent/status.
+   factory capability. Separate strict ordered private API admission/current status/
+   local revocation are implemented. Next is frozen session/CSRF-bound ordered
+   Web consent/status with its independent default-off capability.
    No live migration/activation follows.
 2. Connect bounded managed import/adoption/cancellation review to the compatible
    continuous runtime; retain 10000-IP selected-device limits, managed-only

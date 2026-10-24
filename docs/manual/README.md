@@ -63,6 +63,7 @@ not a runbook or permission to change gates, initialize schemas or run new fixtu
 | [Version-2 Ordered-Removal Preflight](bulk-ordered-preflight.md) | Read-only whole-scope readiness/blockers and exact RUNNING-ADD predecessor evidence; no ordered admission or activation. |
 | [Version-2 Ordered Reservations](bulk-ordered-reservations.md) | Explicit optional migration, default-off atomic whole-scope retirement/reservation, revocation/expiry and retained predecessors; separate promotion gate, no live activation. |
 | [Version-2 Ordered Promotion](bulk-ordered-promotion.md) | Separate default-off whole-scope queue transfer after settled ADDs, attention, original TTL/budgets, strict claims and evidence holds; no live activation. |
+| [Version-2 Private Ordered API](ordered-removal-api.md) | Independently gated fixed device/fleet reservation, read-only original-scope/current-job status and owner/Admin revocation; no frozen Web consent or live activation. |
 | [Large Snapshots](large-snapshots.md) | Default-off versioned multi-frame reads, complete-snapshot checks, console/transfer budgets and lab rollout/rollback. |
 | [FTD Laboratory Validation](ftd-lab-validation.md) | Controlled agent, snapshot, and parser-fixture validation. |
 | [Addition Readiness](addition-lab-validation.md) | Current snapshot-capacity blocker and staged Basic-account, one-address direct-CLI validation before ADD design. |

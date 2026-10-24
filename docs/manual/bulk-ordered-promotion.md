@@ -1,8 +1,10 @@
 # Version-2 Ordered Promotion
 
 Status: explicitly migrated, default-disabled internal coordination. **Not migrated,
-enabled or deployed in the lab.** No ordered Web/API confirmation, environment
-selector, unknown-outcome recovery or production acceptance is supplied. Read
+enabled or deployed in the lab.** The separate default-off
+[private ordered API](ordered-removal-api.md) supplies reservation/status/revocation;
+frozen Web consent, an environment selector, unknown-outcome recovery and
+production acceptance remain unavailable. Read
 [Ordered Reservations](bulk-ordered-reservations.md) and
 [Local Cycle Settlement](cycle-settlement.md) first.
 
@@ -87,6 +89,10 @@ The immutable original reservation receipt remains historical WAITING_ADD.
 predecessor outcomes, decision and admission/reservation flags. `attention` remains
 true after waiting cancellation/expiry. ADMITTED means delegation occurred, not
 verified device removal; ordinary queue jobs show actual outcomes.
+
+The projection now includes original frozen scope/requested-at and explicit
+`cleanup_jobs`; `verified_removal` requires every original delegated REMOVE job
+to be VERIFIED. Historical receipt replay is distinct from current status.
 
 Owner/Admin cancellation and shared expiry may revoke undecided/attention waiting
 without changing ADD results or resuming policy. They cannot reinterpret ADMITTED

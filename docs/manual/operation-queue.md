@@ -35,6 +35,14 @@ are available; API/Web ready-removal admission remains independently default-off
 and no implicit RUNNING-ADD waiting is enabled. The ordinary legacy path remains
 unchanged and cannot reinterpret v2 policy.
 
+The separate [private ordered API](ordered-removal-api.md) now exposes fixed
+device/fleet reservation and local owner/Admin waiting revocation on an explicit
+developer composition. Admission needs its own default-false capability and the
+already complete promotion profile/capability; no Web consent or live activation
+is supplied. Original 202 waiting receipts are not current progress. Read-only
+status keeps frozen scope, predecessor outcomes, delegated REMOVE job states and
+all-jobs-VERIFIED removal separate, without expiry/promotion or device-read hints.
+
 ## Scope
 
 The SQLite queue supports device-scoped and confirmed fleet-wide removals.

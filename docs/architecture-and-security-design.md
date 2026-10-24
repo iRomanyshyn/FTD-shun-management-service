@@ -4992,3 +4992,39 @@ Owner cancellation/expiry may revoke undecided/attention waiting, never reinterp
 already admitted work; ordinary queue controls then govern those jobs separately.
 No attention rearm, automatic unknown resolution, ordered HTTP/Web confirmation,
 live migration/gate activation or production acceptance follows.
+
+### Version-2 private ordered-removal API — 2026-10-24
+
+Provide distinct fixed private device/fleet ordered-reservation routes, never a
+ready-route mode switch or a fallback that silently shrinks/rebases scope.
+Require a separate literal default-false API factory capability, compatible
+continuous ownership, strict local settlement and an already complete optional
+reservation/promotion profile. Admission additionally requires the owning
+dispatcher's separate promotion capability; requests cannot select either
+capability. Validate this composition before binding/startup and again at startup.
+No environment selector, migration, ADD enablement or deployed activation follows.
+
+The request binds the exact canonical v2 scope, sorted complete typed predecessor
+evidence, distinct ordered digest, original UUID, bounded TTL/reason and real
+Operator/Administrator actor. One whole-scope reservation transaction rechecks
+all state. A 202 response is the immutable historical WAITING_ADD reservation,
+not current progress, REMOVE admission or verification. Replay preserves that
+receipt, expiry and retired policy; it neither renews authority nor wakes work.
+Read-only preflight must also work with admission disabled and missing optional
+ordered tables, provided the exact base fenced profile exists.
+
+Provide a separate no-store read-only status projection of original scope and
+expiry, captured predecessor outcomes, retained ATTENTION and delegated REMOVE
+job outcomes. Reads never promote, expire, migrate, repair or hint device work.
+An ADMITTED decision is not verification: report verified removal only when every
+original delegated REMOVE job is explicitly VERIFIED. Missing/inconsistent
+evidence is unavailable, never empty success. Canonical UUID routes refuse
+aliasing or caller-selected arbitrary commands/scope.
+
+Owner/Administrator cancellation is a separate fixed local revocation operation
+with strict actor-only input. It remains available when new admission/promotion
+is disabled and while mutations are paused; it never resumes retired policy or
+modifies a running ADD. Already admitted work conflicts and remains governed by
+ordinary queue controls. Cancellation does not clear ATTENTION or uncertainty.
+Frozen session/CSRF-bound Web consent remains a separate delivery prerequisite;
+private API implementation alone does not enable a user-facing workflow.

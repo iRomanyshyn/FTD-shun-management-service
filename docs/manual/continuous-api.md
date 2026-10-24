@@ -65,6 +65,8 @@ synchronizer is constructed/started for this composition.
 | Policy-only v2 retirement | Separate `/api/v2/managed-shuns/retire`, one frozen exact pair; real-actor audit/original-key receipt, no queue/device command. |
 | Ready-removal scope inspection | `GET /api/v2/managed-removal-scope/{ip}`, optional exact `device_id`; readonly snapshot, no admission. |
 | Ready-only v2 removal admission | Distinct `/api/v2/managed-removals/device` and `/fleet`, independently default-off factory capability; strict frozen scope and 202 admission receipt. |
+| Ordered v2 preflight/status/revocation | Separate fixed readonly whole-scope/current-job routes and owner/Admin waiting cancellation, including under pause/disabled admission; no device command or policy resume from reads/revocation. |
+| Ordered v2 reservation | Distinct `/api/v2/managed-ordered-removals/device` and `/fleet`, separate default-false API capability plus existing complete promotion profile/owning capability; strict frozen predecessors and historical 202 waiting receipt. |
 | Other managed/import/manual mutation workflows | Explicit 503 before handler dispatch, including all v1 managed reads/retirement, ordinary manual ADD/REMOVE, cancellation and legacy combined cleanup. |
 
 The private API middleware admits only these exact method/path families in this
@@ -80,7 +82,14 @@ Initialized v2 storage is not misreported as a missing legacy registry. Corrupt
 state is unavailable, not empty. Separate `managed_policy_view_available=true`
 and `managed_policy_retirement_available=true` advertise the narrower local
 capabilities; they do not enable general managed workflows or device admission.
-Existing admission gates remain false. See
+Legacy admission gates remain false. Ready-only and ordered API capabilities are
+separate literal default-false developer composition arguments; no request may
+select them. Ordered API enablement requires complete existing storage and the
+owning dispatcher's independent promotion capability, checked again at startup.
+Read-only inspection/status and local waiting revocation need no admission gate
+and never initialize optional storage. See
+[Private Ordered API](ordered-removal-api.md) for exact routes, receipts and
+rollback, and
 [Version-2 Policy Views](bulk-policy-views.md) for frozen reviews and evidence.
 
 The name observation profile does **not** disable previously admitted REMOVE or
@@ -106,6 +115,10 @@ Legacy pages retain their existing controls when capability fields are absent or
 null; only explicit false restricts them. Existing authentication, real-actor audit,
 CSRF, form revisions, typed deletion, frozen reviews and data-revision updates stay
 in force. Runtime selection/capabilities cannot be changed by browser requests.
+
+Ordered API support does not add a frozen Web consent/status workflow; that
+remains a distinct delivery step with its own session/CSRF-bound confirmation.
+The existing ready-only Web form never silently becomes ordered admission.
 
 ## Rollout, rollback and remaining work
 

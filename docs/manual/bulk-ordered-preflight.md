@@ -5,8 +5,10 @@ Status: local read-only inspection foundation. A separate default-off
 atomic retirement/waiting on an explicitly initialized optional profile; this
 inspector still does not admit or initialize anything. Worker coordination is now
 implemented separately in the default-off [ordered promoter](bulk-ordered-promotion.md).
-No ordered HTTP route, Web execution
-control, environment setting or live activation is introduced. The
+A separate [private ordered API](ordered-removal-api.md) now exposes this
+read-only inspection and independently gated reservation/status/revocation.
+Frozen Web execution control, an environment setting and live activation remain
+unavailable. The
 existing [ready-only confirmation](ready-removal-confirmation.md) remains separate
 and rejects pending ADD rather than silently switching modes.
 

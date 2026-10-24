@@ -1,5 +1,21 @@
 # Development Manual
 
+## Private ordered-removal API checks
+
+```bash
+python3 -m pytest -q tests/test_ordered_removal_api.py tests/test_bulk_ordered_waits.py tests/test_bulk_ordered_promotion.py tests/test_continuous_api.py tests/test_managed_shuns.py tests/test_managed_fleet_removals.py
+```
+
+Use disposable exact profiles and semantic fakes only. Exercise independent
+default-off API/promotion capabilities, strict typed frozen predecessors, original
+UUID/TTL and actor audit, whole-scope conflicts, same-key concurrency/lost response,
+late rollback, read-only current job outcomes and local owner/Admin cancellation
+under pause/disabled admission. Verify current status never promotes or expires
+work and missing evidence is unavailable rather than 404/success. Run the actual
+API-lifecycle/shared continuous fake REMOVE scenario without a second executor.
+No optional migration, deployed capability or lab work is authorized. See
+[Private Ordered API](ordered-removal-api.md); frozen Web consent remains separate.
+
 ## Ordered promotion and strict settlement checks
 
 ```bash
@@ -25,8 +41,10 @@ whole-scope retirement/reservation, exact RUNNING predecessor binding, separate
 action/capability, original-key concurrency, shared budgets/expiry, owner/Admin
 revocation, late rollback and retained queue/request/claim evidence through all
 outcomes and cancellation/expiry. Both pruners must refuse before deletion on
-malformed/missing held evidence. No ordered promotion, HTTP/Web control or lab
-migration/activation follows. See [Ordered Reservations](bulk-ordered-reservations.md).
+malformed/missing held evidence. The separate
+[promotion](bulk-ordered-promotion.md) and [private API](ordered-removal-api.md)
+packets retain independent capabilities; these tests do not activate them or
+migrate the lab. See [Ordered Reservations](bulk-ordered-reservations.md).
 
 ## Ordered-removal preflight checks
 

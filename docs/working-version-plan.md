@@ -151,6 +151,16 @@ can explicitly compose it; incomplete tickets/non-strict sessions cannot execute
 No ordered Web/API consent, runtime selector, lab migration/activation or actual
 transport acceptance follows. See [Ordered Promotion](manual/bulk-ordered-promotion.md).
 
+Private API checkpoint (2026-10-24): distinct default-off fixed device/fleet
+ordered reservation routes now require the compatible owning promotion capability
+and existing exact profile. Strict original scope/predecessor/digest/actor/TTL
+validation delegates once; separate read-only current status includes original
+scope, predecessor and delegated REMOVE outcomes, with verification only after all
+original jobs are VERIFIED. Owner/Admin waiting revocation stays available under
+pause/disabled admission and never resumes policy or resolves attention. Frozen
+Web consent/status remains next; no new runtime selector, migration, lab feature
+activation or acceptance follows. See [Private Ordered API](manual/ordered-removal-api.md).
+
 Target up to 10,000 IPv4 addresses in one import, with explicit device selection.
 An address/device pair is the maintained unit: 10,000 addresses on 10 selected FTDs
 can require 100,000 policy pairs. Storage and admission limits must be revised
