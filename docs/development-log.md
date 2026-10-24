@@ -6655,6 +6655,67 @@ a downgrade. Worker promotion/attention, original-TTL capacity transfer and froz
 ordered Web/API consent remain next; no lab/production acceptance is claimed.
 See [Ordered Reservations](manual/bulk-ordered-reservations.md).
 
+## 2026-10-24 — Whole-scope ordered promotion through shared continuous workers
+
+Implemented a separate explicit additive promotion-ledger profile and default-off
+local coordinator, after documenting the normative transition/settlement contract.
+Old reservation/root/request receipts remain immutable; new decisions distinguish
+internal ADMITTING, complete ADMITTED and retained ATTENTION. Initialization
+requires existing exact ordered storage, pause, desired suspension and settled
+quiescence including no active reservations. It is transactional/idempotent and
+never invoked by startup/GET/admission; no old authority is renewed to migrate.
+
+The coordinator rechecks complete frozen scope, retired identities/revision,
+inventory, protection, captured ADD/request/claim evidence, independent work and
+current fences. RUNNING or completed-but-unreleased original sessions wait.
+VERIFIED/NOOP needs local epoch release/supersession; exact original typed pre-write
+deferral may cancel captured unsent work only after session settlement. Failed/
+unknown/missing/inconsistent evidence, unsafe fence or changed scope produces
+whole-scope ATTENTION without partial REMOVE or rewriting ADD outcomes. Bounded
+lookahead avoids slow-root starvation, with at most eight decisions per call.
+
+One transaction transfers the original-key whole scope to one shared manual
+REMOVE delegation, retaining immutable device/job references and actual-actor
+audit. The separate literal queue capability/fixed scope/private live ticket
+discounts only this root's reserved capacity and preserves original actor rate
+position plus exact millisecond request/deadline. Late audit/clock/expiry/capacity
+failure cannot commit partial jobs/links/decisions; concurrent promoters delegate
+once. Accepted logs are emitted only after commit. Incomplete persisted tickets
+cannot resume, expire or claim; claim requires a complete ADMITTED receipt.
+
+Existing continuous ownership can explicitly compose the default-false
+`ordered_promotion_enabled` factory capability, after readonly startup compatibility
+preflight and before selecting device work. No second device executor/task queue,
+environment/HTTP selector or wire change. Promotion-profile rounds require strict
+local settlement. Waiting revocation/expiry cannot reinterpret already admitted
+queue work. Attention remains observable after local revocation/age. Queue/audit
+retention holds delegated REMOVE jobs/requests and original deferral receipts
+alongside captured ADD evidence, refusing missing/inconsistent references rather
+than manufacturing success.
+
+Synthetic coverage exercises actual shared continuous REMOVE execution on two
+fake devices, multi-predecessor/session barriers, healthy-root fairness, exact
+deferral proof/corruption, unchanged TTL and once-only budgets/concurrency, partial
+ticket claim refusal, late rollback, migration preservation/refusal, strict/default-
+off compatibility and terminal replay/expiry/retention. The first async integration
+test used an unavailable pytest-asyncio marker; switched it to the repository's
+existing asyncio.run pattern without adding dependencies. Final validation:
+**2199 Python tests passed (246.17s)**; focused promotion/reservation/continuous/
+parallel/ready/Store regression **207 passed (33.07s)**, including **36 new cases**.
+Compileall, Ruff, diff/whitespace and all **280 changed/new-document local
+links/anchors** passed. Agent/Compose/UI unchanged; Rust/Chromium were not rerun.
+
+Updated architecture, working plan, status and structured migration/backup/
+rollback/development manuals. No live database/secret/inventory/Compose setting,
+feature gate/profile, service/image or FTD command was changed; no lab migration
+or fixture/production acceptance was invoked. Agent/wire/UI unchanged. Rollout
+still requires separately scoped approval, drained old writers and checked
+SQLite-safe backups/matching images. Disabling promotion does not cancel already
+delegated jobs; do not erase evidence or restore enabled pre-retirement policy to
+force downgrade. Frozen ordered Web/API consent/status, configured runtime/
+inventory, nonempty migration and real transport/multi-device/load/recovery
+acceptance remain. See [Ordered Promotion](manual/bulk-ordered-promotion.md).
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

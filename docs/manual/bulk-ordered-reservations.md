@@ -2,8 +2,11 @@
 
 Status: default-disabled internal reservation/revocation foundation. A separate
 explicit optional schema migration is implemented, **not applied to the lab**.
-No ordered HTTP/Web route, promotion/REMOVE worker, runtime selector or live
-activation is provided. Existing [ready-only confirmation](ready-removal-confirmation.md)
+No ordered HTTP/Web route, runtime selector or live activation is provided.
+A separately migrated/default-off [ordered promoter](bulk-ordered-promotion.md)
+now transfers eligible whole scopes into existing shared workers; this reservation
+coordinator still creates no REMOVE jobs by itself.
+Existing [ready-only confirmation](ready-removal-confirmation.md)
 does not fall back to this mode. Read the
 [preflight contract](bulk-ordered-preflight.md) first.
 
@@ -79,9 +82,10 @@ protection does not re-enable the old managed generation.
 The local `status(key)` method reads a readonly SQLite snapshot and reports the
 durable root phase, original expiry and individual predecessor job outcomes.
 Missing retained evidence is honestly missing/unavailable, not success. It never
-initializes storage, refreshes a device or promotes work. `WAITING_ADD` currently
-remains waiting even when all ADDs have completed: execution is deliberately not
-connected yet. Inspect individual FAILED/UNVERIFIED outcomes separately.
+initializes storage, refreshes a device or promotes work. `WAITING_ADD` remains
+waiting unless the separately migrated/default-off promoter decides the whole
+scope. ADMITTED/ATTENTION is separate from the immutable original reservation
+receipt; inspect individual ADD/REMOVE outcomes, not phase alone, for verification.
 
 `cancel(key, subject, display_name, roles)` permits only the original owner or
 Administrator, with current Operator/Administrator authority. It is a local
@@ -107,7 +111,8 @@ Recognition checks exact SQL objects, bounded descriptors, complete sorted
 membership, original action/receipt/deadline and cardinality. Roots can only move
 from WAITING_ADD to CANCELLED or EXPIRED. No ADMITTING/ADMITTED transition exists.
 Members, original root identity/deadline and all receipts cannot be rewritten or
-deleted/rearmed. A future promotion protocol requires a reviewed schema change.
+deleted/rearmed. The separate additive promotion ledger preserves these original
+constraints and records decisions without rewriting historical authority.
 
 Both queue and Store audit retention validate captured ADD jobs, their original
 linked requests, immutable attempt identities and original claim audit before
@@ -161,9 +166,9 @@ retention across every outcome/revocation, owner/Admin access and unchanged
 ready-only/protected workflows. Then run the full Python suite, compileall, Ruff
 and diff/link checks.
 
-Next: a separately reviewed shared-worker promotion/attention protocol, whole-
-scope original-TTL/capacity transfer, exact-deferral handling and strict per-device
-settlement; then frozen ordered Web/API consent/status. Do not simulate fleet
+The separate promotion/attention protocol now provides whole-scope original-TTL/
+capacity transfer and exact-deferral/settlement checks. Next is frozen ordered
+Web/API consent/status. Do not simulate fleet
 promotion by looping over single-device admission or release unknown evidence
 from a fresh read alone. Transport, migration, load/multi-device/recovery and
 scoped lab acceptance remain unfulfilled.

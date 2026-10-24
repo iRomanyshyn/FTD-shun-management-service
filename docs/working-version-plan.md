@@ -143,6 +143,14 @@ original-TTL capacity transfer, distinct ordered consent and feature activation
 remain pending. See [Ordered Reservations](manual/bulk-ordered-reservations.md) and
 [Ordered-Removal Preflight](manual/bulk-ordered-preflight.md).
 
+Promotion checkpoint (2026-10-24): a separately migrated, default-off internal
+coordinator now waits for original ADD/session settlement, transfers the whole
+reserved scope to one original-key shared REMOVE delegation with unchanged TTL/
+accounting, or retains ATTENTION without device work. Existing continuous ownership
+can explicitly compose it; incomplete tickets/non-strict sessions cannot execute.
+No ordered Web/API consent, runtime selector, lab migration/activation or actual
+transport acceptance follows. See [Ordered Promotion](manual/bulk-ordered-promotion.md).
+
 Target up to 10,000 IPv4 addresses in one import, with explicit device selection.
 An address/device pair is the maintained unit: 10,000 addresses on 10 selected FTDs
 can require 100,000 policy pairs. Storage and admission limits must be revised

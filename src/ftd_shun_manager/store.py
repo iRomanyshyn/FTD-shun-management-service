@@ -600,7 +600,8 @@ class Store:
             if ordered_present(db):
                 validate_held_predecessors(db)
                 preserve = ''' AND NOT EXISTS (SELECT 1 FROM managed_bulk_ordered_members m
-                    WHERE m.claim_event_id=shun_events.id)'''
+                    WHERE m.claim_event_id=shun_events.id OR (shun_events.event_type='SHUN_OPERATION_DEFERRED'
+                        AND shun_events.request_id=json_extract(m.predecessor_json,'$.request_id')))'''
             origins_deleted = db.execute("""DELETE FROM shun_import_origins WHERE verified_at<?
                 AND NOT EXISTS (SELECT 1 FROM shun_state s WHERE s.occurrence_id=shun_import_origins.occurrence_id
                   AND s.active=1)""", (cutoff,)).rowcount

@@ -1,5 +1,19 @@
 # Development Manual
 
+## Ordered promotion and strict settlement checks
+
+```bash
+python3 -m pytest -q tests/test_bulk_ordered_promotion.py tests/test_bulk_ordered_waits.py tests/test_continuous_dispatch.py tests/test_parallel_synchronizer.py tests/test_bulk_removals.py tests/test_store.py
+```
+
+Disposable SQLite/fake sessions only: whole-scope barrier, original session release,
+exact deferral, retained attention, TTL/budget transfer, once-only concurrency,
+atomic late rollback, partial-ticket claim refusal, healthy-root fairness, strict
+profile compatibility and actual shared continuous REMOVE execution. No new pytest
+plugin is needed; async tests use the repository's `asyncio.run` pattern. Migration
+and both execution capabilities remain default-off, with no lab activation. See
+[Ordered Promotion](bulk-ordered-promotion.md).
+
 ## Durable ordered-reservation checks
 
 ```bash

@@ -89,8 +89,8 @@ def _initialize(db):
     execute_schema(db, _DDL)
 
 
-@lru_cache(maxsize=8)
-def _expected(cancellation=False, attempts=False, waits=False, dispatch=False, devices=False, ordered=False):
+@lru_cache(maxsize=9)
+def _expected(cancellation=False, attempts=False, waits=False, dispatch=False, devices=False, ordered=False, promotions=False):
     with closing(sqlite3.connect(':memory:')) as db:
         db.execute('BEGIN')
         _initialize(db)
@@ -120,6 +120,10 @@ def _expected(cancellation=False, attempts=False, waits=False, dispatch=False, d
             from .bulk_ordered_waits import DDL
 
             execute_schema(db, DDL)
+        if promotions:
+            from .bulk_ordered_promotion import DDL
+
+            execute_schema(db, DDL)
         return _objects(db)
 
 
@@ -137,9 +141,11 @@ def _state(db):
     devices = any(name.startswith('managed_bulk_device') for _, name, _, _ in objects)
     ordered = any(name.startswith(('managed_bulk_ordered_', 'idx_managed_bulk_ordered_'))
                   or table.startswith('managed_bulk_ordered_') for _, name, table, _ in objects)
+    promotions = any(name.startswith('managed_bulk_ordered_promotion') for _, name, _, _ in objects)
     if ((attempts and not cancellation) or (waits and not attempts) or (dispatch and not waits)
             or (devices and not dispatch) or (ordered and not devices)
-            or objects != _expected(cancellation, attempts, waits, dispatch, devices, ordered)):
+            or (promotions and not ordered)
+            or objects != _expected(cancellation, attempts, waits, dispatch, devices, ordered, promotions)):
         raise BulkUnavailable('Exact version-2 storage is required; legacy/partial/optional state was not converted.')
     row = db.execute('SELECT revision,restoration_suspended,format_version FROM managed_bulk_registry WHERE id=1').fetchone()
     if (row is None or type(row[0]) is not int or row[0] < 0 or row[2] != 2
@@ -187,6 +193,10 @@ def _state(db):
         from .bulk_ordered_waits import validate as validate_ordered
 
         validate_ordered(db)
+    if promotions:
+        from .bulk_ordered_promotion import validate as validate_promotions
+
+        validate_promotions(db)
     return {'revision': row[0], 'restoration_suspended': bool(row[1])}
 
 

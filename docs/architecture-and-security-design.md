@@ -4946,3 +4946,49 @@ There is no promotion/second executor, ordered HTTP/Web route, runtime/environme
 selector, migration CLI, automatic feature activation or lab write. Future worker
 promotion requires its own reviewed whole-scope state transition and must retain
 original cleanup TTL/reservations/evidence and per-device settlement safeguards.
+
+## Version-2 ordered promotion and attention — 2026-10-24
+
+Provide a separately initialized exact additive promotion ledger after the ordered
+reservation profile, never initialized by startup/GET/admission. Upgrade requires
+explicit capability, pause, desired suspension and existing quiescence, including
+no active reservations; preserve all terminal original receipts and evidence.
+Default-disabled promotion is a bounded local coordinator in the existing
+continuous lifecycle, not another device executor or an environment selector.
+
+Under one write lock revalidate the complete frozen scope, original authority,
+retired identities, captured jobs/requests/claims and current device fences.
+Wait while any captured ADD still RUNNING or its original session lease remains
+live/unreleased. VERIFIED/NOOP alone does not prove local session settlement.
+Require the captured epoch to be released or superseded through the existing
+monotonic lease protocol; expired/attention fences and failed/unknown outcomes
+cannot be released by fresh observations. Exact original pre-write deferral may
+be cancelled unsent only with a matching retained typed-deferral audit and settled
+session; never cancel/retry an independent or uncertain ADD.
+
+Any failed/unknown/missing/inconsistent evidence or changed frozen membership,
+protection, identity, pending independent work or disabled device yields a retained
+whole-scope ATTENTION decision with no REMOVE work. Do not overwrite original
+ADD outcomes, historical reservation receipts or retire/re-enable other policy.
+Malformed profile data refuses coordination entirely. Pause waits without sending;
+original expiry/revocation releases reservation authority, not uncertainty.
+
+When all predecessors and fences qualify, one internal ADMITTING ticket transfers
+the whole reserved scope into one original-key shared manual REMOVE request and
+retains immutable original device/job references as ADMITTED. The ticket, queue,
+links, decision and audit commit together; no per-device admission loop or partial
+fleet commit. A separate literal queue capability plus fixed semantic scope and
+exact original actor/scope/deadline/ticket are mandatory; a scope label alone grants
+nothing. Discount only this root's already reserved target/request slots and do not
+charge its actor twice. Pin delegation to original requested-at/expires-at, never
+ceil/renew the original TTL. Other budgets/leases/claims remain authoritative.
+
+ADMITTING is transaction-internal, never runnable; a persisted incomplete ticket
+is unavailable and cannot be resumed automatically. Claim validates a complete
+ADMITTED whole-scope receipt before any device work. Keep immutable original
+predecessor/deferral and delegated cleanup job/request references through queue/
+audit pruning. Missing evidence refuses pruning rather than inventing success.
+Owner cancellation/expiry may revoke undecided/attention waiting, never reinterpret
+already admitted work; ordinary queue controls then govern those jobs separately.
+No attention rearm, automatic unknown resolution, ordered HTTP/Web confirmation,
+live migration/gate activation or production acceptance follows.

@@ -3,8 +3,9 @@
 Status: local read-only inspection foundation. A separate default-off
 [durable reservation component](bulk-ordered-reservations.md) now implements
 atomic retirement/waiting on an explicitly initialized optional profile; this
-inspector still does not admit or initialize anything. Worker promotion remains
-**not implemented**. No HTTP route, Web execution
+inspector still does not admit or initialize anything. Worker coordination is now
+implemented separately in the default-off [ordered promoter](bulk-ordered-promotion.md).
+No ordered HTTP route, Web execution
 control, environment setting or live activation is introduced. The
 existing [ready-only confirmation](ready-removal-confirmation.md) remains separate
 and rejects pending ADD rather than silently switching modes.
@@ -95,12 +96,12 @@ optional lab profile merely to try it. Tests explicitly create disposable v2
 profiles, corrupt only those fixtures, and exercise actual synthetic queue claims
 and results without a device transport.
 
-Before adding execution, complete the separately migrated durable
-whole-scope barrier with capacity/rate reservations, one original cleanup TTL,
-atomic retirement, predecessor/request evidence holds and shared-worker-only
-promotion. The reservation/revocation foundation is described separately; no
-promotion is present yet. Retain all original uncertain outcomes; observed absence cannot
-release them. Cover exact deferral, cancellation, expiry, pause/restart, protection
-priority and whole-fleet settlement. Frozen Web/API consent and distinct default-
+The separately migrated reservation and promotion components now supply the
+whole-scope barrier, original cleanup TTL/capacity transfer, atomic retirement,
+predecessor evidence holds and shared-worker-only promotion. This inspector still
+grants nothing. Retain original uncertain outcomes; observed absence cannot
+release them. Exact deferral, cancellation, expiry, pause/restart, protection
+priority and whole-fleet settlement remain part of the execution checks.
+Frozen ordered Web/API consent and distinct default-
 off admission capabilities must be added separately; no new lab authorization is
 implied. See [the normative contract](../architecture-and-security-design.md#version-2-ordered-removal-preflight--2026-10-23).

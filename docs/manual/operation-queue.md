@@ -6,6 +6,13 @@ whole-scope target/request/rate budgets; shared expiry can revoke them, and both
 queue and audit retention preserve captured ADD jobs/requests/claim evidence.
 This is default-off internal admission, not ordered dispatch or a lab migration.
 
+The separately migrated [ordered promoter](bulk-ordered-promotion.md) can now
+transfer a complete reserved scope to this same queue after all original ADDs and
+sessions settle. It uses a distinct literal capability, exact internal ticket,
+unchanged original deadline and one-time accounting. Claims reject incomplete
+tickets and retention holds original cleanup references. Existing deployed gates
+remain unchanged; no ordered HTTP/Web confirmation or lab activation follows.
+
 **Target update (2026-10-20):** [Working-Version Plan](../working-version-plan.md)
 requires continuous parallel per-device dispatch, interactive priority and
 automatic evidence-based recovery. This manual still describes current queue/

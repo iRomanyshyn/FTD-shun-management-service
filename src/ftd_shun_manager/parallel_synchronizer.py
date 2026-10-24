@@ -148,6 +148,12 @@ class ParallelSynchronizer:
 
     def _configured_devices(self):
         profile = self.leases.status()  # Exact profile validation, never initialize/repair.
+        from .bulk_ordered_promotion import present as promotion_present
+
+        if not self.settled_cycles_required:
+            with self.store._connection() as db:
+                if promotion_present(db):
+                    raise QueueConflict('Ordered promotion storage requires strict local cycle settlement.')
         scope = {row['device_id'] for row in profile['devices']}
         inventory = {device.id: device for device in self.store.list_devices()}
         if (profile['concurrency'] > self.agent_concurrency

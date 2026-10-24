@@ -51,11 +51,18 @@ class ContinuousDispatcher:
     policy, environment gate or lab activation is performed by construction/GET.
     """
 
-    def __init__(self, store, agent, *, clock=monotonic, history_retention_days=366, **configuration):
+    def __init__(self, store, agent, *, clock=monotonic, history_retention_days=366,
+                 ordered_promotion_enabled=False, **configuration):
+        if type(ordered_promotion_enabled) is not bool:
+            raise ValueError('Ordered promotion capability must be a literal boolean.')
         if configuration.get('settled_cycles_required', True) is not True:
             raise ValueError('Continuous dispatch cannot disable required cycle settlement.')
         configuration['settled_cycles_required'] = True
         self.runner = ParallelSynchronizer(store, agent, **configuration)
+        self.ordered_promotion_enabled = ordered_promotion_enabled
+        from .bulk_ordered_promotion import BulkOrderedPromoter
+
+        self.ordered_promoter = BulkOrderedPromoter(store, self.runner.queue)
         self.runner._priority_removals = True
         self.runner._snapshot_callback = self._confirmed
         self.runner._clock = clock
@@ -82,11 +89,15 @@ class ContinuousDispatcher:
                                                 clock=clock, on_change=self.note_state_change)
 
     async def start(self):
+        if type(self.ordered_promotion_enabled) is not bool:
+            raise ValueError('Ordered promotion capability must stay a literal boolean.')
         if not self.runner.enabled or self._task is not None:
             return
         if self.runner._round is not None or self.runner._service_active or self.runner._broken:
             raise QueueConflict('A running/broken coordinator cannot start continuous dispatch.')
         profile, devices = self.runner._configured_devices()
+        if self.ordered_promotion_enabled:
+            self.ordered_promoter.require_storage()
         current = self.clock()
         for row in profile['devices']:
             self._demands.setdefault(row['device_id'], ReadDemand(current)).baseline_due = current
@@ -351,6 +362,8 @@ class ContinuousDispatcher:
                 if self.maintenance.status()['broken']:
                     raise QueueConflict('Maintenance stopped unexpectedly; coordinator stopped without rearming work.')
                 profile, devices = self.runner._configured_devices()
+                if self.ordered_promotion_enabled is True and self.ordered_promoter.advance(enabled=True):
+                    self.note_state_change()
                 self._enabled = {device.id for device in devices}
                 controls = self._control_state()
                 if (controls[0] != self._controls[0] or (self._controls[1] and not controls[1])

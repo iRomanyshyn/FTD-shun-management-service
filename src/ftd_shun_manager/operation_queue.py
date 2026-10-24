@@ -218,6 +218,7 @@ class OperationQueue:
         source: str = "manual", scope: str = "device",
         *, batch_label: str = "", batch_reason: str = "", policy_revision: int | None = None,
         confirmation_digest: str | None = None, bulk_removal_enabled: bool = False,
+        bulk_ordered_removal_enabled: bool = False,
     ) -> tuple[dict, list[dict]]:
         """Trusted composition hook; caller owns transaction, commit and accepted logs.
 
@@ -230,11 +231,13 @@ class OperationQueue:
             raise ValueError("Queue admission requires a caller-owned transaction.")
         if type(bulk_removal_enabled) is not bool:
             raise ValueError('Bulk ready-removal composition capability must be boolean.')
+        if type(bulk_ordered_removal_enabled) is not bool or (bulk_removal_enabled and bulk_ordered_removal_enabled):
+            raise ValueError('Distinct literal ready/ordered queue capabilities are required.')
         db.execute("SAVEPOINT queue_admission")
         try:
             result = self._apply_enqueue(
                 db, request_id, targets, subject, display_name, roles, ttl_seconds, source, scope,
-                batch_label, batch_reason, policy_revision, confirmation_digest, bulk_removal_enabled,
+                batch_label, batch_reason, policy_revision, confirmation_digest, bulk_removal_enabled, bulk_ordered_removal_enabled,
             )
         except Exception:
             db.execute("ROLLBACK TO queue_admission")
@@ -245,7 +248,7 @@ class OperationQueue:
 
     def _apply_enqueue(
         self, db, request_id, targets, subject, display_name, roles, ttl_seconds,
-        source, scope, batch_label, batch_reason, policy_revision, confirmation_digest, bulk_removal_enabled,
+        source, scope, batch_label, batch_reason, policy_revision, confirmation_digest, bulk_removal_enabled, bulk_ordered_removal_enabled,
     ) -> tuple[dict, list[dict]]:
         if bulk_removal_enabled and (source != 'manual' or scope != 'managed_v2_ready_removal'):
             raise ValueError('The v2 ready-removal capability requires its fixed manual semantic scope.')
@@ -268,6 +271,11 @@ class OperationQueue:
             targets = sorted(set(targets), key=lambda target: (target[0], int(target[1])))
             payload = json.dumps({"scope": scope, "targets": [(device, str(ip)) for device, ip in targets]})
         current = self._now()
+        ordered = None
+        if bulk_ordered_removal_enabled:
+            from .bulk_ordered_promotion import queue_scope
+
+            ordered = queue_scope(db, request_id, targets, subject, source, scope, current)
         logs = []
         old = db.execute("SELECT * FROM operation_requests WHERE id=?", (request_id,)).fetchone()
         if old:
@@ -280,7 +288,7 @@ class OperationQueue:
             raise QueueConflict("Device mutations are suspended for recovery; no new work was admitted.")
         from .managed_restoration import attempt_for_job, key_reserved
 
-        if key_reserved(db, request_id):
+        if key_reserved(db, request_id) and ordered is None:
             raise QueueConflict("Restoration keys cannot acquire another operation's authority.")
         require_fleet_queue_key(db, request_id, targets, subject, source, scope)
         if self._handoffs_present(db):
@@ -294,7 +302,7 @@ class OperationQueue:
         if source in {"manual", "manual_import"}:
             from .bulk_ordered_waits import pair_held
 
-            if any(pair_held(db, device, ip) for device, ip in targets):
+            if ordered is None and any(pair_held(db, device, ip) for device, ip in targets):
                 raise QueueConflict('Ordered cleanup reserved this pair; independent manual work conflicts.')
         if source == "manual":
             # Combined admission retires policy under this very write lock
@@ -303,7 +311,7 @@ class OperationQueue:
                 from .bulk_removals import require_ready_queue_scope
 
                 require_ready_queue_scope(db, targets, scope)
-            else:
+            elif ordered is None:
                 require_ordinary_removal(db, targets, fleet=scope == "all")
         if source in {"manual", "manual_import"}:
             from .incident_isolations import require_manual_scope
@@ -315,16 +323,17 @@ class OperationQueue:
             if any(db.execute("SELECT 1 FROM protected_ips WHERE ip=? AND enabled=1", (ip.packed,)).fetchone()
                    for _, ip in targets):
                 raise QueueConflict("Import contains an enabled Protected IP; no targets were queued.")
-        active_requests = self._active_request_count(db)
+        active_requests = self._active_request_count(db) - (1 if ordered is not None else 0)
         if active_requests >= 2000:
             raise QueueFull("operation queue is full")
-        if source in {"manual", "manual_import"}:
+        if source in {"manual", "manual_import"} and ordered is None:
             recent = self._recent_request_count(db, subject, current, request_id)
             if recent >= 10:
                 raise QueueFull("at most 10 operation submissions per minute per user")
         db.execute("""INSERT INTO operation_requests VALUES (?,?,?,?,?,?,?,?,?)""", (
             request_id, subject, display_name, json.dumps(roles), "manual" if action == "ADD" else source, payload,
-            stamp(current), stamp(current + timedelta(seconds=ttl_seconds)), "ACTIVE",
+            ordered['requested_at'] if ordered is not None else stamp(current),
+            ordered['expires_at'] if ordered is not None else stamp(current + timedelta(seconds=ttl_seconds)), "ACTIVE",
         ))
         if action == "ADD":
             db.execute("INSERT INTO manual_import_batches VALUES (?,'manual_import',?,?,?,?,?)", (
@@ -350,7 +359,7 @@ class OperationQueue:
             if job is not None and job["action"] != action:
                 raise QueueConflict("Opposite ADD/REMOVE work already exists for this device/IP; no targets were queued.")
             if job is None:
-                pending = self._pending_count(db)
+                pending = self._pending_count(db) - (ordered['target_count'] if ordered is not None else 0)
                 if pending >= 1000:
                     raise QueueFull("operation queue is full")
                 job_id = str(uuid4())
@@ -600,6 +609,10 @@ class OperationQueue:
                           OR (r.id=? AND r.actor_subject=? AND r.source='trusted_policy'))""",
                     (job["id"], stamp(self._now()), int(job_action == "ADD"), restoration["id"] if restoration else None, ACTOR),
                 ).fetchall()
+                from .bulk_ordered_promotion import require_claim as require_ordered_claim
+
+                for request in requests:
+                    require_ordered_claim(db, request, job)
                 from .incident_isolations import pair_isolated
 
                 if pair_isolated(db, device_id, IPv4Address(job["ip"])) and not (
@@ -909,6 +922,7 @@ class OperationQueue:
             from .bulk_attempts import present as bulk_present
             from .bulk_attempts import validate_held_jobs
             from .bulk_dispatch import present as dispatch_present
+            from .bulk_ordered_promotion import present as promotion_present
             from .bulk_ordered_waits import present as ordered_present
             from .bulk_ordered_waits import validate_held_predecessors
             from .bulk_policy import _state as bulk_state
@@ -927,6 +941,11 @@ class OperationQueue:
                 validate_held_predecessors(db)
                 preserve += """ AND NOT EXISTS (SELECT 1 FROM managed_bulk_ordered_members m
                     WHERE m.job_id=operation_jobs.id)"""
+            if promotion_present(db):
+                bulk_state(db)
+                preserve += """ AND NOT EXISTS (SELECT 1 FROM managed_bulk_ordered_promotions p,
+                    json_each(p.result_json,'$.jobs') j WHERE p.state='ADMITTED'
+                    AND json_extract(j.value,'$.job_id')=operation_jobs.id)"""
             if dispatch_present(db):
                 bulk_state(db)
                 # Absence is observational, not proof the original RPC has stopped.

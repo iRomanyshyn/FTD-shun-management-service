@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-10-23
+Last updated: 2026-10-24
 
 ## Deferred product ideas
 
@@ -14,6 +14,46 @@ lookup, cache/schema, new egress or activation exists. Core delivery retains
 priority. See [the planned constraints](working-version-plan.md#deferred-ip-context--enrichment--requested-2026-10-21).
 
 ## Current increment
+
+**Version-2 whole-scope ordered promotion (2026-10-24).** Added a separate explicit
+additive decision profile and default-off local coordinator over the existing
+shared queue. It revalidates the entire frozen scope and original ADD evidence,
+waits for all captured commands and their session/lease settlement, then commits
+one original-key manual REMOVE delegation with immutable complete device/job
+references. VERIFIED/NOOP alone is not settlement. Exact bound pre-write deferral
+may cancel only captured unsent work; failed/unknown/inconsistent evidence,
+unsafe fences or changed scope yields whole-scope ATTENTION without partial REMOVE.
+Original ADD outcomes and reservation receipts remain unchanged.
+
+The distinct literal queue capability/fixed scope/private ticket transfers only
+this root's reserved target/request slots, preserving the actor's original rate
+position and exact millisecond deadline. Late failure rolls back all jobs/links/
+decision/audit; concurrent promoters delegate once. A persisted ADMITTING ticket
+cannot resume/expire/claim automatically. Claim requires a complete ADMITTED
+receipt. Waiting revocation/expiry cannot reinterpret admitted work, and attention
+remains visible after revocation. Queue/audit retention holds delegated REMOVE
+jobs/requests and original deferral evidence alongside captured ADD references.
+
+An independent default-false `ordered_promotion_enabled` developer factory
+capability connects bounded decisions to the existing continuous owner, before
+ordinary device dispatch. Lookahead avoids a slow root starving healthy scopes;
+no second device executor/task queue or environment selector. Startup checks
+existing complete storage read-only; promotion storage rejects non-strict local
+settlement rounds. Explicit migration requires pause, desired suspension and
+quiescence including no active reservations, preserving old terminal receipts.
+No implicit migration/startup/GET initializes it, and nothing was enabled/deployed/migrated
+in the lab. Ordered Web/API consent/status, configured runtime/inventory and
+scoped real transport/multi-device/load/recovery acceptance remain. See
+[Ordered Promotion](manual/bulk-ordered-promotion.md).
+
+Validation: **2199 Python tests passed (246.17s)**; focused promotion/reservation/
+continuous/parallel/ready/Store regression **207 passed (33.07s)**, with **36 new
+promotion cases**. Compileall, Ruff, diff/whitespace and **280 changed/new-document
+local links/anchors** pass. Agent, Compose and UI unchanged in this packet;
+Rust/Chromium were not rerun. Synthetic migration/session validation is not live
+transport, lab activation or production acceptance.
+
+### Previous durable-reservation checkpoint
 
 **Version-2 durable ordered reservations (2026-10-23).** Added a separate explicit
 optional fenced-profile migration and default-false internal whole-scope
@@ -2512,7 +2552,7 @@ The foundation increment was checked with:
 
 ## Next work, in order
 
-Current working-version sequence (2026-10-23):
+Current working-version sequence (2026-10-24):
 
 1. Connect reviewed v2 exact-scope removal/retirement admission to the shared
    fenced continuous queue, including captured RUNNING ADD ordering, protection,
@@ -2520,9 +2560,11 @@ Current working-version sequence (2026-10-23):
    pretend to implement an atomic fleet action. Ready-only backend coordination
    and readonly scope inspection plus independently gated frozen Web/API
    confirmation are implemented. Ordered preflight and separately migrated
-   whole-scope durable reservation/revocation/expiry are implemented; next is
-   shared-worker whole-scope promotion/attention with original TTL/capacity
-   transfer and distinct frozen consent. No live migration/activation follows.
+   whole-scope durable reservation/revocation/expiry are implemented. Shared-worker
+   whole-scope promotion/attention with original TTL/capacity transfer is now
+   implemented behind a separate optional profile/default-off
+   factory capability. Next is distinct frozen ordered Web/API consent/status.
+   No live migration/activation follows.
 2. Connect bounded managed import/adoption/cancellation review to the compatible
    continuous runtime; retain 10000-IP selected-device limits, managed-only
    authority, skip/report behavior and default-disabled execution gates until

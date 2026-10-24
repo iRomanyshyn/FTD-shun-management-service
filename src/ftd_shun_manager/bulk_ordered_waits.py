@@ -176,28 +176,35 @@ def validate(db):
 
 
 def held_count(db, *, subject=None, cutoff=None, exclude=None):
+    from .bulk_ordered_promotion import released_filter
+
     if not present(db):
         return 0
     _state(db)
     if subject is not None:
         return db.execute('''SELECT COUNT(*) FROM managed_bulk_ordered_roots r JOIN managed_shun_requests a ON a.id=r.id
-            WHERE a.actor_subject=? AND r.requested_at>=? AND (? IS NULL OR r.id!=?)''', (subject, cutoff, exclude, exclude)).fetchone()[0]
-    return db.execute("SELECT COUNT(*) FROM managed_bulk_ordered_roots WHERE state='WAITING_ADD'").fetchone()[0]
+            WHERE a.actor_subject=? AND r.requested_at>=? AND (? IS NULL OR r.id!=?)
+            AND NOT EXISTS (SELECT 1 FROM operation_requests q WHERE q.id=r.id)''', (subject, cutoff, exclude, exclude)).fetchone()[0]
+    return db.execute("SELECT COUNT(*) FROM managed_bulk_ordered_roots r WHERE r.state='WAITING_ADD'" + released_filter(db)).fetchone()[0]
 
 
 def held_targets(db):
+    from .bulk_ordered_promotion import released_filter
+
     if not present(db):
         return 0
     _state(db)
-    return db.execute("SELECT COALESCE(SUM(target_count),0) FROM managed_bulk_ordered_roots WHERE state='WAITING_ADD'").fetchone()[0]
+    return db.execute("SELECT COALESCE(SUM(target_count),0) FROM managed_bulk_ordered_roots r WHERE r.state='WAITING_ADD'" + released_filter(db)).fetchone()[0]
 
 
 def pair_held(db, device, ip):
+    from .bulk_ordered_promotion import released_filter
+
     if not present(db):
         return False
     _state(db)
     return db.execute('''SELECT 1 FROM managed_bulk_ordered_members m JOIN managed_bulk_ordered_roots r ON r.id=m.root_id
-        WHERE m.device_id=? AND m.ip=? AND r.state='WAITING_ADD' LIMIT 1''', (device, ip.packed)).fetchone() is not None
+        WHERE m.device_id=? AND m.ip=? AND r.state='WAITING_ADD' ''' + released_filter(db) + ' LIMIT 1', (device, ip.packed)).fetchone() is not None
 
 
 def validate_held_predecessors(db):
@@ -329,6 +336,8 @@ class BulkOrderedWaits:
             return result
 
     def status(self, key):
+        from .bulk_ordered_promotion import decision
+
         _uuid(key)
         with BulkPolicyViews(self.store)._snapshot() as db:
             _state(db)
@@ -342,10 +351,20 @@ class BulkOrderedWaits:
                 job = db.execute('SELECT state FROM operation_jobs WHERE id=?', (member['job_id'],)).fetchone()
                 outcomes.append({'device_id': member['device_id'], 'job_id': member['job_id'], 'state': job['state'] if job else None,
                                  'missing_evidence': job is None})
-            return {'operation_id': key, 'state': row['state'], 'expires_at': row['expires_at'], 'predecessors': outcomes,
-                    'cleanup_reserved': row['state'] == 'WAITING_ADD', 'read_only': True, 'device_work_admitted': False}
+            receipt = decision(db, key)
+            if receipt is not None and receipt['state'] == 'ADMITTING':
+                raise BulkUnavailable('Incomplete ordered promotion evidence is unavailable.')
+            admitted = receipt is not None and receipt['state'] == 'ADMITTED'
+            state = receipt['state'] if receipt is not None and row['state'] == 'WAITING_ADD' else row['state']
+            return {'operation_id': key, 'state': state, 'expires_at': row['expires_at'], 'predecessors': outcomes,
+                    'cleanup_reserved': row['state'] == 'WAITING_ADD' and not admitted,
+                    'read_only': True, 'device_work_admitted': admitted,
+                    'attention': receipt is not None and receipt['state'] == 'ATTENTION',
+                    'decision': json.loads(receipt['result_json']) if receipt else None}
 
     def cancel(self, key, subject, display_name, roles):
+        from .bulk_ordered_promotion import decision
+
         _uuid(key)
         _actor(subject, display_name, roles)
         self._existing()
@@ -359,6 +378,9 @@ class BulkOrderedWaits:
                 raise KeyError('Ordered reservation not found.')
             if row['actor_subject'] != subject and 'Administrator' not in roles:
                 raise PermissionError('Only the owner or Administrator may cancel ordered waiting.')
+            receipt = decision(db, key)
+            if receipt is not None and receipt['state'] in {'ADMITTING', 'ADMITTED'}:
+                raise QueueConflict('Already admitted ordered work is governed by ordinary queue controls.')
             if row['state'] != 'WAITING_ADD':
                 return {'operation_id': key, 'state': row['state'], 'replayed': True}
             timestamp = stamp(self.queue._now())
@@ -372,11 +394,16 @@ class BulkOrderedWaits:
 
 
 def expire(db, store, current):
+    from .bulk_ordered_promotion import present as promotion_present
+    from .bulk_ordered_promotion import released_filter
+
     """Existing shared maintenance only; bounded local expiry, never promotion."""
     if not present(db):
         return 0
     _state(db)
-    rows = db.execute("SELECT * FROM managed_bulk_ordered_roots WHERE state='WAITING_ADD' AND expires_at<=? ORDER BY expires_at,id LIMIT 100",
+    if promotion_present(db) and db.execute("SELECT 1 FROM managed_bulk_ordered_promotions WHERE state='ADMITTING' LIMIT 1").fetchone():
+        raise BulkUnavailable('Incomplete ordered promotion cannot be expired or resumed automatically.')
+    rows = db.execute("SELECT * FROM managed_bulk_ordered_roots r WHERE r.state='WAITING_ADD' AND r.expires_at<=?" + released_filter(db) + " ORDER BY r.expires_at,r.id LIMIT 100",
                       (stamp(current),)).fetchall()
     for row in rows:
         db.execute("UPDATE managed_bulk_ordered_roots SET state='EXPIRED',updated_at=? WHERE id=?", (stamp(current), row['id']))
