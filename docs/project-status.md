@@ -15,6 +15,44 @@ priority. See [the planned constraints](working-version-plan.md#deferred-ip-cont
 
 ## Current increment
 
+**Version-2 durable ordered reservations (2026-10-23).** Added a separate explicit
+optional fenced-profile migration and default-false internal whole-scope
+reservation coordinator. A distinct STOP_AND_REMOVE_ORDERED digest binds scope,
+exact RUNNING ADD predecessors and original evidence/deadlines, cleanup TTL and
+reason. One transaction reinspects all scope, permanently retires enabled policy,
+reserves every cleanup target and retains one immutable original receipt plus
+real-actor audit. Scope/readiness drift, wrong actor/action, shared capacity/rate,
+late audit/clock/lease/deadline failure rolls everything back. Replays never renew
+authority or recreate work. No REMOVE request/job is created.
+
+Waiting reservations participate in the same 1000-target/2000-request/ten-per-minute
+budgets and block independent manual/ready removal and new standing grants.
+Automatic protected removal stays independent. Owner/Admin cancellation and the
+existing shared expiry transaction release reservations without restoring policy,
+changing a RUNNING ADD or rewriting its outcomes. Local read-only status preserves
+separate predecessor states; completed ADDs remain waiting because promotion is
+not implemented. Roots/members/identity/deadline have immutable/monotonic storage
+guards, exact schema recognition, fixed retained limits and no automatic eviction.
+
+Queue and audit retention now validate and hold captured ADD jobs, original linked
+requests and claim-audit evidence, even after reservation cancellation/expiry.
+Missing/malformed evidence refuses both pruners before any deletion. No fresh read,
+age or local revocation resolves uncertainty. Startup, reads and admission never
+initialize the optional profile; explicit migration requires pause, suspended
+desired policy and settled quiescence. No lab schema/gate, services or device
+changed; no ordered HTTP/Web route, promotion/executor, runtime selector or live
+acceptance is supplied. See [Ordered Reservations](manual/bulk-ordered-reservations.md).
+
+Validation: **2163 Python tests passed (231.46s)**; focused ordered/preflight/
+ready/dispatch/maintenance/Store regression **210 passed (16.82s)**, including
+**49 new ordered-reservation cases**. Compileall, Ruff and diff/whitespace checks
+pass; changed/new-document local links/anchors are validated. Agent/Compose/UI
+unchanged in this packet; Rust/Chromium were not rerun. All migrations/admissions
+in tests used disposable synthetic profiles; nothing was deployed or migrated
+in the lab.
+
+### Previous ordered-preflight checkpoint
+
 **Version-2 ordered-removal preflight (2026-10-23).** Added a separate local
 read-only component on existing exact fenced v2 storage. It classifies the entire
 single/fleet union as READY, WAITING_ADD or BLOCKED, retaining missing/disabled
@@ -2481,9 +2519,10 @@ Current working-version sequence (2026-10-23):
    immutable receipts and honest uncertainty. No legacy single-target loop may
    pretend to implement an atomic fleet action. Ready-only backend coordination
    and readonly scope inspection plus independently gated frozen Web/API
-   confirmation are implemented. Ordered read-only preflight is implemented;
-   next is its separately migrated durable whole-scope reservation/barrier,
-   shared-worker promotion and distinct frozen consent.
+   confirmation are implemented. Ordered preflight and separately migrated
+   whole-scope durable reservation/revocation/expiry are implemented; next is
+   shared-worker whole-scope promotion/attention with original TTL/capacity
+   transfer and distinct frozen consent. No live migration/activation follows.
 2. Connect bounded managed import/adoption/cancellation review to the compatible
    continuous runtime; retain 10000-IP selected-device limits, managed-only
    authority, skip/report behavior and default-disabled execution gates until

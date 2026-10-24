@@ -1,5 +1,19 @@
 # Development Manual
 
+## Durable ordered-reservation checks
+
+```bash
+python3 -m pytest -q tests/test_bulk_ordered_waits.py tests/test_bulk_ordered_removals.py tests/test_bulk_removals.py tests/test_bulk_dispatch.py tests/test_continuous_maintenance.py tests/test_store.py
+```
+
+Initialize the optional profile only in disposable fixtures. Check atomic
+whole-scope retirement/reservation, exact RUNNING predecessor binding, separate
+action/capability, original-key concurrency, shared budgets/expiry, owner/Admin
+revocation, late rollback and retained queue/request/claim evidence through all
+outcomes and cancellation/expiry. Both pruners must refuse before deletion on
+malformed/missing held evidence. No ordered promotion, HTTP/Web control or lab
+migration/activation follows. See [Ordered Reservations](bulk-ordered-reservations.md).
+
 ## Ordered-removal preflight checks
 
 ```bash

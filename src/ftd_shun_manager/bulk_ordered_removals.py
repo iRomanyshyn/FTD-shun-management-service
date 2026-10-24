@@ -34,6 +34,13 @@ def _time(value):
     return value
 
 
+def _inspection_time(now):
+    current = datetime.now(UTC) if now is None else now
+    if type(current) is not datetime or current.tzinfo is None or current.utcoffset() != UTC.utcoffset(current):
+        raise ValueError('Use an explicit UTC inspection time.')
+    return current
+
+
 class BulkOrderedRemovalScopes:
     """A local inspection API, deliberately without an admission method."""
 
@@ -42,25 +49,27 @@ class BulkOrderedRemovalScopes:
         self.views = BulkPolicyViews(store)
 
     def snapshot(self, ip, *, device_id=None, now=None):
-        current = datetime.now(UTC) if now is None else now
-        if type(current) is not datetime or current.tzinfo is None or current.utcoffset() != UTC.utcoffset(current):
-            raise ValueError('Use an explicit UTC inspection time.')
-        timestamp = stamp(current)
+        current = _inspection_time(now)
         with self.views._snapshot() as db:
-            scope = BulkRemovalScopes.read(db, ip, device_id=device_id)
-            if not device_profile_present(db):
-                raise BulkUnavailable('Ordered inspection requires existing exact fenced v2 storage.')
-            targets = [self._target(db, row, ip, timestamp) for row in scope['targets']]
-            global_blockers = ['MUTATIONS_PAUSED'] if mutations_suspended(db) else []
-            blocked = sum(row['disposition'] == 'BLOCKED' for row in targets)
-            waiting = sum(row['disposition'] == 'WAITING_ADD' for row in targets)
-            value = {'intent_format': 2, 'mode': 'ordered-removal-preflight', 'inspected_at': timestamp,
-                     'scope': scope, 'scope_digest': canonical_scope(scope)[1], 'targets': targets,
-                     'global_blockers': global_blockers, 'blocked_target_count': blocked,
-                     'waiting_target_count': waiting,
-                     'disposition': 'BLOCKED' if blocked or global_blockers else 'WAITING_ADD' if waiting else 'READY',
-                     'read_only': True, 'execution_available': False, 'device_work_admitted': False}
-            return {**value, 'preflight_digest': _digest(value, _DOMAIN)}
+            return self.read(db, ip, device_id=device_id, now=current)
+
+    def read(self, db, ip, *, device_id=None, now=None):
+        """Same read contract inside a caller-owned transaction; never writes."""
+        timestamp = stamp(_inspection_time(now))
+        scope = BulkRemovalScopes.read(db, ip, device_id=device_id)
+        if not device_profile_present(db):
+            raise BulkUnavailable('Ordered inspection requires existing exact fenced v2 storage.')
+        targets = [self._target(db, row, ip, timestamp) for row in scope['targets']]
+        global_blockers = ['MUTATIONS_PAUSED'] if mutations_suspended(db) else []
+        blocked = sum(row['disposition'] == 'BLOCKED' for row in targets)
+        waiting = sum(row['disposition'] == 'WAITING_ADD' for row in targets)
+        value = {'intent_format': 2, 'mode': 'ordered-removal-preflight', 'inspected_at': timestamp,
+                 'scope': scope, 'scope_digest': canonical_scope(scope)[1], 'targets': targets,
+                 'global_blockers': global_blockers, 'blocked_target_count': blocked,
+                 'waiting_target_count': waiting,
+                 'disposition': 'BLOCKED' if blocked or global_blockers else 'WAITING_ADD' if waiting else 'READY',
+                 'read_only': True, 'execution_available': False, 'device_work_admitted': False}
+        return {**value, 'preflight_digest': _digest(value, _DOMAIN)}
 
     @staticmethod
     def _target(db, target, ip, now):

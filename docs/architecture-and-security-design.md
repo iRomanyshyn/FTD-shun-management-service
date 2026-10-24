@@ -4903,3 +4903,46 @@ atomic retirement and shared-worker promotion. VERIFIED/NOOP, exact pre-write
 deferral and failed/unknown results need distinct settlement rules; fresh observed
 absence must never release unknown evidence. This preflight does not implement or
 authorize any of those transitions, lab migrations or new fixtures.
+
+## Version-2 durable ordered reservations — 2026-10-23
+
+Add a separate explicitly initialized optional profile after exact fenced v2
+storage. Initialization requires ordinary pause, suspended desired policy and
+quiescent settled executors, preserves existing authority/receipts and is never
+called by startup, GET or admission. No live migration follows from implementation.
+Recognize the complete additive schema exactly; partial state is unavailable.
+
+A distinct default-false internal ordered reservation coordinator accepts only
+the separate STOP_AND_REMOVE_ORDERED digest: exact frozen single/fleet scope,
+one or more exact captured RUNNING predecessors, original evidence/deadlines,
+1..900-second cleanup lifetime and bounded reason. Reinspect all scope/predecessors
+under the same write lock; reject readiness changes instead of silently falling
+back to ready-only admission. Require real Operator/Administrator, unpaused
+mutations, complete eligible scope and existing storage. Atomically retire all
+enabled targets, reserve the whole cleanup scope and retain immutable original
+action/receipt plus real-actor audit. No REMOVE job or device authority is admitted
+in this packet. Original-key retries return only the original receipt and never
+renew deadlines, restore maintenance or recreate work.
+
+Reservations share the ordinary 1000 pending-target/2000 active-request and
+10-per-minute actor budgets, and reserve one retained request-ledger slot within
+the existing actual-retirement reserve. Held pairs reject independent manual
+ADD/REMOVE, new standing grants and ready-only cleanup; protected automatic
+removal remains independent. Policy remains retired after cancellation/expiry.
+Only the original owner or Administrator may cancel a waiting reservation.
+Existing shared expiry maintenance may expire elapsed waits, never dispatch them.
+Neither operation changes/cancels a RUNNING ADD or resolves its original outcome.
+
+Retain every captured ADD job, original linked request and claim-audit receipt
+even after local reservation expiry/cancellation. Validate all held references
+before either queue or audit pruning; malformed/missing evidence refuses pruning
+before any deletion. Preserve original attempt/job states and immutable captured
+identities while permitting their ordinary verified, failed/unknown or exact
+pre-write-deferral settlement. Age, a later read and administrative revocation
+are not uncertainty resolution. Retained roots/members have explicit capacity
+limits; no automatic eviction, partial fleet or receipt-key reuse.
+
+There is no promotion/second executor, ordered HTTP/Web route, runtime/environment
+selector, migration CLI, automatic feature activation or lab write. Future worker
+promotion requires its own reviewed whole-scope state transition and must retain
+original cleanup TTL/reservations/evidence and per-device settlement safeguards.

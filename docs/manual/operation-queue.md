@@ -1,5 +1,11 @@
 # Operation Queue
 
+The explicitly migrated v2 developer profile now also supports
+[ordered reservations](bulk-ordered-reservations.md). Waiting roots reserve
+whole-scope target/request/rate budgets; shared expiry can revoke them, and both
+queue and audit retention preserve captured ADD jobs/requests/claim evidence.
+This is default-off internal admission, not ordered dispatch or a lab migration.
+
 **Target update (2026-10-20):** [Working-Version Plan](../working-version-plan.md)
 requires continuous parallel per-device dispatch, interactive priority and
 automatic evidence-based recovery. This manual still describes current queue/

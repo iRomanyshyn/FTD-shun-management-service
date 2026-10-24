@@ -1,8 +1,11 @@
 # Version-2 Ordered-Removal Preflight
 
-Status: local read-only inspection foundation. Ordered admission, durable waiting
-and worker promotion are **not implemented**. No HTTP route, Web execution
-control, environment setting, migration or live activation is introduced. The
+Status: local read-only inspection foundation. A separate default-off
+[durable reservation component](bulk-ordered-reservations.md) now implements
+atomic retirement/waiting on an explicitly initialized optional profile; this
+inspector still does not admit or initialize anything. Worker promotion remains
+**not implemented**. No HTTP route, Web execution
+control, environment setting or live activation is introduced. The
 existing [ready-only confirmation](ready-removal-confirmation.md) remains separate
 and rejects pending ADD rather than silently switching modes.
 
@@ -16,6 +19,10 @@ policy for that IP, at most ten devices. Missing-but-maintained and disabled
 members are not dropped; multiple interfaces remain one target. Unmanaged
 observations do not acquire maintenance. Missing storage is never created, and
 unrecognized/partial optional schemas fail closed.
+
+The matching `read(db, ip, device_id=None, now=None)` composition hook accepts a
+caller-owned transaction for atomic admission reinspection; it performs only the
+same local reads and never commits, initializes or grants authority by itself.
 
 The supplied inspection time must be timezone-aware UTC; omission uses current
 UTC. It is not a clock override for execution. The result contains:
@@ -88,10 +95,11 @@ optional lab profile merely to try it. Tests explicitly create disposable v2
 profiles, corrupt only those fixtures, and exercise actual synthetic queue claims
 and results without a device transport.
 
-Before adding execution, design and implement an explicitly migrated durable
+Before adding execution, complete the separately migrated durable
 whole-scope barrier with capacity/rate reservations, one original cleanup TTL,
 atomic retirement, predecessor/request evidence holds and shared-worker-only
-promotion. Retain all original uncertain outcomes; observed absence cannot
+promotion. The reservation/revocation foundation is described separately; no
+promotion is present yet. Retain all original uncertain outcomes; observed absence cannot
 release them. Cover exact deferral, cancellation, expiry, pause/restart, protection
 priority and whole-fleet settlement. Frozen Web/API consent and distinct default-
 off admission capabilities must be added separately; no new lab authorization is

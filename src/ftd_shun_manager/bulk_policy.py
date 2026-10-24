@@ -89,8 +89,8 @@ def _initialize(db):
     execute_schema(db, _DDL)
 
 
-@lru_cache(maxsize=6)
-def _expected(cancellation=False, attempts=False, waits=False, dispatch=False, devices=False):
+@lru_cache(maxsize=8)
+def _expected(cancellation=False, attempts=False, waits=False, dispatch=False, devices=False, ordered=False):
     with closing(sqlite3.connect(':memory:')) as db:
         db.execute('BEGIN')
         _initialize(db)
@@ -116,6 +116,10 @@ def _expected(cancellation=False, attempts=False, waits=False, dispatch=False, d
             # Expected-schema construction only: a trigger target, not live queue initialization.
             db.execute('CREATE TABLE operation_executor(id INTEGER PRIMARY KEY,owner TEXT,lease_until TEXT)')
             execute_schema(db, DDL)
+        if ordered:
+            from .bulk_ordered_waits import DDL
+
+            execute_schema(db, DDL)
         return _objects(db)
 
 
@@ -131,8 +135,11 @@ def _state(db):
                 for _, name, table, _ in objects)
     dispatch = any(name.startswith('managed_bulk_dispatch') for _, name, _, _ in objects)
     devices = any(name.startswith('managed_bulk_device') for _, name, _, _ in objects)
+    ordered = any(name.startswith(('managed_bulk_ordered_', 'idx_managed_bulk_ordered_'))
+                  or table.startswith('managed_bulk_ordered_') for _, name, table, _ in objects)
     if ((attempts and not cancellation) or (waits and not attempts) or (dispatch and not waits)
-            or (devices and not dispatch) or objects != _expected(cancellation, attempts, waits, dispatch, devices)):
+            or (devices and not dispatch) or (ordered and not devices)
+            or objects != _expected(cancellation, attempts, waits, dispatch, devices, ordered)):
         raise BulkUnavailable('Exact version-2 storage is required; legacy/partial/optional state was not converted.')
     row = db.execute('SELECT revision,restoration_suspended,format_version FROM managed_bulk_registry WHERE id=1').fetchone()
     if (row is None or type(row[0]) is not int or row[0] < 0 or row[2] != 2
@@ -176,6 +183,10 @@ def _state(db):
         from .device_leases import validate as validate_devices
 
         validate_devices(db)
+    if ordered:
+        from .bulk_ordered_waits import validate as validate_ordered
+
+        validate_ordered(db)
     return {'revision': row[0], 'restoration_suspended': bool(row[1])}
 
 
@@ -270,6 +281,13 @@ def _quiescent(db):
         validate_held_jobs(db)
     if waits_present(db) and validate_pending(db):
         raise ManagedConflict('Captured bulk cancellation remains unsettled; no new authority or migration.')
+    from .bulk_ordered_waits import held_count, validate_held_predecessors
+    from .bulk_ordered_waits import present as ordered_present
+
+    if ordered_present(db):
+        validate_held_predecessors(db)
+        if held_count(db):
+            raise ManagedConflict('Ordered cleanup reservations remain; no new authority or migration.')
 
 
 class BulkPolicies:

@@ -6592,6 +6592,69 @@ retention and original-deadline accounting, atomic retirement and shared-worker
 promotion before distinct frozen ordered consent or scoped live acceptance.
 See [Ordered-Removal Preflight](manual/bulk-ordered-preflight.md).
 
+## 2026-10-23 — Durable v2 ordered reservations and retained predecessor evidence
+
+Continued after read-only preflight with a separate optional exact fenced v2
+profile: two retained root/member tables, pair index and immutable/monotonic
+triggers. Initialization is explicit/default-disabled, requires existing storage,
+ordinary pause, desired suspension and settled quiescence, and is fully transactional
+including late caught failure. No startup/read/admission caller initializes it.
+Legacy/partial/unexpected objects are not converted or repaired.
+
+Implemented a distinct canonical STOP_AND_REMOVE_ORDERED action binding the
+complete frozen device/fleet union, exact original RUNNING predecessor identities,
+claim/epoch/snapshot/deadline evidence, literal cleanup lifetime and bounded reason.
+The internal default-false coordinator requires real Operator/Administrator and
+reinspects everything under one write lock. It atomically retires all enabled
+policy, reserves the entire cleanup scope and retains one immutable original
+action/receipt plus actual-actor audit. No single-target loop, ready fallback,
+scope shrink, ADD interruption or REMOVE job/request is used. Late audit/capacity/
+clock/expiry/lease failure rolls back all state even if an outer caller commits.
+Original-key concurrency/restart/replay never renews authority or resumes policy.
+
+Integrated reservation target/request/rate accounting with the existing shared
+queue. Held pairs exclude independent manual and ready-only work; quiescent
+standing admission sees the reservation. Protected system removal remains
+independent. Owner/Admin local cancellation and bounded expiry in existing shared
+maintenance release reservations without changing the original ADD or re-enabling
+maintenance. Local readonly status exposes individual predecessor outcomes and
+honest missing evidence; no automatic promotion is present. WAITING_ADD remains
+waiting even after all ADD results, pending a separate execution contract.
+
+Both queue and audit retention now validate captured predecessor jobs, original
+linked requests and original claim receipts before any deletion, holding those
+references even after local reservation cancellation/expiry. Captured identities
+remain immutable while ordinary verified/no-op/failed/unknown or exact-deferral
+results settle. Missing/malformed held evidence refuses pruning; age/revocation
+does not resolve uncertainty. Retained roots/descriptors/membership have explicit
+limits; no eviction or automatic hold release is introduced.
+
+Synthetic tests exercise actual shared claims/results, two parallel device ADDs,
+whole-scope admission, late rollback, concurrent original-key replay, profile
+migration/refusal, pause/default-off/strict-type boundaries, all result types,
+revocation/expiry, queue budgets, grants/manual conflicts, protected independence,
+and queue/audit retention with deliberately damaged disposable evidence. The
+initial focused run found the old v1 guard preceding the new reservation guard;
+reordered the new pair check without bypassing the existing legacy guard. Final
+validation: **2163 Python tests passed (231.46s)**; focused ordered/preflight/ready/
+dispatch/maintenance/Store regression **210 passed (16.82s)**, including **49 new
+cases**. Compileall, Ruff and diff/whitespace checks passed; changed/new-document
+local links/anchors were validated. Agent/Compose/UI unchanged, so Rust/Chromium
+were not rerun. Two initially mistyped targeted filenames caused collection-only
+failures before the correct existing test files were selected; final focused and
+full runs are green.
+
+Updated architecture, working-version plan, status and structured migration/
+backup/rollback/development manuals. No live optional migration, database/secret/
+inventory/Compose setting, gate/profile, image/service restart or FTD operation
+was invoked. Agent/wire/UI unchanged. Real rollout still needs separately scoped
+approval, drained old writers and checked SQLite-safe backups/matching images.
+Older retention writers do not know these holds and must not touch the upgraded
+profile. Do not restore enabled pre-retirement policy or erase evidence to force
+a downgrade. Worker promotion/attention, original-TTL capacity transfer and frozen
+ordered Web/API consent remain next; no lab/production acceptance is claimed.
+See [Ordered Reservations](manual/bulk-ordered-reservations.md).
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

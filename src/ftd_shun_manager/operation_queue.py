@@ -137,7 +137,10 @@ class OperationQueue:
         return db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='managed_removal_handoffs'").fetchone() is not None
 
     def _pending_count(self, db) -> int:
+        from .bulk_ordered_waits import held_targets
+
         count = db.execute("SELECT COUNT(*) FROM operation_jobs WHERE state IN ('QUEUED','RUNNING')").fetchone()[0]
+        count += held_targets(db)
         if self._handoffs_present(db):
             count += db.execute("SELECT COUNT(*) FROM managed_removal_handoffs WHERE state='WAITING_ADD'").fetchone()[0]
         if fleet_waits_present(db):
@@ -145,9 +148,12 @@ class OperationQueue:
         return count
 
     def _active_request_count(self, db) -> int:
+        from .bulk_ordered_waits import held_count
+
         count = db.execute("""SELECT COUNT(DISTINCT r.id) FROM operation_requests r
             JOIN operation_links l ON l.request_id=r.id JOIN operation_jobs j ON j.id=l.job_id
             WHERE r.state='ACTIVE' AND j.state IN ('QUEUED','RUNNING')""").fetchone()[0]
+        count += held_count(db)
         if self._handoffs_present(db):
             count += db.execute("SELECT COUNT(*) FROM managed_removal_handoffs WHERE state='WAITING_ADD'").fetchone()[0]
         if fleet_waits_present(db):
@@ -155,9 +161,12 @@ class OperationQueue:
         return count
 
     def _recent_request_count(self, db, subject, current, exclude_request_id=None) -> int:
+        from .bulk_ordered_waits import held_count
+
         cutoff = stamp(current - timedelta(minutes=1))
         count = db.execute("SELECT COUNT(*) FROM operation_requests WHERE actor_subject=? AND requested_at>=?",
                            (subject, cutoff)).fetchone()[0]
+        count += held_count(db, subject=subject, cutoff=cutoff, exclude=exclude_request_id)
         if self._handoffs_present(db):
             count += db.execute("""SELECT COUNT(*) FROM managed_removal_handoffs h
                 WHERE actor_subject=? AND requested_at>=? AND (? IS NULL OR id!=?)
@@ -282,6 +291,11 @@ class OperationQueue:
                 or targets != [(handoff["device_id"], IPv4Address(handoff["ip"]))]
             ):
                 raise QueueConflict("Managed-removal key is reserved for its exact cleanup handoff.")
+        if source in {"manual", "manual_import"}:
+            from .bulk_ordered_waits import pair_held
+
+            if any(pair_held(db, device, ip) for device, ip in targets):
+                raise QueueConflict('Ordered cleanup reserved this pair; independent manual work conflicts.')
         if source == "manual":
             # Combined admission retires policy under this very write lock
             # before it delegates removal. A scope label is not a bypass.
@@ -390,9 +404,12 @@ class OperationQueue:
                 AND state IN ('QUEUED','RUNNING')""", (device_id, ip.packed)).fetchone() is not None
 
     def expire_requests(self) -> None:
+        from .bulk_ordered_waits import expire as expire_ordered
+
         with self.store._connection() as db:
             db.execute("BEGIN IMMEDIATE")
             changed = self._expire_authorizations(db)
+            changed += expire_ordered(db, self.store, self._now())
             jobs = db.execute("""SELECT j.* FROM operation_jobs j JOIN devices d ON d.id=j.device_id
                 WHERE j.state='QUEUED' AND (d.enabled=0 OR NOT EXISTS (
                   SELECT 1 FROM operation_links l JOIN operation_requests r ON r.id=l.request_id
@@ -892,6 +909,8 @@ class OperationQueue:
             from .bulk_attempts import present as bulk_present
             from .bulk_attempts import validate_held_jobs
             from .bulk_dispatch import present as dispatch_present
+            from .bulk_ordered_waits import present as ordered_present
+            from .bulk_ordered_waits import validate_held_predecessors
             from .bulk_policy import _state as bulk_state
             from .bulk_waits import present as bulk_waits_present
             from .bulk_waits import validate_pending as validate_bulk_waits
@@ -904,6 +923,10 @@ class OperationQueue:
                 validate_held_jobs(db)
                 preserve += """ AND NOT EXISTS (SELECT 1 FROM managed_bulk_attempts a
                     WHERE a.job_id=operation_jobs.id AND a.state IN ('QUEUED','RUNNING','UNVERIFIED'))"""
+            if ordered_present(db):
+                validate_held_predecessors(db)
+                preserve += """ AND NOT EXISTS (SELECT 1 FROM managed_bulk_ordered_members m
+                    WHERE m.job_id=operation_jobs.id)"""
             if dispatch_present(db):
                 bulk_state(db)
                 # Absence is observational, not proof the original RPC has stopped.

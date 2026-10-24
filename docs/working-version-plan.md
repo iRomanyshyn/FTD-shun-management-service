@@ -135,8 +135,12 @@ Ordered-cleanup checkpoint (2026-10-23): a separate local read-only preflight no
 classifies the complete v2 single/fleet scope, exact owned RUNNING ADDs and explicit
 blockers, with original claim/epoch/deadline evidence and a separate observational
 digest. It never admits/removes/retires/reserves work, and does not change the
-ready-only confirmation. Durable whole-scope waiting/promotion, distinct ordered
-consent and feature activation remain pending. See
+ready-only confirmation. A separate explicitly migrated, default-off internal
+coordinator now atomically retires/reserves the whole scope, retains immutable
+receipts and predecessor/request/claim evidence, and supports local revocation and
+shared maintenance expiry without device work. Whole-scope promotion/attention,
+original-TTL capacity transfer, distinct ordered consent and feature activation
+remain pending. See [Ordered Reservations](manual/bulk-ordered-reservations.md) and
 [Ordered-Removal Preflight](manual/bulk-ordered-preflight.md).
 
 Target up to 10,000 IPv4 addresses in one import, with explicit device selection.

@@ -592,11 +592,20 @@ class Store:
             timespec="milliseconds"
         ).replace("+00:00", "Z")
         with self._connection() as db:
+            from .bulk_ordered_waits import present as ordered_present
+            from .bulk_ordered_waits import validate_held_predecessors
+
+            db.execute('BEGIN IMMEDIATE')
+            preserve = ''
+            if ordered_present(db):
+                validate_held_predecessors(db)
+                preserve = ''' AND NOT EXISTS (SELECT 1 FROM managed_bulk_ordered_members m
+                    WHERE m.claim_event_id=shun_events.id)'''
             origins_deleted = db.execute("""DELETE FROM shun_import_origins WHERE verified_at<?
                 AND NOT EXISTS (SELECT 1 FROM shun_state s WHERE s.occurrence_id=shun_import_origins.occurrence_id
                   AND s.active=1)""", (cutoff,)).rowcount
             events_deleted = db.execute(
-                "DELETE FROM shun_events WHERE timestamp < ?", (cutoff,)
+                "DELETE FROM shun_events WHERE timestamp < ?" + preserve, (cutoff,)
             ).rowcount
             inactive_state_deleted = db.execute(
                 """DELETE FROM shun_state
