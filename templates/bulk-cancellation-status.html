@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Import cancellation status</h1>
+{% if refresh %}{% include "refresh-panel.html" %}{% endif %}
+<p>Original import: <code>{{ operation_id }}</code>. Local retained evidence only; no new Cisco query.</p>
+<section id="bulk-cancellation-state" data-live-region aria-live="polite">
+{% if message %}<p class="preview-error" role="alert">{{ message }}</p>{% endif %}
+{% if cancellation and cancellation.requested %}
+<p class="policy-warning"><strong>No device removal requested.</strong> Already applied/adopted/existing maintenance stays. Cancelled original policy never resumes because of a retry, restart or later successful command.</p>
+<p data-cancellation-phase><span class="state-badge {{ 'policy-disabled' if cancellation.attention_count | default(0) else 'policy-enabled' if cancellation.settled else '' }}">{{ 'SETTLED' if cancellation.settled else 'WAITING_OUTCOME' }}</span> · {{ cancellation.result.accepted_count }} accepted pairs · {{ cancellation.attention_count | default(0) }} require attention. Settled does not mean successful device removal or resolved uncertainty.</p>
+<h2>Current dispositions</h2><ul>{% for state, count in (cancellation.current_counts | default(cancellation.result.counts)).items() %}<li>{{ state }}: {{ count }}</li>{% endfor %}</ul>
+<details id="bulk-cancellation-original"><summary>Original immutable cancellation receipt</summary><p>{{ cancellation.result.changed_targets }} targets stopped immediately at original revision {{ cancellation.result.managed_revision }}. Initial counts do not change after settlement.</p><ul>{% for state, count in cancellation.result.counts.items() %}<li>{{ state }}: {{ count }}</li>{% endfor %}</ul></details>
+<div class="table-scroll"><table aria-label="Current cancellation members"><thead><tr><th>Original device / IP</th><th>Initial / current disposition</th><th>Captured ADD / attention</th></tr></thead><tbody>{% for target in cancellation.targets %}<tr><td>{{ target.device_id }} / {{ target.ip }}</td><td>{{ target.initial_state | default(target.state) }}<br>{{ target.state }}</td><td>{{ target.outcome | default('No later settlement recorded') }}{% if target.attention | default(false) %}<br><strong>Retained attention</strong>{% endif %}{% if target.settled_at %}<br><time class="local-timestamp" datetime="{{ target.settled_at }}">{{ target.settled_at }}</time>{% endif %}</td></tr>{% endfor %}</tbody></table></div>
+<nav class="history-pagination" aria-label="Cancellation pages"><p>Page {{ cancellation.page }} / {{ cancellation.pages }} · at most 100 original accepted members</p><div class="pagination-controls">{% if cancellation.page > 1 %}<a rel="prev" href="/managed-imports/v2/cancellations/{{ operation_id }}?page={{ cancellation.page - 1 }}">Previous 100</a>{% endif %}{% if cancellation.page < cancellation.pages %}<a rel="next" href="/managed-imports/v2/cancellations/{{ operation_id }}?page={{ cancellation.page + 1 }}">Next 100</a>{% endif %}</div></nav>
+{% elif cancellation %}<p>No cancellation decision is recorded for this original import. After an unknown submission this read does not prove rollback; retry only its original review.</p><form method="post" action="/managed-imports/v2/{{ operation_id }}/cancellation-review" class="import-confirm-form"><input type="hidden" name="csrf" value="{{ csrf_token }}"><button type="submit">Review cancellation of uncompleted work</button></form>
+{% else %}<p>Current evidence unavailable, not empty success or permission to replay ADD.</p>{% endif %}
+</section>
+<p><a href="/managed-imports/v2/cancellations/{{ operation_id }}">Check local status now</a> · <a href="/managed-imports/v2">Imports</a></p>
+<script src="/static/freshness.js" defer></script>
+{% endblock %}

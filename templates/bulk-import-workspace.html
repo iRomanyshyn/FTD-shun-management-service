@@ -26,6 +26,11 @@
 <td><span class="state-badge {{ 'policy-enabled' if plan.state == 'PREPARED' else '' }}">{{ plan.state }}</span><br><time class="local-timestamp" datetime="{{ plan.expires_at }}">{{ plan.expires_at }}</time></td>
 <td><a href="/managed-imports/v2/{{ plan.plan_id }}">Open original report</a>{% if plan.confirmed_operation_id %}<br>Earlier policy receipt: <code>{{ plan.confirmed_operation_id }}</code>{% endif %}</td></tr>
 {% else %}<tr><td colspan="4">No saved drafts for your identity.</td></tr>{% endfor %}</tbody></table></div>{% endif %}
+<h2>Saved policy receipts</h2>
+<p>Recover original keys after a lost confirmation reply or Web restart. These are historical policy receipts, not device progress or current maintenance.</p>
+{% if receipts %}<div class="table-scroll"><table aria-label="Saved v2 policy receipts"><thead><tr><th>Original operation</th><th>Accepted scope</th><th>Saved</th></tr></thead><tbody>
+{% for item in receipts['items'] %}<tr><td><a href="/managed-imports/v2/receipts/{{ item.id }}">{{ item.id }}</a></td><td>{{ item.accepted_count }} / {{ item.pair_count }} pairs</td><td><time class="local-timestamp" datetime="{{ item.requested_at }}">{{ item.requested_at }}</time></td></tr>{% else %}<tr><td colspan="3">No saved policy receipts for your identity.</td></tr>{% endfor %}
+</tbody></table></div>{% else %}<p class="policy-warning">Historical receipt state is unavailable; no empty/successful policy history is inferred.</p>{% endif %}
 <p><a href="/managed-imports/v2">Reload saved drafts / open a new form</a> · <a href="/imports">Standalone non-executable preview</a></p>
 <script src="/static/freshness.js" defer></script>
 {% endblock %}

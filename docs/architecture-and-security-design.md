@@ -5158,3 +5158,142 @@ never create/cancel drafts, refresh FTD or reclassify/renew anything. Escape all
 operator metadata, localize timestamps with timezone and preserve no-store/identity
 boundaries. No schema/gate/runtime selection, lab migration/activation, bulk fixture
 or production acceptance is authorized by these non-authoritative Web controls.
+
+### Version-2 suspended standing-import confirmation — 2026-10-26
+
+Add a distinct fixed private standing-confirmation route and owner receipt list/
+100-member report reads on the compatible existing v2/fenced continuous profile.
+Require independent literal default-false API and Web factory capabilities, never
+request/environment selectors. API enablement also requires a nonempty immutable
+trusted set of reviewed addition-profile device IDs, bounded to the existing sealed
+enabled device scope; it attests eligibility only and never enables agent ADD or
+loads credentials into API/Web. Disabled admission requires an empty scope. Validate
+composition before binding and at startup; never initialize optional state.
+
+Use the existing atomic BulkPolicies.confirm contract unchanged: suspended desired
+execution, unpaused new authority, settled/quiescent leases and no pending/uncertain
+work; exact original full manifest/preparation/owner/device identities/revisions/
+classifications/metadata; current Operator/Admin, exact accepted count and explicit
+recurring consent; retained capacity/reserve and original-key guards. One write
+transaction stores the whole classified scope/policy/receipt/audit or nothing.
+Concurrent observation sessions cause conflict, not a relaxed lease or automatic
+retry. No partial selected-device grant, legacy admission loop, resume or enqueue.
+
+The strict private body binds bounded canonical v2 descriptor/digest, literal
+accepted count, consent and real actor; original Idempotency-Key must equal the
+descriptor operation UUID. Historical replay preserves original authority/receipt
+and cannot re-enable retired targets. A checked result means policy_saved,
+policy_only=true, device_work_admitted=false, restoration_suspended=true, not a
+verified ADD. New commits update local metadata only, without waking device work.
+Receipt reads remain owner-bound and available with admission disabled and after
+draft expiry/pruning. Full retained root integrity precedes reports; missing or
+corrupt evidence is unavailable, never fabricated success/current policy state.
+
+Web preparation is a separate CSRF Operator/Admin POST that validates the complete
+original proposal/report, freezes descriptor/digest/summary/operation key in a
+bounded immutable subject/CSRF-cookie cache (five per owner, 256 total, <=ten
+minutes) and never grants authority. Paged inspection rechecks original digest/
+metadata without rebasing. Confirmation accepts only CSRF/token, canonical typed
+accepted-pair count and an explicit literal recurring-consent checkbox. Recheck
+identity/role/cookie/local expiry after metadata I/O and both independent gates
+plus complete trusted profile scope before one fixed private submission.
+
+Validate the complete historical receipt, typed counts/classes/revision/flags and
+original subject/actual confirmation actor. Lost/malformed responses are unknown:
+retry only the frozen original review/key, never rekey/split/rebase or replay ADD.
+Optional follow-up metadata/report failure cannot negate a checked policy receipt.
+Frozen forms retain focus/count/consent during metadata updates; GET never confirms.
+Saved owner receipts provide restart/lost-reply recovery, explicitly separate from
+device progress/current maintenance. Keep ADD/restoration/legacy gates off, desired
+execution suspended, no runtime selector/DDL or lab migration/activation/fixture.
+Confirmed-import cancellation and executable concurrency/recovery remain separate.
+
+### Version-2 confirmed-import cancellation surface — 2026-10-26
+
+Expose the existing whole-root BulkCancellations coordinator through fixed private
+review, reviewed-member-page, cancel and current-cancellation-report POSTs on the
+compatible continuous composition. Cancellation revokes existing authority, so it
+needs no new admission/execution gate and remains available during ordinary pause,
+suspended restoration and disabled ADD/standing admission. Existing exact optional
+storage is mandatory; never initialize/migrate/repair from construction, startup
+or requests. A narrow interface capability is not proof of storage readiness.
+
+Require the original owner with current Operator/Admin permission or another
+current Administrator. Bind actual current actor, original import UUID, five-minute
+UTC review, digest and exact accepted pair count. New read-only member pagination
+rechecks the complete review digest/count and expiry before returning <=100
+accepted members; current state changes conflict without rebasing the review.
+The full original scope, authority and held attempt evidence stay authoritative.
+
+Reuse one atomic existing cancellation transaction. Retain adopted/existing and
+verified/no-op applied policy, retire exact unsent/failed/unknown original grants,
+cancel only their owned unsent jobs and capture RUNNING ADDs for shared-result
+settlement. Never send REMOVE, interrupt RUNNING work, revive retired policy, touch
+newer authority, clear uncertainty or add another executor. Current statuses do
+not alter the immutable original cancellation receipt, including WAITING_OUTCOME.
+
+Web consent is a distinct explicit CSRF/Operator POST with a bounded immutable
+subject/cookie-bound cache, <=five minutes/five per subject/256 total. Freeze the
+original review/count/digest, preserve typed count during paging/status updates,
+and require its exact typed count before one fixed private cancellation call.
+Recheck session/role/expiry after I/O; no request supplies actor/action/profile
+authority or a replacement key. Validate exact receipts and member/outcome/attention
+projections. Unknown replies allow only same original review/actual-actor retry or
+inspection of the durable cancellation permalink; actor changes may require read
+recovery rather than replay. Checked receipt survives failed follow-up reads.
+
+Provide bounded local current-status pages with initial/current dispositions,
+waiting/attention counts and conspicuous retained-policy/no-unblock consequences.
+Passive updates preserve form state and read local evidence only. GET never
+confirms, settles, expires/promotes work, queries FTD or infers missing evidence as
+success. Owner policy receipts remain private; administrative cancellation authority
+does not grant access to another owner's full private policy receipt. No schema,
+new gate/runtime selector, lab migration/activation/fixture or FTD acceptance.
+
+### Fenced concurrent standing admission — 2026-10-26
+
+Add a separate opt-in policy-only coordinator and fixed `confirm-concurrent` route;
+retain suspended/quiescent confirmation unchanged. Independent literal default-
+false API/Web concurrent capabilities require their existing standing-admission
+capabilities and trusted eligible device scope. They do not enable agent ADD,
+resume execution, select a runtime/environment profile or migrate storage.
+
+Concurrent admission requires the exact existing fenced-device/dispatch/captured
+profile and an unowned global executor. Under the same write transaction, bind
+the full original descriptor/preparation, current actor, count/consent, current
+managed/protection revisions, classification/authority, device identity/profile,
+expiry and retained capacity/reserve. Bind the expected desired-suspension boolean
+from the frozen review; a new grant conflicts if it changed. Preserve one whole-
+scope transaction and all original-key/evidence semantics.
+
+Permit independent valid device leases and unrelated queued/running jobs. Every
+selected device must be IDLE or have an unexpired valid LEASED fence with no future
+timestamp; ATTENTION/expired fences or retained device-level unknown/reconciled-
+absent evidence block it. Every accepted device/IP must have no queued/running/
+uncertain work, no retained failed/unknown ADD across generations, no unattributed
+ADD job, no unsettled cancellation or held ordered cleanup. Validate all retained
+held references even outside this scope; malformed evidence never becomes absent.
+Protected exclusions gain no authority. One conflicting member refuses everything.
+Recheck selected fences, expected suspension and clock before commit; never renew,
+steal/release a lease, interrupt a command or resolve an outcome from admission.
+
+Reuse the common policy/membership/audit transaction. Concurrent receipts add the
+literal `admission_mode=fenced` and actual historical `restoration_suspended`
+boolean, while retaining `policy_only=true`/`device_work_admitted=false`. Existing
+unmarked receipts remain the suspended contract. Full root/receipt validators
+recognize both exact forms; cross-mode key reuse conflicts. Same-mode original-key
+replay preserves the original suspension/authority and never re-enables policy.
+No new job/hint/resume follows confirmation. The shared bounded dispatcher alone
+may later act when separately enabled, using a complete read started after new
+authority (equal millisecond timestamps also refuse); admission never makes an
+older snapshot eligible. Old portion revision
+checks and per-device serialization/priority/budgets remain intact.
+
+Freeze Web admission mode and expected suspension alongside the immutable original
+proposal/summary/key. No posted mode/action selects authority. Use one fixed route
+for that frozen mode; require independent local/API concurrent capabilities and
+refuse mode drift without fallback/rekey/rebase. Keep exact count/recurring consent,
+CSRF/current actor/post-I/O expiry and same-key unknown-reply recovery. Forms and
+historical receipts must honestly distinguish suspended and already-active desired
+policy, never claim verified device work or resume execution. No live migration,
+gate/profile activation, fixture or production acceptance follows this delivery.

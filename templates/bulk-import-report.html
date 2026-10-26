@@ -18,7 +18,8 @@
 <p>{{ proposal.manifest.accepted_count }} accepted pairs across {{ proposal.manifest.device_ids | length }} selected devices. PROPOSE_ADD: {{ proposal.manifest.classification_counts.PROPOSE_ADD }} · PROPOSE_ADOPT: {{ proposal.manifest.classification_counts.PROPOSE_ADOPT }} · ALREADY_MANAGED: {{ proposal.manifest.classification_counts.ALREADY_MANAGED }} · EXCLUDED_PROTECTED: {{ proposal.manifest.classification_counts.EXCLUDED_PROTECTED }}.</p>
 <p>Adoption proposes future maintenance, not past service creation. Already-managed targets preserve original authority. Confirmation must independently recheck every revision, profile, conflict and exclusion; this hash does not reserve a key.</p>
 <dl class="import-review-metadata"><dt>Original preparation</dt><dd><code>{{ draft.plan_id }}</code></dd><dt>Stable v2 proposal operation key</dt><dd><code>{{ proposal.operation_id }}</code></dd><dt>Preparation digest</dt><dd><code>{{ draft.digest }}</code></dd><dt>Proposal digest</dt><dd><code>{{ proposal.digest }}</code></dd><dt>Full manifest digest</dt><dd><code>{{ proposal.manifest.digest }}</code></dd></dl>
-<button type="button" disabled>Standing-policy confirmation unavailable</button>
+<p>This proposal does not save policy. Prepare a separate consent form to continue.</p>
+<form method="post" action="/managed-imports/v2/{{ draft.plan_id }}/confirmation-review" class="import-confirm-form"><input type="hidden" name="csrf" value="{{ csrf_token }}"><button type="submit">Prepare separate recurring-policy consent</button></form>
 </section>{% endif %}
 <h2>Proposed targets</h2>
 <div class="table-scroll"><table aria-label="Frozen bulk targets"><thead><tr><th>Device / IP</th><th>Frozen classification</th><th>Original local evidence</th></tr></thead><tbody>

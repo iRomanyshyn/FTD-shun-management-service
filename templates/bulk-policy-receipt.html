@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Historical managed-policy receipt</h1>
+{% if refresh %}{% include "refresh-panel.html" %}{% endif %}
+{% if message %}<p class="preview-error" role="alert">{{ message }}</p>{% endif %}
+{% if receipt %}
+<p class="policy-warning"><strong>Policy was saved {{ 'with restoration suspended' if receipt.result.restoration_suspended else 'while desired execution was already active' }}.</strong> This immutable historical receipt does not prove current maintenance or any device ADD. It never re-enables retired policy or resumes execution.</p>
+{% if receipt.result.admission_mode == 'fenced' %}<p>Original admission checked selected device/IP fences while independent work could continue. This is historical consent, not current worker eligibility.</p>{% endif %}
+<p>Original operation: <code>{{ receipt.operation_id }}</code> · Original preparation: <code>{{ receipt.preparation_id }}</code>.</p>
+<p>Original actor: {{ receipt.result.confirmation_actor.display_name }} ({{ receipt.result.confirmation_actor.subject }}) · saved managed revision {{ receipt.result.managed_revision }}.</p>
+<p>{{ receipt.result.accepted_pairs }} accepted pairs / {{ receipt.manifest.pair_count }} classified pairs · {{ receipt.result.changed_targets }} changed policy targets.</p>
+<p>Protected exclusions: {{ receipt.manifest.classification_counts.EXCLUDED_PROTECTED }}. Already-managed targets preserve original authority; adoption is not proof of prior service creation. Draft expiry/pruning does not delete this receipt or its membership.</p>
+{% if 'Operator' in identity.roles or 'Administrator' in identity.roles %}<details id="bulk-import-cancellation"><summary>Cancel uncompleted import work</summary><p>Already applied, adopted and previously managed targets stay maintained. This does not unblock any IP.</p><form method="post" action="/managed-imports/v2/{{ receipt.operation_id }}/cancellation-review" class="import-confirm-form"><input type="hidden" name="csrf" value="{{ csrf_token }}"><button type="submit">Review whole-import cancellation</button></form><p><a href="/managed-imports/v2/cancellations/{{ receipt.operation_id }}">Inspect original cancellation status</a></p></details>{% endif %}
+<div class="table-scroll"><table aria-label="Historical policy members"><thead><tr><th>Original device / IP</th><th>Class</th><th>Assigned original authority</th></tr></thead><tbody>
+{% for target in receipt.targets %}<tr{% if target.classification == 'EXCLUDED_PROTECTED' %} class="protected-shun"{% endif %}><td>{{ target.device_id }} / {{ target.ip }}</td><td>{{ target.classification }}</td><td>{% if target.intent_id %}<code>{{ target.intent_id }}</code><br>Generation {{ target.generation }}{% else %}Excluded — no authority{% endif %}</td></tr>{% endfor %}
+</tbody></table></div>
+<nav class="history-pagination" aria-label="Historical policy receipt pages"><p>Page {{ receipt.page }} / {{ receipt.pages }} · at most 100 original members per page</p><div class="pagination-controls">
+{% if receipt.page > 1 %}<a rel="prev" href="/managed-imports/v2/receipts/{{ receipt.operation_id }}?page={{ receipt.page - 1 }}">Previous 100</a>{% endif %}
+{% if receipt.page < receipt.pages %}<a rel="next" href="/managed-imports/v2/receipts/{{ receipt.operation_id }}?page={{ receipt.page + 1 }}">Next 100</a>{% endif %}</div></nav>
+{% else %}<p>Original retained receipt is unavailable, not successful execution or an empty import.</p>{% endif %}
+<p><a href="/managed-imports/v2">Owner preparations and saved receipts</a></p>
+<script src="/static/freshness.js" defer></script>
+{% endblock %}

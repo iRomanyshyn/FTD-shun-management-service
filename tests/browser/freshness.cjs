@@ -23,6 +23,8 @@ from ftd_shun_manager.bulk_ordered_review import OrderedRemovalReviews, validate
 from ftd_shun_manager.bulk_ordered_removals import _DOMAIN, _digest
 from ftd_shun_manager.bulk_intent import canonical_bulk_intent
 from ftd_shun_manager.bulk_preparation_view import operation_key, validate_report, validate_proposal
+from ftd_shun_manager.bulk_confirmation_view import BulkConfirmationReviews, validate_receipt_page
+from ftd_shun_manager.bulk_cancellation_view import BulkCancellationReviews, validate_review_page, validate_status
 from ftd_shun_manager.bulk_removals import canonical_scope
 from ftd_shun_manager.managed_grant_review import ManagedGrantReviews
 from ftd_shun_manager.managed_batch_review import ManagedBatchReviews, parse_standing_list
@@ -38,6 +40,8 @@ managed_import_report = None
 inspection = ordered_status = None
 ordered_key = "88888888-8888-4888-8888-888888888888"
 bulk_draft = bulk_drafts = bulk_proposal = None
+policy_receipt = None
+bulk_cancellation = None
 if p.get("submitted"):
     parsed = parse_blocklist(p["source_text"])
     preview = paginate_preview(summarize_preview(parsed, dict(policy_revision=1, devices=[dict(id=1,hostname="lab-ftd")],
@@ -117,7 +121,7 @@ if p["template"] == "managed-import-review.html":
         managed_import_report = dict(header=header,page=1,pages=2,targets=targets[:100],report_rows=[])
     else:
         review = BrowserImportReviews().confirmation("test","fixture-token",managed_import_report)
-if p["template"] in ("bulk-import-workspace.html", "bulk-import-report.html"):
+if p["template"] in ("bulk-import-workspace.html", "bulk-import-report.html", "bulk-confirmation-review.html", "bulk-policy-receipt.html", "bulk-cancellation-review.html", "bulk-cancellation-status.html"):
     plan_id="33333333-3333-4333-8333-333333333333"
     all_targets=[dict(device_id=1,ip=f"198.18.0.{i}",classification="EXCLUDED_PROTECTED" if i==1 else "PROPOSE_ADOPT" if i==2 else "PROPOSE_ADD",
         observed_at="2026-10-26T12:00:00.000Z" if i==2 else None,managed_enabled=False,
@@ -135,21 +139,73 @@ if p["template"] in ("bulk-import-workspace.html", "bulk-import-report.html"):
     summary={key:bulk_draft[key] for key in ("plan_id","created_at","expires_at","label","target_count","address_count","classification_counts","state","confirmed_operation_id","digest","can_execute")}
     initialized=p["refresh"].get("fixture_bulk_storage",True)
     bulk_drafts=dict(initialized=initialized,plans=[summary] if initialized else [],intent_format=2,can_execute=False,policy_saved=False,device_work_admitted=False)
-    if p.get("bulk_review"):
+    if p.get("bulk_review") or p["template"] in ("bulk-confirmation-review.html", "bulk-policy-receipt.html"):
         summary,canonical,digest=canonical_bulk_intent(((r["device_id"],IPv4Address(r["ip"]),r["classification"]) for r in all_targets),(1,),operation_key(plan_id),plan_id,
             bulk_draft["digest"],0,1,bulk_draft["label"],bulk_draft["reason"])
         bulk_proposal=dict(intent_format=2,operation_id=operation_key(plan_id),preparation_id=plan_id,canonical=canonical,digest=digest,manifest=summary.as_dict(),can_execute=False,policy_saved=False,device_work_admitted=False)
         validate_proposal(bulk_proposal,bulk_draft)
+    if p["template"] == "bulk-confirmation-review.html":
+        review=BulkConfirmationReviews().prepare("test","fixture-token",bulk_draft,bulk_proposal,
+            concurrent=p["refresh"].get("bulk_policy_concurrent_enabled",False),
+            expected_suspended=p["refresh"].get("managed_execution_suspended",True))
+    if p["template"] == "bulk-policy-receipt.html":
+        members=[dict(r,request_id=operation_key(plan_id),managed_enabled=0,
+            intent_id=f"11111111-1111-4111-8111-{i:012d}" if r["classification"] != "EXCLUDED_PROTECTED" else None,
+            generation=1 if r["classification"] != "EXCLUDED_PROTECTED" else None,
+            authorization_request_id=operation_key(plan_id) if r["classification"] != "EXCLUDED_PROTECTED" else None) for i,r in enumerate(all_targets,1)]
+        saved=dict(operation_id=operation_key(plan_id),status="policy_saved",intent_format=2,managed_revision=1,changed_targets=101,
+            replayed=False,accepted_pairs=101,classification_counts=bulk_draft["classification_counts"],policy_only=True,
+            device_work_admitted=False,restoration_suspended=True,confirmation_actor=dict(subject="test",display_name="<b>Original operator</b>",roles=["Operator"]))
+        if p["refresh"].get("fixture_fenced_receipt"):
+            saved.update(admission_mode="fenced",restoration_suspended=False)
+        policy_receipt=dict(intent_format=2,historical_confirmation=True,read_only=True,can_execute=False,operation_id=operation_key(plan_id),
+            preparation_id=plan_id,result=saved,manifest=bulk_proposal["manifest"],canonical=canonical,digest=digest,
+            page=current,pages=2,targets=members[(current-1)*100:current*100])
+        validate_receipt_page(policy_receipt,operation_key(plan_id),"test",current)
+    if p["template"] in ("bulk-cancellation-review.html", "bulk-cancellation-status.html"):
+        cancel_key=operation_key(plan_id)
+        frozen_counts=dict(RETAINED_ADOPTED=1,WAITING_OUTCOME=1,STOPPED_UNSENT=99)
+        frozen=dict(operation_id=cancel_key,reviewed_at="2026-10-26T12:00:00.000Z",expires_at="2026-10-26T12:05:00.000Z",
+            review_digest="b"*64,scope_digest="c"*64,accepted_count=101,counts=frozen_counts,can_cancel=True,device_work_admitted=False)
+        accepted=[dict(device_id=1,ip=r["ip"],classification=r["classification"],intent_id=f"11111111-1111-4111-8111-{i:012d}",
+            generation=1,authorization_request_id=cancel_key,current_revision=1,
+            state="RETAINED_ADOPTED" if i==2 else "WAITING_OUTCOME" if i==3 else "STOPPED_UNSENT",
+            **(dict(job_id="22222222-2222-4222-8222-222222222222",attempt_digest="d"*64) if i==3 else {})) for i,r in enumerate(all_targets,1) if i!=1]
+        if p["template"] == "bulk-cancellation-review.html":
+            review=BulkCancellationReviews().prepare("test","fixture-token",frozen)
+            managed_import_report=dict(review=frozen,page=current,pages=2,targets=accepted[(current-1)*100:current*100])
+            validate_review_page(managed_import_report,frozen,current)
+        else:
+            outcome=p["refresh"].get("fixture_bulk_cancel_outcome")
+            current_counts=dict(frozen_counts)
+            projected=[]
+            for row in accepted:
+                item=dict(row,import_id=cancel_key,initial_state=row["state"],attention=False,
+                    job_id=row.get("job_id"),attempt_digest=row.get("attempt_digest"))
+                if row["state"]=="WAITING_OUTCOME" and outcome:
+                    item.update(state="STOPPED_UNVERIFIED" if outcome=="UNVERIFIED" else "RETAINED_APPLIED",
+                        attention=outcome=="UNVERIFIED",outcome=outcome,settled_at="2026-10-26T12:01:00.000Z")
+                    current_counts.pop("WAITING_OUTCOME")
+                    current_counts[item["state"]]=1
+                projected.append(item)
+            result=dict(operation_id=cancel_key,intent_format=2,status="cancelled_uncompleted",accepted_count=101,counts=frozen_counts,
+                changed_targets=99,managed_revision=2,device_work_admitted=False,device_removal_requested=False,replayed=False)
+            bulk_cancellation=dict(operation_id=cancel_key,requested=True,read_only=True,can_execute=False,historical_cancellation=True,
+                settled=bool(outcome),page=current,pages=2,result=result,current_counts=current_counts,attention_count=int(outcome=="UNVERIFIED"),
+                targets=projected[(current-1)*100:current*100])
+            validate_status(bulk_cancellation,cancel_key,current)
 print(templates.get_template(p["template"]).render(identity=Identity("test", "Test Operator", ("Operator",)),
     review=review, report=managed_import_report, accepted=None, result=None, confirm_ip="", message=None, admission_enabled=p["refresh"].get("managed_policy_admission_enabled" if p["template"] == "managed-import-review.html" else "import_admission_enabled", False),
     retry_available=p["refresh"].get("import_admission_enabled", False), execution_enabled=False,
     removal_admission_enabled=p["refresh"].get("managed_removal_admission_enabled", False),
-    frozen_view=p["template"] in ("import-confirm.html", "managed-remove-review.html", "bulk-removal-review.html", "bulk-ordered-review.html", "bulk-import-workspace.html", "bulk-import-report.html", "managed-retirement-review.html", "managed-grant-review.html", "managed-batch-form.html", "managed-batch-review.html"),
+    frozen_view=p["template"] in ("import-confirm.html", "managed-remove-review.html", "bulk-removal-review.html", "bulk-ordered-review.html", "bulk-import-workspace.html", "bulk-import-report.html", "bulk-confirmation-review.html", "bulk-policy-receipt.html", "bulk-cancellation-review.html", "managed-retirement-review.html", "managed-grant-review.html", "managed-batch-form.html", "managed-batch-review.html"),
     ready_removal_local_enabled=p["refresh"].get("fixture_ready_local_enabled",False),
     ordered_removal_local_enabled=p["refresh"].get("fixture_ordered_local_enabled",False),
-    inspection=inspection,ordered=ordered_status,operation_id=ordered_key,cancellation=None,
+    inspection=inspection,ordered=ordered_status,operation_id=bulk_cancellation["operation_id"] if bulk_cancellation else ordered_key,cancellation=bulk_cancellation,
     drafts=bulk_drafts,draft=bulk_draft,proposal=bulk_proposal,preparation_id="33333333-3333-4333-8333-333333333333",review_mode=p.get("bulk_review",False),
     creation_unknown=False,draft_label="",draft_reason="",
+    bulk_policy_local_enabled=p["refresh"].get("fixture_bulk_policy_local_enabled",False),typed_count="",consent=False,receipts=None,receipt=policy_receipt,
+    bulk_policy_local_concurrent=p["refresh"].get("fixture_bulk_policy_local_concurrent",False),
     admission_available=p["refresh"].get("managed_policy_admission_enabled", False),
     page=1, pages=2, page_targets=review.targets[:100] if p["template"] == "managed-batch-review.html" else [],
     confirm_count="", acknowledged=False, import_text_limit=1048576,
@@ -162,8 +218,8 @@ print(templates.get_template(p["template"]).render(identity=Identity("test", "Te
     source_text=p.get("source_text", ""), batch_label=p.get("label", ""), batch_reason=p.get("reason", ""),
     selected_devices=[1] if p.get("submitted") else [], preview=preview, preview_error=None,
     devices=[dict(id=1,hostname="lab-ftd",enabled=True),dict(id=2,hostname="disabled-ftd",enabled=False)],
-    active_page="managed" if p["template"].startswith("bulk-ordered-") or p["template"] in ("managed-shuns.html", "bulk-managed-shuns.html", "managed-remove-review.html", "bulk-removal-review.html", "managed-retirement-review.html", "managed-grant-review.html", "managed-batch-form.html", "managed-batch-review.html") else "imports" if p["template"] == "import-preview.html" or p["template"].startswith("bulk-import-") else "protected" if p["template"] == "protected-ips.html" else "history" if p["template"] == "history.html" else "shuns",
-    auto_request=p["template"] not in ("protected-ips.html", "history.html", "import-preview.html", "import-confirm.html", "bulk-import-workspace.html", "bulk-import-report.html", "managed-shuns.html", "bulk-managed-shuns.html", "managed-remove-review.html", "bulk-removal-review.html", "bulk-ordered-review.html", "bulk-ordered-status.html", "managed-retirement-review.html", "managed-grant-review.html", "managed-batch-form.html", "managed-batch-review.html")))
+    active_page="managed" if p["template"].startswith("bulk-ordered-") or p["template"] in ("managed-shuns.html", "bulk-managed-shuns.html", "managed-remove-review.html", "bulk-removal-review.html", "managed-retirement-review.html", "managed-grant-review.html", "managed-batch-form.html", "managed-batch-review.html") else "imports" if p["template"] in ("import-preview.html", "bulk-confirmation-review.html", "bulk-policy-receipt.html", "bulk-cancellation-review.html", "bulk-cancellation-status.html") or p["template"].startswith("bulk-import-") else "protected" if p["template"] == "protected-ips.html" else "history" if p["template"] == "history.html" else "shuns",
+    auto_request=p["template"] not in ("protected-ips.html", "history.html", "import-preview.html", "import-confirm.html", "bulk-import-workspace.html", "bulk-import-report.html", "bulk-confirmation-review.html", "bulk-policy-receipt.html", "bulk-cancellation-review.html", "bulk-cancellation-status.html", "managed-shuns.html", "bulk-managed-shuns.html", "managed-remove-review.html", "bulk-removal-review.html", "bulk-ordered-review.html", "bulk-ordered-status.html", "managed-retirement-review.html", "managed-grant-review.html", "managed-batch-form.html", "managed-batch-review.html")))
 `;
 
 const initial = () => ({
@@ -439,7 +495,11 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
         policy, managed: managedView, handoffs, fleet_cleanup: fleetCleanup, template: url.pathname === "/" ? "index.html" : url.pathname === "/history" ? "history.html"
           : url.pathname === "/protected-ips" ? "protected-ips.html" : url.pathname === "/imports" ? "import-preview.html"
             : url.pathname === "/imports/review" ? "import-confirm.html" : url.pathname === "/managed-imports/review" ? "managed-import-review.html"
-              : url.pathname === "/managed-imports/v2" ? "bulk-import-workspace.html" : url.pathname.startsWith("/managed-imports/v2/") ? "bulk-import-report.html"
+              : url.pathname === "/managed-imports/v2/confirmation-review" ? "bulk-confirmation-review.html"
+                : url.pathname === "/managed-imports/v2/cancellation-review" ? "bulk-cancellation-review.html"
+                : url.pathname.startsWith("/managed-imports/v2/cancellations/") ? "bulk-cancellation-status.html"
+                : url.pathname.startsWith("/managed-imports/v2/receipts/") ? "bulk-policy-receipt.html"
+                : url.pathname === "/managed-imports/v2" ? "bulk-import-workspace.html" : url.pathname.startsWith("/managed-imports/v2/") ? "bulk-import-report.html"
               : url.pathname === "/managed-shuns" ? (managed.intent_format === 2 ? "bulk-managed-shuns.html" : "managed-shuns.html")
               : url.pathname === "/managed-shuns/v2/removal-review" ? "bulk-removal-review.html"
                 : url.pathname === "/managed-shuns/v2/ordered-removal-review" ? "bulk-ordered-review.html"
@@ -910,8 +970,8 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
         assert.equal(await page.evaluate("document.querySelectorAll('table[aria-label=\"Frozen bulk targets\"] tbody tr').length"), 100);
         assert.equal(await page.evaluate("document.querySelectorAll('table[aria-label=\"Frozen bulk targets\"] td b').length"), 0);
         assert.equal(await page.evaluate("document.querySelectorAll('.protected-shun').length"), 1);
-        assert.equal(await page.evaluate("document.querySelector('section[aria-label=\"Frozen policy proposal\"] button').disabled"), true);
-        assert.equal(await page.evaluate("document.querySelector('form[action*=confirm]')"), null);
+        assert.ok(await page.evaluate("document.querySelector('section[aria-label=\"Frozen policy proposal\"] form').getAttribute('action').endsWith('/confirmation-review')"));
+        assert.equal(await page.evaluate("document.querySelector('form[action$=\"/confirm\"]')"), null);
         const binding = await page.evaluate("document.querySelector('.import-review-metadata').textContent");
         const reads = pageReads;
         status.data_revision += 1;
@@ -926,6 +986,181 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
         assert.equal(await page.evaluate("document.querySelector('[data-preview-status=Invalid]').textContent.includes('Invalid')"), true);
         assert.equal(await page.evaluate("document.querySelector('a[rel=prev]').getAttribute('href')"), "/managed-imports/v2/33333333-3333-4333-8333-333333333333/review?page=1");
         assert.equal(await page.evaluate("document.querySelector('.import-review-metadata').textContent"), binding);
+        for (const width of [1100, 375]) {
+          await page.call("Emulation.setDeviceMetricsOverride", { width, height: 800, deviceScaleFactor: 1, mobile: width === 375 });
+          assert.equal(await page.evaluate("document.documentElement.scrollWidth<=window.innerWidth"), true);
+        }
+        assert.equal(postCount, hints);
+        assert.equal(executionCount, executions);
+      } finally { await page.close(); }
+    });
+    await t.test("v2 standing consent requires exact count and recurring consent, preserving frozen input and focus", async () => {
+      status = initial();
+      Object.assign(status, { runtime_mode: "continuous-observation", managed_policy_format: 2,
+        bulk_import_preparation_available: true, bulk_policy_admission_enabled: true, bulk_policy_admission_device_ids: [1] });
+      const hints = postCount, executions = executionCount;
+      const gated = await connectPage(debugOrigin, `${origin}/managed-imports/v2/confirmation-review`);
+      try {
+        assert.equal(await gated.evaluate("document.querySelector('#bulk-policy-consent button').disabled"), true);
+      } finally { await gated.close(); }
+      status.fixture_bulk_policy_local_enabled = true;
+      const page = await connectPage(debugOrigin, `${origin}/managed-imports/v2/confirmation-review`);
+      try {
+        assert.equal(await page.evaluate("document.querySelector('#bulk-policy-consent button').disabled"), false);
+        assert.equal(await page.evaluate("document.querySelector('#bulk-policy-consent').checkValidity()"), false);
+        await page.evaluate("document.querySelector('#bulk-accepted-count').value='102';document.querySelector('input[name=maintain_present]').checked=true");
+        assert.equal(await page.evaluate("document.querySelector('#bulk-policy-consent').checkValidity()"), false);
+        await page.evaluate("document.querySelector('#bulk-accepted-count').value='101';document.querySelector('#bulk-accepted-count').focus()");
+        assert.equal(await page.evaluate("document.querySelector('#bulk-policy-consent').checkValidity()"), true);
+        assert.equal(await page.evaluate("document.querySelectorAll('.import-review-metadata b').length"), 0);
+        assert.equal(await page.evaluate("document.querySelectorAll('.protected-shun').length"), 1);
+        const binding = await page.evaluate("document.querySelector('.import-review-metadata').textContent");
+        const reads = pageReads;
+        status.data_revision += 1;
+        status.status_revision += 1;
+        await wake(page);
+        await delay(300);
+        assert.equal(pageReads, reads);
+        assert.equal(await page.evaluate("document.activeElement.id"), "bulk-accepted-count");
+        assert.equal(await page.evaluate("document.querySelector('#bulk-accepted-count').value"), "101");
+        assert.equal(await page.evaluate("document.querySelector('input[name=maintain_present]').checked"), true);
+        assert.equal(await page.evaluate("document.querySelector('.import-review-metadata').textContent"), binding);
+        assert.equal(await page.evaluate("document.querySelector('button[name=page]').formNoValidate"), true);
+        for (const width of [1100, 375]) {
+          await page.call("Emulation.setDeviceMetricsOverride", { width, height: 800, deviceScaleFactor: 1, mobile: width === 375 });
+          assert.equal(await page.evaluate("document.documentElement.scrollWidth<=window.innerWidth"), true);
+          assert.equal(await page.evaluate("document.querySelector('#bulk-policy-consent button').getBoundingClientRect().top>=document.querySelector('#bulk-accepted-count').getBoundingClientRect().bottom"), true);
+        }
+        assert.equal(postCount, hints);
+        assert.equal(executionCount, executions);
+      } finally { await page.close(); }
+    });
+    await t.test("v2 historical policy receipt stays read-only and paged without false execution success", async () => {
+      status = initial();
+      Object.assign(status, { runtime_mode: "continuous-observation", managed_policy_format: 2,
+        bulk_import_preparation_available: true });
+      const hints = postCount, executions = executionCount;
+      const page = await connectPage(debugOrigin, `${origin}/managed-imports/v2/receipts/fixture`);
+      try {
+        assert.equal(await page.evaluate("document.querySelectorAll('table[aria-label=\"Historical policy members\"] tbody tr').length"), 100);
+        assert.equal(await page.evaluate("document.querySelector('form[action*=confirm]')"), null);
+        assert.equal(await page.evaluate("document.body.textContent.includes('does not prove current maintenance or any device ADD')"), true);
+        assert.equal(await page.evaluate("document.querySelectorAll('main b').length"), 0);
+        const reads = pageReads;
+        status.data_revision += 1;
+        await wake(page);
+        await delay(300);
+        assert.equal(pageReads, reads);
+        const next = await page.evaluate("document.querySelector('a[rel=next]').getAttribute('href')");
+        await page.call("Page.navigate", { url: origin + next });
+        await page.until("document.querySelectorAll('table[aria-label=\"Historical policy members\"] tbody tr').length===2");
+        assert.equal(await page.evaluate("document.querySelector('nav.history-pagination').textContent.includes('Page 2 / 2')"), true);
+        for (const width of [1100, 375]) {
+          await page.call("Emulation.setDeviceMetricsOverride", { width, height: 800, deviceScaleFactor: 1, mobile: width === 375 });
+          assert.equal(await page.evaluate("document.documentElement.scrollWidth<=window.innerWidth"), true);
+        }
+        assert.equal(postCount, hints);
+        assert.equal(executionCount, executions);
+      } finally { await page.close(); }
+    });
+    await t.test("concurrent standing consent has an independent local gate and honest active historical receipt", async () => {
+      status = initial();
+      Object.assign(status, { runtime_mode: "continuous-observation", managed_policy_format: 2,
+        bulk_import_preparation_available: true, bulk_policy_admission_enabled: true, bulk_policy_admission_device_ids: [1],
+        bulk_policy_concurrent_enabled: true, managed_execution_suspended: false, fixture_bulk_policy_local_enabled: true });
+      const hints = postCount, executions = executionCount;
+      const gated = await connectPage(debugOrigin, `${origin}/managed-imports/v2/confirmation-review`);
+      try {
+        assert.equal(await gated.evaluate("document.querySelector('#bulk-policy-consent button').disabled"), true);
+      } finally { await gated.close(); }
+      status.fixture_bulk_policy_local_concurrent = true;
+      const page = await connectPage(debugOrigin, `${origin}/managed-imports/v2/confirmation-review`);
+      try {
+        assert.equal(await page.evaluate("document.querySelector('#bulk-policy-consent button').disabled"), false);
+        assert.equal(await page.evaluate("document.querySelector('h1').textContent.includes('alongside active work')"), true);
+        assert.equal(await page.evaluate("document.body.textContent.includes('already active when reviewed')"), true);
+        await page.evaluate("document.querySelector('#bulk-accepted-count').value='101';document.querySelector('input[name=maintain_present]').checked=true;document.querySelector('#bulk-accepted-count').focus()");
+        const binding = await page.evaluate("document.querySelector('.import-review-metadata').textContent");
+        const reads = pageReads;
+        status.data_revision += 1;
+        status.managed_execution_suspended = true;
+        await wake(page);
+        await delay(300);
+        assert.equal(pageReads, reads);
+        assert.equal(await page.evaluate("document.activeElement.id"), "bulk-accepted-count");
+        assert.equal(await page.evaluate("document.querySelector('#bulk-accepted-count').value"), "101");
+        assert.equal(await page.evaluate("document.querySelector('.import-review-metadata').textContent"), binding);
+        for (const width of [1100, 375]) {
+          await page.call("Emulation.setDeviceMetricsOverride", { width, height: 800, deviceScaleFactor: 1, mobile: width === 375 });
+          assert.equal(await page.evaluate("document.documentElement.scrollWidth<=window.innerWidth"), true);
+        }
+      } finally { await page.close(); }
+      status.fixture_fenced_receipt = true;
+      status.bulk_policy_concurrent_enabled = false;
+      const historical = await connectPage(debugOrigin, `${origin}/managed-imports/v2/receipts/fixture`);
+      try {
+        assert.equal(await historical.evaluate("document.body.textContent.includes('while desired execution was already active')"), true);
+        assert.equal(await historical.evaluate("document.body.textContent.includes('not current worker eligibility')"), true);
+        assert.equal(await historical.evaluate("document.body.textContent.includes('Policy was saved with restoration suspended')"), false);
+        assert.equal(postCount, hints);
+        assert.equal(executionCount, executions);
+      } finally { await historical.close(); }
+    });
+    await t.test("v2 cancellation consent preserves exact count and scope without an admission gate", async () => {
+      status = initial();
+      Object.assign(status, { runtime_mode: "continuous-observation", managed_policy_format: 2,
+        bulk_import_cancellation_available: true, bulk_policy_admission_enabled: false });
+      const hints = postCount, executions = executionCount;
+      const page = await connectPage(debugOrigin, `${origin}/managed-imports/v2/cancellation-review`);
+      try {
+        assert.equal(await page.evaluate("document.querySelector('#bulk-cancellation-consent button').disabled"), false);
+        assert.equal(await page.evaluate("document.querySelector('#bulk-cancellation-consent').checkValidity()"), false);
+        await page.evaluate("document.querySelector('#cancel-accepted-count').value='102'");
+        assert.equal(await page.evaluate("document.querySelector('#bulk-cancellation-consent').checkValidity()"), false);
+        await page.evaluate("document.querySelector('#cancel-accepted-count').value='101';document.querySelector('#cancel-accepted-count').focus()");
+        assert.equal(await page.evaluate("document.querySelector('#bulk-cancellation-consent').checkValidity()"), true);
+        const binding = await page.evaluate("document.querySelector('.import-review-metadata').textContent");
+        const reads = pageReads;
+        status.data_revision += 1;
+        await wake(page);
+        await delay(300);
+        assert.equal(pageReads, reads);
+        assert.equal(await page.evaluate("document.activeElement.id"), "cancel-accepted-count");
+        assert.equal(await page.evaluate("document.querySelector('#cancel-accepted-count').value"), "101");
+        assert.equal(await page.evaluate("document.querySelector('.import-review-metadata').textContent"), binding);
+        assert.equal(await page.evaluate("document.querySelectorAll('table[aria-label=\"Frozen cancellation members\"] tbody tr').length"), 100);
+        assert.equal(await page.evaluate("document.body.textContent.includes('does not unblock an IP')"), true);
+        for (const width of [1100, 375]) {
+          await page.call("Emulation.setDeviceMetricsOverride", { width, height: 800, deviceScaleFactor: 1, mobile: width === 375 });
+          assert.equal(await page.evaluate("document.documentElement.scrollWidth<=window.innerWidth"), true);
+          assert.equal(await page.evaluate("document.querySelector('#bulk-cancellation-consent button').getBoundingClientRect().top>=document.querySelector('#cancel-accepted-count').getBoundingClientRect().bottom"), true);
+        }
+        assert.equal(postCount, hints);
+        assert.equal(executionCount, executions);
+      } finally { await page.close(); }
+    });
+    await t.test("v2 cancellation local status updates settlements, preserves original receipt and never hides unknown attention", async () => {
+      status = initial();
+      Object.assign(status, { runtime_mode: "continuous-observation", managed_policy_format: 2, bulk_import_cancellation_available: true });
+      const hints = postCount, executions = executionCount;
+      const page = await connectPage(debugOrigin, `${origin}/managed-imports/v2/cancellations/fixture`);
+      try {
+        assert.equal(await page.evaluate("document.querySelector('[data-cancellation-phase]').textContent.includes('WAITING_OUTCOME')"), true);
+        await page.evaluate("document.querySelector('#bulk-cancellation-original').open=true");
+        const original = await page.evaluate("document.querySelector('#bulk-cancellation-original').textContent");
+        status.fixture_bulk_cancel_outcome = "UNVERIFIED";
+        status.data_revision += 1;
+        status.status_revision += 1;
+        await wake(page);
+        await page.until("document.querySelector('[data-cancellation-phase]').textContent.includes('SETTLED')");
+        assert.equal(await page.evaluate("document.querySelector('[data-cancellation-phase]').textContent.includes('1 require attention')"), true);
+        assert.equal(await page.evaluate("document.querySelector('#bulk-cancellation-original').open"), true);
+        assert.equal(await page.evaluate("document.querySelector('#bulk-cancellation-original').textContent"), original);
+        assert.equal(await page.evaluate("document.querySelector('table[aria-label=\"Current cancellation members\"]').textContent.includes('STOPPED_UNVERIFIED')"), true);
+        const next = await page.evaluate("document.querySelector('nav[aria-label=\"Cancellation pages\"] a[rel=next]').getAttribute('href')");
+        await page.call("Page.navigate", { url: origin + next });
+        await page.until("document.querySelectorAll('table[aria-label=\"Current cancellation members\"] tbody tr').length===1");
+        assert.equal(await page.evaluate("document.querySelector('nav[aria-label=\"Cancellation pages\"]').textContent.includes('Page 2 / 2')"), true);
         for (const width of [1100, 375]) {
           await page.call("Emulation.setDeviceMetricsOverride", { width, height: 800, deviceScaleFactor: 1, mobile: width === 375 });
           assert.equal(await page.evaluate("document.documentElement.scrollWidth<=window.innerWidth"), true);

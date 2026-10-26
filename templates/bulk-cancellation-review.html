@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+{% set summary = review.summary %}
+<h1>Cancel the uncompleted part of this import</h1>
+{% if refresh %}{% include "refresh-panel.html" %}{% endif %}
+{% if message %}<p class="preview-error" role="alert">{{ message }}</p>{% endif %}
+<p class="policy-warning"><strong>Already applied, adopted and previously managed targets stay maintained.</strong> This cancels only uncompleted work in the original accepted scope. It does not unblock an IP or request REMOVE. A RUNNING ADD finishes first; failure or uncertainty stays visible.</p>
+<p>Original import: <code>{{ review.operation_id }}</code> · {{ summary.accepted_count }} accepted pairs. Protected exclusions and invalid source rows have no imported authority to cancel.</p>
+<dl class="import-review-metadata"><dt>Original review expires</dt><dd><time class="local-timestamp" datetime="{{ summary.expires_at }}">{{ summary.expires_at }}</time></dd><dt>Local consent expires</dt><dd><time class="local-timestamp" datetime="{{ review.expires_at }}">{{ review.expires_at }}</time></dd><dt>Frozen review digest</dt><dd><code>{{ summary.review_digest }}</code></dd></dl>
+<ul>{% for state, count in summary.counts.items() %}<li><span class="state-badge {{ 'policy-disabled' if state in ('STOPPED_FAILED','STOPPED_UNVERIFIED') else 'policy-enabled' if state.startswith('RETAINED_') else '' }}">{{ state }}</span> {{ count }}</li>{% endfor %}</ul>
+{% if result %}<section aria-label="Checked import cancellation receipt"><h2>Uncompleted work cancelled — no device removal</h2><p>{{ result.changed_targets }} original policy targets stopped immediately. Initial waiting: {{ result.counts.get('WAITING_OUTCOME', 0) }}. Already applied/adopted/existing maintenance stays; later settlement is shown separately.</p><p>{{ 'Original-review replay; no additional revocation.' if result.replayed else 'One whole-scope cancellation decision recorded.' }}</p></section>{% endif %}
+<form method="post" action="/managed-imports/v2/cancel" class="import-confirm-form managed-grant-form" id="bulk-cancellation-consent">
+<input type="hidden" name="csrf" value="{{ csrf_token }}"><input type="hidden" name="review" value="{{ review.token }}">
+{% if not result %}<label for="cancel-accepted-count">Type {{ summary.accepted_count }} to confirm this whole import's accepted pair count</label><input id="cancel-accepted-count" name="accepted_count" value="{{ typed_count }}" pattern="{{ summary.accepted_count }}" maxlength="6" inputmode="numeric" autocomplete="off" required><button type="submit">Cancel uncompleted work only</button>{% endif %}
+{% if report %}<p>Frozen accepted members: page {{ report.page }} / {{ report.pages }}.</p><div class="table-scroll"><table aria-label="Frozen cancellation members"><thead><tr><th>Device / IP</th><th>Class</th><th>Reviewed disposition</th></tr></thead><tbody>{% for target in report.targets %}<tr><td>{{ target.device_id }} / {{ target.ip }}</td><td>{{ target.classification }}</td><td>{{ target.state }}</td></tr>{% endfor %}</tbody></table></div>
+<div class="pagination-controls">{% if report.page > 1 %}<button type="submit" formaction="/managed-imports/v2/cancellation-review/page" formnovalidate name="page" value="{{ report.page - 1 }}">Previous 100</button>{% endif %}{% if report.page < report.pages %}<button type="submit" formaction="/managed-imports/v2/cancellation-review/page" formnovalidate name="page" value="{{ report.page + 1 }}">Next 100</button>{% endif %}</div>{% endif %}</form>
+<p><a href="/managed-imports/v2/cancellations/{{ review.operation_id }}">Check original cancellation status</a> · <a href="/managed-imports/v2">Imports</a></p>
+<p class="preview-help">The five-minute review binds the complete original scope and current dispositions. State changes conflict, never silently change acceptance. Unknown replies permit inspection or same-review/actual-actor retry only. Cancellation stays available with new admission disabled and never resumes policy or resolves uncertainty.</p>
+<script src="/static/freshness.js" defer></script>
+{% endblock %}

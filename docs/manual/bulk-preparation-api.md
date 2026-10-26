@@ -6,7 +6,9 @@ existing exact v2/fenced storage and the existing optional preparation journal.
 non-authoritative drafts and proposal inspection, not standing confirmation,
 adoption, queue work or device execution. A separate
 [Web workspace](bulk-preparation-web.md) now connects drafts/reports/pure proposals
-and draft revocation; no standing confirmation or runtime selector is supplied.
+and draft revocation. A separate independently gated
+[standing-confirmation surface](bulk-standing-confirmation.md) now saves suspended
+policy and reads owner receipts; no runtime selector or executable ADD is supplied.
 Read [Durable Preparations](managed-import-preparations.md),
 [Bulk Format](bulk-import-capacity.md), [Bulk Policy Storage](bulk-policy-storage.md)
 and [Continuous API](continuous-api.md) first.
@@ -42,8 +44,10 @@ host-key material remain exclusively agent-owned.
 | `/api/v2/managed-imports/cancel-preparation` | 200: revoke only the owner's unconfirmed draft; repeat revocation is side-effect-free. |
 
 POST is used for private owner-bound inspection bodies as well as draft changes;
-it does not imply device mutation. No `/confirm`, confirmed-import cancellation,
-free action, arbitrary CLI or caller-selected profile/capability is accepted.
+it does not imply device mutation. This draft surface does not accept confirmation,
+confirmed-import cancellation, free action, arbitrary CLI or caller-selected
+profile/capability. The separate default-off `/confirm` contract is documented in
+[Standing Confirmation](bulk-standing-confirmation.md).
 Existing v1 mutation routes remain refused in this composition. Fixed v2 routes
 on the normal legacy API return unavailable; they do not convert its storage.
 
@@ -107,7 +111,7 @@ A lost 201 reply may leave a harmless unconfirmed draft. Recover its original
 reference from the owner list instead of blindly creating another. This is not
 executable idempotency; no operation root or key was reserved. A repeated proposal
 read with the same original operation UUID is deterministic across restart but
-grants no permission. Future confirmation must recheck current actor, freshness,
+grants no permission. Separate confirmation rechecks current actor, freshness,
 scope/revisions, profiles, protection/conflicts/uncertainty and occupied keys.
 
 Cancellation accepts only actor and original preparation UUID. It never retires
@@ -144,5 +148,7 @@ prerequisite manuals. Never delete the lab's retained legacy evidence to force a
 empty migration. Do not roll back to an older writer that ignores v2 authority or
 evidence holds. Preserve current state; a checked pre-upgrade backup is usable only
 before post-backup authority/work. The separate [Web review](bulk-preparation-web.md)
-does not enable independently gated atomic v2 standing confirmation or admitted-
-import cancellation; those remain separate delivery.
+does not enable the separately gated [standing confirmation](bulk-standing-confirmation.md).
+Separate [confirmed-import cancellation](bulk-cancellation-surface.md) now revokes
+uncompleted authority with exact consent and captured settlement; executable
+concurrent standing admission remains separate delivery.

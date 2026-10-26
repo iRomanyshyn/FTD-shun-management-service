@@ -8,6 +8,8 @@ while an original ADD is RUNNING and settlement through the existing queue resul
 transaction. It does not add a dispatcher, queue admission, HTTP route, runtime
 flag or permission to send FTD commands. The registry remains suspended and the
 current legacy lab is unchanged.
+The separate [v2 cancellation surface](bulk-cancellation-surface.md) now supplies
+private review/cancel/status and frozen Web consent without another worker.
 
 An explicit optional profile upgrade is required; startup/GET never performs it.
 Earlier bulk profiles keep their original refusal of in-flight cancellation.

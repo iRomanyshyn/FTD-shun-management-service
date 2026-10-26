@@ -320,7 +320,22 @@ class BulkPolicies:
     def confirm(self, canonical, digest, accepted_count, subject, display_name, roles, *, maintain_present=False,
                 enabled=False, addition_device_ids=frozenset(), connection=None):
         """Atomic offline policy-only confirmation; no queue, RPC, hints or resume."""
+        return self._confirm(canonical, digest, accepted_count, subject, display_name, roles,
+            maintain_present=maintain_present, enabled=enabled, addition_device_ids=addition_device_ids,
+            connection=connection, concurrent=False, expected_suspended=True)
+
+    def confirm_concurrent(self, canonical, digest, accepted_count, subject, display_name, roles, *, expected_suspended,
+                           maintain_present=False, enabled=False, addition_device_ids=frozenset(), connection=None):
+        """Separate exact fenced policy admission; never queue, resume or interrupt."""
+        return self._confirm(canonical, digest, accepted_count, subject, display_name, roles,
+            maintain_present=maintain_present, enabled=enabled, addition_device_ids=addition_device_ids,
+            connection=connection, concurrent=True, expected_suspended=expected_suspended)
+
+    def _confirm(self, canonical, digest, accepted_count, subject, display_name, roles, *, maintain_present,
+                 enabled, addition_device_ids, connection, concurrent, expected_suspended):
         _actor(subject, display_name, roles)
+        if type(expected_suspended) is not bool:
+            raise ValueError('An exact reviewed desired-suspension boolean is required.')
         if type(enabled) is not bool or type(maintain_present) is not bool or not maintain_present:
             raise ValueError('Explicit boolean capability and recurring consent are required.')
         if not enabled:
@@ -341,11 +356,15 @@ class BulkPolicies:
             if old is not None:
                 if old['actor_subject'] != subject or old['payload_json'] != canonical:
                     raise ManagedConflict('Original key belongs to a different actor or scope.')
-                return {**self._root(db, key, subject)[1], 'replayed': True}
+                original = self._root(db, key, subject)[1]
+                if (('admission_mode' in original) != concurrent or original['restoration_suspended'] is not expected_suspended):
+                    raise ManagedConflict('Original key has a different admission mode or reviewed suspension.')
+                return {**original, 'replayed': True}
             _key_free(db, key)
-            _quiescent(db)
-            if not state['restoration_suspended']:
-                raise ManagedConflict('Policy-only bulk confirmation requires suspended execution; no concurrent admission yet.')
+            if not concurrent:
+                _quiescent(db)
+                if not state['restoration_suspended']:
+                    raise ManagedConflict('Policy-only bulk confirmation requires suspended execution; no concurrent admission yet.')
             if mutations_suspended(db):
                 raise ManagedConflict('New authority is paused; policy retirement remains available.')
             if not set(manifest['device_ids']).issubset(addition_device_ids):
@@ -377,11 +396,16 @@ class BulkPolicies:
                     or db.execute('SELECT COUNT(*) FROM managed_bulk_members').fetchone()[0] + summary.pair_count > MAX_MEMBERS):
                 raise ManagedCapacity('Bulk storage capacity/reserved retirement budget reached; nothing was evicted.')
             self._validate_current(db, plan_id)
+            if concurrent:
+                from .bulk_concurrent import check_admission
+
+                check_admission(db, plan_id, manifest['device_ids'], expected_suspended, self.clock())
             result = {'operation_id': key, 'status': 'policy_saved', 'intent_format': 2, 'managed_revision': state['revision'] + 1,
                 'changed_targets': summary.classification_counts[0] + summary.classification_counts[1], 'replayed': False,
                 'accepted_pairs': accepted_count, 'classification_counts': summary.as_dict()['classification_counts'],
-                'policy_only': True, 'device_work_admitted': False, 'restoration_suspended': True,
+                'policy_only': True, 'device_work_admitted': False, 'restoration_suspended': expected_suspended,
                 'confirmation_actor': {'subject': subject, 'display_name': display_name, 'roles': list(roles)}}
+            if concurrent: result['admission_mode'] = 'fenced'
             db.execute('INSERT INTO managed_shun_requests VALUES (?,?,?,?,?,?,?)',
                 (key, subject, display_name, json.dumps(roles), canonical, json.dumps(result), issued))
             self._apply_members(db, key, plan_id, state['revision'] + 1, issued, subject, display_name, roles)
@@ -392,6 +416,8 @@ class BulkPolicies:
                 {'intent_format': 2, 'accepted_pairs': accepted_count, 'device_work_admitted': False}, issued)
             if not issued <= _stamp(self.clock()) < plan['expires_at']:
                 raise ManagedConflict('Preparation expired or clock moved backwards during confirmation.')
+            if concurrent:
+                check_admission(db, plan_id, manifest['device_ids'], expected_suspended, self.clock())
             self._root(db, key, subject)
             return result
 
@@ -473,17 +499,20 @@ class BulkPolicies:
         summary = verify_bulk_intent(row['payload_json'], records(), row['payload_digest'])
         descriptor = decode_bulk_descriptor(row['payload_json'], row['payload_digest'])
         result = json.loads(row['result_json'])
+        concurrent = type(result) is dict and 'admission_mode' in result
         if (not hmac.compare_digest(source.hexdigest(), descriptor['preparation_digest'])
                 or descriptor['operation_id'] != key or descriptor['preparation_id'] != row['preparation_id']
                 or header['plan_id'] != row['preparation_id'] or header['actor_subject'] != subject
                 or summary.pair_count != row['pair_count'] or summary.accepted_count != row['accepted_count']
                 or type(result) is not dict or set(result) != {'operation_id','status','intent_format','managed_revision',
                     'changed_targets','replayed','accepted_pairs','classification_counts','policy_only','device_work_admitted',
-                    'restoration_suspended','confirmation_actor'}
+                    'restoration_suspended','confirmation_actor'} | ({'admission_mode'} if concurrent else set())
                 or result['status'] != 'policy_saved' or type(result['intent_format']) is not int or result['intent_format'] != 2
                 or type(result['managed_revision']) is not int or result['managed_revision'] != descriptor['managed_revision'] + 1
                 or type(result['changed_targets']) is not int or result['changed_targets'] != sum(summary.classification_counts[:2])
-                or result['replayed'] is not False or result['restoration_suspended'] is not True
+                or result['replayed'] is not False or type(result['restoration_suspended']) is not bool
+                or (concurrent and result['admission_mode'] != 'fenced')
+                or (not concurrent and result['restoration_suspended'] is not True)
                 or result['operation_id'] != key or type(result['accepted_pairs']) is not int or result['accepted_pairs'] != summary.accepted_count
                 or result['classification_counts'] != summary.as_dict()['classification_counts']
                 or result['confirmation_actor'] != {'subject': row['actor_subject'], 'display_name': row['actor_display_name'],

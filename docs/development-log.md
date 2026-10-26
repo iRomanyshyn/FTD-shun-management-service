@@ -6950,6 +6950,222 @@ admitted-import cancellation, approved draft retention and configured runtime/
 inventory/migration plus scoped transport/multi-device/load/recovery acceptance
 remain. See [V2 Preparation Web](manual/bulk-preparation-web.md).
 
+## 2026-10-26 — Suspended v2 standing consent, atomic API confirmation and historical receipts
+
+Connected the existing BulkPolicies.confirm contract to a separate fixed private
+API route with strict canonical descriptor/digest/count/boolean consent, original
+Idempotency-Key and actual current Operator/Admin. Independent literal default-
+false API/Web factory capabilities are required. API composition additionally
+attests a nonempty immutable reviewed eligible-profile device scope within the
+sealed enabled devices; off requires an empty scope. This does not fetch agent
+profiles/credentials or enable executable ADD. Existing exact storage/suspension/
+scope is checked before binding and at lifespan startup, without migration.
+
+Kept quiescent/suspended admission unchanged: no active sessions/global lease or
+pending/uncertain work, unpaused new authority, original full preparation/manifest/
+owner/device identity/revisions/classifications/expiry and capacity/reserve are
+rechecked under one write transaction. Policy/membership/receipt/real-actor audit
+commit together or not at all; no legacy single-target loop, enqueue, work hint,
+resume or automatic retry. Busy observation sessions conflict. Adoption never
+invents prior service creation, already-managed authority is preserved and
+protected exclusions acquire no grant. Original-key replay returns historical
+consent without re-enabling retired policy or changing newer authority.
+
+Added a distinct CSRF/Operator consent-preparation POST and detached immutable
+subject/CSRF-cookie-bound cache, five per owner/256 total and <=ten minutes.
+Forms freeze the original descriptor/digest/summary/key, require exact typed
+accepted count plus explicit recurring consent, and recheck identity/session/
+local expiry after metadata I/O before one fixed private confirmation. Paged
+inspection preserves count/consent and compares original summary without rebasing.
+Receipt validation checks exact historical fields, typed counts/classes/revision/
+flags and original actual actor. Unknown/lost/malformed replies retain only the
+same frozen review/key for explicit retry or original-receipt inspection. Optional
+follow-up metadata failure cannot negate a checked policy-only result.
+
+Added private owner receipt list/pages and restart-safe Web historical permalinks,
+with <=100 original members per page and full retained root integrity verification.
+Immutable canonical descriptor/digest/membership is read independently of expired/
+pruned drafts. Admission-off and role-loss inspection stays available to the
+authenticated owner; another owner/Admin is not an override. Strict BFF validation
+refuses missing/malformed actor, authority, pagination, flags and evidence rather
+than claiming empty success/current policy or verified device progress. The owner
+workspace now shows saved receipt references alongside separate drafts. GET and
+passive metadata never submit, resume, query FTD or alter frozen input/focus.
+
+Added **49 Python cases** with actual BFF-to-ASGI API requests on disposable exact
+SQLite profiles: separate gates/factory refusal, actual actor/strict fields,
+CSRF/session/role/count/consent, immutable cache/capacity and post-I/O expiry,
+scope/lease/pause/profile conflicts without partial authority, lost/malformed
+reply same-key recovery, retirement non-reenable, receipt corruption and restart/
+draft-pruning independence, paged consent and maximum **10000 IP × ten devices /
+100000 policy pairs**. Full Python **2438 passed (349.36s)**; focused confirmation/
+draft/continuous/storage regression **228 passed (95.48s)**. Two new production-
+template Chromium scenarios cover independent gating, native exact count/checkbox
+validation, escaped metadata, frozen fields/focus/binding, historical read-only
+pages and mobile spacing/overflow. Initial receipt test counted a status-menu row
+with an overly broad table selector; narrowed it to the historical-member table,
+without changing production behavior. Final real Chromium **40 passed (130.97s)**.
+Compileall, Ruff, JavaScript syntax and diff/new-file whitespace checks pass.
+
+Updated normative architecture, status/working plan and structured standing-
+confirmation/preparation/continuous/development manuals. No DDL, agent/wire,
+Compose/runtime selector, inventory/credential, live database/profile/gate,
+service/image or FTD state changed. Rust was not rerun; agent code is unchanged.
+This is suspended policy consent, not concurrent executable import or production/
+transport/load acceptance. Confirmed-import cancellation, concurrent standing
+admission, configured runtime/inventory/nonempty migration, approved retention
+and scoped device/multi-device/recovery acceptance remain. No consumed fixture
+permission was reused and no lab activation/deployment was invoked. See
+[V2 Standing Confirmation](manual/bulk-standing-confirmation.md).
+
+## 2026-10-26 — Exact v2 import cancellation API/Web and current captured status
+
+Connected the existing BulkCancellations coordinator to fixed private review,
+reviewed accepted-member pages, cancel and current-cancellation reports on the
+explicit existing continuous composition. Current Operator owner or another
+Administrator is required; actual trusted actor/roles remain authoritative.
+Revoking existing uncompleted authority needs no new admission/execution gate and
+works during ordinary pause/suspended execution. Admin cancellation access does
+not expose another owner's private standing-policy receipt. No startup/request
+initialization, profile conversion, extra executor or legacy fallback.
+
+Added a read-only backend review_page contract: verify the full original root and
+five-minute digest/count in one snapshot, stream complete scope in <=100-row chunks,
+return <=100 accepted members and recheck expiry after reading. State/authority/
+attempt/revision changes conflict without scope rebasing. The existing cancellation
+write contract remains unchanged: one whole-root decision seals membership,
+retires exact unsent/failed/unknown authority, cancels only owned unsent jobs and
+retains adopted/existing/applied policy. First RUNNING ADDs remain captured until
+the existing shared result transaction settles them, with protection/prior
+retirement/newer generation precedence and retained original uncertainty. No
+REMOVE, interrupted RPC, re-enable, resume, new managed-request slot or work hint.
+
+Added separate frozen Web cancellation consent with subject/CSRF-cookie-bound
+immutable <=five-minute/five-owner/256-global cache, exact typed accepted count,
+strict fields/current roles and post-I/O expiry. Paging preserves input/key/digest
+and verifies the exact original review; prepare/GET never submit revocation.
+Original-review/actual-actor unknown-response retry returns only the immutable
+initial receipt; actor changes may require inspection rather than replay. Checked
+receipt remains visible after optional metadata failure.
+
+Original cancellation permalinks survive Web restart/draft pruning, show <=100
+accepted members and distinguish immutable initial disposition/receipt from current
+settlement, pending and retained attention. Passive local updates preserve open
+receipt details and never query FTD, settle/repair/expire/promote work or infer
+missing evidence as success. Strict BFF validation requires the complete captured
+projection for this exact fenced profile: stripping current counts/attention cannot
+downgrade to a legacy view that hides uncertainty. Added a collapsed receipt entry
+point with explicit retained-maintenance/no-unblock consequences and no arbitrary
+actor/action/profile authority in forms.
+
+Added **45 Python cases** forwarding actual BFF requests to the private ASGI API
+on disposable exact SQLite profiles: pause/disabled admission/no initialization,
+mixed adoption/existing/protected exclusions, strict fields/count/time/digest/CSRF/
+roles/cookies, owner/Admin separation, immutable cache, post-I/O/stream expiry,
+changed protection/conflicts, lost/malformed replies/same-review recovery, actor
+changes, restart/pruning, exact 100-row review/current pages, corrupt projections
+and **10000 IP × ten devices /100000 accepted-pair cancellation**. Actual fenced
+queue admissions/claims in synthetic fixtures test RUNNING success/no-op/failure/
+unknown and one shared settlement without interruption, replay or REMOVE.
+
+An initial metadata-failure fixture kept its simulated outage armed after the
+intended rejected role-change replay, incorrectly expecting a later review to
+redirect. Restored metadata explicitly in that fixture; no production refusal was
+weakened. Final standalone new cases **45 passed (69.41s)**; final full Python
+**2483 passed (410.54s)**. Real Chromium **42 passed (139.53s)**, with two new
+production-template cases for native exact-count consent/frozen focus and local
+settlement updates/retained unknown attention/original receipt, mobile layout and
+pagination without device demand. Compileall, Ruff, JavaScript syntax, diff,
+changed/new-document local links/anchors and new-file whitespace pass.
+
+Updated architecture, current status/working plan and structured API/Web/
+cancellation/standing/development manuals; corrected the working plan's capacity
+table to distinguish implemented isolated v2 storage from retained legacy limits.
+No DDL, agent/wire, runtime selector, Compose, credential/inventory, live database/
+profile/gate, service/image or FTD state changed. Rust was not rerun. No lab
+activation/deployment, consumed fixture reuse or production/transport/load
+acceptance. Concurrent standing admission, configured executable rollout/nonempty
+migration, approved retention and scoped device/recovery acceptance remain.
+See [V2 Cancellation Surface](manual/bulk-cancellation-surface.md).
+
+## 2026-10-26 — Fenced concurrent standing admission and strict fresh-read execution
+
+Added a separate opt-in concurrent standing coordinator/private route, retaining
+the original suspended/quiescent confirmation contract. Independent literal
+default-false API/Web concurrent capabilities require existing standing admission
+and trusted eligible-profile scope. Composition validates context before binding/
+initialization and still keeps agent ADD/bulk dispatch/legacy controllers off with
+an empty executable ADD scope. Exact existing fenced/dispatch/captured storage is
+required; no runtime selector, migration, resume or live activation.
+
+Refactored only the shared policy transaction to reuse all original full manifest/
+preparation/owner/current-role/count/consent, managed/protection revision CAS,
+classification/authority/device identity, expiry/capacity/reserve and original-key
+guards. New admission checks selected device healthy/live/no-future fences and
+retained device unknowns, accepted-pair pending/failed/unknown/unattributed work,
+unsettled cancellation and held ordered cleanup. Validate all held bindings even
+outside the selected scope. Healthy independent sessions/queued/RUNNING jobs may
+continue; one scoped conflict refuses the whole import. Recheck selected fences,
+frozen expected suspension and clock before commit, with no lease mutation,
+interrupted RPC, inferred settlement or uncertainty reset. A lease expiring during
+apply rolls back the whole policy/membership/audit, including caught outer
+transactions. Retained FAILED evidence stays a pair latch after ordinary job
+pruning; unselected valid uncertainty remains preserved without globally blocking
+healthy independent policy.
+
+Concurrent immutable receipts add admission_mode=fenced and actual historical
+restoration_suspended boolean while keeping policy_only=true and no device work
+admitted. Root/BFF readers validate both exact receipt forms; old unmarked receipts
+retain suspended semantics, cross-mode key reuse conflicts and same-mode original
+replay preserves original suspension/authority without re-enabling retired policy.
+Confirmation creates no queue backlog/hint/resume. Existing shared discovery/
+portion/claim/budget/priority logic remains the only executor. New concurrently
+admitted authority requires a complete read strictly newer than its timestamp,
+including refusal of equal-millisecond snapshots; old independent claims can still
+finish. This closes the pre-admission-read race without granting a new dispatch
+capability or changing legacy suspended-receipt read behavior.
+
+Web freezes mode and expected suspension with the immutable original proposal/
+summary/key. Recheck actual identity/roles/CSRF/count/recurring consent and post-I/O
+expiry plus both independent capabilities before one fixed mode-specific private
+call. Mode drift refuses without fallback/rekey/rebase. Typed historical receipt
+checks, optional follow-up failure behavior and same-key unknown-response recovery
+remain; active desired policy is not falsely labelled suspended/resumed/verified.
+Historical owner pages work with admission disabled. Removed the obsolete disabled
+proposal placeholder; it now explains the separate consent entry point.
+
+Also fixed cancellation BFF projection validation: completed owned attempt history
+can legitimately have a digest without a pending job. Preserve that history for
+applied/no-op/failed/unknown review/status, while RUNNING waits still require exact
+captured job and digest. No original receipt, attempt, authority or outcome changed.
+
+Added **39 concurrent tests and four completed-history cancellation tests** on
+disposable actual SQLite/ASGI/BFF/shared-queue profiles. Coverage includes active
+same-device independent ADD, strict older/equal read refusal then fresh bounded
+discovery/claim/result, scoped blockers, old FAILED retention/new-generation refusal,
+ordered and incompatible-writer cancellation holds, atomic late expiry rollback,
+competing-user CAS, independent default-off capabilities/private strict fields,
+mode/suspension/reply integrity, original-key replay and **100000-pair admission
+with unchanged device leases and zero new executable jobs**. Initial synthetic
+fixture setup incorrectly attempted to reinitialize a sealed ten-device scope
+with the four-device helper, and another test named the settlement hook incorrectly;
+corrected the fixtures without weakening production profile/evidence checks.
+Focused concurrent/confirmation/preparation/cancellation **178 passed (143.37s)**;
+final full Python **2526 passed (426.82s)**. Real Chromium **43 passed (138.23s)**,
+including new concurrent gate/frozen active-consent/focus/history/mobile behavior.
+Compileall, Ruff, JavaScript syntax, diff, document links/anchors and new-file
+whitespace pass. No Rust rerun; agent and Compose unchanged.
+
+Updated normative architecture, current status/working plan and structured
+concurrent/preparation/standing/continuous/cancellation/development manuals,
+including rollback incompatibility of fenced receipts with older code. No DDL,
+credential/inventory, environment/configuration, lab database/profile/gate,
+service/image or FTD state changed. No consumed fixture authority was reused,
+lab deployment/activation invoked or production/transport/load acceptance claimed.
+Configured executable runtime/inventory rollout, reviewed nonempty conversion,
+approved retention, recovery and real multi-device/load validation remain.
+See [Concurrent Standing Admission](manual/bulk-concurrent-admission.md).
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

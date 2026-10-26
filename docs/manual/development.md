@@ -1,5 +1,55 @@
 # Development Manual
 
+## Fenced concurrent standing-admission checks
+
+```bash
+python3 -m pytest -q tests/test_bulk_concurrent.py tests/test_bulk_confirmation.py tests/test_bulk_dispatch.py tests/test_device_leases.py tests/test_bulk_cancellation_surface.py
+node --test tests/browser/freshness.cjs
+```
+
+Disposable SQLite/ASGI/BFF/shared-queue tests cover independent active ADD/observation
+leases, whole-scope device/pair/held-evidence barriers, failed attempts after queue
+retention, late expiry rollback, competing-user CAS, strict private fields/default-
+off capabilities, mode drift/replay, historical suspension, fresh/equal-millisecond
+read boundaries and 100000-pair admission without queue backlog/lease mutation.
+Browser cases cover local gating, frozen active consent/input/focus, historical
+receipts and mobile layout. Completed-history cancellation keeps digest-only
+evidence distinct from a RUNNING captured-job binding. No inventory, secret,
+lab/SSH/FTD or live gate is used. See [Concurrent Admission](bulk-concurrent-admission.md).
+
+## Version-2 confirmed-import cancellation checks
+
+```bash
+python3 -m pytest -q tests/test_bulk_cancellation_surface.py tests/test_bulk_cancellations.py tests/test_bulk_waits.py tests/test_bulk_confirmation.py tests/test_continuous_api.py
+node --test tests/browser/freshness.cjs
+```
+
+Disposable actual BFF/ASGI/SQLite tests cover 100000-pair cancellation/late pages,
+retained adoption/existing policy, actual fenced RUNNING claims/shared typed
+success/no-op/failure/unknown settlement, current actor/strict fields/CSRF/owner/
+Admin, pause/gates, exact frozen pages/expiry, original-review unknown recovery,
+restart/pruning, malformed evidence/status and forbidden initialization. Browser
+cases cover native count consent, frozen scope/focus, local settlement updates,
+retained unknown attention/original receipt, pagination and mobile layout. No lab,
+transport, secret or FTD fixture is used. See
+[V2 Cancellation Surface](bulk-cancellation-surface.md).
+
+## Version-2 suspended standing-confirmation checks
+
+```bash
+python3 -m pytest -q tests/test_bulk_confirmation.py tests/test_bulk_preparation_web.py tests/test_bulk_preparation_api.py tests/test_continuous_api.py tests/test_bulk_policy.py
+node --test tests/browser/freshness.cjs
+```
+
+Actual synthetic BFF/ASGI/SQLite confirmation covers independent default-off gates,
+strict exact count/consent/actor/CSRF, immutable cache, post-I/O expiry, whole-scope
+quiescence/revision/pause/profile refusal, maximum 100000-pair suspended policy,
+unknown replies/same-key recovery, retirement non-reenable and owner historical
+receipts after restart/draft pruning. Browser cases cover native form validation,
+frozen focus/input/consent, historical pagination and responsive layouts. No lab
+profile, fixture, migration, gate or device work is permitted by these tests.
+See [Standing Confirmation](bulk-standing-confirmation.md).
+
 ## Version-2 preparation Web checks
 
 ```bash

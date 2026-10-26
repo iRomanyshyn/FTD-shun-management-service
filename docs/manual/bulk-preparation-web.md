@@ -2,8 +2,9 @@
 
 Status: implemented for the explicit compatible v2 continuous API and existing
 preparation journal. **Not migrated, activated or deployed in the lab.** These
-pages create/inspect/revoke local drafts only. Standing confirmation, adoption,
-queue work and device execution remain unavailable. Read
+pages create/inspect/revoke local drafts only. A separate independently gated
+[standing-consent workflow](bulk-standing-confirmation.md) can save suspended
+policy; these draft controls never grant authority, queue work or device execution. Read
 [Preparation API](bulk-preparation-api.md),
 [Durable Preparations](managed-import-preparations.md) and
 [Bulk Format](bulk-import-capacity.md) first.
@@ -96,10 +97,12 @@ expiry/clock. Expired/cancelled/confirmed/zero-accepted drafts cannot produce a
 proposal. The original report stays inspectable without a fallback or rebase.
 
 The page shows accepted/excluded classes, original reference, stable key and full
-hashes. **Standing-policy confirmation unavailable** is disabled and has no
-admission form or execution route. It is not recurring consent, a grant or queue
-receipt. Actual confirmation still needs a separate frozen consent workflow,
-current-state/profile/conflict checks and independent default-off capabilities.
+hashes. The proposal remains non-authoritative. **Prepare separate recurring-policy consent** opens a distinct
+CSRF/Operator frozen review, not submission. Actual policy confirmation uses
+[independent default-off capabilities and complete current-state checks](bulk-standing-confirmation.md).
+The original mode saves suspended policy only. Separate
+[concurrent consent](bulk-concurrent-admission.md) freezes actual mode/suspension;
+device work remains separately disabled in this composition.
 
 ## 5. Cancel the unconfirmed draft only
 

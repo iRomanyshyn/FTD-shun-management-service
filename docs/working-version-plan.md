@@ -200,6 +200,49 @@ runtime selection or lab activation follows. Next remains independently gated
 atomic v2 standing confirmation and admitted-import cancellation. See
 [V2 Preparation Web](manual/bulk-preparation-web.md).
 
+Suspended confirmation checkpoint (2026-10-26): independent default-false API/Web
+factory capabilities now connect exact recurring consent to one whole-scope v2
+policy transaction. API enablement also requires immutable trusted eligible-profile
+device IDs in the existing sealed scope; this is external eligibility attestation,
+not executable ADD permission or credential access. The unchanged coordinator
+requires suspended desired execution, no active sessions/leases or pending/
+uncertain work, exact original scope/revisions/classifications and unpaused new
+authority. Busy sessions conflict, never auto-retry or interrupt. Frozen
+subject/CSRF-cookie reviews, typed accepted count, explicit recurring consent,
+post-I/O expiry and same-key unknown-response recovery preserve the exact grant.
+Owner historical receipt lists/100-member pages survive restart/draft pruning;
+replay never re-enables retired policy or implies current device success. No
+queue/hint/resume, migration, runtime selector or lab activation. Concurrent
+standing admission, admitted-import cancellation and executable configured
+rollout remain. See [V2 Standing Confirmation](manual/bulk-standing-confirmation.md).
+
+Cancellation surface checkpoint (2026-10-26): fixed private v2 review/member-page/
+cancel/current-status routes and frozen Web consent now reuse the existing atomic
+whole-root cancellation/shared-result settlement contract. Exact five-minute
+digest/accepted-count/member pages, actual current owner-Operator/Admin, CSRF/session
+and post-I/O expiry prevent scope rebasing. Applied/adopted/existing maintenance
+stays; owned unsent work stops and RUNNING ADDs settle without interruption,
+REMOVE, re-enable or uncertainty resolution. Local current-status permalinks
+distinguish immutable initial receipts from later outcomes/attention and survive
+restart/draft pruning. Revocation needs no new admission gate and remains available
+during pause; no initialization/migration/activation follows. Concurrent standing
+admission and configured executable rollout remain. See
+[V2 Cancellation Surface](manual/bulk-cancellation-surface.md).
+
+Concurrent admission checkpoint (2026-10-26): a separate opt-in coordinator/private
+route and independent default-false API/Web capabilities now admit whole original
+scopes alongside healthy independent sessions/jobs. Selected device fences/unknown
+outcomes and accepted-pair pending/failed/unknown/unattributed work, captured
+cancellation and ordered holds remain barriers. Original revisions/classification/
+authority, expected suspension, consent/count, expiry/capacity and end-of-write
+fence/clock checks stay atomic. No subset/rebase, lease mutation, rearm, queue/hint/
+resume or uncertainty resolution. Exact fenced historical receipts retain actual
+suspension and original-key semantics; Web freezes mode/suspension and requires
+both capabilities. Later enabled work needs a strictly newer complete read,
+including the equal-millisecond boundary. Original suspended/quiescent confirmation
+remains separate. No lab activation/executable runtime selection. See
+[Concurrent Standing Admission](manual/bulk-concurrent-admission.md).
+
 Target up to 10,000 IPv4 addresses in one import, with explicit device selection.
 An address/device pair is the maintained unit: 10,000 addresses on 10 selected FTDs
 can require 100,000 policy pairs. Storage and admission limits must be revised
@@ -425,9 +468,9 @@ manuals still describe existing contracts until implementation is migrated.
 | Area | Existing implementation constraint | Agreed working-version target |
 | --- | --- | --- |
 | Credentials | Opt-in agent-only per-device mapping implemented; lab still uses explicit shared compatibility mode | Separately reviewed per-device rollout; no shared fallback within that mode |
-| Preparation storage | Explicit 100,000-pair journal/private API/Web; gated confirmation and cancellation/settlement retain reports/canonical policy within current 1000-pair bounds | Compatible larger capacity and rolling dispatch/progress |
+| Preparation storage | V2 100,000-pair journal/private API/Web, gated suspended confirmation and exact cancellation/shared settlement; legacy 1000-pair workflows retained separately | Configured executable rollout, concurrent standing admission and rolling progress |
 | Policy display/reviews | Managed tab reads 100-row pages; single-pair and whole standing-list reviews use distinct exact selections with global totals; authority limits unchanged | Coordinate larger retained capacity, remaining full reviews and bounded dispatch |
-| Capacity | 1,000-pair policy/admission bounds | 10,000 input IPs across selected devices; bounded dispatch |
+| Capacity | Legacy 1000-pair bounds; explicit v2 100000-pair policy/cancellation with bounded internal dispatch, not activated in lab | 10,000 input IPs across selected devices in the executable working version |
 | Existing shun | Gated prepared-confirmation Web/backend support adoption without ADD/provenance; legacy grants still reject it | Retain explicit selected-device adoption in the larger executable workflow |
 | Invalid/protected rows | Managed-import Web/backend bind visible diagnostics/protected exclusions and exact accepted scope; legacy standing review still rejects whole scope | Retain exclusions/reporting during rolling execution |
 | Scheduling | One fleet executor, global >=60s cooldown | Parallel devices, one stream each, continuous bounded writes |

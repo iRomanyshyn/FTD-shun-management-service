@@ -7,6 +7,7 @@ from fastapi import HTTPException, Query, Request
 from fastapi.responses import RedirectResponse
 from starlette.concurrency import run_in_threadpool
 
+from .bulk_confirmation_view import validate_receipts
 from .bulk_intent import _uuid
 from .bulk_preparation_api import PreparationInput
 from .bulk_preparation_view import (
@@ -50,18 +51,23 @@ def register_bulk_preparation_web(app, settings, *, render, identity_for, operat
             response = client.get('/api/v1/import-devices')
             if response.status_code != 200: raise httpx.RequestError('Public device list unavailable')
             devices = validate_devices(response.json())
-        return state, drafts, devices
+            receipts = None
+            if state.get('bulk_policy_receipts_available') is True:
+                try: receipts = validate_receipts(read_json(client, 'receipts', {'actor': actor(identity)}))
+                except (httpx.HTTPError, ValueError, TypeError, KeyError, HTTPException): pass
+        return state, drafts, devices, receipts
 
     def workspace(request, identity, *, message=None, code=200, fields=None, unknown=False):
         fields = fields or {}
-        state, drafts, devices = None, None, []
+        state, drafts, devices, receipts = None, None, [], None
         try:
-            state, drafts, devices = workspace_data(identity)
+            state, drafts, devices, receipts = workspace_data(identity)
         except (httpx.HTTPError, ValueError, TypeError, KeyError, HTTPException):
             message = message or 'Private draft workspace is unavailable. No empty/healthy state or successful creation is inferred.'
             code = 503
         return render(request, 'bulk-import-workspace.html', {'identity': identity, 'refresh': state,
             'drafts': drafts, 'devices': devices, 'message': message, 'creation_unknown': unknown,
+            'receipts': receipts,
             'source_text': fields.get('text', [''])[0], 'draft_label': fields.get('label', [''])[0],
             'draft_reason': fields.get('reason', [''])[0], 'selected_devices': fields.get('device_ids', []),
             'active_page': 'imports', 'auto_request': False, 'frozen_view': True}, code)

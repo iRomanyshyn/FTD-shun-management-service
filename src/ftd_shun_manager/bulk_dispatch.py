@@ -82,12 +82,15 @@ def authority_valid(db, attempt, now):
     if state is None or not present(db) or state['restoration_suspended'] or mutations_suspended(db):
         return False
     barrier = db.execute('SELECT dispatch_resume_after FROM managed_bulk_registry WHERE id=1').fetchone()[0]
-    row = db.execute('''SELECT t.*,d.enabled AS device_enabled FROM managed_shun_targets t
-        JOIN devices d ON d.id=t.device_id WHERE t.device_id=? AND t.ip=?''',
+    row = db.execute('''SELECT t.*,d.enabled AS device_enabled,
+        json_extract(r.result_json,'$.admission_mode') AS admission_mode FROM managed_shun_targets t
+        JOIN devices d ON d.id=t.device_id JOIN managed_shun_requests r ON r.id=t.authorization_request_id
+        WHERE t.device_id=? AND t.ip=?''',
         (attempt['device_id'], attempt['ip'])).fetchone()
     if (row is None or not row['enabled'] or not row['device_enabled']
             or any(row[field] != attempt[field] for field in ('intent_id', 'generation', 'authorization_request_id'))
             or row['revision'] != attempt['target_revision'] or row['updated_at'] > attempt['snapshot_started_at']
+            or (row['admission_mode'] == 'fenced' and row['updated_at'] == attempt['snapshot_started_at'])
             or attempt['snapshot_started_at'] < barrier
             or not attempt['snapshot_started_at'] <= attempt['snapshot_at'] <= attempt['requested_at'] <= _stamp(now)
             or attempt['snapshot_started_at'] < _stamp(now - timedelta(seconds=120))

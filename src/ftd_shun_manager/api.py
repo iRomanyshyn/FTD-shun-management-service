@@ -17,6 +17,8 @@ from .agent_client import (
     MockAgentClient,
     UnixAgentClient,
 )
+from .bulk_cancellation_api import register_bulk_cancellation_api
+from .bulk_confirmation_api import register_bulk_confirmation_api
 from .bulk_ordered_waits import OrderedReservationNotFound
 from .bulk_preparation_api import register_bulk_preparation_api
 from .config import Settings
@@ -343,11 +345,22 @@ def create_app(
     continuous_dispatcher=None,
     ready_removal_admission_enabled=False,
     ordered_removal_admission_enabled=False,
+    bulk_policy_admission_enabled=False,
+    bulk_policy_device_ids=frozenset(),
+    bulk_policy_concurrent_enabled=False,
 ) -> FastAPI:
+    if (type(bulk_policy_concurrent_enabled) is not bool
+            or (bulk_policy_concurrent_enabled and (bulk_policy_admission_enabled is not True or continuous_dispatcher is None))):
+        raise ValueError('Concurrent policy needs an explicit continuous owner, standing admission and literal capability.')
     if type(ready_removal_admission_enabled) is not bool or (ready_removal_admission_enabled and continuous_dispatcher is None):
         raise ValueError('Ready removal needs an explicit compatible continuous runtime and a literal capability.')
     if type(ordered_removal_admission_enabled) is not bool or (ordered_removal_admission_enabled and continuous_dispatcher is None):
         raise ValueError('Ordered removal needs an explicit compatible continuous runtime and a literal capability.')
+    if (type(bulk_policy_admission_enabled) is not bool or type(bulk_policy_device_ids) is not frozenset
+            or len(bulk_policy_device_ids) > 10 or any(type(device) is not int or not 1 <= device <= 65535 for device in bulk_policy_device_ids)
+            or bool(bulk_policy_device_ids) != bulk_policy_admission_enabled
+            or (bulk_policy_admission_enabled and continuous_dispatcher is None)):
+        raise ValueError('Bulk policy admission needs an explicit continuous owner, literal capability and trusted profile scope.')
     settings = settings or Settings.from_environment()
     store = store or Store(settings.database_path)
     continuous = None
@@ -356,7 +369,10 @@ def create_app(
 
         continuous = ContinuousApiRuntime(settings, store, continuous_dispatcher, agent_client,
                                           ready_removal_admission_enabled=ready_removal_admission_enabled,
-                                          ordered_removal_admission_enabled=ordered_removal_admission_enabled)
+                                          ordered_removal_admission_enabled=ordered_removal_admission_enabled,
+                                          bulk_policy_admission_enabled=bulk_policy_admission_enabled,
+                                          bulk_policy_device_ids=bulk_policy_device_ids,
+                                          bulk_policy_concurrent_enabled=bulk_policy_concurrent_enabled)
     else:
         if store.path.is_file():
             with store._connection() as db:
@@ -413,6 +429,8 @@ def create_app(
     )
     app.state.synchronizer = synchronizer
     register_bulk_preparation_api(app, continuous)
+    register_bulk_confirmation_api(app, continuous)
+    register_bulk_cancellation_api(app, continuous)
 
     @app.middleware("http")
     async def prevent_state_caching(request: Request, call_next):
@@ -426,6 +444,14 @@ def create_app(
                 and (continuous is None or continuous.ordered_removal_admission_enabled is not True)):
             response = JSONResponse(status_code=503, content={
                 'detail': 'Version-2 ordered removal admission is disabled; no request was admitted. Inspect any earlier outcome.'})
+        elif (request.method == 'POST' and request.url.path == '/api/v2/managed-imports/confirm-concurrent'
+                and (continuous is None or continuous.bulk_policy_concurrent_enabled is not True)):
+            response = JSONResponse(status_code=503, content={
+                'detail': 'Concurrent standing admission is disabled. Inspect original receipts; no device work was admitted.'})
+        elif (request.method == 'POST' and request.url.path == '/api/v2/managed-imports/confirm'
+                and (continuous is None or continuous.bulk_policy_admission_enabled is not True)):
+            response = JSONResponse(status_code=503, content={
+                'detail': 'Version-2 standing policy admission is disabled. Inspect any earlier original-key receipt; no device work was admitted.'})
         elif continuous is not None and not continuous.supports(request.method, request.url.path):
             response = JSONResponse(status_code=503, content={
                 'detail': 'This continuous API profile supports observations, refresh demand, Protected IPs, '

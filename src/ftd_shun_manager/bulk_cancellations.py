@@ -9,6 +9,7 @@ import hmac
 import json
 from datetime import UTC, datetime, timedelta
 from ipaddress import IPv4Address
+from itertools import islice
 
 from .bulk_intent import _digest, _uuid
 from .bulk_policy import BulkPolicies, BulkUnavailable, _actor, _atomic, _quiescent, _state
@@ -264,6 +265,30 @@ class BulkCancellations:
             self._fresh(reviewed)
             self._receipt(db, db.execute('SELECT * FROM managed_bulk_cancellations WHERE import_id=?', (key,)).fetchone())
             return result
+
+    def review_page(self, key, reviewed_at, review_digest, accepted_count, subject, roles, *, page=1):
+        """Read exact still-current accepted members; no rebase, migration or writes."""
+        _digest(review_digest)
+        if type(accepted_count) is not int or not 1 <= accepted_count <= 100000 or type(page) is not int:
+            raise ValueError('Exact accepted count and canonical page required.')
+        reviewed = datetime.fromisoformat(reviewed_at)
+        if reviewed.utcoffset() != timedelta(0) or _stamp(reviewed) != reviewed_at:
+            raise ValueError('Original canonical UTC review time required.')
+        pages = (accepted_count + 99) // 100
+        if not 1 <= page <= pages:
+            raise ValueError('Select a page within the exact accepted scope.')
+        with self.store._connection() as db:
+            db.execute('BEGIN')
+            root = self._root(db, key, subject, roles)
+            if db.execute('SELECT 1 FROM managed_bulk_cancellations WHERE import_id=?', (key,)).fetchone():
+                raise ManagedConflict('Cancellation already requested; inspect its retained status.')
+            self._fresh(reviewed)
+            review = self._review(db, root, subject, reviewed_at)
+            if review['accepted_count'] != accepted_count or not hmac.compare_digest(review['review_digest'], review_digest):
+                raise ManagedConflict('Original cancellation review changed; no page was rebased.')
+            targets = list(islice(_scope(db, key), (page - 1) * 100, page * 100))
+            self._fresh(reviewed)
+            return {'review': review, 'page': page, 'pages': pages, 'targets': targets}
 
     def _fresh(self, reviewed):
         if not reviewed <= self.clock() < reviewed + timedelta(minutes=5):

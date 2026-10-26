@@ -40,8 +40,10 @@ def surface_for(composition, monkeypatch):
     settings, store, agent, service = composition
 
     @asynccontextmanager
-    async def browser(*, transform=None):
-        app = create_app(settings, store, agent, continuous_dispatcher=service)
+    async def browser(*, transform=None, policy_api=False, policy_web=False, profile_ids=frozenset(), concurrent_api=False, concurrent_web=False):
+        app = create_app(settings, store, agent, continuous_dispatcher=service,
+                         bulk_policy_admission_enabled=policy_api, bulk_policy_device_ids=profile_ids,
+                         bulk_policy_concurrent_enabled=concurrent_api)
         loop, calls = asyncio.get_running_loop(), []
 
         def internal(request):
@@ -55,7 +57,7 @@ def surface_for(composition, monkeypatch):
             return httpx.Response(response.status_code, content=response.content, headers=response.headers)
 
         monkeypatch.setattr(web, 'api_client', lambda _: httpx.Client(transport=httpx.MockTransport(internal), base_url='http://internal'))
-        bff = web.create_app(settings)
+        bff = web.create_app(settings, bulk_policy_admission_enabled=policy_web, bulk_policy_concurrent_enabled=concurrent_web)
         async with httpx.AsyncClient(transport=httpx.ASGITransport(app=bff), base_url='https://fixture.test',
                 headers={'Remote-User': 'alice', 'Remote-Groups': 'ftd-shun-operators'}) as client:
             yield client, calls, app
@@ -98,7 +100,7 @@ def test_navigation_creation_private_actor_frozen_report_proposal_and_cancel(com
             frozen = dump(store)
             proposal = await client.get(location + '/review')
             assert proposal.status_code == 200 and operation_key(key) in proposal.text
-            assert 'Standing-policy confirmation unavailable' in proposal.text and 'type="button" disabled' in proposal.text
+            assert 'This proposal does not save policy.' in proposal.text and 'Prepare separate recurring-policy consent' in proposal.text
             assert dump(store) == frozen
             client.headers['Remote-Groups'] = 'ftd-shun-viewers'
             assert (await client.get(location + '/review')).status_code == 403
@@ -261,7 +263,7 @@ def test_malformed_proposal_never_shows_success_or_creates_authority(composition
             location = (await stage(client)).headers['location']
             before = dump(composition[1])
             page = await client.get(location + '/review')
-            assert page.status_code == 503 and 'Standing-policy confirmation unavailable' not in page.text
+            assert page.status_code == 503 and 'Prepare separate recurring-policy consent' not in page.text
             assert dump(composition[1]) == before
     asyncio.run(scenario())
 
@@ -347,6 +349,6 @@ def test_maximum_bff_scope_pagination_and_proposal_without_any_jobs(ten_device_c
             assert first.text.count('PROPOSE_ADD</span>') == last.text.count('PROPOSE_ADD</span>') == 100
             proposed = await client.get(location + '/review?page=1000')
             assert proposed.status_code == 200 and '100000 accepted pairs' in proposed.text
-            assert 'Standing-policy confirmation unavailable' in proposed.text
+            assert 'This proposal does not save policy.' in proposed.text
     asyncio.run(scenario())
     assert outside(composition[1]) == before and not composition[2].seen

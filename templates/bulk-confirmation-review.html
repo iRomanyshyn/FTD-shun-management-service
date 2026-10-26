@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block content %}
+{% set proposed = review.proposal %}{% set summary = review.summary %}
+{% set scope = (refresh or {}).bulk_policy_admission_device_ids | default([], true) %}
+{% set admission = bulk_policy_local_enabled and refresh and refresh.bulk_policy_admission_enabled is sameas true %}
+{% if review.concurrent %}{% set admission = admission and bulk_policy_local_concurrent and refresh.bulk_policy_concurrent_enabled is sameas true %}{% elif refresh and refresh.bulk_policy_concurrent_enabled is sameas true %}{% set admission = false %}{% endif %}
+{% set eligible = namespace(value=admission) %}{% for device in summary.devices %}{% if device.id not in scope %}{% set eligible.value = false %}{% endif %}{% endfor %}{% set admission = eligible.value %}
+<h1>Confirm {{ 'managed policy alongside active work' if review.concurrent else 'suspended managed policy' }}</h1>
+{% if refresh %}{% include "refresh-panel.html" %}{% endif %}
+{% if message %}<p class="preview-error" role="alert">{{ message }}</p>{% endif %}
+<p class="policy-warning"><strong>Standing policy only — not a verified FTD change.</strong> This consent stores recurring desired presence for the exact accepted scope. {{ 'Desired execution was suspended when reviewed.' if review.expected_suspended else 'Desired execution was already active when reviewed: the separately enabled shared worker may later maintain these targets after a fresh device read.' }} It does not queue ADD, unblock anything, resume policy execution or enable device writes.</p>
+<p>{{ proposed.manifest.accepted_count }} accepted pairs out of {{ proposed.manifest.pair_count }} total · {{ proposed.manifest.address_count }} addresses · {{ summary.devices | length }} selected devices.</p>
+<p>PROPOSE_ADD {{ proposed.manifest.classification_counts.PROPOSE_ADD }} · PROPOSE_ADOPT {{ proposed.manifest.classification_counts.PROPOSE_ADOPT }} · ALREADY_MANAGED {{ proposed.manifest.classification_counts.ALREADY_MANAGED }} · <strong>EXCLUDED_PROTECTED {{ proposed.manifest.classification_counts.EXCLUDED_PROTECTED }}</strong>.</p>
+<p>Invalid {{ summary.source_counts.get('Invalid', 0) }} · Unsupported {{ summary.source_counts.get('Unsupported', 0) }} · Ambiguous {{ summary.source_counts.get('Ambiguous', 0) }} · Duplicate {{ summary.source_counts.get('Duplicate', 0) }}. Exclusions are part of the full binding, not accepted work.</p>
+<p>Selected devices: {% for device in summary.devices %}{{ device.hostname }} ({{ device.id }}){{ ', ' if not loop.last else '' }}{% endfor %}. No omitted device or ready-only subset is allowed.</p>
+{% if review.concurrent %}<p>Independent sessions and queued work may continue. Selected devices need healthy fences; accepted pairs must have no pending commands, failed/unknown ADD history or held cleanup. Any conflict refuses the whole scope. No command is interrupted.</p>{% else %}<p>Local precondition: desired execution suspended, no active session/lease or pending/uncertain work, current profiles/revisions/classifications and unpaused new authority. A busy observer conflicts; this form never interrupts it or automatically retries.</p>{% endif %}
+<dl class="import-review-metadata"><dt>Label / reason</dt><dd>{{ summary.label or 'Unlabelled' }} · {{ summary.reason or 'No reason' }}</dd>
+<dt>Original policy/protection revisions</dt><dd>{{ summary.managed_revision }} / {{ summary.protected_revision }}</dd>
+<dt>Original preparation expires</dt><dd><time class="local-timestamp" datetime="{{ summary.expires_at }}">{{ summary.expires_at }}</time></dd>
+<dt>Local review expires</dt><dd><time class="local-timestamp" datetime="{{ review.expires_at }}">{{ review.expires_at }}</time></dd>
+<dt>Original operation / retry key</dt><dd><code>{{ review.operation_id }}</code></dd><dt>Proposal digest</dt><dd><code>{{ proposed.digest }}</code></dd></dl>
+{% if result %}<section aria-label="Checked standing policy receipt"><h2>Policy saved — {{ 'restoration suspended' if result.restoration_suspended else 'desired execution was already active' }}</h2>
+<p>{{ result.accepted_pairs }} accepted pairs · {{ result.changed_targets }} changed policy targets · original saved revision {{ result.managed_revision }}.</p>
+<p>{{ 'Original-key replay: no new authority or re-enabling of retired policy.' if result.replayed else 'One atomic whole-scope policy transaction committed.' }}</p>
+<p>Historical actor: {{ result.confirmation_actor.display_name }} ({{ result.confirmation_actor.subject }}). This is not current effective policy, execution progress or verified device success.</p></section>{% endif %}
+<form method="post" action="/managed-imports/v2/confirm" class="import-confirm-form managed-grant-form" id="bulk-policy-consent">
+<input type="hidden" name="csrf" value="{{ csrf_token }}"><input type="hidden" name="review" value="{{ review.token }}">
+{% if not result %}<label for="bulk-accepted-count">Type {{ proposed.manifest.accepted_count }} to confirm the exact accepted pair count</label>
+<input id="bulk-accepted-count" name="accepted_count" value="{{ typed_count }}" inputmode="numeric" pattern="{{ proposed.manifest.accepted_count }}" autocomplete="off" maxlength="6" required>
+<label class="policy-checkbox"><input type="checkbox" name="maintain_present" value="true"{% if consent %} checked{% endif %} required> I explicitly authorize recurring maintenance of this exact accepted device/IP scope. {{ 'Execution stays suspended until separately enabled.' if review.expected_suspended else 'The separately enabled worker may maintain it after a fresh read.' }} Protection and later retirement take priority.</label>
+<button type="submit"{% if not admission %} disabled{% endif %}>Save {{ 'standing policy' if review.concurrent else 'suspended standing policy' }}{{ ' — unavailable' if not admission else '' }}</button>{% endif %}
+{% if draft %}<p>Frozen members: page {{ draft.page }} / {{ draft.pages }} · at most 100 per page.</p>
+<div class="table-scroll"><table aria-label="Frozen standing-consent members"><thead><tr><th>Original device / IP</th><th>Class</th></tr></thead><tbody>
+{% for target in draft.targets %}<tr{% if target.classification == 'EXCLUDED_PROTECTED' %} class="protected-shun"{% endif %}><td>{{ target.device_id }} / {{ target.ip }}</td><td>{{ target.classification }}</td></tr>{% endfor %}</tbody></table></div>
+<div class="pagination-controls">{% if draft.page > 1 %}<button type="submit" formaction="/managed-imports/v2/confirmation-review/page" formnovalidate name="page" value="{{ draft.page - 1 }}">Previous 100</button>{% endif %}
+{% if draft.page < draft.pages %}<button type="submit" formaction="/managed-imports/v2/confirmation-review/page" formnovalidate name="page" value="{{ draft.page + 1 }}">Next 100</button>{% endif %}</div>{% endif %}
+</form>
+<p><a href="/managed-imports/v2/receipts/{{ review.operation_id }}">Inspect original policy receipt</a> · <a href="/managed-imports/v2">Saved preparations / receipts</a></p>
+<p class="preview-help">Immutable actor/CSRF-cookie-bound review, at most ten minutes and lost on Web restart. Metadata updates preserve input/focus/scope/key. After an unknown response, explicitly retry only this review/key or inspect owner receipts; never rekey, split scope or replay ADD. Web/API admission are independently default-off.</p>
+<script src="/static/freshness.js" defer></script>
+{% endblock %}

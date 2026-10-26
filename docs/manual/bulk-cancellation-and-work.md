@@ -10,6 +10,8 @@ candidate pairs at a time. Neither opens SSH, calls an agent, queues commands,
 resumes restoration or exposes a new HTTP/Web route. The legacy lab is unchanged.
 The separate [legacy cancellation](import-cancellation.md) still describes the
 current gated Web workflow and its attempt settlement.
+The separate [v2 API/Web surface](bulk-cancellation-surface.md) connects this
+coordinator to compatible continuous storage without initialization/live activation.
 
 ## Whole-scope cancellation
 

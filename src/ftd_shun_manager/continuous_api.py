@@ -13,7 +13,8 @@ class ContinuousApiRuntime:
     """Restricted existing-profile API, not general v2 write-workflow activation."""
 
     def __init__(self, settings, store, dispatcher, agent=None, *, ready_removal_admission_enabled=False,
-                 ordered_removal_admission_enabled=False):
+                 ordered_removal_admission_enabled=False, bulk_policy_admission_enabled=False,
+                 bulk_policy_device_ids=frozenset(), bulk_policy_concurrent_enabled=False):
         if type(dispatcher) is not ContinuousDispatcher:
             raise ValueError('An explicit continuous dispatcher is required.')
         self.settings, self.store, self.dispatcher = settings, store, dispatcher
@@ -21,6 +22,9 @@ class ContinuousApiRuntime:
             raise ValueError('Ready removal admission capability must be a literal boolean.')
         self.ready_removal_admission_enabled = ready_removal_admission_enabled
         self.ordered_removal_admission_enabled = ordered_removal_admission_enabled
+        self.bulk_policy_admission_enabled = bulk_policy_admission_enabled
+        self.bulk_policy_device_ids = bulk_policy_device_ids
+        self.bulk_policy_concurrent_enabled = bulk_policy_concurrent_enabled
         self._started = False
         self._validate(agent)
         if getattr(dispatcher, '_api_application_bound', False):
@@ -28,6 +32,7 @@ class ContinuousApiRuntime:
         dispatcher._api_application_bound = True
         self.policy = ProtectedPolicy(store, initialize_queue=False)
         self.queue = dispatcher.runner.queue
+        from .bulk_cancellations import BulkCancellations
         from .bulk_ordered_waits import BulkOrderedWaits
         from .bulk_policy import BulkPolicies
         from .bulk_policy_views import BulkPolicyViews
@@ -35,6 +40,7 @@ class ContinuousApiRuntime:
 
         self.policy_views = BulkPolicyViews(store)
         self.policy_revocation = BulkPolicies(store, clock=self.queue._now)
+        self.import_cancellations = BulkCancellations(store, clock=self.queue._now)
         self.removal_scopes = BulkRemovalScopes(store)
         self.ready_removals = BulkRemovals(store, self.queue)
         self.ordered_removals = BulkOrderedWaits(store, self.queue)
@@ -42,10 +48,18 @@ class ContinuousApiRuntime:
         self.managed_removals = None
 
     def _validate(self, agent=None):
+        if (type(self.bulk_policy_concurrent_enabled) is not bool
+                or (self.bulk_policy_concurrent_enabled and self.bulk_policy_admission_enabled is not True)):
+            raise ValueError('Concurrent policy admission needs its separate literal capability and standing admission.')
         if type(self.ready_removal_admission_enabled) is not bool:
             raise ValueError('Ready removal admission capability must be a literal boolean.')
         if type(self.ordered_removal_admission_enabled) is not bool:
             raise ValueError('Ordered removal admission capability must be a literal boolean.')
+        if (type(self.bulk_policy_admission_enabled) is not bool or type(self.bulk_policy_device_ids) is not frozenset
+                or len(self.bulk_policy_device_ids) > 10
+                or any(type(device) is not int or not 1 <= device <= 65535 for device in self.bulk_policy_device_ids)
+                or bool(self.bulk_policy_device_ids) != self.bulk_policy_admission_enabled):
+            raise ValueError('Bulk policy admission needs a literal capability and separate exact trusted profile scope.')
         settings, service = self.settings, self.dispatcher
         runner, config = service.runner, service.runner.configuration
         if (runner.store is not self.store or settings.database_path != self.store.path
@@ -81,7 +95,14 @@ class ContinuousApiRuntime:
             raise QueueConflict('API must exclusively own an inactive, unbroken continuous lifecycle.')
         if not self.store.path.is_file():
             raise QueueConflict('Continuous API requires existing storage; nothing was initialized.')
-        runner._configured_devices()  # Exact optional profile/scope/settlement/capacity; no migration.
+        _profile, devices = runner._configured_devices()  # Exact optional profile/scope/settlement/capacity; no migration.
+        if self.bulk_policy_admission_enabled:
+            if not self.bulk_policy_device_ids.issubset({device.id for device in devices}):
+                raise ValueError('Trusted policy profiles must belong to enabled sealed device scope.')
+            with self.store._connection() as db:
+                db.execute('BEGIN')
+                if not self.bulk_policy_concurrent_enabled and _state(db)['restoration_suspended'] != 1:
+                    raise QueueConflict('Policy-only admission requires already suspended desired execution.')
         if self.ordered_removal_admission_enabled:
             if service.ordered_promotion_enabled is not True:
                 raise ValueError('Ordered API admission requires the separate owning promotion capability.')
@@ -104,7 +125,8 @@ class ContinuousApiRuntime:
             if state is None:
                 raise QueueConflict('Existing version-2 policy is required.')
             return {'managed_policy_available': True, 'managed_policy_initialized': True,
-                    'managed_policy_revision': state['revision'], 'managed_policy_format': 2}
+                    'managed_policy_revision': state['revision'], 'managed_policy_format': 2,
+                    'managed_execution_suspended': bool(state['restoration_suspended'])}
 
     def supports(self, method, path):
         if method == 'GET':
@@ -120,7 +142,12 @@ class ContinuousApiRuntime:
                                  '/api/v2/managed-shuns/selection', '/api/v2/managed-shuns/retire',
                                  '/api/v2/managed-imports/prepare', '/api/v2/managed-imports/preparations',
                                  '/api/v2/managed-imports/preparation', '/api/v2/managed-imports/proposal',
-                                 '/api/v2/managed-imports/cancel-preparation'}
+                                 '/api/v2/managed-imports/cancel-preparation',
+                                 '/api/v2/managed-imports/receipts', '/api/v2/managed-imports/receipt'}
+                        or path in {'/api/v2/managed-imports/cancellation-review', '/api/v2/managed-imports/cancellation-targets',
+                                    '/api/v2/managed-imports/cancel', '/api/v2/managed-imports/cancellation'}
+                        or (self.bulk_policy_admission_enabled is True and path == '/api/v2/managed-imports/confirm')
+                        or (self.bulk_policy_concurrent_enabled is True and path == '/api/v2/managed-imports/confirm-concurrent')
                         or (self.ready_removal_admission_enabled is True and path in {
                             '/api/v2/managed-removals/device', '/api/v2/managed-removals/fleet'})
                         or (self.ordered_removal_admission_enabled is True and path in {
@@ -151,6 +178,11 @@ class ContinuousApiRuntime:
                 'ready_removal_admission_enabled': self.ready_removal_admission_enabled,
                 'ordered_removal_review_available': True,
                 'bulk_import_preparation_available': True,
+                'bulk_policy_admission_enabled': self.bulk_policy_admission_enabled,
+                'bulk_policy_concurrent_enabled': self.bulk_policy_concurrent_enabled,
+                'bulk_policy_admission_device_ids': sorted(self.bulk_policy_device_ids),
+                'bulk_policy_receipts_available': True,
+                'bulk_import_cancellation_available': True,
                 'ordered_removal_admission_enabled': self.ordered_removal_admission_enabled,
                 'ordered_removal_promotion_enabled': self.dispatcher.ordered_promotion_enabled is True}
 

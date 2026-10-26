@@ -21,6 +21,8 @@ from fastapi.templating import Jinja2Templates
 from starlette.concurrency import run_in_threadpool
 
 from . import __version__
+from .bulk_cancellation_web import register_bulk_cancellation_web
+from .bulk_confirmation_web import register_bulk_confirmation_web
 from .bulk_ordered_web import register_ordered_removal_web
 from .bulk_preparation_web import register_bulk_preparation_web
 from .bulk_removal_web import register_ready_removal_web
@@ -196,6 +198,12 @@ def refresh_metadata(refresh: object) -> dict[str, object]:
         "managed_policy_format",
         "managed_policy_view_available",
         "bulk_import_preparation_available",
+        "bulk_policy_admission_enabled",
+        "bulk_policy_admission_device_ids",
+        "bulk_policy_receipts_available",
+        "bulk_policy_concurrent_enabled",
+        "managed_execution_suspended",
+        "bulk_import_cancellation_available",
         "managed_policy_retirement_available",
         "ready_removal_review_available",
         "ready_removal_admission_enabled",
@@ -241,7 +249,11 @@ def refresh_metadata(refresh: object) -> dict[str, object]:
 
 
 def create_app(settings: Settings | None = None, *, ready_removal_admission_enabled=False,
-               ordered_removal_admission_enabled=False) -> FastAPI:
+               ordered_removal_admission_enabled=False, bulk_policy_admission_enabled=False,
+               bulk_policy_concurrent_enabled=False) -> FastAPI:
+    if (type(bulk_policy_concurrent_enabled) is not bool
+            or (bulk_policy_concurrent_enabled and bulk_policy_admission_enabled is not True)):
+        raise ValueError('Concurrent Web consent requires its separate literal capability and standing admission.')
     settings = settings or Settings.from_environment()
     if type(ready_removal_admission_enabled) is not bool or (ready_removal_admission_enabled and (
             settings.agent_mode != 'socket' or settings.development_auth is not False
@@ -251,6 +263,10 @@ def create_app(settings: Settings | None = None, *, ready_removal_admission_enab
             settings.agent_mode != 'socket' or settings.development_auth is not False
             or settings.agent_cycles_enabled is not True or settings.large_snapshots_enabled is not True)):
         raise ValueError('Ordered Web consent needs a literal capability, socket/session/large mode and production identity.')
+    if type(bulk_policy_admission_enabled) is not bool or (bulk_policy_admission_enabled and (
+            settings.agent_mode != 'socket' or settings.development_auth is not False
+            or settings.agent_cycles_enabled is not True or settings.large_snapshots_enabled is not True)):
+        raise ValueError('Standing Web consent requires a literal capability and compatible trusted identity/session mode.')
     app = FastAPI(title="FTD Shun Manager", docs_url=None, redoc_url=None, openapi_url=None)
     reviews = ImportReviews(settings.sensitive_action_max_age_seconds)
     managed_reviews = ManagedRemovalReviews(settings.sensitive_action_max_age_seconds)
@@ -1263,6 +1279,13 @@ def create_app(settings: Settings | None = None, *, ready_removal_admission_enab
         identity_for=identity_from_request, operator_for=require_managed_operator,
         client_for=lambda config: api_client(config), form_for=preview_form, csrf_for=require_csrf)
     register_bulk_preparation_web(app, settings, render=render, identity_for=identity_from_request,
+        operator_for=require_managed_operator, client_for=lambda config: api_client(config),
+        form_for=preview_form, csrf_for=require_csrf)
+    register_bulk_confirmation_web(app, settings, enabled=bulk_policy_admission_enabled,
+        concurrent_enabled=bulk_policy_concurrent_enabled, render=render,
+        identity_for=identity_from_request, operator_for=require_managed_operator,
+        client_for=lambda config: api_client(config), form_for=preview_form, csrf_for=require_csrf)
+    register_bulk_cancellation_web(app, settings, render=render, identity_for=identity_from_request,
         operator_for=require_managed_operator, client_for=lambda config: api_client(config),
         form_for=preview_form, csrf_for=require_csrf)
     return app

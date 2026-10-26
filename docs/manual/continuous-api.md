@@ -68,6 +68,9 @@ synchronizer is constructed/started for this composition.
 | Ready-only v2 removal admission | Distinct `/api/v2/managed-removals/device` and `/fleet`, independently default-off factory capability; strict frozen scope and 202 admission receipt. |
 | Ordered v2 preflight/status/revocation | Separate fixed readonly whole-scope/current-job routes and owner/Admin waiting cancellation, including under pause/disabled admission; no device command or policy resume from reads/revocation. |
 | Ordered v2 reservation | Distinct `/api/v2/managed-ordered-removals/device` and `/fleet`, separate default-false API capability plus existing complete promotion profile/owning capability; strict frozen predecessors and historical 202 waiting receipt. |
+| V2 suspended standing import | Separate default-false confirmation capability and trusted eligible-profile scope; atomic quiescent policy-only consent, owner receipt list/pages available with admission disabled; no ADD or resume. |
+| Concurrent v2 standing import | Separate default-false concurrent capability plus standing admission/scope; selected device/pair barriers and actual historical suspension, no ADD or resume. |
+| V2 confirmed-import cancellation | Fixed whole-root review/member-page/cancel/current-status, current Operator owner/Admin, existing captured settlement; no new admission gate or REMOVE. |
 | Other managed/import/manual mutation workflows | Explicit 503 before handler dispatch, including all v1 managed reads/retirement, ordinary manual ADD/REMOVE, cancellation and legacy combined cleanup. |
 
 The private API middleware admits only these exact method/path families in this
@@ -87,6 +90,10 @@ Legacy admission gates remain false. Ready-only and ordered API capabilities are
 separate literal default-false developer composition arguments; no request may
 select them. Ordered API enablement requires complete existing storage and the
 owning dispatcher's independent promotion capability, checked again at startup.
+The separate [v2 import cancellation surface](bulk-cancellation-surface.md) revokes
+existing uncompleted authority without new admission/execution capability. It uses
+fixed whole-root reviewed scope and existing captured shared-result settlement;
+local status/consent never sends REMOVE, interrupts ADD or resumes policy.
 Read-only inspection/status and local waiting revocation need no admission gate
 and never initialize optional storage. See
 [Private Ordered API](ordered-removal-api.md) for exact routes, receipts and
@@ -107,8 +114,19 @@ standing confirmation or work. `bulk_import_preparation_available=true` advertis
 interface support, not storage readiness or device authority; missing journal is
 explicitly uninitialized on owner-list reads. The separate
 [v2 Web workspace](bulk-preparation-web.md) now supplies owner recovery, bounded
-frozen reports/pure proposal review and CSRF draft cancellation, not standing
-confirmation/execution. No automatic initialization/pruning follows. A confirmed draft cannot be cancelled as if
+frozen reports/pure proposal review and CSRF draft cancellation. Separate
+[suspended standing confirmation](bulk-standing-confirmation.md) now adds independent
+API/Web capabilities, exact count/recurring consent and owner historical receipts.
+It retains quiescent/suspended admission, conflicts during active sessions and
+never queues ADD or wakes work. Profile IDs are trusted external eligibility
+attestation, not stored agent profiles or executable ADD scope.
+Separate [fenced concurrent admission](bulk-concurrent-admission.md) now adds an
+independent default-false capability in both factories, requiring standing
+admission/scope. Its fixed route freezes expected desired suspension and checks
+selected device/pair barriers while healthy independent work continues; the old
+route remains quiescent/suspended. Status exposes actual desired suspension and
+concurrent capability. Neither route queues ADD, hints work or resumes policy.
+No automatic initialization/pruning follows. A confirmed draft cannot be cancelled as if
 it were unconfirmed, and current roles, original hashes/expiry and owner boundaries
 remain authoritative.
 
@@ -116,8 +134,9 @@ remain authoritative.
 
 The existing authenticated/no-store BFF passes explicit capability and v2 metadata
 fields. In this profile the normal Shuns/detail/history/Protected IP pages and
-refresh control work. Navigation points to non-executable preview rather than
-managed imports. Managed navigation now opens the dedicated v2 page, including
+refresh control work. With the narrow preparation capability, Imports opens
+the v2 draft workspace; otherwise it retains legacy navigation. Managed navigation
+opens the dedicated v2 page, including
 local stop-maintaining; unsupported import review, manual removal and
 queue-cancellation controls are hidden. Status explicitly explains the restriction
 and the still-active Protected-IP behavior. Direct unsupported requests remain
