@@ -1,5 +1,9 @@
 # Managed Import Web Workflow
 
+The separate [v2 preparation workspace](bulk-preparation-web.md) is selected on the
+compatible continuous profile. It supports 100000-pair draft inspection but no
+standing confirmation/execution, and never falls back to the legacy flow below.
+
 ## Current boundary
 
 Operators/Administrators use **Imports** in the navigation (`/managed-imports`).

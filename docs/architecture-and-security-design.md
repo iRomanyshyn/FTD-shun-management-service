@@ -5068,3 +5068,93 @@ checked revocation separately if subsequent status fails. Disabled admission,
 pause or browser restart does not resume maintenance, clear attention or replay ADD.
 No schema/runtime selector, deployment/gate activation, migration, new fixture or
 live/production acceptance is authorized by these Web controls.
+
+### Version-2 durable import preparation API — 2026-10-26
+
+Expose separate fixed private v2 draft create/list/page/proposal/cancel routes only
+in the explicit compatible continuous composition. Use the bulk-profile classifier
+and the shared queue's UTC clock, never a legacy registry fallback. Existing exact
+base/fenced v2 and optional preparation storage are prerequisites; constructor,
+startup and requests never initialize, migrate, repair, prune or resume anything.
+An absent journal is explicitly uninitialized on owner-list inspection, not an
+empty initialized workspace. Malformed profile/journal is unavailable.
+
+Creation requires a current real Operator/Administrator, strict bounded text and
+metadata, and one to ten distinct explicit enabled device IDs. Preserve the parser's
+1 MiB UTF-8/20000-line/10000-row bounds and the complete <=100000-pair Cartesian
+product. Invalid/duplicate source diagnostics and protected exclusions remain
+visible; no silent truncation, scope rebase or inferred adoption. Retain only
+generated diagnostics and intentional label/reason, not raw source/comments.
+The existing four-owner/sixteen-global retained-draft and ten-minute lifetime
+bounds remain; capacity failure evicts nothing. A successful create response
+means a non-authoritative local draft, never policy, queue work or device success.
+
+List/page/proposal are owner-bound local inspections; actor fields are supplied
+only by trusted composition/BFF and never credentials. Reports stay frozen and
+bounded to 100 targets and 100 diagnostic rows per page. Owner mismatch/unknown
+reference cannot disclose another author's draft. Before rendering retained
+metadata/members or cancelling a draft, verify its complete original header and
+membership digest in <=100-row chunks in the same transaction; a same-count
+substitution is unavailable, never a smaller/changed accepted report. A proposal additionally requires
+current Operator/Administrator, canonical original preparation/operation UUIDs and
+the separately retained preparation digest. Stream and verify the full membership
+and all exclusions, refuse expired/cancelled/already-confirmed drafts and return
+only the canonical v2 descriptor/digest/manifest with explicit non-authority flags.
+It neither reserves an operation key nor creates a root or audit event; repeat
+inspection never extends authority or grants confirmation permission.
+
+Any authenticated owner may cancel only their unconfirmed draft, including after
+role loss or during pause/disabled admission. Cancellation is not import-policy
+or queue cancellation, never retires an already confirmed import or interrupts
+ADD. A confirmed draft conflicts; original policy/receipts/jobs remain unchanged.
+Reads and draft changes never hint/wake device work or alter managed/queue revisions.
+Lost creation replies are recovered through the owner list, not automatically
+retried as executable admissions. Strict fixed input forbids actions, arbitrary
+CLI, caller-selected profiles/capabilities and reinterpreting legacy admission
+routes/digests as version-2 authority. A constructible proposal is not a key
+reservation; future confirmation must still reject any independently occupied key.
+
+Advertise preparation inspection separately from general managed workflows and
+keep v2 policy confirmation/execution unavailable. No Web confirmation, runtime
+selector, optional lab migration, live import fixture, policy activation or
+production acceptance follows from this non-authoritative API increment.
+
+### Version-2 preparation Web workspace and proposal inspection — 2026-10-26
+
+Provide a distinct compatible-v2 Web workspace, selected by its narrow preparation
+capability rather than general managed/execution flags. Preserve legacy navigation
+when that capability is absent; direct v2 requests never fall back to v1. Workspace
+reads recover only the authenticated owner's bounded saved drafts and configured
+public device labels. Missing journal is explicitly uninitialized and disables
+creation; unavailable/malformed state is not an empty healthy workspace.
+
+Creation is an explicit Operator/Admin CSRF POST accepting only bounded source,
+selected canonical device IDs and intentional label/reason. Revalidate UTF-8,
+parser/device limits and the actual actor before the one fixed private API call.
+Strictly check the 201 reference/digest/product and non-authority flags before a
+canonical report redirect. Lost/malformed replies are unknown: do not automatically
+retry, fabricate success or select the latest draft as the result. Recover through
+the owner list. Preserve transient user input, without logging or persisting raw
+source, and stop repeat submission of that uncertain form until explicit recovery.
+
+Provide canonical owner-bound draft report links, 100-row pagination and separate
+read-only exact v2 proposal inspection. Validate strict counts/flags/UTC times,
+state/confirmation references, device/member/diagnostic pages and immutable
+preparation digest before rendering. Mark invalid/duplicate/protected exclusions
+conspicuously; show frozen classifications, not current device evidence. Derive a
+stable domain-separated v2 operation UUID for proposal inspection only, distinct
+from the preparation and legacy workflow. Validate the canonical descriptor/digest,
+manifest, original preparation/revisions/metadata and all exclusion totals against
+the report. Zero-accepted, expired, cancelled or confirmed drafts cannot prepare a
+proposal. No recurring-policy consent, confirmation POST or device work is added.
+
+Any authenticated owner may explicitly CSRF-cancel their unconfirmed draft using
+its original UUID, including after role loss. Validate the draft-only receipt;
+checked cancellation remains historical if follow-up status fails, while unknown
+replies permit inspection/retry of only that draft. Confirmation races remain
+conflicts, never cancellation of standing policy/jobs. Passive metadata refresh
+must preserve pasted input, selected devices, frozen report/review and focus, and
+never create/cancel drafts, refresh FTD or reclassify/renew anything. Escape all
+operator metadata, localize timestamps with timezone and preserve no-store/identity
+boundaries. No schema/gate/runtime selection, lab migration/activation, bulk fixture
+or production acceptance is authorized by these non-authoritative Web controls.

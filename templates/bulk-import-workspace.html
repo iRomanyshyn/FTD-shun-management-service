@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Import preparations</h1>
+{% if refresh %}{% include "refresh-panel.html" %}{% endif %}
+<p>Version-2 private drafts: up to 10,000 IPv4 addresses on ten selected devices / 100,000 proposed pairs. Preparing a draft does not establish maintenance, adopt observations or queue device work.</p>
+{% if message %}<p class="preview-error" role="alert">{{ message }}</p>{% endif %}
+{% if drafts is none %}<p class="policy-warning">Private draft state is unavailable, not an empty healthy workspace. Nothing is initialized or repaired here.</p>
+{% elif not drafts.initialized %}<p class="policy-warning">Preparation journal is not initialized. This page cannot initialize it or enable device writes.</p>{% endif %}
+{% set operator = 'Operator' in identity.roles or 'Administrator' in identity.roles %}
+{% if not operator %}<p class="policy-warning">You may inspect or cancel your own drafts. Current Operator/Administrator authority is required to create a draft or inspect a policy proposal.</p>{% endif %}
+{% if creation_unknown %}<p class="policy-warning">Creation is paused on this uncertain form. Inspect Saved preparations below before explicitly opening a new form; do not automatically resubmit.</p>{% endif %}
+<form method="post" action="/managed-imports/v2/prepare" class="import-form" id="bulk-draft-form">
+<input type="hidden" name="csrf" value="{{ csrf_token }}">
+<label for="bulk-source">IPv4 list</label><textarea id="bulk-source" name="text" rows="10" required placeholder="198.51.100.10&#10;shun 198.51.100.11 # optional comment">{{ source_text }}</textarea>
+<p class="preview-help">At most 1 MiB UTF-8, 20,000 lines and 10,000 parsed rows. Exact IPv4 tokens may have surrounding text/comments. Invalid, duplicate and actively protected inputs are reported, never silently accepted or hidden. Raw source/comments are not stored in the draft.</p>
+<label for="bulk-label">Label (optional)</label><input id="bulk-label" name="label" value="{{ draft_label }}" maxlength="100">
+<label for="bulk-reason">Reason (optional)</label><input id="bulk-reason" name="reason" value="{{ draft_reason }}" maxlength="500">
+<fieldset><legend>Select devices (up to 10)</legend>{% for device in devices %}<label class="policy-checkbox"><input type="checkbox" name="device_ids" value="{{ device.id }}"{% if device.id | string in selected_devices %} checked{% endif %}{% if not device.enabled %} disabled{% endif %}> {{ device.hostname }} ({{ device.id }}){% if not device.enabled %} — disabled{% endif %}</label>{% else %}<p>No available device selection.</p>{% endfor %}</fieldset>
+<button type="submit"{% if not drafts or not drafts.initialized or not operator or creation_unknown %} disabled{% endif %}>Save draft only</button>
+</form>
+<h2>Saved preparations</h2>
+<p>Recover here after a lost reply or Web restart. Four retained drafts per owner / sixteen globally, including expired or cancelled entries until separately approved pruning; no automatic eviction is performed.</p>
+{% if drafts and drafts.initialized %}<div class="table-scroll"><table aria-label="Private bulk drafts"><thead><tr><th>Label / created</th><th>Proposed scope</th><th>State / expiry</th><th>Report</th></tr></thead><tbody>
+{% for plan in drafts.plans %}<tr><td>{{ plan.label or 'Unlabelled draft' }}<br><time class="local-timestamp" datetime="{{ plan.created_at }}">{{ plan.created_at }}</time></td>
+<td>{{ plan.address_count }} addresses · {{ plan.target_count }} pairs<br>{{ plan.classification_counts.EXCLUDED_PROTECTED }} protected exclusions</td>
+<td><span class="state-badge {{ 'policy-enabled' if plan.state == 'PREPARED' else '' }}">{{ plan.state }}</span><br><time class="local-timestamp" datetime="{{ plan.expires_at }}">{{ plan.expires_at }}</time></td>
+<td><a href="/managed-imports/v2/{{ plan.plan_id }}">Open original report</a>{% if plan.confirmed_operation_id %}<br>Earlier policy receipt: <code>{{ plan.confirmed_operation_id }}</code>{% endif %}</td></tr>
+{% else %}<tr><td colspan="4">No saved drafts for your identity.</td></tr>{% endfor %}</tbody></table></div>{% endif %}
+<p><a href="/managed-imports/v2">Reload saved drafts / open a new form</a> · <a href="/imports">Standalone non-executable preview</a></p>
+<script src="/static/freshness.js" defer></script>
+{% endblock %}

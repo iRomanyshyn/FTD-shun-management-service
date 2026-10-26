@@ -22,6 +22,7 @@ from starlette.concurrency import run_in_threadpool
 
 from . import __version__
 from .bulk_ordered_web import register_ordered_removal_web
+from .bulk_preparation_web import register_bulk_preparation_web
 from .bulk_removal_web import register_ready_removal_web
 from .config import Settings
 from .import_preview import (
@@ -194,6 +195,7 @@ def refresh_metadata(refresh: object) -> dict[str, object]:
         "managed_workflows_available",
         "managed_policy_format",
         "managed_policy_view_available",
+        "bulk_import_preparation_available",
         "managed_policy_retirement_available",
         "ready_removal_review_available",
         "ready_removal_admission_enabled",
@@ -1260,6 +1262,9 @@ def create_app(settings: Settings | None = None, *, ready_removal_admission_enab
     register_ordered_removal_web(app, settings, enabled=ordered_removal_admission_enabled, render=render,
         identity_for=identity_from_request, operator_for=require_managed_operator,
         client_for=lambda config: api_client(config), form_for=preview_form, csrf_for=require_csrf)
+    register_bulk_preparation_web(app, settings, render=render, identity_for=identity_from_request,
+        operator_for=require_managed_operator, client_for=lambda config: api_client(config),
+        form_for=preview_form, csrf_for=require_csrf)
     return app
 
 

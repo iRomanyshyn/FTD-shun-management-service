@@ -17,6 +17,18 @@ initializer, lab migration or bulk test enablement. Confirmed reports/authority
 are retained independently, never jobs attached to an expiring preparation. See the
 [Working-Version Plan](../working-version-plan.md#capacity-contract-for-the-next-import-increment).
 
+On the separate exact bulk/fenced continuous profile, the
+[v2 preparation API](bulk-preparation-api.md) now exposes non-authoritative
+draft creation/owner recovery/pages/proposals/draft revocation with the correct
+bulk classifier and shared clock. Its `BulkPreparationReports` subclass verifies
+the entire original digest in <=100-row chunks before reports/cancellation. This
+does not turn legacy confirmations into 100000-pair authority or add a v2
+confirmation/execution path. Existing optional storage is required; no lab
+initialization or pruning was performed. A distinct
+[v2 Web workspace](bulk-preparation-web.md) now exposes private draft creation,
+100-row original reports, exact read-only proposals and draft revocation; this
+still does not confirm standing authority or execute device work.
+
 ## Frozen scope and reporting
 
 Preparation accepts the existing bounded parser's exact IPv4/free-text/comment

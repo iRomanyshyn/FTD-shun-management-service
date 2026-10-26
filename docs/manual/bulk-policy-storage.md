@@ -20,6 +20,13 @@ See [the format](bulk-import-capacity.md) and [working-version plan](../working-
 Integration with the usable Web/import/worker flow remains the next delivery work,
 not a reason to turn the legacy feature flags on.
 
+The separate [v2 preparation API](bulk-preparation-api.md) now composes the correct
+bulk classifier/journal with the restricted continuous runtime for draft creation,
+owner recovery, fully verified reports, pure proposals and draft cancellation.
+It creates no policy/root/job and does not expose `BulkPolicies.confirm` or
+confirmed-import cancellation. Existing confirmation/dispatch gates stay unchanged;
+no new Web flow, lab migration or activation follows.
+
 ## Stored authority and atomicity
 
 The profile keeps **one** effective `(device_id, IPv4)` policy and uses the

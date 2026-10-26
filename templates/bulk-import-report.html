@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ 'Exact managed-policy proposal' if review_mode else 'Original import preparation' }}</h1>
+{% if refresh %}{% include "refresh-panel.html" %}{% endif %}
+{% if cancellation is not none %}<section aria-label="Draft cancellation receipt"><h2>Draft cancellation confirmed</h2><p>{{ 'The original unconfirmed draft was cancelled.' if cancellation.cancelled else 'This draft was already cancelled; no additional change.' }} This historical receipt does not cancel any standing policy or queue work.</p></section>{% endif %}
+{% if message %}<p class="preview-error" role="alert">{{ message }}</p>{% endif %}
+{% if draft %}
+<p class="policy-warning"><strong>Draft/proposal only — standing confirmation and device execution are unavailable.</strong> No recurring maintenance, adoption or job is authorized by opening or hashing this report.</p>
+<p><span class="state-badge {{ 'policy-enabled' if draft.state == 'PREPARED' else '' }}">{{ draft.state }}</span> · {{ draft.label or 'Unlabelled draft' }} · Owner {{ draft.actor_display_name }} ({{ draft.actor_subject }}). Captured roles are historical, not current authority.</p>
+<p>Created <time class="local-timestamp" datetime="{{ draft.created_at }}">{{ draft.created_at }}</time> · Original expiry <time class="local-timestamp" datetime="{{ draft.expires_at }}">{{ draft.expires_at }}</time>. Reads/retries never renew it.</p>
+<p>{{ draft.address_count }} distinct addresses · {{ draft.target_count }} proposed pairs · {{ draft.target_count - draft.classification_counts.EXCLUDED_PROTECTED }} non-protected pairs.</p>
+<p role="status" class="policy-warning">Source diagnostics: {{ draft.source_counts.get('Invalid', 0) }} invalid · {{ draft.source_counts.get('Unsupported', 0) }} unsupported · {{ draft.source_counts.get('Ambiguous', 0) }} ambiguous · {{ draft.source_counts.get('Duplicate', 0) }} duplicate. <strong>{{ draft.classification_counts.EXCLUDED_PROTECTED }} protected pairs excluded.</strong> These are frozen results, not current protection or a fresh FTD query.</p>
+<p>Selected devices: {% for device in draft.devices %}{{ device.hostname }} ({{ device.id }}){{ ', ' if not loop.last else '' }}{% endfor %}. Managed/protection revisions: {{ draft.managed_revision }} / {{ draft.protected_revision }}.</p>
+{% if draft.reason %}<p class="policy-comment">Reason: {{ draft.reason }}</p>{% endif %}
+{% if draft.confirmed_operation_id %}<p class="policy-warning">This draft identifies an earlier confirmed policy receipt <code>{{ draft.confirmed_operation_id }}</code>. This report grants nothing new; draft cancellation cannot revoke that policy.</p>{% endif %}
+{% if proposal %}
+<section aria-label="Frozen policy proposal"><h2>Complete proposal binding — no admission</h2>
+<p>{{ proposal.manifest.accepted_count }} accepted pairs across {{ proposal.manifest.device_ids | length }} selected devices. PROPOSE_ADD: {{ proposal.manifest.classification_counts.PROPOSE_ADD }} · PROPOSE_ADOPT: {{ proposal.manifest.classification_counts.PROPOSE_ADOPT }} · ALREADY_MANAGED: {{ proposal.manifest.classification_counts.ALREADY_MANAGED }} · EXCLUDED_PROTECTED: {{ proposal.manifest.classification_counts.EXCLUDED_PROTECTED }}.</p>
+<p>Adoption proposes future maintenance, not past service creation. Already-managed targets preserve original authority. Confirmation must independently recheck every revision, profile, conflict and exclusion; this hash does not reserve a key.</p>
+<dl class="import-review-metadata"><dt>Original preparation</dt><dd><code>{{ draft.plan_id }}</code></dd><dt>Stable v2 proposal operation key</dt><dd><code>{{ proposal.operation_id }}</code></dd><dt>Preparation digest</dt><dd><code>{{ draft.digest }}</code></dd><dt>Proposal digest</dt><dd><code>{{ proposal.digest }}</code></dd><dt>Full manifest digest</dt><dd><code>{{ proposal.manifest.digest }}</code></dd></dl>
+<button type="button" disabled>Standing-policy confirmation unavailable</button>
+</section>{% endif %}
+<h2>Proposed targets</h2>
+<div class="table-scroll"><table aria-label="Frozen bulk targets"><thead><tr><th>Device / IP</th><th>Frozen classification</th><th>Original local evidence</th></tr></thead><tbody>
+{% for target in draft.targets %}<tr{% if target.classification == 'EXCLUDED_PROTECTED' %} class="protected-shun"{% endif %}>
+<td>{% for device in draft.devices if device.id == target.device_id %}{{ device.hostname }}{% endfor %} ({{ target.device_id }})<br>{{ target.ip }}</td>
+<td><span class="state-badge {{ 'protected-ip-badge' if target.classification == 'EXCLUDED_PROTECTED' else 'import-origin' if target.classification == 'PROPOSE_ADOPT' else 'policy-enabled' if target.classification == 'PROPOSE_ADD' else '' }}">{{ target.classification }}</span></td>
+<td>{% if target.observed_at %}Observed <time class="local-timestamp" datetime="{{ target.observed_at }}">{{ target.observed_at }}</time>{% else %}Not observed at preparation{% endif %}<br>{{ 'Existing maintenance — preserve authority' if target.managed_enabled else 'No enabled maintenance at preparation' }}</td></tr>
+{% else %}<tr><td colspan="3">No target rows on this page. Diagnostics are retained below.</td></tr>{% endfor %}</tbody></table></div>
+<h2>Generated source diagnostics</h2>
+<div class="table-scroll"><table aria-label="Bulk source diagnostics"><thead><tr><th>Source line / IP</th><th>Status</th><th>Generated reason</th></tr></thead><tbody>
+{% for row in draft.report_rows %}<tr class="preview-row" data-preview-status="{{ row.status }}"><td>{{ row.line }} · {{ row.ip or '—' }}</td><td><span class="preview-state-badge" data-preview-status="{{ row.status }}">{{ row.status }}</span></td><td>{{ row.reason }}</td></tr>{% else %}<tr><td colspan="3">No diagnostic rows on this page.</td></tr>{% endfor %}
+</tbody></table></div>
+{% set suffix = '/review' if review_mode else '' %}
+<nav class="history-pagination" aria-label="Bulk preparation pagination"><p>Page {{ draft.page }} of {{ draft.pages }} · At most 100 targets and 100 diagnostic rows per page</p><div class="pagination-controls">
+{% if draft.page > 1 %}<a rel="prev" href="/managed-imports/v2/{{ draft.plan_id }}{{ suffix }}?page={{ draft.page - 1 }}">Previous 100</a>{% endif %}
+{% if draft.page < draft.pages %}<a rel="next" href="/managed-imports/v2/{{ draft.plan_id }}{{ suffix }}?page={{ draft.page + 1 }}">Next 100</a>{% endif %}</div></nav>
+{% if draft.state == 'PREPARED' and draft.target_count > draft.classification_counts.EXCLUDED_PROTECTED and ('Operator' in identity.roles or 'Administrator' in identity.roles) and not review_mode %}<p><a href="/managed-imports/v2/{{ draft.plan_id }}/review">Inspect exact future managed-policy proposal</a> — read-only, not recurring consent.</p>{% endif %}
+{% if draft.state in ('PREPARED', 'EXPIRED', 'CANCELLED') %}<details><summary>Cancel this unconfirmed draft only</summary><p>No policy, completed import or queue work will be cancelled. You may revoke your own draft after role loss.</p>
+<form method="post" action="/managed-imports/v2/{{ draft.plan_id }}/cancel" class="import-confirm-form"><input type="hidden" name="csrf" value="{{ csrf_token }}"><button type="submit">Cancel original draft only</button></form></details>{% endif %}
+{% else %}<p class="policy-warning">Original report is unavailable, not an empty successful import.</p>{% endif %}
+<p><a href="/managed-imports/v2">Saved preparations / new draft</a>{% if draft %} · <a href="/managed-imports/v2/{{ draft.plan_id }}">Check original draft state</a>{% endif %}</p>
+<script src="/static/freshness.js" defer></script>
+{% endblock %}

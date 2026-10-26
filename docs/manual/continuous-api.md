@@ -61,6 +61,7 @@ synchronizer is constructed/started for this composition.
 | Observations and history | Shun list/detail, history/page/detail and IP search. |
 | Protected IPs | Existing exact-IP list/CRUD, real BFF actor, revision/typed-delete checks and atomic permanent managed retirement. |
 | Import preview | Existing local non-executable classification and device list; no durable import admission. |
+| V2 durable import preparation | Fixed create/list/page/proposal/cancel-preparation routes on existing exact journal, correct bulk classifier and shared UTC clock; local non-authoritative drafts only, full retained-scope integrity and no confirmation/dispatch. |
 | Managed policy v2 | Separate `/api/v2/managed-shuns/page` and `/selection`, bounded to 100 rows/pairs, with exact version and revision. |
 | Policy-only v2 retirement | Separate `/api/v2/managed-shuns/retire`, one frozen exact pair; real-actor audit/original-key receipt, no queue/device command. |
 | Ready-removal scope inspection | `GET /api/v2/managed-removal-scope/{ip}`, optional exact `device_id`; readonly snapshot, no admission. |
@@ -99,6 +100,17 @@ may permanently retire matching standing policy and remove an observed shun on
 the next eligible device slot. It never enables ADD/restoration. Disabling or
 deleting protection does not restore the old standing grant. No HTTP policy resume,
 uncertainty resolution or arbitrary CLI is added.
+
+The separate [v2 preparation API](bulk-preparation-api.md) now supports durable
+owner-bound drafts and pure classified-manifest inspection without enabling
+standing confirmation or work. `bulk_import_preparation_available=true` advertises
+interface support, not storage readiness or device authority; missing journal is
+explicitly uninitialized on owner-list reads. The separate
+[v2 Web workspace](bulk-preparation-web.md) now supplies owner recovery, bounded
+frozen reports/pure proposal review and CSRF draft cancellation, not standing
+confirmation/execution. No automatic initialization/pruning follows. A confirmed draft cannot be cancelled as if
+it were unconfirmed, and current roles, original hashes/expiry and owner boundaries
+remain authoritative.
 
 ## Web/BFF behavior
 

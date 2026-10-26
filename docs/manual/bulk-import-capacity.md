@@ -17,6 +17,12 @@ an existing grant route. Existing canonical payloads/keys/receipts are immutable
 and keep their original interpretation. See [current confirmation](managed-import-confirmation.md)
 and the [working-version capacity contract](../working-version-plan.md#capacity-contract-for-the-next-import-increment).
 
+The separate [v2 preparation API](bulk-preparation-api.md) now exposes durable
+non-authoritative drafts, verified reports and pure proposal inspection on an
+existing exact bulk/fenced continuous profile. It does not expose expanded policy
+confirmation, Web admission, execution or a runtime selector. No deployed limit,
+gate or optional lab schema changed.
+
 ## Exact classified manifest
 
 Each row is a literal `(device_id, IPv4Address, classification)` tuple. The device
@@ -76,8 +82,9 @@ membership and validated root references must support that later path.
 ## Read-only proposal from an existing preparation
 
 The internal `ImportPreparations.propose_bulk_intent(plan_id, owner, digest,
-operation_id)` composes the new format with the existing journal; it is not
-exposed over HTTP and creates no retained root. One read transaction:
+operation_id)` composes the new format with the existing journal and creates no
+retained root. Only the separate compatible [v2 draft API](bulk-preparation-api.md)
+now exposes that pure read; legacy admission remains unavailable. One read transaction:
 
 1. Verifies original owner, schema, entire header/membership digest and counts.
 2. Refuses cancelled, expired/future or already confirmed preparations. A legacy

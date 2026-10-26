@@ -117,7 +117,10 @@ class ContinuousApiRuntime:
                         or re.fullmatch(r'/api/v2/managed-ordered-removals/[0-9a-f-]{36}', path))
         if method == 'POST':
             return bool(path in {'/api/v1/refresh-hint', '/api/v1/import-preview',
-                                 '/api/v2/managed-shuns/selection', '/api/v2/managed-shuns/retire'}
+                                 '/api/v2/managed-shuns/selection', '/api/v2/managed-shuns/retire',
+                                 '/api/v2/managed-imports/prepare', '/api/v2/managed-imports/preparations',
+                                 '/api/v2/managed-imports/preparation', '/api/v2/managed-imports/proposal',
+                                 '/api/v2/managed-imports/cancel-preparation'}
                         or (self.ready_removal_admission_enabled is True and path in {
                             '/api/v2/managed-removals/device', '/api/v2/managed-removals/fleet'})
                         or (self.ordered_removal_admission_enabled is True and path in {
@@ -147,6 +150,7 @@ class ContinuousApiRuntime:
                 'ready_removal_review_available': True,
                 'ready_removal_admission_enabled': self.ready_removal_admission_enabled,
                 'ordered_removal_review_available': True,
+                'bulk_import_preparation_available': True,
                 'ordered_removal_admission_enabled': self.ordered_removal_admission_enabled,
                 'ordered_removal_promotion_enabled': self.dispatcher.ordered_promotion_enabled is True}
 

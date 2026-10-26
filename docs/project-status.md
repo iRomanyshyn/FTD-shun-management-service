@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-10-24
+Last updated: 2026-10-26
 
 ## Deferred product ideas
 
@@ -14,6 +14,87 @@ lookup, cache/schema, new egress or activation exists. Core delivery retains
 priority. See [the planned constraints](working-version-plan.md#deferred-ip-context--enrichment--requested-2026-10-21).
 
 ## Current increment
+
+**Version-2 private preparation Web workspace and exact proposal review
+(2026-10-26).** Added a separate narrow-capability Imports workspace with explicit
+CSRF/Operator draft creation, owner recovery, canonical report permalinks, 100-row
+target/diagnostic pages and draft-only revocation after role loss. Missing journal
+is visibly uninitialized and disables creation; malformed/unavailable data is not
+an empty healthy workspace. Legacy navigation remains unchanged when the v2
+capability is absent; direct v2 requests never use v1 admission/registry fallback.
+
+The BFF independently checks source/device/parser bounds and actual identity,
+then validates exact 201 UUID/digest/product/non-authority flags before redirect.
+Lost/malformed creation reply is unknown: transient text/metadata/device choices
+remain and resubmission on that uncertain form is disabled until explicit owner
+recovery/new form, never an automatic retry or guessed latest-draft success.
+Reports strictly validate owner/time/lifetime/state/confirmation references,
+complete class/source/device totals and bounded pages. Invalid/duplicate/protected
+exclusions are conspicuous and metadata escaped; frozen evidence is not fresh FTD
+state or automatically reclassified scope.
+
+Current Operators may inspect the exact future v2 managed-policy proposal with
+canonical descriptor/digest/manifest and a stable domain-separated operation UUID,
+bound to the original preparation/revisions/metadata/exclusions. Pagination/restart
+preserves that binding; closed/zero-accepted drafts refuse proposal. This is not
+recurring consent or admission: the disabled confirmation control has no form or
+submit route. Any authenticated owner can explicitly CSRF-cancel only their
+unconfirmed draft, never standing policy/jobs. Checked cancellation remains
+historical when follow-up state fails; unknown replies refer only to that root.
+Passive metadata updates preserve source, devices, focus and frozen report/review,
+without creating/cancelling drafts or hinting device refresh. No schema, agent/
+wire, Compose, secret, lab profile/gate/service/device or runtime selector changed.
+See [V2 Preparation Web](manual/bulk-preparation-web.md).
+
+Validation: **2389 Python tests passed (298.03s)**; focused draft Web/API/continuous/
+ready/ordered regression **221 passed (60.48s)**, including **41 new Python cases**.
+Real Chromium **38 passed (126.12s)** with two new workspace/report scenarios.
+Compileall, Ruff, JS syntax and diff checks pass. Maximum-scope Web staging and
+proposal used disposable SQLite/fake profiles, not live/device acceptance.
+Rust was not rerun; no agent/Compose or lab rollout changed. All **316 changed/
+new-document local links/anchors** and new-file whitespace checks pass.
+
+### Previous v2 preparation API checkpoint
+
+**Version-2 durable import preparation API (2026-10-26).** Connected separate
+strict private create/list/page/proposal/cancel-preparation routes to the compatible
+continuous composition, correct bulk classifier and shared queue UTC clock.
+Existing exact v2/fenced profile and optional journal are required; no constructor,
+startup or request initializes, migrates, repairs, prunes or falls back to legacy
+state. Owner-list inspection reports absent journal as explicitly uninitialized.
+The narrow capability advertises interface support, not journal readiness or
+general managed/ADD permission; all admission/execution gates remain unchanged.
+
+Real Operator/Admin creation accepts up to 1 MiB UTF-8/20000 lines/10000 parsed
+rows on ten distinct explicit enabled devices, freezing the complete <=100000-pair
+product. Invalid/duplicate diagnostics and protected exclusions remain visible;
+raw source/comments are not stored. Full original header/membership verification
+in <=100-row chunks precedes runtime reports and cancellation, including a same-
+count substitution check. Reports show at most 100 targets/100 diagnostic rows;
+proposal performs a read-only complete classified-manifest verification, no policy
+root/key reservation, scope rebase or current-success inference.
+
+Owner references survive lost replies/restart. Current roles, not stored roles,
+govern creation/proposal; any authenticated owner may inspect/revoke only their own
+unconfirmed draft under pause/disabled admission. Confirmed draft revocation refuses
+without changing standing policy or jobs. Four-owner/sixteen-global retained-draft
+bounds include expired/cancelled records; capacity never evicts reviews or writes
+partial scope. No automatic draft retention was added; explicit approved pruning
+is still required. Draft operations never wake/hint device work or change managed/
+queue/origin/audit state. No schema, UI, agent/wire, Compose, secret, live service/
+gate/profile or lab FTD changed. Browser review, independently gated v2 standing
+confirmation/admitted-import cancellation and runtime/migration/acceptance remain.
+See [V2 Preparation API](manual/bulk-preparation-api.md).
+
+Validation: **2348 Python tests passed (283.49s)**; focused API/continuous/legacy/
+format regression **140 passed (24.57s)**, including **49 new cases**. Actual API
+maximum-scope staging/pagination and unchanged non-journal state use disposable
+synthetic profiles only, not device/load or production acceptance. Compileall,
+Ruff and diff checks pass; agent/Compose/UI unchanged, so Rust/Chromium were not
+rerun. All **300 changed/new-document local links/anchors** and new-file whitespace
+checks pass.
+
+### Previous ordered Web checkpoint
 
 **Frozen ordered Web consent, live local status and waiting revocation
 (2026-10-24).** Added a separate collapsed Managed-shuns ordered workflow with
@@ -2628,7 +2709,7 @@ The foundation increment was checked with:
 
 ## Next work, in order
 
-Current working-version sequence (2026-10-24):
+Current working-version sequence (2026-10-26):
 
 1. Connect reviewed v2 exact-scope removal/retirement admission to the shared
    fenced continuous queue, including captured RUNNING ADD ordering, protection,
@@ -2648,7 +2729,12 @@ Current working-version sequence (2026-10-24):
 2. Connect bounded managed import/adoption/cancellation review to the compatible
    continuous runtime; retain 10000-IP selected-device limits, managed-only
    authority, skip/report behavior and default-disabled execution gates until
-   separately scoped acceptance.
+   separately scoped acceptance. V2 durable draft creation/owner recovery/paged
+   reporting/full-scope proposal/draft cancellation API and owner-bound Web
+   workspace/frozen report/pure proposal review are now implemented without
+   authority. Next is independently gated atomic v2 standing confirmation and
+   admitted-import cancellation; no automatic initialization,
+   draft pruning, runtime selection or lab activation follows.
 3. Finish configured inventory/runtime selection and reviewed nonempty legacy
    migration, then execute separately authorized transport/device/multi-device/
    load and recovery validation. Do not activate experimental policy or fabricate

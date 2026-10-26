@@ -325,8 +325,9 @@ class ImportPreparations:
     def propose_bulk_intent(self, plan_id, subject, expected_digest, operation_id):
         """Internal version-2 format read; not a policy grant or retained root.
 
-        No runtime/HTTP caller uses this capacity foundation. It deliberately
-        cannot translate an expired/cancelled/already confirmed preparation.
+        The separate v2 preparation API exposes this pure read on compatible
+        bulk storage. It cannot translate an expired/cancelled/already confirmed
+        preparation or grant standing policy/execution authority.
         """
         from .bulk_intent import canonical_bulk_intent
 

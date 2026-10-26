@@ -14,7 +14,8 @@
       <a href="/protected-ips"{% if active_page == 'protected' %} aria-current="page"{% endif %}>Protected IPs</a>
       <a href="/history"{% if active_page == 'history' %} aria-current="page"{% endif %}>History</a>
       {% set managed_imports_available = (refresh or {}).managed_workflows_available is not sameas false and ('Operator' in identity.roles or 'Administrator' in identity.roles) %}
-      <a href="{{ '/managed-imports' if managed_imports_available else '/imports' }}"{% if active_page == 'imports' %} aria-current="page"{% endif %}>{{ 'Imports' if managed_imports_available else 'Import preview' }}</a>
+      {% set bulk_drafts_available = (refresh or {}).bulk_import_preparation_available is sameas true %}
+      <a href="{{ '/managed-imports/v2' if bulk_drafts_available else '/managed-imports' if managed_imports_available else '/imports' }}"{% if active_page == 'imports' %} aria-current="page"{% endif %}>{{ 'Imports' if bulk_drafts_available or managed_imports_available else 'Import preview' }}</a>
     </nav>{% endif %}
     <main>{% block content %}{% endblock %}</main>
     <footer class="app-footer" aria-label="Application version">FTD Shun Manager · <span data-product-version>v{{ product_version }}</span></footer>

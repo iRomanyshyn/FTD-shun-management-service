@@ -21,6 +21,8 @@ from ftd_shun_manager.managed_retirement_review import ManagedRetirementReviews
 from ftd_shun_manager.bulk_removal_review import ReadyRemovalReviews
 from ftd_shun_manager.bulk_ordered_review import OrderedRemovalReviews, validate_ordered_status
 from ftd_shun_manager.bulk_ordered_removals import _DOMAIN, _digest
+from ftd_shun_manager.bulk_intent import canonical_bulk_intent
+from ftd_shun_manager.bulk_preparation_view import operation_key, validate_report, validate_proposal
 from ftd_shun_manager.bulk_removals import canonical_scope
 from ftd_shun_manager.managed_grant_review import ManagedGrantReviews
 from ftd_shun_manager.managed_batch_review import ManagedBatchReviews, parse_standing_list
@@ -35,6 +37,7 @@ preview = None
 managed_import_report = None
 inspection = ordered_status = None
 ordered_key = "88888888-8888-4888-8888-888888888888"
+bulk_draft = bulk_drafts = bulk_proposal = None
 if p.get("submitted"):
     parsed = parse_blocklist(p["source_text"])
     preview = paginate_preview(summarize_preview(parsed, dict(policy_revision=1, devices=[dict(id=1,hostname="lab-ftd")],
@@ -114,14 +117,39 @@ if p["template"] == "managed-import-review.html":
         managed_import_report = dict(header=header,page=1,pages=2,targets=targets[:100],report_rows=[])
     else:
         review = BrowserImportReviews().confirmation("test","fixture-token",managed_import_report)
+if p["template"] in ("bulk-import-workspace.html", "bulk-import-report.html"):
+    plan_id="33333333-3333-4333-8333-333333333333"
+    all_targets=[dict(device_id=1,ip=f"198.18.0.{i}",classification="EXCLUDED_PROTECTED" if i==1 else "PROPOSE_ADOPT" if i==2 else "PROPOSE_ADD",
+        observed_at="2026-10-26T12:00:00.000Z" if i==2 else None,managed_enabled=False,
+        previous_intent_id=None,previous_generation=None,previous_authorization_request_id=None) for i in range(1,103)]
+    diagnostics=[dict(line=i,ip=f"198.18.0.{i}",status="Ready",source_lines=[i],reason="Exact IPv4 address") for i in range(1,103)]
+    diagnostics.append(dict(line=103,ip=None,status="Invalid",source_lines=[103],reason="Not an exact IPv4 token"))
+    current=p.get("bulk_page",1)
+    bulk_draft=dict(version=1,scope="managed_import_preparation",plan_id=plan_id,actor_subject="test",actor_display_name="Test Operator",actor_roles=["Operator"],
+        created_at="2026-10-26T12:00:00.000Z",expires_at="2026-10-26T12:10:00.000Z",label="<b>Fixture draft</b>",reason="Intentional fixture metadata",
+        managed_initialized=True,managed_revision=0,protected_revision=1,devices=[dict(id=1,hostname="<b>Fixture FTD</b>")],target_count=102,address_count=102,ignored_lines=0,
+        source_row_count=103,source_counts=dict(Ready=102,Invalid=1),classification_counts=dict(PROPOSE_ADD=100,PROPOSE_ADOPT=1,ALREADY_MANAGED=0,EXCLUDED_PROTECTED=1),
+        digest="a"*64,can_execute=False,execution_started=False,state="PREPARED",confirmed_operation_id=None,page=current,pages=2,page_size=100,
+        targets=all_targets[(current-1)*100:current*100],report_rows=diagnostics[(current-1)*100:current*100],intent_format=2,policy_saved=False,device_work_admitted=False)
+    validate_report(bulk_draft,plan_id,"test",current)
+    summary={key:bulk_draft[key] for key in ("plan_id","created_at","expires_at","label","target_count","address_count","classification_counts","state","confirmed_operation_id","digest","can_execute")}
+    initialized=p["refresh"].get("fixture_bulk_storage",True)
+    bulk_drafts=dict(initialized=initialized,plans=[summary] if initialized else [],intent_format=2,can_execute=False,policy_saved=False,device_work_admitted=False)
+    if p.get("bulk_review"):
+        summary,canonical,digest=canonical_bulk_intent(((r["device_id"],IPv4Address(r["ip"]),r["classification"]) for r in all_targets),(1,),operation_key(plan_id),plan_id,
+            bulk_draft["digest"],0,1,bulk_draft["label"],bulk_draft["reason"])
+        bulk_proposal=dict(intent_format=2,operation_id=operation_key(plan_id),preparation_id=plan_id,canonical=canonical,digest=digest,manifest=summary.as_dict(),can_execute=False,policy_saved=False,device_work_admitted=False)
+        validate_proposal(bulk_proposal,bulk_draft)
 print(templates.get_template(p["template"]).render(identity=Identity("test", "Test Operator", ("Operator",)),
     review=review, report=managed_import_report, accepted=None, result=None, confirm_ip="", message=None, admission_enabled=p["refresh"].get("managed_policy_admission_enabled" if p["template"] == "managed-import-review.html" else "import_admission_enabled", False),
     retry_available=p["refresh"].get("import_admission_enabled", False), execution_enabled=False,
     removal_admission_enabled=p["refresh"].get("managed_removal_admission_enabled", False),
-    frozen_view=p["template"] in ("import-confirm.html", "managed-remove-review.html", "bulk-removal-review.html", "bulk-ordered-review.html", "managed-retirement-review.html", "managed-grant-review.html", "managed-batch-form.html", "managed-batch-review.html"),
+    frozen_view=p["template"] in ("import-confirm.html", "managed-remove-review.html", "bulk-removal-review.html", "bulk-ordered-review.html", "bulk-import-workspace.html", "bulk-import-report.html", "managed-retirement-review.html", "managed-grant-review.html", "managed-batch-form.html", "managed-batch-review.html"),
     ready_removal_local_enabled=p["refresh"].get("fixture_ready_local_enabled",False),
     ordered_removal_local_enabled=p["refresh"].get("fixture_ordered_local_enabled",False),
     inspection=inspection,ordered=ordered_status,operation_id=ordered_key,cancellation=None,
+    drafts=bulk_drafts,draft=bulk_draft,proposal=bulk_proposal,preparation_id="33333333-3333-4333-8333-333333333333",review_mode=p.get("bulk_review",False),
+    creation_unknown=False,draft_label="",draft_reason="",
     admission_available=p["refresh"].get("managed_policy_admission_enabled", False),
     page=1, pages=2, page_targets=review.targets[:100] if p["template"] == "managed-batch-review.html" else [],
     confirm_count="", acknowledged=False, import_text_limit=1048576,
@@ -134,8 +162,8 @@ print(templates.get_template(p["template"]).render(identity=Identity("test", "Te
     source_text=p.get("source_text", ""), batch_label=p.get("label", ""), batch_reason=p.get("reason", ""),
     selected_devices=[1] if p.get("submitted") else [], preview=preview, preview_error=None,
     devices=[dict(id=1,hostname="lab-ftd",enabled=True),dict(id=2,hostname="disabled-ftd",enabled=False)],
-    active_page="managed" if p["template"].startswith("bulk-ordered-") or p["template"] in ("managed-shuns.html", "bulk-managed-shuns.html", "managed-remove-review.html", "bulk-removal-review.html", "managed-retirement-review.html", "managed-grant-review.html", "managed-batch-form.html", "managed-batch-review.html") else "imports" if p["template"] == "import-preview.html" else "protected" if p["template"] == "protected-ips.html" else "history" if p["template"] == "history.html" else "shuns",
-    auto_request=p["template"] not in ("protected-ips.html", "history.html", "import-preview.html", "import-confirm.html", "managed-shuns.html", "bulk-managed-shuns.html", "managed-remove-review.html", "bulk-removal-review.html", "bulk-ordered-review.html", "bulk-ordered-status.html", "managed-retirement-review.html", "managed-grant-review.html", "managed-batch-form.html", "managed-batch-review.html")))
+    active_page="managed" if p["template"].startswith("bulk-ordered-") or p["template"] in ("managed-shuns.html", "bulk-managed-shuns.html", "managed-remove-review.html", "bulk-removal-review.html", "managed-retirement-review.html", "managed-grant-review.html", "managed-batch-form.html", "managed-batch-review.html") else "imports" if p["template"] == "import-preview.html" or p["template"].startswith("bulk-import-") else "protected" if p["template"] == "protected-ips.html" else "history" if p["template"] == "history.html" else "shuns",
+    auto_request=p["template"] not in ("protected-ips.html", "history.html", "import-preview.html", "import-confirm.html", "bulk-import-workspace.html", "bulk-import-report.html", "managed-shuns.html", "bulk-managed-shuns.html", "managed-remove-review.html", "bulk-removal-review.html", "bulk-ordered-review.html", "bulk-ordered-status.html", "managed-retirement-review.html", "managed-grant-review.html", "managed-batch-form.html", "managed-batch-review.html")))
 `;
 
 const initial = () => ({
@@ -366,7 +394,7 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
       confirmationPosts += 1;
       response.setHeader("Content-Type", "text/html");
       response.end("<p>Fixture admission received; no device work</p>");
-    } else if (["/", "/history", "/protected-ips", "/imports", "/imports/review", "/managed-imports/review", "/managed-shuns", "/managed-shuns/removal-review", "/managed-shuns/fleet-removal-review", "/managed-shuns/v2/removal-review", "/managed-shuns/v2/ordered-removal-review", "/managed-shuns/retirement-review", "/managed-shuns/grant-review", "/managed-shuns/bulk", "/managed-shuns/bulk-review"].includes(url.pathname) || url.pathname.startsWith("/shuns/") || url.pathname.startsWith("/managed-shuns/v2/ordered-removals/")) {
+    } else if (["/", "/history", "/protected-ips", "/imports", "/imports/review", "/managed-imports/review", "/managed-shuns", "/managed-shuns/removal-review", "/managed-shuns/fleet-removal-review", "/managed-shuns/v2/removal-review", "/managed-shuns/v2/ordered-removal-review", "/managed-shuns/retirement-review", "/managed-shuns/grant-review", "/managed-shuns/bulk", "/managed-shuns/bulk-review"].includes(url.pathname) || url.pathname.startsWith("/shuns/") || url.pathname.startsWith("/managed-shuns/v2/ordered-removals/") || url.pathname.startsWith("/managed-imports/v2")) {
       pageReads += 1;
       let previewFields = {};
       if (url.pathname === "/imports/review") previewFields = {
@@ -402,6 +430,7 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
             entries: managed.entries.slice((current - 1) * 100, current * 100) };
       }
       const payload = { refresh: stamp(), generation, query: url.searchParams.get("q") || "", shun_origins: shunOrigins,
+        bulk_page: Number(url.searchParams.get("page") || 1), bulk_review: url.pathname.endsWith("/review"),
         import_kind: url.searchParams.get("kind"),
         fleet_review: url.pathname === "/managed-shuns/fleet-removal-review",
         ordered_wait: url.searchParams.get("ordered") === "yes", all_devices_enabled: url.searchParams.get("enabled") === "all",
@@ -409,7 +438,9 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
         ...previewFields,
         policy, managed: managedView, handoffs, fleet_cleanup: fleetCleanup, template: url.pathname === "/" ? "index.html" : url.pathname === "/history" ? "history.html"
           : url.pathname === "/protected-ips" ? "protected-ips.html" : url.pathname === "/imports" ? "import-preview.html"
-            : url.pathname === "/imports/review" ? "import-confirm.html" : url.pathname === "/managed-imports/review" ? "managed-import-review.html" : url.pathname === "/managed-shuns" ? (managed.intent_format === 2 ? "bulk-managed-shuns.html" : "managed-shuns.html")
+            : url.pathname === "/imports/review" ? "import-confirm.html" : url.pathname === "/managed-imports/review" ? "managed-import-review.html"
+              : url.pathname === "/managed-imports/v2" ? "bulk-import-workspace.html" : url.pathname.startsWith("/managed-imports/v2/") ? "bulk-import-report.html"
+              : url.pathname === "/managed-shuns" ? (managed.intent_format === 2 ? "bulk-managed-shuns.html" : "managed-shuns.html")
               : url.pathname === "/managed-shuns/v2/removal-review" ? "bulk-removal-review.html"
                 : url.pathname === "/managed-shuns/v2/ordered-removal-review" ? "bulk-ordered-review.html"
                   : url.pathname.startsWith("/managed-shuns/v2/ordered-removals/") ? "bulk-ordered-status.html"
@@ -826,6 +857,75 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
         status.data_revision += 1;
         await wake(page);
         await page.until("document.querySelector('[data-ordered-phase]').textContent.includes('All original REMOVE jobs verified')");
+        for (const width of [1100, 375]) {
+          await page.call("Emulation.setDeviceMetricsOverride", { width, height: 800, deviceScaleFactor: 1, mobile: width === 375 });
+          assert.equal(await page.evaluate("document.documentElement.scrollWidth<=window.innerWidth"), true);
+        }
+        assert.equal(postCount, hints);
+        assert.equal(executionCount, executions);
+      } finally { await page.close(); }
+    });
+    await t.test("v2 draft workspace preserves pasted text and device choices without automatic creation", async () => {
+      status = initial();
+      Object.assign(status, { runtime_mode: "continuous-observation", managed_policy_format: 2,
+        managed_workflows_available: false, bulk_import_preparation_available: true });
+      const hints = postCount, executions = executionCount;
+      const page = await connectPage(debugOrigin, `${origin}/managed-imports/v2`);
+      try {
+        assert.equal(await page.evaluate("document.querySelector('.primary-nav [aria-current=page]').getAttribute('href')"), "/managed-imports/v2");
+        assert.equal(await page.evaluate("document.querySelector('#bulk-draft-form').checkValidity()"), false);
+        await page.evaluate("document.querySelector('#bulk-source').value='shun 198.51.100.250 # draft only';document.querySelector('input[name=device_ids][value=\"1\"]').checked=true;document.querySelector('#bulk-label').value='Keep my label';document.querySelector('#bulk-source').focus()");
+        const reads = pageReads;
+        status.data_revision += 1;
+        await wake(page);
+        await delay(300);
+        assert.equal(pageReads, reads);
+        assert.equal(await page.evaluate("document.querySelector('#bulk-source').value"), "shun 198.51.100.250 # draft only");
+        assert.equal(await page.evaluate("document.querySelector('#bulk-label').value"), "Keep my label");
+        assert.equal(await page.evaluate("document.querySelector('input[name=device_ids][value=\"1\"]').checked"), true);
+        assert.equal(await page.evaluate("document.querySelector('input[name=device_ids][value=\"2\"]').disabled"), true);
+        assert.equal(await page.evaluate("document.activeElement.id"), "bulk-source");
+        assert.equal(await page.evaluate("document.querySelector('#bulk-draft-form').checkValidity()"), true);
+        for (const width of [1100, 375]) {
+          await page.call("Emulation.setDeviceMetricsOverride", { width, height: 800, deviceScaleFactor: 1, mobile: width === 375 });
+          assert.equal(await page.evaluate("document.documentElement.scrollWidth<=window.innerWidth"), true);
+        }
+        assert.equal(postCount, hints);
+        assert.equal(executionCount, executions);
+      } finally { await page.close(); }
+      status.fixture_bulk_storage = false;
+      const absent = await connectPage(debugOrigin, `${origin}/managed-imports/v2`);
+      try {
+        assert.equal(await absent.evaluate("document.querySelector('#bulk-draft-form button').disabled"), true);
+        assert.ok(await absent.evaluate("document.body.textContent.includes('journal is not initialized')"));
+      } finally { await absent.close(); }
+    });
+    await t.test("v2 frozen report and exact proposal paginate, escape and highlight exclusions without admission", async () => {
+      status = initial();
+      Object.assign(status, { runtime_mode: "continuous-observation", managed_policy_format: 2,
+        managed_workflows_available: false, bulk_import_preparation_available: true });
+      const hints = postCount, executions = executionCount;
+      const page = await connectPage(debugOrigin, `${origin}/managed-imports/v2/33333333-3333-4333-8333-333333333333/review`);
+      try {
+        assert.equal(await page.evaluate("document.querySelectorAll('table[aria-label=\"Frozen bulk targets\"] tbody tr').length"), 100);
+        assert.equal(await page.evaluate("document.querySelectorAll('table[aria-label=\"Frozen bulk targets\"] td b').length"), 0);
+        assert.equal(await page.evaluate("document.querySelectorAll('.protected-shun').length"), 1);
+        assert.equal(await page.evaluate("document.querySelector('section[aria-label=\"Frozen policy proposal\"] button').disabled"), true);
+        assert.equal(await page.evaluate("document.querySelector('form[action*=confirm]')"), null);
+        const binding = await page.evaluate("document.querySelector('.import-review-metadata').textContent");
+        const reads = pageReads;
+        status.data_revision += 1;
+        await wake(page);
+        await delay(300);
+        assert.equal(pageReads, reads);
+        assert.equal(await page.evaluate("document.querySelector('.import-review-metadata').textContent"), binding);
+        const next = await page.evaluate("document.querySelector('a[rel=next]').getAttribute('href')");
+        await page.call("Page.navigate", {url: origin + next});
+        await page.until("document.querySelectorAll('table[aria-label=\"Frozen bulk targets\"] tbody tr').length===2");
+        assert.equal(await page.evaluate("document.querySelectorAll('table[aria-label=\"Bulk source diagnostics\"] tbody tr').length"), 3);
+        assert.equal(await page.evaluate("document.querySelector('[data-preview-status=Invalid]').textContent.includes('Invalid')"), true);
+        assert.equal(await page.evaluate("document.querySelector('a[rel=prev]').getAttribute('href')"), "/managed-imports/v2/33333333-3333-4333-8333-333333333333/review?page=1");
+        assert.equal(await page.evaluate("document.querySelector('.import-review-metadata').textContent"), binding);
         for (const width of [1100, 375]) {
           await page.call("Emulation.setDeviceMetricsOverride", { width, height: 800, deviceScaleFactor: 1, mobile: width === 375 });
           assert.equal(await page.evaluate("document.documentElement.scrollWidth<=window.innerWidth"), true);

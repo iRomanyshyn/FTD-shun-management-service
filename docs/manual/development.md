@@ -1,5 +1,40 @@
 # Development Manual
 
+## Version-2 preparation Web checks
+
+```bash
+python3 -m pytest -q tests/test_bulk_preparation_web.py tests/test_bulk_preparation_api.py tests/test_continuous_api.py tests/test_ready_removal_web.py tests/test_ordered_removal_web.py
+node --test tests/browser/freshness.cjs
+```
+
+Actual BFF requests reach the ASGI API on disposable exact profiles. Cover narrow
+capability navigation, immutable owner reports, strict 201/report/manifest checks,
+role/CSRF/actor separation, unknown replies without automatic resubmit, preserved
+transient source/device fields, closed/confirmed draft refusal, checked cancellation
+with failed follow-up, restart and maximum 100000-pair pages/proposal. No authority,
+queue/origin/audit or device state may change outside the draft journal. Chromium
+checks production templates/JS, frozen input/focus/keys, native forms, colored
+exclusions, 100-row pagination and desktop/mobile overflow without device demand.
+No recurring-consent/submit route, new dependency, DDL or lab activation is needed.
+See [V2 Preparation Web](bulk-preparation-web.md).
+
+## Version-2 preparation API checks
+
+```bash
+python3 -m pytest -q tests/test_bulk_preparation_api.py tests/test_continuous_api.py tests/test_managed_shuns.py tests/test_bulk_preparation_intent.py
+```
+
+Use disposable exact v2/fenced profiles with an explicitly initialized test-only
+journal. Exercise real ASGI routes, ten-device/100000-pair staging and bounded
+pages, correct classification/privacy, owner restart/recovery, strict fields and
+UTF-8/source bounds, full retained hashes/same-count substitution, original expiry,
+role-loss/pause draft cancellation, confirmed-draft refusal, concurrency/capacity,
+late rollback and unchanged non-journal authority/queue/origin/audit. Proposal
+streams are read-only <=100-row chunks; constructible descriptors are not grants.
+Do not initialize, prune, migrate or enable anything in the lab for these tests.
+See [V2 Preparation API](bulk-preparation-api.md). No agent/Compose/UI change is
+required; full Python regression remains mandatory.
+
 ## Ordered Web consent, local status and revocation checks
 
 ```bash

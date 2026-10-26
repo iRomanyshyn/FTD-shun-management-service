@@ -230,7 +230,7 @@ def test_actual_bff_to_api_status_policy_auth_csrf_and_unavailable_controls(comp
                 assert detail.status_code == 200
                 assert 'data-queue-form' not in detail.text
                 assert 'href="/managed-shuns"' in detail.text
-                assert 'href="/imports"' in detail.text
+                assert 'href="/managed-imports/v2"' in detail.text
                 assert 'Continuous observation profile' in detail.text
                 preview = await bff.get('/imports')
                 assert preview.status_code == 200 and 'formaction="/imports/review"' not in preview.text

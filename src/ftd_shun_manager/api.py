@@ -18,6 +18,7 @@ from .agent_client import (
     UnixAgentClient,
 )
 from .bulk_ordered_waits import OrderedReservationNotFound
+from .bulk_preparation_api import register_bulk_preparation_api
 from .config import Settings
 from .import_cancellations import ImportCancellations
 from .import_preparations import ImportPreparations, PreparationCapacity, PreparationUnavailable
@@ -411,6 +412,7 @@ def create_app(
         lifespan=lifespan,
     )
     app.state.synchronizer = synchronizer
+    register_bulk_preparation_api(app, continuous)
 
     @app.middleware("http")
     async def prevent_state_caching(request: Request, call_next):

@@ -174,6 +174,32 @@ refresh demand. Scope/unknown-reply/race checks and actual BFF/API/shared fake
 execution are covered; no runtime selection, migration or lab activation follows.
 See [Ordered Web Controls](manual/ordered-removal-web.md).
 
+Import-preparation API checkpoint (2026-10-26): fixed v2 private create/list/page/
+proposal/cancel-preparation routes now use the correct bulk classifier and shared
+UTC clock on existing exact v2/fenced/journal storage. Up to 10000 addresses on ten
+devices/100000 pairs can be frozen, recovered by owner and inspected in 100-row
+pages without creating policy or device work. Runtime reports/cancellation verify
+the entire original digest in <=100-row chunks, so same-count substitutions refuse
+rather than rebase scope. Strict actors/fields/UTF-8/devices, original expiry,
+owner/global capacity and draft-only cancellation remain independent of captured
+roles or any later confirmed import. No initialization/pruning, policy confirmation,
+Web workflow, runtime selector or lab activation follows. Next is frozen v2 browser
+review, independently gated atomic standing confirmation and admitted-import
+cancellation. See [V2 Preparation API](manual/bulk-preparation-api.md).
+
+Preparation Web checkpoint (2026-10-26): a distinct narrow-capability workspace
+now saves private drafts, recovers owner references, shows frozen 100-row reports
+and conspicuous source/protected exclusions, and revokes only unconfirmed drafts
+with CSRF/current identity. A read-only exact v2 policy proposal binds the original
+digest/metadata/revisions/manifest and a stable distinct operation key across
+restart/pagination; no recurring consent or confirmation submission is present.
+Strict replies, unknown-create recovery without automatic retry, transient input/
+device preservation, owner/role boundaries and maximum 100000-pair Web scope are
+covered. Legacy navigation remains when the v2 capability is absent. No schema,
+runtime selection or lab activation follows. Next remains independently gated
+atomic v2 standing confirmation and admitted-import cancellation. See
+[V2 Preparation Web](manual/bulk-preparation-web.md).
+
 Target up to 10,000 IPv4 addresses in one import, with explicit device selection.
 An address/device pair is the maintained unit: 10,000 addresses on 10 selected FTDs
 can require 100,000 policy pairs. Storage and admission limits must be revised

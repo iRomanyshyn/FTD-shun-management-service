@@ -6833,6 +6833,123 @@ was invoked. Rust is not required for this Web/API-only packet. Configured runti
 inventory, nonempty migration, bounded managed import/adoption/cancellation and
 separately scoped transport/device/multi-device/load/recovery acceptance remain.
 
+## 2026-10-26 — Non-authoritative v2 preparation API and full retained-report integrity
+
+Connected fixed private v2 draft create/list/page/proposal/cancel-preparation
+routes to the explicit compatible continuous API composition. Reuse the existing
+bulk-profile classifier/journal and shared queue UTC clock, not legacy registry
+fallback. No constructor/startup/request initializes, repairs, migrates, prunes or
+resumes optional state. An absent journal is explicitly uninitialized on owner
+list inspection; malformed prerequisites are unavailable. The narrow interface
+capability is distinct from readiness, standing confirmation and device execution.
+
+Strict real actor/role/plain metadata, literal distinct enabled-device selection
+and 1 MiB UTF-8/20000-line/10000-row limits retain the complete <=100000-pair
+product, invalid/duplicate diagnostics and protected exclusions. No raw pasted
+source/comments are stored. New `BulkPreparationReports` uses the same journal
+without DDL, streaming the entire original header/member digest in <=100-row
+chunks before runtime metadata/pages/cancellation. Same-count substitution fails
+closed instead of showing a different successful scope. Proposal additionally
+binds the retained expected digest, original canonical UUIDs and full classified
+manifest, checks expiry/clock and remains a pure read without a root/key reservation.
+
+Owner references survive restart/lost create reply. Reads retain original device/
+policy/protection classification and deadline, never rebase or renew. Current
+Operator/Admin governs create/proposal; any authenticated owner may inspect or
+revoke only their unconfirmed draft after role loss/during pause. Confirmed draft
+revocation/proposal conflicts without retiring policy, changing jobs or masking
+original authority. Four-owner/sixteen-global retained bounds include expired/
+cancelled records; concurrent capacity failures never evict or partially stage.
+No request wakes/hints device work or changes policy/queue/origin/audit state.
+Response non-authority flags describe this operation, not absence of historical
+separately confirmed policy. V1/general v2 confirmation/mutation paths remain refused.
+
+Added **49 new synthetic tests**, including actual ASGI 10000-address × ten-device/
+100000-pair staging and 100-row first/last pages; mixed classification/privacy and
+actor attribution; owner separation/recovery/restart; literal UTF-8/input bounds;
+frozen/expired/confirmed states; role-loss/pause revocation; missing/partial schema;
+same-count corruption; owner/global concurrent bounds; late transaction rollback;
+read-only <=100-row proposal streams; and legacy refusal. The first focused run
+used a corruption fixture trigger name already replaced by the dispatch-profile
+upgrade; corrected the synthetic fixture to remove an actually retained trigger.
+No production behavior was weakened. Focused API/continuous/legacy/format regression:
+**140 passed (24.57s)**. Full suite: **2348 Python tests passed (283.49s)**.
+Compileall, Ruff, diff/new-file whitespace and all **300 changed/new-document
+local links/anchors** pass.
+
+Updated normative architecture, current status/working plan and structured API,
+storage/format/preparation/continuous/development manuals with exact capability,
+limits, original-report semantics, recovery, backup/rollback and operating impact.
+No DDL, UI, agent/wire, Compose, secret, inventory, live database/gate/profile,
+service/image or FTD state changed. No lab migration, new fixture, policy activation
+or production acceptance was invoked. Rust/Chromium were not rerun for this
+Python/API-only packet. Frozen v2 browser review, separately gated atomic standing
+confirmation/admitted-import cancellation, approved draft retention and configured
+runtime/inventory/migration plus scoped real transport/multi-device/load/recovery
+acceptance remain. See [V2 Preparation API](manual/bulk-preparation-api.md).
+
+## 2026-10-26 — Private v2 preparation workspace, frozen reports and pure proposal review
+
+Connected durable drafts to a distinct Web workspace under the narrow v2
+preparation capability. Compatible Imports navigation now opens `/managed-imports/v2`;
+legacy navigation remains when the capability is absent. Direct v2 requests never
+fall back to v1 registry/admission. Workspace reads private owner references/public
+device labels; absent journal is explicit and creation disabled, while malformed/
+unavailable state is never empty healthy success. No migration, repair or pruning.
+
+Explicit Operator/Admin CSRF creation accepts only bounded source, canonical
+selected device IDs and intentional metadata. Recheck actual actor and parser/
+UTF-8/device limits before one fixed private call. Strict 201 UUID/digest/product/
+non-authority validation precedes redirect. Unknown/lost replies preserve transient
+source/metadata/device choices, disable repeat creation on that uncertain form and
+recover through owner references, never automatic repost or guessed latest success.
+No raw source/comments are persisted or logged by the workspace.
+
+Canonical owner report links survive restart and show <=100 targets/100 generated
+diagnostic rows per page, visible protected/source exclusions, original actor/
+device/revision/deadline and closed/confirmed state. Typed complete flags/counters/
+times/state/references/pages/members/diagnostics are checked before rendering;
+underlying API already verifies full original integrity. A separate read-only exact
+proposal binds canonical descriptor/digest/manifest, original preparation metadata/
+revisions/exclusions and a stable namespace-separated v2 UUID. Pagination/restart
+preserves the binding without reserving a key. Closed/zero-accepted drafts refuse
+proposal. The disabled standing-confirmation control has no form/submit route;
+no recurring consent, policy, adoption or job is created.
+
+Any authenticated owner may explicitly CSRF-revoke only their unconfirmed draft
+after role loss/pause. Exact draft-only receipt checks retain confirmed cancellation
+when follow-up report fails; unknown replies permit only original-draft inspection/
+retry. Confirmed-import cancellation remains separate and refused here. Passive
+metadata updates preserve pasted text/device choices, focus and immutable reports/
+reviews without draft actions, scope reclassification, deadline renewal or device
+read hints. Metadata is escaped, timestamps localized with zone, responsive forms
+and bounded tables reused without new CSS/dependencies.
+
+Added **41 Python cases** forwarding actual BFF requests to the ASGI API on
+disposable exact profiles, including maximum 100000-pair staging/pages/proposal,
+owner/role/CSRF/restart, malformed/unknown replies, input preservation, strict
+report/manifest binding and closed/confirmed refusal with unchanged non-journal
+policy/queue/origin/audit. Updated the older continuous integration's navigation
+expectation for the now-supported narrow draft capability, not its write boundary.
+Two new Chromium scenarios exercise production templates/JS, absent storage,
+frozen text/focus/devices, escaping/colors, 100-row pagination, stable proposal keys,
+mobile overflow and no automatic device work. The initial browser failure was an
+unquoted numeric attribute selector in the new test; corrected the fixture selector,
+not production behavior. Final focused regression **221 passed (60.48s)**;
+full Python **2389 passed (298.03s)**; real Chromium **38 passed (126.12s)**.
+Compileall, Ruff, JavaScript syntax, diff/new-file whitespace and all **316
+changed/new-document local links/anchors** pass.
+
+Updated normative architecture, status/working plan and structured Web/API/
+preparation/continuous/development manuals, including unknown-response behavior,
+authority limits and backup/rollback boundaries. No DDL, agent/wire, Compose,
+credential/inventory, live database/gate/profile, service/image or FTD state changed.
+No lab migration, new fixture, policy activation or production/device acceptance
+was invoked. Rust was not rerun. Separately gated atomic v2 standing confirmation/
+admitted-import cancellation, approved draft retention and configured runtime/
+inventory/migration plus scoped transport/multi-device/load/recovery acceptance
+remain. See [V2 Preparation Web](manual/bulk-preparation-web.md).
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.
