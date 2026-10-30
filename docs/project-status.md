@@ -15,6 +15,112 @@ priority. See [the planned constraints](working-version-plan.md#deferred-ip-cont
 
 ## Current increment
 
+**Proven pre-command SSH opening recovery (2026-10-30).** Opt-in BEGIN `17`
+keeps strict settlement and binds initial/terminal success to its own opcode.
+Only a failed bounded connection/authentication/PTY/shell/prompt opening future,
+before any Cisco executor exists, can return exact terminal `03 version 17 00`.
+It travels through the existing post-handler/guard-release/worker-IDLE completion.
+Configuration/gate/busy rejection, initial-read failure and later errors cannot
+produce proof. The client accepts only its exact first response and never falls
+back to an older BEGIN. Configured continuous modes explicitly select it;
+low-level and legacy defaults stay unchanged.
+
+Only a first opening call in a live exact API epoch can use separately audited
+`DEVICE_LEASE_OPEN_FAILED` release. The same no-claim/no-uncertainty checks and
+5/10/20/40/60s retry/demand retention apply. Further work needs a new fenced session,
+complete initial observation and current authority/protection/cancellation checks.
+Old holds, missing proof and unknown ADD/REMOVE stay intact. This does not recover
+failures after initial read/command submission or attest remote TCP termination.
+
+Strict normal release now additionally requires recorded terminal settlement in
+the current epoch: a local initial/priority processing error cannot release an
+unsettled session just because the preceding RPC returned successfully. Local
+final-publication failure after valid settlement retains error/data honesty while
+allowing the completed lease to release.
+
+Validation: **2766 full Python tests passed (442.17s)** after final hardening,
+plus **66 Rust tests**, locked release build, fmt/Clippy `-D warnings`, compileall,
+Ruff/diff and quiet Compose checks. Matching images built and non-executing
+API/agent preflights passed. Deployed API `024797983f31...` and agent
+`bc24c532b862...`, retaining `ftd-shun-{api,agent}:lab-pre-opening-20261030` for
+rollback. Drained API and verified zero RUNNING/non-IDLE state before agent stop.
+The old idle agent needed the 30-second stop timeout/SIGKILL (exit 137); no active
+RPC/job was interrupted. Graceful idle-agent signal handling remains a follow-up.
+
+With API still stopped, new real BEGIN `17` / v3 and END returned complete empty
+snapshots and valid terminal settlement, with zero mutation requests. After API
+start, a fresh successful read completed at `2026-10-30T18:49:53Z`: ready, no error/
+retry/pending scan, five VERIFIED jobs, zero enabled managed policy, IDLE lease,
+three unchanged protected settings/fingerprint and integrity `ok`. Web image was
+not replaced; health 200, anonymous 401 and edge 302 to Authelia. No schema,
+environment/credential/trust/network change, new fixture or device mutation.
+Opening failures were exercised synthetically, not induced on the real FPR;
+healthy strict transport acceptance is not unknown-write or production acceptance.
+See [Automatic Opening Recovery](manual/opening-recovery.md).
+
+### Previous local pre-submission recovery checkpoint
+
+**Automatic recovery before agent submission (2026-10-30).** Local socket
+creation/setup/connect failure before the first BEGIN send now has a distinct
+typed result. Only the first opening RPC in an exact live device epoch can use
+it. Release checks reject unsettled device work/attempts and any mutation claim
+under that epoch; `DEVICE_LEASE_NOT_SUBMITTED` and release are audited atomically.
+No job/policy result or complete observation changes. The continuous owner retains
+manual/policy-scan demand and retries per device after 5/10/20/40/60s, capped at
+60s. Status shows retry timing/count, original error and stale previous data;
+healthy devices continue. A later successful session performs a new complete
+initial read and resets the backoff.
+
+Any attempted send, rejected/missing/malformed response, later error, cancellation,
+expired/lost fence or old LEASED/ATTENTION retains its hold. Remote SSH failures
+and uncertain ADD/REMOVE recovery remain unimplemented; no blind replay or old
+uncertainty release is introduced. No schema/wire/agent/Web/configuration change.
+Validation: **26 new recovery tests; 2725 total Python tests passed (454.12s)**,
+compileall/Ruff/diff and quiet Compose validation pass. Built/preflighted/deployed
+only API, retaining `ftd-shun-api:lab-pre-unsubmitted-20261030` for rollback. Real
+startup read completed successfully at `2026-10-30T18:15:02Z`; device ready, no
+retry/error/pending scan, five VERIFIED jobs, zero enabled managed targets, IDLE
+lease and integrity `ok`. All three Protected-IP settings have the same before/
+after fingerprint. Web/agent images remain unchanged; Web health 200, anonymous
+access 401 and edge redirects to Authelia (302). No new device test mutation or
+induced live failure; failure/recovery acceptance here is synthetic, not remote
+SSH or production acceptance.
+See [Continuous Dispatch](manual/continuous-dispatch.md#failure-backoff-and-shutdown).
+
+### Previous prompt-first-scan checkpoint
+
+**Prompt scoped scan after managed consent (2026-10-30).** Changed non-replayed
+confirmation in the executable managed API now schedules advisory first-scan
+demand for its validated selected devices. The one continuous owner coalesces
+it and scans before baseline, retaining minimum 60-second read spacing, device
+fences/capacity, manual/REMOVE priority, bounded discovery and 300-second ADD
+backoff. Reads started before the newest notification (including the millisecond
+precision margin) cannot consume it; held leases/failed reads retain demand
+without stealing or replay. A fresh mandatory read may satisfy it, and startup's
+existing baseline covers process restart. Per-device `policy_scan_pending` is
+advisory, never an ADD receipt.
+
+No notification from replay, unchanged/refused confirmation, GET, construction
+or policy-only/observation admission. The saved policy receipt still does not
+claim a queued command or verified success. No new schema, external route,
+selector, credentials, agent/wire or Web asset changes. Validation: **13 new tests**,
+**2699 total Python tests passed (439.53s)**, compileall/Ruff/diff and local manual
+links pass. API image built; the existing v2 DB passed non-executing preflight.
+Deployed only API, leaving Web/agent/configuration/storage in place and retaining
+`ftd-shun-api:lab-pre-first-scan-20261030` for code-only rollback. Live device-1
+fixture `.254` was independently absent; consent was submitted with 282 seconds
+remaining until baseline and no manual demand. `policy_scan_pending` became true;
+automatic first read began at `13:53:22Z`, respecting the last read at `13:52:21Z`.
+ADD reached VERIFIED at `2026-10-30T13:53:44.526Z`, before the original `13:57:21Z`
+baseline. New API logs contain zero refresh-hint POSTs. Original-key replay did
+not request another scan. Final v2 retirement/REMOVE was VERIFIED, with an
+independent empty agent snapshot and no outstanding scan after replay/cleanup.
+Both fixtures remain retired; five total jobs VERIFIED, zero active maintenance,
+IDLE device lease, no error and SQLite integrity `ok`. Protected settings are
+unchanged. See [Concurrent Standing Admission](manual/bulk-concurrent-admission.md).
+
+### Previous clean-v2 activation checkpoint
+
 **Managed lab activated and one-address lifecycle verified (2026-10-30).** After
 the operator repaired reachability, TCP22 from the actual Docker management
 network and real strict v3 read/settlement passed. Gracefully drained Web/API;
@@ -3030,22 +3136,24 @@ The foundation increment was checked with:
 
 Current working-version sequence after the 2026-10-30 lab-first clarification:
 
-1. Implement a practical explicit fresh-v2 lab setup in a separate database/volume;
-   keep the current test DB as a private archive, preserve inventory/credentials
-   and explicitly transfer useful Protected-IP configuration. Do not build a
-   legacy converter or carry old queues/standing authority into the fresh profile.
-2. Wire a configured executable managed workflow to the existing bounded import/
-   adoption/cancellation, ready/ordered removal and fenced continuous components.
-   Current configured selection is observation-only; this still needs code, not
-   merely switching ADD on. Keep safe defaults and the actual typed/verified path.
-3. Exercise the complete Web-to-FTD lifecycle on the desk lab: bounded managed
-   import/adoption, refresh priority, disappearance/restoration, quick unblock,
-   cancellation and permanent Protected-IP retirement. Use new labelled test
-   requests; ordinary lab steps do not need repeated per-fixture approval.
-4. Finish working-version uncertainty recovery and Emergency Purge, verify restart/
+1. **Delivered:** explicit separate fresh-v2 setup and configured executable managed
+   runtime; old test state archived unchanged, inventory/credentials preserved and
+   only useful Protected-IP settings transferred. No legacy converter is required.
+2. **Lab validated:** one-address managed creation/restoration/retirement/cleanup
+   and automatic post-consent first scan, with real typed verified outcomes and
+   retained receipts. Complete current authenticated browser/bounded batch,
+   adoption/cancellation, refresh-priority and protection-retirement acceptance.
+   Use new labelled requests; no repeated per-fixture approval is needed here.
+3. **In progress:** automatic recovery. Local pre-BEGIN failures and exact proved
+   pre-command SSH opening failures now retry with evidence-preserving release/
+   backoff. Initial-read/later session failure and lost mutation reply recovery
+   still need their own executable reconciliation proof.
+4. Finish that uncertainty recovery and confirmed Emergency Purge, verify restart/
    timeout behavior, then validate concurrency and measured larger loads as the
    relevant test targets become available. Do not infer multiple-device/throughput
    acceptance from one desk device or erase uncertainty to make a test pass.
+   Also fix the observed idle agent's SIGTERM handling before routine restarts:
+   current safe cutover drains API and verifies idle state before agent shutdown.
 5. Refine usability/status and the approved unmanaged correlation flow, finish
    installation/backup/rollback manuals and the tested capability/limitation list,
    then prepare the first explicitly requested real GitHub tagged release.

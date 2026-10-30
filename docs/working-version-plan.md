@@ -25,6 +25,13 @@ the credential, typed-operation, verification and authentication boundaries.
 
 ## 1. Managed and unmanaged
 
+First-scan checkpoint (2026-10-30): changed confirmation in the executable managed
+profile now requests a selected-device advisory fresh scan automatically, without
+an extra refresh click or baseline wait. Coalescing retains latest-read freshness,
+minimum spacing, manual/unblock priority and all existing mutation guards. The
+policy-only composition/replays/unchanged grants do not schedule work. Current
+validation/deployment evidence is in project status and the development log.
+
 Live checkpoint (2026-10-30): the desk lab now uses the clean v2 profile and
 explicit managed overlay. One new TEST-NET target completed VERIFIED creation,
 controlled disappearance, automatic restoration and exact v2 retirement/removal;
@@ -378,6 +385,12 @@ output or an unverified/stale snapshot cannot authorize a new mutation.
 
 This requires a new reviewed reconciliation/attempt contract. The current
 permanent-latch implementation is not automatically relaxed by this document.
+The first implemented recovery slice (2026-10-30) retries only locally proven
+socket failures before the very first BEGIN send, with audited live-epoch release
+and capped backoff. A subsequent exact no-command terminal extension now also
+recovers failed SSH opening before an executor exists. Initial snapshot failures,
+later submitted-session errors and lost ADD/REMOVE replies retain their holds. See
+[the bounded retry contract](manual/continuous-dispatch.md#failure-backoff-and-shutdown).
 Retained legacy abandonment/isolation decisions and uncertainty must be preserved
 through an explicit compatibility/migration plan; never silently erase receipts
 or release old exclusions to obtain automatic recovery.

@@ -66,6 +66,7 @@ not a runbook or permission to change gates, initialize schemas or run new fixtu
 | [Agent Cycle Protocol](agent-cycle-protocol.md) | Experimental bounded single-session removal/checkpoint protocol, feature gate, limits, and lab/rollback procedure. |
 | [Agent Connection Concurrency](agent-concurrency.md) | Opt-in bounded connection workers, device/address guards, fail-closed saturation and unchanged wire/gates; not yet parallel API scheduling. |
 | [Local Cycle Settlement](cycle-settlement.md) | Opt-in terminal receipt after cleanup/guard release/worker idle, strict deadlines and no replay/recovery authority; no live activation. |
+| [Automatic Opening Recovery](opening-recovery.md) | Exact no-command terminal proof, bounded per-device retries, preserved uncertainty and compatible API/agent rollout. |
 | [Fenced Device Leases](device-leases.md) | Explicit optional per-device owner/epoch/deadline profile, shared queue fencing, retained expiry attention and legacy-writer exclusion; no runtime/lab activation. |
 | [Parallel Device Rounds](parallel-rounds.md) | Default-disabled actual bounded device sessions, shared typed queue/results and cancellation drain; no background/API/lab activation. |
 | [Continuous Dispatch](continuous-dispatch.md) | Internal independent lifecycle, continuous work, priority and per-device browser status/demand contract; no API runtime selection or lab activation. |

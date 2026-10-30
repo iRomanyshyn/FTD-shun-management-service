@@ -763,7 +763,10 @@ fn handle_connection(
         Ok(_) => return Reply::Packet(RESPONSE_REJECTED.to_vec()),
         Err(_) => return Reply::Packet(RESPONSE_REJECTED.to_vec()),
     };
-    let device_id = if matches!(packet.first().copied(), Some(0x10 | cycle::BEGIN_SETTLED)) {
+    let device_id = if matches!(
+        packet.first().copied(),
+        Some(0x10 | cycle::BEGIN_SETTLED | cycle::BEGIN_RECOVERABLE)
+    ) {
         cycle::decode_begin(&packet[..received]).map(|(device, _)| device)
     } else {
         decode_request(&packet[..received]).map(|(_, device, _)| device)
@@ -792,7 +795,10 @@ fn handle_connection(
 }
 
 fn handle_packet(agent: &Agent, connection: &OwnedFd, runtime: &Handle, packet: &[u8]) -> Reply {
-    if matches!(packet.first().copied(), Some(0x10 | cycle::BEGIN_SETTLED)) {
+    if matches!(
+        packet.first().copied(),
+        Some(0x10 | cycle::BEGIN_SETTLED | cycle::BEGIN_RECOVERABLE)
+    ) {
         return match cycle::handle(agent, connection, runtime, packet) {
             Ok(Some(record)) => Reply::Settled(record),
             Ok(None) => Reply::Packet(Vec::new()),
@@ -1053,6 +1059,114 @@ mod tests {
             additions_enabled: false,
             max_concurrent_devices: 2,
         })
+    }
+
+    #[test]
+    fn opening_failure_receipt_waits_for_real_handler_guard_and_idle_slot() -> Result<()> {
+        use nix::sys::socket::socketpair;
+        let mut agent = synthetic_dispatch_agent()?;
+        agent.cycles_enabled = true;
+        agent.large_snapshots_enabled = true;
+        agent.additions_enabled = true;
+        agent
+            .devices
+            .get_mut(&1)
+            .context("device")?
+            .addition_profile = Some(addition::Profile::Fpr1010Management);
+        // Empty credential mapping fails inside connect_device before any TCP/CLI.
+        let guards = Arc::new(dispatch::DeviceGuards::new([(
+            1,
+            Ipv4Addr::new(192, 0, 2, 1),
+        )]));
+        let shared = Arc::clone(&guards);
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()?;
+        let handle = runtime.handle().clone();
+        let pool = dispatch::Pool::new(1, move |connection: OwnedFd| {
+            let settlement = respond(&agent, &connection, &handle, &shared, Instant::now());
+            ConnectionCompletion {
+                connection,
+                settlement,
+            }
+        })?;
+        for index in 0..30 {
+            let version = 1 + index % 3;
+            let (client, server) = socketpair(
+                AddressFamily::Unix,
+                SockType::SeqPacket,
+                None,
+                SockFlag::SOCK_CLOEXEC,
+            )?;
+            cycle::set_ipc_timeout(&client, Duration::from_secs(2))?;
+            cycle::set_ipc_timeout(&server, Duration::from_secs(2))?;
+            pool.submit(server)?; // No yield/retry after the preceding receipt.
+            send(
+                client.as_raw_fd(),
+                &[cycle::BEGIN_RECOVERABLE, version, 0, 1],
+                MsgFlags::MSG_NOSIGNAL,
+            )?;
+            let mut response = [0; 16];
+            let length = recv(client.as_raw_fd(), &mut response, MsgFlags::MSG_TRUNC)?;
+            assert_eq!(
+                &response[..length],
+                &[3, version, cycle::BEGIN_RECOVERABLE, 0]
+            );
+            assert_eq!(guards.run(1, || true), Some(true));
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn invalid_gated_busy_and_legacy_opening_never_get_recovery_proof() -> Result<()> {
+        use nix::sys::socket::socketpair;
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()?;
+        for case in [
+            "cycles", "large", "addition", "profile", "device", "shape", "busy", "legacy",
+        ] {
+            let mut agent = synthetic_dispatch_agent()?;
+            agent.cycles_enabled = case != "cycles";
+            agent.large_snapshots_enabled = case != "large";
+            agent.additions_enabled = case != "addition";
+            if case != "profile" {
+                agent
+                    .devices
+                    .get_mut(&1)
+                    .context("device")?
+                    .addition_profile = Some(addition::Profile::Fpr1010Management);
+            }
+            let guards = dispatch::DeviceGuards::new([(1, Ipv4Addr::new(192, 0, 2, 1))]);
+            let (client, server) = socketpair(
+                AddressFamily::Unix,
+                SockType::SeqPacket,
+                None,
+                SockFlag::SOCK_CLOEXEC,
+            )?;
+            let mut packet = vec![cycle::BEGIN_RECOVERABLE, 3, 0, 1];
+            if case == "legacy" {
+                packet[0] = cycle::BEGIN_SETTLED;
+            }
+            if case == "device" {
+                packet[3] = 99;
+            }
+            if case == "shape" {
+                packet.push(0);
+            }
+            send(client.as_raw_fd(), &packet, MsgFlags::MSG_NOSIGNAL)?;
+            let run = || respond(&agent, &server, runtime.handle(), &guards, Instant::now());
+            let record = if case == "busy" {
+                guards.run(1, run).context("guard")?
+            } else {
+                run()
+            };
+            assert!(record.is_none(), "{case}");
+            let mut response = [0; 16];
+            let length = recv(client.as_raw_fd(), &mut response, MsgFlags::MSG_TRUNC)?;
+            assert_eq!(&response[..length], RESPONSE_REJECTED, "{case}");
+        }
+        Ok(())
     }
 
     #[test]

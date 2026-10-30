@@ -65,7 +65,7 @@ def configured_dispatcher(settings, store):
             raise ValueError('Managed runtime requires an explicit supported ADD profile on every enabled device.')
         addition_ids = frozenset(device.id for device in enabled)
     agent = UnixAgentClient(settings.agent_socket, settings.agent_timeout_seconds + 5,
-                            large_snapshots=True, settled_cycles=True,
+                            large_snapshots=True, settled_cycles=True, recoverable_cycles=True,
                             additions_enabled=managed, addition_device_ids=addition_ids)
     return ContinuousDispatcher(store, agent, enabled=True, agent_concurrency=settings.agent_concurrency,
                                 bulk_dispatch_enabled=managed, addition_device_ids=addition_ids,

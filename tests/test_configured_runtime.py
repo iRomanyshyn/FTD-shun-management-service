@@ -67,6 +67,7 @@ def test_configured_construction_and_status_do_not_initialize_connect_or_enable_
     agent = runtime.dispatcher.runner.agent
     assert type(agent) is UnixAgentClient
     assert agent.large_snapshots and agent.settled_cycles and not agent.additions_enabled
+    assert agent.recoverable_cycles is True
     assert agent.addition_device_ids == frozenset() and agent.timeout_seconds == 125
     assert runtime.dispatcher.runner.agent_concurrency == 2
 

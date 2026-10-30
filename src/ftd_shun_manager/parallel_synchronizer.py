@@ -8,7 +8,7 @@ from copy import deepcopy
 from time import monotonic
 from uuid import uuid4
 
-from .agent_client import AgentUnavailable
+from .agent_client import AgentCycleNotStarted, AgentCycleOpenFailed, AgentUnavailable
 from .bulk_discovery import BulkDiscovery
 from .device_leases import DeviceLeases, DeviceOperationQueue
 from .operation_queue import OperationQueue, QueueConflict
@@ -35,6 +35,10 @@ class _DeviceWorker(Synchronizer):
         self.bulk_discovery.source.queue = self.queue
         self.bulk_discovery.begin_cycle()
         self._stop_mutations = self.rpc_failed = False
+        self.request_not_submitted = False
+        self.opening_failed = False
+        self.session_settled = False
+        self._rpc_calls = 0
         self._managed_restoration_error = None
         self._cycle_cutoff = self.queue.cutoff()
         self._cycle_outcome = 'running'
@@ -48,9 +52,19 @@ class _DeviceWorker(Synchronizer):
         return
 
     async def _agent_call(self, function, *args):
+        opening = self._rpc_calls == 0 and function == self.agent.open_cycle and args == (self.device_id,)
+        self._rpc_calls += 1
         try:
             self._rpc_started = self.clock()
             return await super()._agent_call(function, *args)
+        except AgentCycleNotStarted:
+            self.rpc_failed = True
+            self.request_not_submitted = opening
+            raise
+        except AgentCycleOpenFailed:
+            self.rpc_failed = True
+            self.opening_failed = opening
+            raise
         except BaseException:
             # No replacement after an RPC/lease failure, even for read-only work.
             self.rpc_failed = True
@@ -74,6 +88,7 @@ class _DeviceWorker(Synchronizer):
         if self.require_settlement and getattr(cycle, 'settled', False) is not True:
             self.rpc_failed = True
             raise AgentUnavailable('Required cycle settlement was not confirmed; device fence retained.')
+        self.session_settled = getattr(cycle, 'settled', False) is True
         return snapshot
 
     def _discover_snapshot(self, *args):
@@ -237,11 +252,22 @@ class ParallelSynchronizer:
             worker.require_settlement = self.settled_cycles_required
             self._results[str(device.id)] = {'state': 'running', 'epoch': token.epoch}
             await worker._collect()
-            # Failed RPC is not remote quiescence evidence, even for reads.
-            if not worker.rpc_failed:
-                worker.queue.finish_cycle(token.owner, 0)
+            # Only exact first-opening proof permits a failed session's release.
+            # A local processing error is not terminal agent settlement either.
+            if worker.request_not_submitted:
+                self.leases.release_unsubmitted(token)
+                worker._devices[device.id]['error_category'] = 'agent_not_submitted'
+            elif worker.opening_failed:
+                self.leases.release_unopened(token)
+                worker._devices[device.id]['error_category'] = 'agent_open_failed'
+            elif not worker.rpc_failed:
+                if self.settled_cycles_required and not worker.session_settled:
+                    worker.rpc_failed = True
+                else:
+                    worker.queue.finish_cycle(token.owner, 0)
             self._results[str(device.id)] = {
-                'state': 'held' if worker.rpc_failed else worker._cycle_outcome,
+                'state': 'retrying' if worker.request_not_submitted or worker.opening_failed else
+                         'held' if worker.rpc_failed else worker._cycle_outcome,
                 'epoch': token.epoch, 'details': deepcopy(worker._devices.get(device.id, {})),
             }
         except (ValueError, OSError, sqlite3.Error) as error:

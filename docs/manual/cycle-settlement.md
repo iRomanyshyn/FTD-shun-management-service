@@ -1,11 +1,22 @@
 # Local Cycle Settlement
 
+Current lab note (2026-10-30): the clean managed profile now uses this strict
+transport; see [Fresh Working-Version Lab](fresh-development.md). A separate typed
+local socket-connect failure **before any BEGIN send** permits audited automatic
+retry. It is not a settlement receipt or remote-session recovery; all submitted
+sessions retain the requirements below. See
+[pre-submission retry](continuous-dispatch.md#failure-backoff-and-shutdown).
+The newer [opening-recovery extension](opening-recovery.md) adds explicit BEGIN
+`17` and exact terminal no-command failure proof. Its successful END receipt binds
+to `17`; the legacy `16` contract below stays unchanged. Configured continuous
+clients now select `17`, never negotiate fallback or use it for unknown writes.
+
 Status: implemented opt-in protocol/client extension and required by the internal
 [continuous dispatcher](continuous-dispatch.md). A separate opt-in
 [configured observation runtime](configured-runtime.md) now selects the strict
-client on already compatible storage; the lab still uses its prior mode.
-No Web route selects it. No live gate, fixture,
-migration, credential or lab service was changed.
+client on already compatible storage; the current lab uses the clean managed
+profile. No Web route selects it. The original protocol increment changed no
+live gate, fixture, migration, credential or lab service.
 
 ## Why a final snapshot is not enough
 

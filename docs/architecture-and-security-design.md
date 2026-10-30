@@ -5450,3 +5450,84 @@ never grant policy, initialize storage or prove agent/device readiness. Selectin
 managed mode can dispatch already authorized work and protection; announce that
 operational impact. This is laboratory integration, not multi-device/load or
 production acceptance, Emergency Purge or automatic uncertainty reconciliation.
+
+## Managed-confirmation first scan — 2026-10-30
+
+Only the explicitly executable `continuous-managed` composition may request a
+scoped advisory policy scan after a committed, non-replayed confirmation that
+changed targets. Policy-only/observation composition retains its no-work contract.
+Use only the validated manifest's selected eligible device IDs; no browser field,
+GET, failed confirmation, original-key replay or unchanged grant schedules work.
+The receipt remains policy-only admission, not a queued/verified ADD result.
+
+Coalesce at most one in-memory scan per configured device on the owning loop,
+using the latest committed notification as a fresh-read boundary. A read that
+started before that boundary, or in the same timestamp precision window, cannot
+satisfy it. Keep demand across cooldown/held lease/failed reads; startup's mandatory
+fresh reads cover a restart or loss of the advisory notification. Retain the
+60-second minimum read spacing, device lease/epoch/capacity, existing discovery,
+300-second ADD backoff and uncertainty/protection/retirement barriers. Due manual
+refresh and quick REMOVE remain ahead of this background scan. No RPC interruption,
+new executor, durable authority, schema, replay or pause/resume capability is added.
+
+## Recovery before agent submission — 2026-10-30
+
+An exact first-cycle local Unix-socket connection failure may release its own
+unexpired device lease and retry automatically: the client must prove that no
+BEGIN packet was submitted, not infer this from an error message, timeout or
+missing response. Only the first `open_cycle` call in that lease may supply this
+typed local result. Check the exact owner/epoch/deadline, absence of unsettled
+device jobs/attempts and absence of any mutation claim under that epoch in the
+same release transaction. Record `DEVICE_LEASE_NOT_SUBMITTED` and ordinary release
+atomically; do not change job results, policy, last complete observations or
+freshness. Keep pending read/policy demand and retry with per-device 5/10/20/40/60s
+capped backoff, independently of healthy devices. A subsequent attempt still
+starts with a new fenced session and complete read before mutation discovery.
+
+The local transport may classify socket creation/setup/connect failures only
+before its first send. Any attempted BEGIN send, partial send, lost/rejected/
+malformed response, later operation, cancellation or lost/expired fence retains
+the existing hold. A remote SSH connection/authentication failure is not this
+local proof. Do not recover old LEASED/ATTENTION state or unknown ADD/REMOVE by
+this path. Strict terminal settlement and original uncertainty evidence remain
+mandatory for submitted sessions; automatic unknown-outcome reconciliation is
+still a separate delivery step. No wire, schema, startup repair or recovery HTTP
+authority is added.
+
+## Proven SSH opening failure — 2026-10-30
+
+Add opt-in fixed cycle BEGIN `17 version device:u16`, versions 1/2/3. It retains
+strict settlement and all existing gates, pinning, UID, scope and command budgets.
+Successful initial snapshots and terminal receipts bind to `17`, never `10`/`16`.
+Only failure/timeout of the awaited connection/authentication/PTY/shell/prompt
+opening future, before a command executor exists, may produce terminal failure
+`03 version 17 00`. Drop that future and its local SSH resources first; return
+the record through the existing post-handler completion, after device/address
+guard release and worker IDLE. No initial snapshot or Cisco operation was sent.
+The record attests inability of that completed opening path to issue a later CLI
+command, not remote TCP termination, a successful read or a mutation result.
+Gate/profile/device/busy/UID rejection, initial snapshot failure and every later
+error retain generic rejection/holds. Never derive this proof from error text.
+
+An explicitly opted-in client may raise a distinct local typed opening failure
+only from that exact, untruncated, version/opcode/sequence-bound four-byte record
+as the first response to its own BEGIN on that connection. No reconnect/fallback
+negotiation or acceptance at another stage. Missing/malformed/truncated proof,
+cancelled callers and old agents stay fail-closed. Configured continuous modes
+select this capability; low-level/legacy defaults stay unchanged. Deploy matching
+agent before the new configured client, draining the sole API owner first.
+
+Only the first opening RPC in an exact live API epoch may consume it. Apply the
+same transactional no-claim/no-uncertainty checks as pre-submission release, with
+separate `DEVICE_LEASE_OPEN_FAILED` audit plus normal release. Preserve pending
+demand, authority, old observations and original outcomes; reuse bounded per-device
+5/10/20/40/60s retry. The next attempt is a new fenced session with a complete fresh
+read before claims. Never release old LEASED/ATTENTION or recover an unknown write
+using this proof. No schema or HTTP recovery authority is added; uncertainty after
+snapshot/command submission remains a separate reconciliation contract.
+
+Every strict normal API lease release also requires that this epoch actually
+completed its terminal-settled session, not merely absence of an RPC exception.
+Local initial/priority snapshot processing errors must not bypass settlement.
+A local final-publication error after proved terminal settlement may release the
+completed lease while retaining its error and previous published observations.

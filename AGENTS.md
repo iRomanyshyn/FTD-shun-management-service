@@ -57,6 +57,24 @@ them as permission to add again. See the current development-log entry for final
 restart evidence and remaining acceptance limits. This is not a production
 release, 10000-address/multi-device validation or uncertainty-recovery approval.
 
+The API-only first-scan update now requests scoped fresh evidence after changed
+managed consent, retaining minimum spacing and no-work behavior for replay/GET/
+policy-only composition. Its separate `.254` fixture completed VERIFIED ADD and
+v2 cleanup without any refresh-hint POST; that generation is also retired. The
+lab has five VERIFIED jobs, no enabled targets and no outstanding scan. Do not
+reuse either closed fixture's original keys as new authority.
+
+The API now retries typed local failures before BEGIN and exact agent-proved
+SSH opening failure before any Cisco command. Configured clients select strict
+BEGIN `17`; missing/generic/later proof and unknown ADD/REMOVE retain holds.
+Release needs a first-opening proof, live exact epoch and no claimed/uncertain
+work; normal strict release also needs actual terminal settlement in that epoch,
+including after local processing errors. Old LEASED/ATTENTION is never cleared.
+Matching API/agent rollback tags are `lab-pre-opening-20261030`; Web is unchanged.
+The idle old agent needed stop timeout/SIGKILL only after API drain and verified
+zero RUNNING/non-IDLE state; graceful idle signal handling remains a follow-up.
+See docs/manual/opening-recovery.md before changing this boundary or rolling back.
+
 ## Source of truth
 
 Read these documents before making a material change:

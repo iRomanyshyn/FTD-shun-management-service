@@ -47,6 +47,27 @@ it. Status is read-only, reports overdue leases separately (`expired` and
 capacity pressure, a new owner or disabling the device cannot resolve it.
 No release/rearm/HTTP decision route exists in this component.
 
+### Local pre-submission release
+
+The continuous/parallel worker now has one narrow automatic path for a typed local
+socket-connect failure before its very first BEGIN send. `release_unsubmitted`
+checks the exact live token and rejects RUNNING/UNVERIFIED/read-reconciled jobs,
+UNVERIFIED bulk attempts and any `SHUN_OPERATION_RUNNING` audit for this epoch/
+owner, even if that claimed job later succeeded. It atomically appends
+`DEVICE_LEASE_NOT_SUBMITTED` and normal `DEVICE_LEASE_RELEASED`, leaving policy,
+jobs and observations untouched. Audit/deadline failure rolls back the release.
+
+This is not an override for expiry, old holds or submitted-session uncertainty.
+The worker must also prove that the error came from its first local connection
+attempt; a later exception of the same type cannot release anything. No HTTP
+caller or decoded wire response can select this classification. See
+[retry behavior and limits](continuous-dispatch.md#failure-backoff-and-shutdown).
+
+`release_unopened` applies those same checks with distinct
+`DEVICE_LEASE_OPEN_FAILED` audit, only for a first-call exact terminal
+[SSH-opening failure proof](opening-recovery.md), not a generic SSH error.
+Neither method clears old holds or changes original results.
+
 An expired lease converted to ATTENTION is no longer a valid LEASED owner, but
 that does **not** prove its old RPC has stopped. A coordinator must still
 bound outstanding local tasks and agent slots and obtain quiescence evidence;

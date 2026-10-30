@@ -75,7 +75,10 @@ def register_bulk_confirmation_api(app, runtime):
                 **({'expected_suspended': change.expected_suspended} if concurrent else {}))
         except (PermissionError, ValueError, sqlite3.DatabaseError, TypeError, KeyError) as error:
             raise failure(error) from error
-        if not result['replayed']: runtime.note_state_change()  # No signal_work/discovery/resume.
+        if not result['replayed']:
+            runtime.note_state_change()
+            if runtime.managed_execution is True and result['changed_targets'] > 0:
+                runtime.dispatcher.request_policy_scan(frozenset(descriptor['manifest']['device_ids']))
         return result
 
     @app.post(PREFIX + 'receipts')

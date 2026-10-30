@@ -16,6 +16,8 @@ from .parallel_synchronizer import ParallelSynchronizer
 
 RECHECK_SECONDS = 1
 DEFER_SECONDS = 5
+MAX_CONNECT_RETRY_SECONDS = 60
+POLICY_READ_MARGIN_SECONDS = 0.001  # SQL authority timestamps have millisecond precision.
 
 
 @dataclass
@@ -76,9 +78,11 @@ class ContinuousDispatcher:
         self._demands = {}
         self._enabled = set()
         self._retry_after = {}
+        self._connection_failures = {}
         self._last_dispatch = {}
         self._dispatch_sequence = 0
         self._work_hints = set()
+        self._policy_scans = {}
         self._error = None
         self._revision = 0
         self._controls = None
@@ -145,6 +149,34 @@ class ContinuousDispatcher:
     def signal_work(self):
         """Wake after an already committed admission/policy change, never admit it."""
         self._notify(self._wake.set)
+
+    def request_policy_scan(self, device_ids):
+        """Thread-safe advisory read after committed authority, never grant/claim."""
+        eligible = self.runner.configuration['addition_device_ids']
+        if (self.runner.configuration['bulk_dispatch_enabled'] is not True
+                or type(device_ids) is not frozenset or not 1 <= len(device_ids) <= 10
+                or any(type(device) is not int or not 1 <= device <= 65535 for device in device_ids)
+                or not device_ids <= eligible):
+            raise ValueError('Policy scan requires exact configured bulk-execution device scope.')
+
+        def request():
+            if self._task is None or self._task.done() or self._stopping:
+                return  # Startup reads cover notifications before start/after shutdown.
+            after = self.clock() + POLICY_READ_MARGIN_SECONDS
+            for device in device_ids & self._enabled:
+                self._policy_scans[device] = max(after, self._policy_scans.get(device, after))
+            self._revision += 1
+            self._wake.set()
+
+        self._notify(request)
+
+    def _policy_scan_due(self, device):
+        after = self._policy_scans.get(device)
+        if after is None:
+            return None
+        last = self._demands[device].last_complete
+        spacing = self.runner.configuration['interactive_min_interval_seconds']
+        return max(after, last + spacing if last is not None else after)
 
     def _notify(self, callback):
         loop = self._loop
@@ -292,6 +324,9 @@ class ContinuousDispatcher:
 
     def _confirmed(self, device, started, completed):
         self._demands[device].confirmed(started, completed, self.runner.configuration['poll_interval_seconds'])
+        after = self._policy_scans.get(device)
+        if after is not None and started > after:
+            del self._policy_scans[device]
         self._revision += 1
         self._wake.set()
 
@@ -307,6 +342,8 @@ class ContinuousDispatcher:
                 'manual_refresh_in_seconds': None if manual_due is None else max(0, manual_due - current),
                 'baseline_refresh_in_seconds': max(0, demand.baseline_due - current),
                 'retry_in_seconds': max(0, self._retry_after.get(device, 0) - current),
+                'connection_retry_attempts': self._connection_failures.get(device, 0),
+                'policy_scan_pending': device in self._policy_scans,
             }
         maintenance = self.maintenance.status()
         maintenance_error = maintenance['expiry_error'] or maintenance['retention_error']
@@ -350,6 +387,14 @@ class ContinuousDispatcher:
             phase = worker._device_cycle if worker is not None else {}
             deferred = phase.get('budget_deferred') and phase.get('completed', 0) < phase.get('limit', 16)
             delay = DEFER_SECONDS if result.get('state') != 'success' or deferred else 0
+            if result.get('state') == 'retrying':
+                # Bounded local retries; never reuse a submitted RPC or lease.
+                count = self._connection_failures.get(device, 0) + 1
+                self._connection_failures[device] = count
+                delay = min(MAX_CONNECT_RETRY_SECONDS, DEFER_SECONDS * 2 ** min(count - 1, 4))
+                self._work_hints.add(device)
+            else:
+                self._connection_failures.pop(device, None)
             self._retry_after[device] = self.clock() + delay
             self._revision += 1
 
@@ -382,8 +427,10 @@ class ContinuousDispatcher:
                     manual = demand.manual_due(self.runner.configuration['interactive_min_interval_seconds'])
                     manual_due = manual is not None and manual <= current
                     baseline_due = demand.baseline_due <= current
+                    policy_due = self._policy_scan_due(device.id)
+                    policy_due = policy_due is not None and policy_due < current
                     pending = self._pending(device.id)
-                    if not (manual_due or baseline_due or pending or device.id in self._work_hints):
+                    if not (manual_due or baseline_due or pending or policy_due or device.id in self._work_hints):
                         continue
                     priority = 0 if manual_due else 1 if pending and self._pending(device.id, removals_only=True) else 2 if baseline_due else 3
                     ready.append((priority, self._last_dispatch.get(device.id, -1), device.id, device))

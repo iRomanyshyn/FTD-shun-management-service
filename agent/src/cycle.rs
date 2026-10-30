@@ -9,6 +9,7 @@ use std::time::Instant;
 const VERSION: u8 = 1;
 const BEGIN: u8 = 0x10;
 pub(super) const BEGIN_SETTLED: u8 = 0x16;
+pub(super) const BEGIN_RECOVERABLE: u8 = 0x17;
 const SNAPSHOT: u8 = 0x11;
 const REMOVE: u8 = 0x12;
 const END: u8 = 0x13;
@@ -29,7 +30,7 @@ enum Step {
 
 pub(super) fn decode_begin(packet: &[u8]) -> Result<(u16, u8)> {
     if packet.len() != 4
-        || !matches!(packet[0], BEGIN | BEGIN_SETTLED)
+        || !matches!(packet[0], BEGIN | BEGIN_SETTLED | BEGIN_RECOVERABLE)
         || !matches!(packet[1], VERSION | snapshot::VERSION | addition::VERSION)
     {
         bail!("invalid cycle begin frame");
@@ -47,15 +48,15 @@ fn after_cleanup(
     sequence: u8,
     cleanup: Result<()>,
 ) -> Result<Option<[u8; 4]>> {
-    if !matches!(begin, BEGIN | BEGIN_SETTLED)
+    if !matches!(begin, BEGIN | BEGIN_SETTLED | BEGIN_RECOVERABLE)
         || !matches!(version, 1..=3)
         || !(1..=18).contains(&sequence)
     {
         bail!("invalid local settlement binding");
     }
-    if begin == BEGIN_SETTLED {
+    if matches!(begin, BEGIN_SETTLED | BEGIN_RECOVERABLE) {
         cleanup?;
-        Ok(Some([0, version, BEGIN_SETTLED, sequence]))
+        Ok(Some([0, version, begin, sequence]))
     } else {
         Ok(None) // Legacy cleanup failure never acquires new receipt semantics.
     }
@@ -303,8 +304,28 @@ pub(super) fn handle(
             .validate(&device.allowed_interfaces)?;
     }
     let step_timeout = agent.operation_timeout.min(MAX_STEP_DURATION);
-    let mut session =
-        runtime.block_on(timeout(step_timeout, agent.connect_device(device_id)))??;
+    // No Cycle/Console command executor exists until this future succeeds.
+    // timeout drops the opening future before a failure record can escape.
+    let opened = runtime
+        .block_on(timeout(step_timeout, agent.connect_device(device_id)))
+        .context("SSH session opening timed out")
+        .and_then(|result| result);
+    let mut session = match opened {
+        Ok(session) => session,
+        Err(error) if packet[0] == BEGIN_RECOVERABLE => {
+            eprintln!(
+                "{}",
+                serde_json::json!({
+                    "event":"agent.cycle.open_failed", "device_id":device_id,
+                    "protocol_version":version, "commands":0,
+                    "elapsed_ms":started.elapsed().as_millis(), "reason":error.to_string(),
+                })
+            );
+            // Emitted only by ConnectionCompletion after guards/worker settle.
+            return Ok(Some([3, version, BEGIN_RECOVERABLE, 0]));
+        }
+        Err(error) => return Err(error),
+    };
     session.large_snapshots = version >= snapshot::VERSION;
     let mut cycle = Cycle {
         console: session,
@@ -406,6 +427,59 @@ pub(super) fn handle(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn recoverable_opening_shares_exact_vectors_and_strict_cleanup() -> Result<()> {
+        let vectors: serde_json::Value =
+            serde_json::from_str(include_str!("../../tests/fixtures/agent-opening.json"))?;
+        let hex = |bytes: &[u8]| {
+            bytes
+                .iter()
+                .map(|byte| format!("{byte:02x}"))
+                .collect::<String>()
+        };
+        for vector in vectors.as_array().context("vectors")? {
+            let version = vector["version"].as_u64().context("version")? as u8;
+            assert_eq!(hex(&[BEGIN_RECOVERABLE, version, 0, 7]), vector["begin"]);
+            assert_eq!(
+                decode_begin(&[BEGIN_RECOVERABLE, version, 0, 7])?,
+                (7, version)
+            );
+            assert_eq!(
+                hex(&[3, version, BEGIN_RECOVERABLE, 0]),
+                vector["open_failed"]
+            );
+            let mut cycle = fixture();
+            cycle.version = version;
+            let frames = cycle.snapshot(BEGIN_RECOVERABLE, 0).await?;
+            assert_eq!(
+                serde_json::to_value(frames.iter().map(|frame| hex(frame)).collect::<Vec<_>>())?,
+                vector["initial"]
+            );
+            let record =
+                after_cleanup(BEGIN_RECOVERABLE, version, 1, Ok(()))?.context("receipt")?;
+            assert_eq!(hex(&record), vector["settled"]);
+            assert!(
+                after_cleanup(
+                    BEGIN_RECOVERABLE,
+                    version,
+                    1,
+                    Err(anyhow::anyhow!("cleanup failed"))
+                )
+                .is_err()
+            );
+        }
+        for packet in [
+            vec![BEGIN_RECOVERABLE],
+            vec![BEGIN_RECOVERABLE, 0, 0, 7],
+            vec![BEGIN_RECOVERABLE, 4, 0, 7],
+            vec![BEGIN_RECOVERABLE, 1, 0, 0],
+            vec![BEGIN_RECOVERABLE, 1, 0, 7, 0],
+        ] {
+            assert!(decode_begin(&packet).is_err());
+        }
+        Ok(())
+    }
 
     #[tokio::test]
     async fn settled_cycles_share_fixed_vectors_and_legacy_end_budgets() -> Result<()> {

@@ -44,6 +44,7 @@ class CycleOperation(IntEnum):
     END = 0x13
     ADD = 0x14
     BEGIN_SETTLED = 0x16
+    BEGIN_RECOVERABLE = 0x17
 
 
 def encode_cycle_request(operation: CycleOperation, sequence: int, *,
@@ -54,7 +55,7 @@ def encode_cycle_request(operation: CycleOperation, sequence: int, *,
     operation = CycleOperation(operation)
     if operation == CycleOperation.ADD and version != 3:
         raise ValueError("ADD requires cycle version 3")
-    if operation in {CycleOperation.BEGIN, CycleOperation.BEGIN_SETTLED}:
+    if operation in {CycleOperation.BEGIN, CycleOperation.BEGIN_SETTLED, CycleOperation.BEGIN_RECOVERABLE}:
         if sequence != 0 or device_id is None or not 1 <= device_id <= 65535 or ip is not None:
             raise ValueError("invalid cycle begin fields")
         return bytes([operation, version]) + device_id.to_bytes(2, "big")
@@ -73,7 +74,7 @@ def decode_cycle_response(packet: bytes, operation: CycleOperation, sequence: in
     operation = CycleOperation(operation)
     if operation == CycleOperation.ADD and version != 3:
         raise ValueError("ADD requires cycle version 3")
-    begin = operation in {CycleOperation.BEGIN, CycleOperation.BEGIN_SETTLED}
+    begin = operation in {CycleOperation.BEGIN, CycleOperation.BEGIN_SETTLED, CycleOperation.BEGIN_RECOVERABLE}
     if (begin and sequence != 0) or (
         not begin and not 1 <= sequence <= MAX_CYCLE_REMOVALS + 2
     ):
@@ -109,12 +110,20 @@ def decode_cycle_response(packet: bytes, operation: CycleOperation, sequence: in
     return decode_list_shuns_response(packet[4:])
 
 
-def decode_cycle_settlement(packet: bytes, sequence: int, *, version: int):
+def decode_cycle_settlement(packet: bytes, sequence: int, *, version: int, begin=CycleOperation.BEGIN_SETTLED):
     """Local completed-handler receipt, never mutation/recovery authority."""
     if (type(version) is not int or version not in (1, 2, 3)
+            or begin not in (CycleOperation.BEGIN_SETTLED, CycleOperation.BEGIN_RECOVERABLE)
             or type(sequence) is not int or not 1 <= sequence <= MAX_CYCLE_REMOVALS + 2
-            or packet != bytes([0, version, CycleOperation.BEGIN_SETTLED, sequence])):
+            or packet != bytes([0, version, begin, sequence])):
         raise ValueError('Missing or invalid exact cycle settlement receipt.')
+
+
+def decode_cycle_open_failure(packet: bytes, *, version: int):
+    """Exact terminal proof that opening ended before any Cisco command."""
+    if (type(version) is not int or version not in (1, 2, 3)
+            or packet != bytes([3, version, CycleOperation.BEGIN_RECOVERABLE, 0])):
+        raise ValueError('Missing or invalid exact cycle opening-failure receipt.')
 
 
 _IP_OPERATIONS = {Operation.GET_SHUN, Operation.REMOVE_SHUN}

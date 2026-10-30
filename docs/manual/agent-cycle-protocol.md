@@ -1,5 +1,10 @@
 # Agent Cycle Protocol v1
 
+Current integration: the clean managed lab uses v3 with strict settlement; the
+new configured client selects [recoverable opening BEGIN `17`](opening-recovery.md).
+This legacy v1/BEGIN `10` specification and its default-safe gates remain unchanged.
+Older no-live-selection notes below describe the initial isolated increment.
+
 This document remains the exact legacy v1 contract. The independently gated
 [large-snapshot extension](large-snapshots.md) defines cycle v2 with unchanged
 mutation semantics and bounded multi-frame full observations. Neither version

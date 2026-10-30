@@ -18,6 +18,17 @@ import/restoration, continuous parallel device work, quick unblock, whitelist
 retirement, clear status and Emergency Purge. Email is a later increment. This is
 an approved target; the implementation boundaries below are not yet replaced.
 
+Current desk lab (2026-10-30): the separate clean `continuous-managed` profile now
+runs real managed creation, restoration and retirement/removal on the FPR1010.
+Changed imports request a scoped first scan automatically. Local failures before
+BEGIN and exact agent-proved no-command SSH-opening failures retry with capped
+backoff; failures after initial read/command submission, unknown-write recovery
+and Emergency Purge remain unfinished. See
+[Fresh Working-Version Lab](docs/manual/fresh-development.md) and
+[current status](docs/project-status.md#current-increment). Older default-off
+descriptions below concern the retained legacy workflows, not an instruction to
+replace the active lab profile or erase historical state.
+
 Next requirement: [managed manual-shun restoration](docs/manual/managed-shuns.md)
 after confirmed disappearance/reboot, while explicit service removal stops
 maintenance. Its registry foundation and read-only Managed shuns tab are

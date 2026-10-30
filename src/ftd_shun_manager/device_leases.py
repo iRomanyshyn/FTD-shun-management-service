@@ -212,13 +212,36 @@ class DeviceLeases:
                 raise QueueConflict('Original device lease expired during renewal.')
 
     def release(self, token):
+        self._release(token, opening_event=None)
+
+    def release_unsubmitted(self, token):
+        """Only a first-open local pre-send failure may use this audited release."""
+        self._release(token, opening_event='NOT_SUBMITTED')
+
+    def release_unopened(self, token):
+        """Exact terminal agent proof of opening failure, not an unknown command."""
+        self._release(token, opening_event='OPEN_FAILED')
+
+    def _release(self, token, *, opening_event):
         with schema_connection(self.store) as db, _atomic(db):
             previous = self.check(db, token)
             if db.execute("SELECT 1 FROM operation_jobs WHERE device_id=? AND state='RUNNING'", (token.device_id,)).fetchone():
                 raise QueueConflict('Settle RUNNING work before releasing a device lease.')
+            if opening_event is not None and (
+                    db.execute("SELECT 1 FROM operation_jobs WHERE device_id=? AND state IN ('UNVERIFIED','RECONCILED_ABSENT')",
+                               (token.device_id,)).fetchone()
+                    or db.execute("SELECT 1 FROM managed_bulk_attempts WHERE device_id=? AND state='UNVERIFIED'",
+                                  (token.device_id,)).fetchone()
+                    or db.execute("SELECT 1 FROM shun_events WHERE device_id=? AND event_type='SHUN_OPERATION_RUNNING' "
+                                  "AND json_extract(details_json,'$.device_executor.owner')=? "
+                                  "AND json_extract(details_json,'$.device_executor.epoch')=?",
+                                  (token.device_id, token.owner, token.epoch)).fetchone()):
+                raise QueueConflict('Opening-failure release cannot cover claimed work or device uncertainty.')
             timestamp = _stamp(self.queue._now())
             db.execute("UPDATE managed_bulk_device_executors SET state='IDLE',owner=NULL,lease_until=NULL,updated_at=? WHERE device_id=?",
                        (timestamp, token.device_id))
+            if opening_event is not None:
+                self._event(db, opening_event, token, timestamp)
             self._event(db, 'RELEASED', token, timestamp)
             self.queue._bump(db)
             if previous['lease_until'] <= _stamp(self.queue._now()) or _stamp(self.queue._now()) < timestamp:

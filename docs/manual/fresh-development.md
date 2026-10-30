@@ -145,6 +145,12 @@ during backoff is not failed restoration and does not authorize a timer override
 The baseline is still 300 seconds and interactive reads retain their 60-second
 floor. A refresh requests new evidence, not replay of a previous ADD.
 
+New changed managed imports now request their first scoped scan automatically
+after commit. No separate refresh click or 300-second baseline wait is required.
+The scan still needs the minimum read spacing and available fence, and only a
+read started after the newest consent notification can satisfy it. Replay and
+unchanged imports add no demand. Per-IP restoration backoff remains separate.
+
 ## 5. Rollback without overwriting data
 
 Gracefully stop/drain Web/API and then agent; inspect unresolved/current work
@@ -180,8 +186,52 @@ The post-cleanup API restart read at `2026-10-30T12:54:44Z` confirmed no re-add:
 zero active managed targets, exactly two VERIFIED ADD jobs and one VERIFIED REMOVE,
 no error and an idle device lease. The original import diagnosed one duplicate,
 one invalid row and two excluded protected targets. Ordinary refresh hints were
-used to obtain new evidence after consent/backoff; confirmation itself does not
-yet promise an immediate first scan. Current baseline/manual spacing is 300/60s.
+used during the original activation to obtain new evidence after consent/backoff.
+The subsequent first-scan increment above removes the extra-click/baseline
+dependency for changed imports, not normal 300/60s spacing or restoration backoff.
+
+### First-scan lab acceptance — 2026-10-30
+
+Only API was updated, retaining compatible rollback image
+`ftd-shun-api:lab-pre-first-scan-20261030`; no schema/configuration/agent changes.
+A new labelled `.254` fixture was confirmed with 282 seconds to baseline and no
+manual demand. The first scan started after the normal 60-second floor; ADD was
+VERIFIED at `13:53:44.526Z`, before the original `13:57:21Z` baseline. New API logs
+show zero refresh-hint POSTs. Replaying consent scheduled no scan. Exact v2 cleanup
+was VERIFIED at `13:54:32.641Z`; independent full agent read was empty, generation
+1 retired and no pending scan after replay. Both `.253` and `.254` are now closed
+historical fixtures, not reusable authority. This remains one-device lab evidence.
+
+### Local pre-BEGIN recovery rollout — 2026-10-30
+
+Only API was updated, retaining `ftd-shun-api:lab-pre-unsubmitted-20261030` for
+code-only rollback. No schema/configuration/agent/Web changes or new device test
+mutations. After graceful API drain/replacement, the real startup read succeeded
+at `18:15:02Z`; all five jobs remain VERIFIED, managed targets retired, lease IDLE
+and three Protected-IP settings unchanged. Web health/auth boundaries still pass.
+
+Local socket connection failures before any BEGIN send now retry automatically
+with capped backoff. Those failures were validated synthetically, not induced on
+the live stack. This does not recover submitted SSH/unknown-write failures or
+clear old holds. See [Continuous Dispatch](continuous-dispatch.md#failure-backoff-and-shutdown).
+Rollback needs no data restore; older images lose this automatic local retry.
+
+### Proven opening-recovery rollout — 2026-10-30
+
+API and agent now use [exact BEGIN `17` opening recovery](opening-recovery.md).
+Both matching prior images remain tagged `lab-pre-opening-20261030`. After API
+drain and readonly confirmation of zero RUNNING/non-IDLE state, the idle old
+agent required its stop timeout/SIGKILL; graceful listener shutdown is still a
+known follow-up, never proof that an unknown command can be replayed.
+
+With API stopped, the new agent passed a real read-only v3 BEGIN `17` / END
+exchange: both complete snapshots empty, terminal settlement valid, no mutation
+requests. API then completed a fresh successful read at `18:49:53Z`; five jobs
+remain VERIFIED, no enabled managed policy, lease IDLE, three unchanged Protected
+IPs and integrity `ok`. Web was not replaced and health/auth boundaries pass.
+No failed SSH connection was induced on FPR; failure paths are synthetic tests.
+No schema/data restore or credential/trust/network change. Use matching rollback
+code, never clear old holds or restore an earlier authority snapshot.
 
 ### Synthetic regression
 

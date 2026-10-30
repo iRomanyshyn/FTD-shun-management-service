@@ -7457,6 +7457,169 @@ follow-up. Automatic evidence-based uncertainty recovery, confirmed Emergency
 Purge, live protection-retirement acceptance, 10000-IP load, multi-device/data-plane
 and production acceptance remain. No release/tag was published.
 
+## 2026-10-30 — Prompt first scan after managed confirmation
+
+Added a selected-device advisory scan after a committed, changed, non-replayed
+managed confirmation. Only configured executable composition requests it; the
+policy-only/observation factory keeps its no-work contract. No direct queue
+admission, authority/resume, new route/schema or agent/wire change. Existing saved
+receipts remain policy-only, not device success.
+
+The existing continuous owner coalesces at most one boundary per eligible device,
+marshalling request-thread notifications onto its event loop. A complete read must
+start strictly after the latest notification plus a millisecond precision margin;
+older in-flight/equal-boundary reads cannot erase demand. Held leases/failed reads
+retain demand without stealing/replaying. The scan honors >=60s read spacing,
+manual/REMOVE priority, existing fresh-evidence claims, protection/retirement,
+capacity, uncertainty and >=300s ADD backoff. A mandatory later read may satisfy
+it; the existing startup baseline covers restart/lost advisory state. No demand
+from replay, unchanged/refused policy, GET, construction or stopped lifecycle.
+Per-device `policy_scan_pending` is advisory metadata, not a completion count.
+
+Added 13 synthetic tests covering strict scope/no-init, cross-thread latest
+coalescing, old/equal read exclusion, before-floor no-RPC, actual configured API
+confirmation-to-shared-queue ADD without refresh/signal, replay/unchanged/refusal
+and held/failed-read no-steal/no-replay. New cases pass; the initial focused
+scheduling/configured/concurrent/dispatcher run passed 104 tests before the final
+two held/failure cases were added (the complete new module passes 13 tests).
+Full regression, code checks and live deployment evidence are recorded below.
+
+Full Python regression: **2699 passed in 439.53s (7m19s)**. Compileall, Ruff,
+tracked/new-file whitespace and local manual links pass. Browser/Rust were not
+rerun: Web assets and agent are unchanged. Only the API image was rebuilt;
+retained `ftd-shun-api:lab-pre-first-scan-20261030` for compatible code-only rollback.
+Existing v2 lab preflight passed without initialization/execution/migration.
+
+Updated normative first-scan contract and concurrent/continuous/fresh-development
+manuals, working plan and current status. Corrected selected manuals' obsolete
+observation-only/no-runtime descriptions to reference the current explicit managed
+lab composition. No template/JavaScript/Compose, secret, inventory or auth change.
+
+Deployed only API after graceful drain, leaving Web/agent and the same v2 database
+in place. Full independent initial agent read was empty before the announced
+new `.254` fixture. New labelled trusted-host actor
+`maintenance:lab-first-scan-20261030` used standing request
+`a63d6089-7396-4a07-8720-807967e2822f`; no impersonated Web identity or old fixture
+key. At consent, 282 seconds remained until original baseline `13:57:21Z`, with
+no manual demand. The advisory flag became true and no job was immediately
+fabricated. First scan began at `13:53:22Z`, after the normal floor from the
+`13:52:21Z` complete read. ADD `56469905-d838-53ee-85f5-047f94c9406c` was admitted
+at `13:53:28.862Z` and VERIFIED at `2026-10-30T13:53:44.526Z`; final complete
+snapshot/settlement at `13:53:46Z` cleared the scan flag. The new API container
+logs contain zero `POST /api/v1/refresh-hint` calls. No validator refresh, clock
+override, new capability/gate or direct device write was used.
+
+Original-key replay after creation scheduled no new scan. Final exact v2 cleanup
+request `6f0d03ed-f11f-4c90-9909-bdd65e65311b` permanently retired generation 1 and
+admitted REMOVE `d55bdae6-2b8e-4e20-bcf1-5d57f7b6aa75`, VERIFIED at
+`13:54:32.641Z`, complete final read at `13:54:34Z`. Replay after cleanup also left
+policy disabled/scan clear and the same two fixture jobs. Another independent
+complete agent read was empty, including both `.253` and `.254`. Final lab state:
+five VERIFIED jobs, zero active managed targets, IDLE device lease, three unchanged
+Protected-IP settings, no error and integrity `ok`. Edge still redirects to
+Authelia (302); all services run and only Caddy publishes a host port. No restart
+of Web/agent, schema migration, data reset, evidence pruning or secret/trust/network
+change. Updated AGENTS/current manual with active behavior and closed fixture.
+Multi-device/load, automatic uncertainty recovery and Emergency Purge remain;
+no production or release/tag claim.
+
+## 2026-10-30 — Automatic retry before agent submission
+
+**Status:** Implemented, regression tested and deployed to the desk lab (API only).
+
+Added typed `AgentCycleNotStarted` only for local socket creation/setup/connect
+OS errors before BEGIN send, with descriptor cleanup and request validation first.
+The fenced worker accepts it only on its first opening call. A live exact-epoch
+release rejects unsettled jobs/attempts and any claim audit in that epoch, then
+atomically records `DEVICE_LEASE_NOT_SUBMITTED` plus normal release. Audit failure
+rolls back. Policy, job outcomes, last confirmed data and uncertainty stay intact.
+
+Continuous dispatch retains pending demand and retries that device with 5/10/20/
+40/60-second capped backoff and visible retry timing/count; healthy devices keep
+running. A new complete initial read is still required before further discovery/
+claims. Clicks do not override backoff. Any attempted send, generic rejection,
+lost/malformed reply, later typed error or expired/old held lease keeps the original
+hold. This is not remote SSH or unknown ADD/REMOVE recovery.
+
+**Validation:** 26 new tests; **2725 full-suite Python tests passed (454.12s)**.
+Compileall, Ruff, diff and quiet three-file Compose validation pass. New API image
+`1588b9696095...` built and non-executing configured preflight passed; original
+`02898cf25797...` retained as `ftd-shun-api:lab-pre-unsubmitted-20261030`. Gracefully
+stopped/drained only API (under one second), then replaced it. Real strict startup
+read completed at `2026-10-30T18:15:02Z`: ready, no error/retry/pending scan, five
+VERIFIED jobs, zero enabled managed targets, one IDLE lease, three unchanged
+Protected-IP settings (matching before/after fingerprint) and integrity `ok`.
+Web/agent containers/images were not replaced; Web health 200, anonymous 401,
+HTTPS app redirects to Authelia (302), API/Web still have no network. No new test
+device mutation, induced live failure, schema/configuration/credential/trust/
+network change, evidence pruning or data restore. Synthetic failures prove the
+bounded retry path; healthy lab startup is only a non-regression check, not live
+failure/remote SSH recovery acceptance. Code-only rollback needs no DB restore.
+
+**Remaining:** Submitted-session recovery,
+Emergency Purge and current browser/batch/multi-device/load acceptance. Updated
+architecture, retry/lease/settlement manuals, working plan and current delivery
+list; no production or release/tag claim.
+
+## 2026-10-30 — Exact terminal proof for failed SSH opening
+
+**Status:** Implemented, fully regression tested and deployed to the desk lab.
+
+Added opt-in fixed BEGIN `17` with strict version-bound initial/END settlement.
+Only an opening-future error/timeout before a Cisco executor exists returns exact
+`03 version 17 00`, through the existing post-handler, guard-release, IDLE-slot
+completion. No command/snapshot/result is implied. Other rejections and later
+failures remain generic. The client accepts this only as its own exact first
+response, closes the socket and raises distinct `AgentCycleOpenFailed`; no fallback.
+Configured continuous modes explicitly select the new mode, with unchanged
+legacy/low-level defaults and independent ADD/profile/secret/UID/trust boundaries.
+
+The worker accepts proof only on its first opening call. Separately audited
+`DEVICE_LEASE_OPEN_FAILED` release shares the original live-token, no-claim and
+no-uncertainty transaction. Demand/backoff/status reuse the existing automatic
+retry, with fresh observation/current authority checks after recovery. Neither
+old held leases nor unknown writes are released. Extended tests preserve no-replay
+behavior for later exceptions of either opening-failure type.
+
+Final review also closed a pre-existing strict normal-release gap: a local error
+processing the initial/priority snapshot could leave `rpc_failed=false` without
+finishing the session. Normal strict release now requires terminal settlement
+recorded in this epoch. Final-publication failure after proved settlement may
+release the completed lease, but keeps its error and previous published data.
+
+**Validation:** **2766 full Python tests passed (442.17s)** after the final
+normal-release fix; 139 final focused tests and 66 Rust tests passed. Fmt,
+Clippy `-D warnings`, locked release build, compileall/Ruff/diff and quiet Compose
+checks pass. Shared
+Rust/Python vectors, real local SeqPacket proof/guard/worker tests and disposable
+continuous cancellation/protection fixtures access no real FTD/credentials.
+The first full run passed 2763 tests; the repeated final run includes the three
+normal-release cases. Final API image `024797983f31...` and agent image
+`bc24c532b862...` built; non-executing `ftd-shun-api --check` and agent
+`--check-config` passed. Prior API `1588b9696095...` / agent `ab056df42363...`
+retained as `ftd-shun-{api,agent}:lab-pre-opening-20261030`.
+
+Gracefully drained API, then independently checked zero RUNNING jobs/non-IDLE
+leases on readonly storage before stopping the idle agent. Its existing listener
+still ignored graceful SIGTERM: stopped after 30-second timeout, exit 137, with
+no command/job interrupted. Record signal handling as an explicit follow-up, not
+remote quiescence evidence for unknown operations. Started new agent first. With
+API stopped, an independent strict BEGIN `17` / v3 plus END completed against
+device 1: initial/final snapshots empty, terminal proof valid, zero mutations.
+Started matching API; its successful fresh read completed at
+`2026-10-30T18:49:53Z`. Final state ready, no error/retry/pending scan, five VERIFIED
+jobs, zero enabled managed targets, IDLE lease, three unchanged Protected-IP
+settings/fingerprint and SQLite integrity `ok`. Web image unchanged, health 200,
+anonymous 401, HTTPS app redirects to Authelia (302). API/Web remain network-none.
+No schema/environment/secret/trust/network change, new fixture/device mutation,
+uncertainty clearing or DB restore. Failure acceptance is synthetic; live happy-
+path transport is only a non-regression check. Documented matching rollout order
+and code-only rollback without restoring data.
+
+**Remaining:** Submitted-session/unknown-write recovery, Emergency Purge and current
+browser/batch/multi-device/load acceptance; fix graceful idle-agent shutdown.
+No production or release/tag claim.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.
