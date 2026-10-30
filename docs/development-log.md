@@ -7376,6 +7376,87 @@ attempt omitted writable `/tmp`, causing SQLite schema I/O failure; repeating
 with the existing real Compose tmpfs contract passes. No production workaround
 or schema/security relaxation was needed.
 
+## 2026-10-30 — Live clean-v2 lab activation and managed lifecycle
+
+The operator repaired FPR reachability. Confirmed TCP22 from a credential-free
+helper on the exact existing Docker management network, then identified the same
+device 1 / `fpr1010-lab`. Old state had no queued/running/unknown jobs or enabled
+managed targets. Gracefully drained Web/API, independently read a complete empty
+agent snapshot and required absence of unused TEST-NET `198.51.100.253`.
+
+Created exclusive mode-0600 SQLite-safe `state.pre-v2-20261030.db` beside retained
+`state.db`, validated integrity and later proved their logical dumps still match.
+Original inventory is privately retained in
+`.local/lab-v2-20261030-Qd4LW3/devices.pre-v2.json`; added only the already validated
+device-1 ADD profile, preserving address, interfaces and pinned key. Old image
+rollback tags from the preceding increment remain. Stopped the idle old agent;
+its stop used the full 180-second Docker window despite no outstanding commands,
+so graceful idle-agent shutdown remains a hardening follow-up. No evidence or
+unknown work was discarded to replace it.
+
+Explicitly initialized the absent separate `managed-v2.db`, copying only three
+current Protected-IP settings (two enabled/one disabled), not old authority,
+queues or observations. Managed API preflight passed without execution/migration;
+agent-only sanitized configuration check passed with the unchanged shared
+single-device credential setup/capacity 1. Before API activation, a real strict
+v3 read-only session completed three commands and confirmed final settlement.
+Started API/Web/agent with base + local-lab + managed-lab overlays. `.env`, secret
+files/login, pinning, authentication, networks and host publication were not
+changed. Current lab remains one device/one serialized stream, not a multi-device
+or per-device-credential acceptance result.
+
+Bounded fixture actor: `maintenance:lab-v2-20261030`, explicitly labelled
+trusted-host Operator authority scoped to device 1 / `.253`, not a spoofed Web
+identity. New standing request `34649d38-521f-4e73-be81-52fff47f57e6` used the real
+private preparation/proposal/concurrent confirmation workflow. Frozen diagnostics
+show one duplicate, one invalid row and two EXCLUDED_PROTECTED targets; exactly
+one new pair was accepted. A normal refresh hint respected the 60-second floor.
+Initial shared-queue ADD `3f4678ef-3c34-5eea-974d-da25c669f7cb` was VERIFIED and
+completed a real v3 session. Original-key confirmation replay returned its receipt
+without adding new authority/jobs.
+
+Drained Web/API again, independently verified exactly `.253` on `management`,
+then issued one typed verified agent removal and confirmed absence. This was a
+labelled controlled disappearance, not a physical reboot or a queued user cleanup;
+the standing generation remained enabled. Restarted API/Web. The fresh absence
+read correctly honored the retained 300-second per-pair backoff. An initial
+180-second read-only observation window expired before that intentional deadline;
+no request was rekeyed, clock/guard relaxed or uncertain write replayed. After
+the real deadline, a normal coalesced refresh admitted restoration automatically.
+ADD `7093622d-533a-5ae3-a425-800738cbfe5f` reached VERIFIED; successful complete
+snapshot recorded at `2026-10-30T12:52:20Z`. The original grant replay remained
+idempotent.
+
+Final exact reviewed v2 device cleanup used fresh request
+`bc39bd06-c70e-4123-b1af-77e0e9c070cf`: atomic permanent retirement plus shared
+REMOVE `db5bfdc4-f166-462f-83e8-5a3dd6cbf59e`, VERIFIED. Complete final snapshot at
+`12:53:17Z`, policy revision 2, generation 1 disabled, all three jobs VERIFIED,
+both original ADD attempts retained. Replaying the standing key after retirement
+did not re-enable it. With Web/API drained, another complete independent agent
+snapshot was empty. Final API/Web restart produced a new complete successful read
+at `2026-10-30T12:54:44Z`: no re-add, zero active maintenance, exactly two ADD jobs,
+no error and IDLE device lease. No unrelated address or original protected setting
+was changed. No queue pruning or manual outcome/evidence rewrite was performed.
+
+Leave the usable managed profile active, rather than returning to the archived
+legacy DB. Future lab Compose commands must include `compose.managed-lab.yml`;
+updated AGENTS/current status/working plan and fresh-development manual to prevent
+accidental two-file rollback. Deployed Web UDS health=200 and unauthenticated
+index=401; Caddy application HTTPS=302 to Authelia, auth portal=200; only Caddy
+publishes host TCP443. These edge probes used no login/header impersonation;
+actual authenticated browser interaction was not independently repeated here.
+
+No tracked product source, agent/wire, schema or Compose content changed during
+this activation; the preceding 2686 Python/43 browser/63 Rust checks and image
+builds remain its tested artifact baseline, not new suite runs. This increment's
+validation is real semantic lifecycle/settlement/restart/backup/edge evidence,
+documentation links and diff checks. Private helper scripts were linted and remain
+ignored with local evidence. First-scan scheduling after new consent still relies
+on baseline/ordinary activity/refresh hints; improving that latency is a concrete
+follow-up. Automatic evidence-based uncertainty recovery, confirmed Emergency
+Purge, live protection-retirement acceptance, 10000-IP load, multi-device/data-plane
+and production acceptance remain. No release/tag was published.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

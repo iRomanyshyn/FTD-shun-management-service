@@ -25,6 +25,13 @@ the credential, typed-operation, verification and authentication boundaries.
 
 ## 1. Managed and unmanaged
 
+Live checkpoint (2026-10-30): the desk lab now uses the clean v2 profile and
+explicit managed overlay. One new TEST-NET target completed VERIFIED creation,
+controlled disappearance, automatic restoration and exact v2 retirement/removal;
+old authority replay did not re-enable it. Old DB/backup/rollback images remain
+retained, with no credential/pin/network changes. See current status/log for
+acceptance evidence; multi-device/load, recovery and Purge are not covered.
+
 Executable composition checkpoint (2026-10-30): `ftd-shun-dev-init` now prepares
 a complete separate empty v2 store without overwriting/converting old state;
 optional transfer is limited to validated Protected-IP settings. The explicit

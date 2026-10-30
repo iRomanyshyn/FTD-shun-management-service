@@ -15,6 +15,47 @@ priority. See [the planned constraints](working-version-plan.md#deferred-ip-cont
 
 ## Current increment
 
+**Managed lab activated and one-address lifecycle verified (2026-10-30).** After
+the operator repaired reachability, TCP22 from the actual Docker management
+network and real strict v3 read/settlement passed. Gracefully drained Web/API;
+retained a checked SQLite-safe `state.pre-v2-20261030.db` backup and the unchanged
+old `state.db`. Initialized separate `managed-v2.db` with only the three current
+Protected-IP settings. Enabled the already validated device-1 ADD profile and
+started API/Web/agent using the additional **`compose.managed-lab.yml` overlay**.
+Use all three Compose files for future lab operations; `.env`, credentials,
+host-key pins, Caddy/Authelia, networks and published ports were not changed.
+
+Bounded trusted-host fixture: device 1 / `fpr1010-lab`, TEST-NET
+`198.51.100.253`, new labelled maintenance authority. Full initial snapshot was
+empty. Mixed-input review accepted exactly one target, excluded two protected
+addresses and diagnosed duplicate/invalid input. Initial ADD was VERIFIED;
+independent scoped semantic removal while API/Web were stopped simulated
+disappearance without retiring policy. After normal 300-second per-pair backoff,
+fresh evidence triggered VERIFIED automatic restoration. Exact v2 device cleanup
+then permanently retired maintenance and produced a VERIFIED queued REMOVE.
+Original-key replay never re-enabled policy; an independent complete agent read
+confirmed final absence. All three queue jobs are VERIFIED, both ADD attempts
+retained and generation 1 retired. No unrelated address or existing protection
+was modified; no unknown outcome was erased or replayed.
+
+Post-cleanup restart completed a fresh successful baseline at
+`2026-10-30T12:54:44Z`: no `.253`, no active managed targets, no new ADD and no
+error; the device lease is IDLE. Both old source/backup integrity checks pass and
+their logical contents still match. Normal baseline/manual spacing remains
+300/60 seconds. The live test used explicit ordinary refresh hints after consent
+and after backoff; prompt first-scan scheduling directly from new managed consent
+remains a usability follow-up, not verified behavior in this increment.
+
+The executable managed lab profile stays active for ongoing development, with
+one device/one serialized stream. Web health is 200, unauthenticated Web UDS
+access is 401, external application redirects to Authelia (302), auth portal is
+200 and only Caddy publishes a host port. Current authenticated browser use,
+multi-device concurrency, large-load/data-plane behavior, automatic uncertainty
+recovery, confirmed Emergency Purge and production acceptance remain separate.
+See [Fresh Working-Version Lab](manual/fresh-development.md).
+
+### Previous clean-profile implementation checkpoint
+
 **Executable clean-profile managed integration (2026-10-30).** Added
 `ftd-shun-dev-init`: complete fresh v2 storage in a separate absent path, private
 staging/checkpoint/integrity validation and exclusive mode-0600 publication. It

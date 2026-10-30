@@ -138,6 +138,13 @@ Check both the durable receipt and current device state; saved policy/queued wor
 is not verified device success. Ordinary synthetic tests do not establish load,
 data-plane or production acceptance.
 
+Restoration retains the existing per-pair retry controls: at least 300 seconds
+between attempt admissions and at most three within an hour. A disappearance
+immediately after creation can therefore wait beyond the next refresh; a read
+during backoff is not failed restoration and does not authorize a timer override.
+The baseline is still 300 seconds and interactive reads retain their 60-second
+floor. A refresh requests new evidence, not replay of a previous ADD.
+
 ## 5. Rollback without overwriting data
 
 Gracefully stop/drain Web/API and then agent; inspect unresolved/current work
@@ -152,6 +159,31 @@ and retire their new authority first. Do not replay archived queues or erase
 evidence. For continued v2 operation use a compatible image/profile, not legacy.
 
 ## Validation
+
+### Current desk lab activation — 2026-10-30
+
+The lab now uses the three-file Compose selection above and `managed-v2.db`.
+Legacy `state.db` remains an inactive, logically unchanged archive, with checked
+`state.pre-v2-20261030.db` beside it. All three current Protected-IP settings were
+explicitly copied; credentials and pins were retained. The existing device-1
+profile is enabled for managed work, not as a production/fleet acceptance claim.
+
+A new trusted-host `maintenance:lab-v2-20261030` fixture on TEST-NET `.253`
+completed VERIFIED creation, controlled disappearance, automatic restoration
+after normal backoff and exact v2 combined retirement/removal. Independent agent
+reads confirmed presence before the controlled disappearance and final absence.
+The original standing request replays only its historical receipt, including
+after retirement. Keep its evidence and retired generation; do not reuse it as
+new authority. The fixture does not cover 10000-address load or multiple devices.
+
+The post-cleanup API restart read at `2026-10-30T12:54:44Z` confirmed no re-add:
+zero active managed targets, exactly two VERIFIED ADD jobs and one VERIFIED REMOVE,
+no error and an idle device lease. The original import diagnosed one duplicate,
+one invalid row and two excluded protected targets. Ordinary refresh hints were
+used to obtain new evidence after consent/backoff; confirmation itself does not
+yet promise an immediate first scan. Current baseline/manual spacing is 300/60s.
+
+### Synthetic regression
 
 ```bash
 python3 -m pytest -q tests/test_dev_init.py tests/test_configured_managed.py tests/test_configured_runtime.py

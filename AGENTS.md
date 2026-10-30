@@ -35,6 +35,28 @@ older per-experiment lab approval and mandatory dev-migration planning below.
   decision; publishing a release/tag still requires the operator's request.
   Follow [Versioning](docs/manual/versioning.md). Core security applies now too.
 
+## Current laboratory runtime — 2026-10-30
+
+The known desk lab now uses `deploy/compose.yml`, `deploy/compose.local-lab.yml`
+and **`deploy/compose.managed-lab.yml` together**. Use all three for subsequent
+lab operations. API/Web select `continuous-managed` on separate `managed-v2.db`;
+device 1 / `fpr1010-lab` has its validated FTD 7.6.6 ADD profile, with agent
+ADD/cycles/large reads enabled. Legacy admission/restoration controllers remain
+off. Older statements below that every live feature is disabled are historical,
+not the current lab configuration. Do not silently switch back to the old DB by
+omitting the managed overlay.
+
+Old `state.db` is retained unchanged alongside checked `state.pre-v2-20261030.db`;
+only three current Protected-IP settings were copied, not authority or queues.
+Prior images have `ftd-shun-{api,web,agent}:lab-pre-v2-20261030` rollback tags.
+Credentials, pinned trust, authentication and networks were not changed.
+The new labelled one-address `.253` lifecycle has VERIFIED initial creation,
+automatic restoration and v2 retirement/removal, with independent absence reads.
+Its generation 1 is retired; retain its requests/attempts/receipts, never reuse
+them as permission to add again. See the current development-log entry for final
+restart evidence and remaining acceptance limits. This is not a production
+release, 10000-address/multi-device validation or uncertainty-recovery approval.
+
 ## Source of truth
 
 Read these documents before making a material change:
