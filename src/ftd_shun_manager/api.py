@@ -364,16 +364,20 @@ def create_app(
         raise ValueError('Bulk policy admission needs an explicit continuous owner, literal capability and trusted profile scope.')
     settings = settings or Settings.from_environment()
     store = store or Store(settings.database_path)
-    if settings.api_runtime == 'continuous-observation':
+    if settings.api_runtime in {'continuous-observation', 'continuous-managed'}:
         if (continuous_dispatcher is not None or agent_client is not None or ready_removal_admission_enabled
                 or ordered_removal_admission_enabled or bulk_policy_admission_enabled or bulk_policy_concurrent_enabled):
-            raise ValueError('Configured observation cannot be mixed with injected runtime/client or admission capabilities.')
+            raise ValueError('Configured runtime cannot be mixed with injected runtime/client or admission capabilities.')
         from .configured_runtime import ExistingRuntimeStore, configured_dispatcher
 
         # Retain only the supplied storage path; every configured connection is
         # non-creating, even if the file disappears after an existence check.
         store = ExistingRuntimeStore(store.path)
         continuous_dispatcher = configured_dispatcher(settings, store)
+        if settings.api_runtime == 'continuous-managed':
+            ready_removal_admission_enabled = ordered_removal_admission_enabled = True
+            bulk_policy_admission_enabled = bulk_policy_concurrent_enabled = True
+            bulk_policy_device_ids = continuous_dispatcher.runner.configuration['addition_device_ids']
     continuous = None
     if continuous_dispatcher is not None:
         from .continuous_api import ContinuousApiRuntime
@@ -1180,8 +1184,8 @@ def main(argv=None) -> None:
     parser.add_argument('--check', action='store_true', help='Validate configured continuous composition without starting tasks or serving HTTP')
     args = parser.parse_args(argv)
     settings = Settings.from_environment()
-    if args.check and settings.api_runtime != 'continuous-observation':
-        parser.error('--check requires continuous-observation; legacy initialization was not invoked.')
+    if args.check and settings.api_runtime not in {'continuous-observation', 'continuous-managed'}:
+        parser.error('--check requires a configured continuous runtime; legacy initialization was not invoked.')
     try:
         app = create_app(settings)
     except (ValueError, OSError, sqlite3.Error) as error:

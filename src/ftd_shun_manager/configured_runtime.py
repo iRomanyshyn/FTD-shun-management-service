@@ -1,4 +1,4 @@
-"""Configured observation composition on existing storage; never a migration."""
+"""Configured fenced compositions on existing storage; never a migration."""
 
 import sqlite3
 from contextlib import closing, contextmanager
@@ -50,16 +50,26 @@ def checked_inventory(store, path, expected=None):
 
 
 def configured_dispatcher(settings, store):
-    """No fake client, schema initialization, socket call or authority capability."""
-    if settings.api_runtime != 'continuous-observation' or settings.device_inventory_path is None:
+    """No fake client, schema initialization, socket call or policy grant."""
+    if settings.api_runtime not in {'continuous-observation', 'continuous-managed'} or settings.device_inventory_path is None:
         raise ValueError('Configured continuous runtime requires its explicit selector and public inventory path.')
     # Refuse absent state before any component can open/create a SQLite file.
     if not store.path.is_file():
         raise QueueConflict('Configured runtime requires existing fenced storage; nothing was initialized.')
+    managed = settings.api_runtime == 'continuous-managed'
+    addition_ids = frozenset()
+    if managed:
+        entries = checked_inventory(store, settings.device_inventory_path)
+        enabled = [entry.device for entry in entries if entry.device.enabled]
+        if not enabled or any(device.addition_profile is None for device in enabled):
+            raise ValueError('Managed runtime requires an explicit supported ADD profile on every enabled device.')
+        addition_ids = frozenset(device.id for device in enabled)
     agent = UnixAgentClient(settings.agent_socket, settings.agent_timeout_seconds + 5,
                             large_snapshots=True, settled_cycles=True,
-                            additions_enabled=False, addition_device_ids=frozenset())
+                            additions_enabled=managed, addition_device_ids=addition_ids)
     return ContinuousDispatcher(store, agent, enabled=True, agent_concurrency=settings.agent_concurrency,
+                                bulk_dispatch_enabled=managed, addition_device_ids=addition_ids,
+                                ordered_promotion_enabled=managed,
                                 operation_timeout_seconds=settings.agent_timeout_seconds + 5,
                                 poll_interval_seconds=settings.poll_interval_seconds,
                                 interactive_min_interval_seconds=settings.interactive_refresh_min_interval_seconds,

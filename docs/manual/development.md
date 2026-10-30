@@ -39,6 +39,15 @@ For documentation-only changes, validate links and `git diff --check`; do not ru
 unrelated full code/browser/agent suites. Code, protocol and deployment changes
 still get the applicable regression checks below and in `AGENTS.md`.
 
+## Fresh working-version setup and execution
+
+Use [Fresh Working-Version Lab](fresh-development.md) for the normal next-stage
+lab setup. `ftd-shun-dev-init` creates only an absent separate database, optionally
+copies current Protected-IP settings and never adopts old queued work/authority.
+The explicit `continuous-managed` API/Web selector connects v2 recurring consent,
+bounded continuous ADD/restoration and ready/ordered cleanup on that exact profile.
+Legacy controllers remain off. See that manual for cutover/rollback and tests.
+
 ## Nonempty legacy transition inspection
 
 ```bash

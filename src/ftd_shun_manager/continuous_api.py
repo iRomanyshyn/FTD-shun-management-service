@@ -26,6 +26,8 @@ class ContinuousApiRuntime:
         self.bulk_policy_device_ids = bulk_policy_device_ids
         self.bulk_policy_concurrent_enabled = bulk_policy_concurrent_enabled
         self._started = False
+        self._runtime_selection = settings.api_runtime
+        self.managed_execution = settings.api_runtime == 'continuous-managed'
         self._inventory_snapshot = None
         self._inventory_path = settings.device_inventory_path
         self._validate(agent)
@@ -64,6 +66,8 @@ class ContinuousApiRuntime:
             raise ValueError('Bulk policy admission needs a literal capability and separate exact trusted profile scope.')
         settings, service = self.settings, self.dispatcher
         runner, config = service.runner, service.runner.configuration
+        if settings.api_runtime != self._runtime_selection:
+            raise ValueError('Continuous runtime selection changed after composition.')
         if (runner.store is not self.store or settings.database_path != self.store.path
                 or (agent is not None and agent is not runner.agent)):
             raise ValueError('API, dispatcher, agent and database must share the exact existing composition.')
@@ -79,9 +83,19 @@ class ContinuousApiRuntime:
         gates = (settings.import_admission_enabled, settings.import_execution_enabled,
                  settings.managed_policy_admission_enabled, settings.managed_removal_admission_enabled,
                  settings.managed_restoration_enabled, settings.managed_removal_worker_enabled)
-        if (any(value is not False for value in gates) or config['bulk_dispatch_enabled'] is not False
-                or config['import_execution_enabled'] is not False or config['addition_device_ids']):
-            raise ValueError('This API profile cannot enable ADD, legacy admission or managed controllers.')
+        if any(value is not False for value in gates):
+            raise ValueError('Continuous profiles cannot enable legacy admission or managed controllers.')
+        expected_ids = self.bulk_policy_device_ids if self.managed_execution else frozenset()
+        if (config['bulk_dispatch_enabled'] is not self.managed_execution
+                or config['import_execution_enabled'] is not self.managed_execution
+                or config['addition_device_ids'] != expected_ids):
+            raise ValueError('Continuous ADD scope/execution must match the selected configured profile.')
+        if self.managed_execution and (
+                type(runner.agent) is not UnixAgentClient or settings.device_inventory_path is None
+                or not expected_ids or service.ordered_promotion_enabled is not True
+                or any(value is not True for value in (self.ready_removal_admission_enabled,
+                    self.ordered_removal_admission_enabled, self.bulk_policy_admission_enabled, self.bulk_policy_concurrent_enabled))):
+            raise ValueError('Configured managed execution requires the real strict client and complete v2 capabilities.')
         if (config['operation_timeout_seconds'] != settings.agent_timeout_seconds + 5
                 or config['poll_interval_seconds'] != settings.poll_interval_seconds
                 or config['interactive_min_interval_seconds'] != settings.interactive_refresh_min_interval_seconds
@@ -90,8 +104,8 @@ class ContinuousApiRuntime:
         if isinstance(runner.agent, UnixAgentClient) and (
                 runner.agent.socket_path != settings.agent_socket or runner.agent.timeout_seconds != settings.agent_timeout_seconds + 5
                 or runner.agent.large_snapshots is not True or runner.agent.settled_cycles is not True
-                or runner.agent.additions_enabled is not False or runner.agent.addition_device_ids != frozenset()):
-            raise ValueError('Continuous API requires a matching strict large-read transport with an explicit empty ADD scope.')
+                or runner.agent.additions_enabled is not self.managed_execution or runner.agent.addition_device_ids != expected_ids):
+            raise ValueError('Continuous API requires a matching strict large-read transport and exact selected ADD scope.')
         if (service._task is not None or runner._round is not None or runner._service_active
                 or runner._broken or service.maintenance.status()['running'] or service.maintenance.status()['broken']):
             raise QueueConflict('API must exclusively own an inactive, unbroken continuous lifecycle.')
@@ -104,6 +118,9 @@ class ContinuousApiRuntime:
             from .configured_runtime import checked_inventory
 
             self._inventory_snapshot = checked_inventory(self.store, self._inventory_path, self._inventory_snapshot)
+            if self.managed_execution and (expected_ids != frozenset(device.id for device in devices)
+                    or any(entry.device.enabled and entry.device.addition_profile is None for entry in self._inventory_snapshot)):
+                raise ValueError('Managed execution requires explicit profiles for its entire enabled device scope.')
         if self.bulk_policy_admission_enabled:
             if not self.bulk_policy_device_ids.issubset({device.id for device in devices}):
                 raise ValueError('Trusted policy profiles must belong to enabled sealed device scope.')
@@ -179,7 +196,9 @@ class ContinuousApiRuntime:
 
     def status(self):
         self.managed_metadata()  # Drift is unavailable state, never a legacy/empty fallback.
-        return {**self.dispatcher.refresh_status(), 'runtime_mode': 'continuous-observation',
+        return {**self.dispatcher.refresh_status(),
+                'runtime_mode': 'continuous-managed' if self.managed_execution else 'continuous-observation',
+                'bulk_execution_enabled': self.managed_execution,
                 'manual_mutations_available': False, 'managed_workflows_available': False,
                 'managed_policy_view_available': True, 'managed_policy_retirement_available': True,
                 'ready_removal_review_available': True,

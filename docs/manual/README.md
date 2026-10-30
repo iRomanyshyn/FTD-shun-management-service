@@ -17,6 +17,7 @@ not a runbook or permission to change gates, initialize schemas or run new fixtu
 | Manual | Purpose |
 | --- | --- |
 | [Development](development.md) | Local setup, test commands, and mock agent boundaries. |
+| [Fresh Working-Version Lab](fresh-development.md) | Non-overwriting clean v2 setup, configured managed API/Web, lab Compose cutover, usage and rollback. |
 | [Working-Version Plan](../working-version-plan.md) | Agreed product behavior, working-version priorities, implementation gaps and deferred SMTP notifications; not yet an operating procedure. |
 | [Versioning](versioning.md) | Single version source, manual release numbering, pre-1.0 compatibility and planned build identity. |
 | [Deployment](deployment.md) | Caddy, Authelia, Unix sockets, secrets, and container layout. |
@@ -70,7 +71,7 @@ not a runbook or permission to change gates, initialize schemas or run new fixtu
 | [Continuous Dispatch](continuous-dispatch.md) | Internal independent lifecycle, continuous work, priority and per-device browser status/demand contract; no API runtime selection or lab activation. |
 | [Continuous Runtime Maintenance](continuous-maintenance.md) | Single controller-owned expiry/retention lifecycle, evidence holds, backoff, status and cancellation drain; no lab activation. |
 | [Restricted Continuous API](continuous-api.md) | Explicit existing-profile API/BFF composition, lifecycle/compatibility checks and refused unavailable workflows; no lab activation. |
-| [Configured Observation Runtime](configured-runtime.md) | Default-legacy process selection, frozen public-inventory assertions and non-executing CLI check on prepared storage; no automatic migration or lab activation. |
+| [Configured Continuous Runtime](configured-runtime.md) | Explicit observation/managed process selection, frozen public-inventory assertions and non-executing CLI check on prepared storage; no automatic migration. |
 | [Nonempty Transition Inspection](migration-inspection.md) | Read-only complete retained-source manifest, operational blockers and snapshot-bound reinspection; no converter, apply action or lab activation. |
 | [Version-2 Managed Policy Views](bulk-policy-views.md) | Bounded read-only policy/evidence pages and frozen policy-only stop-maintaining; no creation, combined removal or lab activation. |
 | [Version-2 Ready-Scope Removal](bulk-ready-removal.md) | Exact scope and default-off atomic retirement/shared queue admission for ready targets; no lab activation. |

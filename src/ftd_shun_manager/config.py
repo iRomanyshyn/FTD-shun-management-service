@@ -67,8 +67,8 @@ class Settings:
     agent_concurrency: int = 1
 
     def __post_init__(self) -> None:
-        if type(self.api_runtime) is not str or self.api_runtime not in {'legacy', 'continuous-observation'}:
-            raise ValueError('FTD_SHUN_API_RUNTIME must be legacy or continuous-observation')
+        if type(self.api_runtime) is not str or self.api_runtime not in {'legacy', 'continuous-observation', 'continuous-managed'}:
+            raise ValueError('FTD_SHUN_API_RUNTIME must be legacy, continuous-observation or continuous-managed')
         if type(self.agent_concurrency) is not int or not 1 <= self.agent_concurrency <= 10:
             raise ValueError('Agent concurrency must be a literal integer between 1 and 10')
         if type(self.managed_removal_admission_enabled) is not bool:

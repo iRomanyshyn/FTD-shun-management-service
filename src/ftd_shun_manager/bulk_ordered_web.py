@@ -25,7 +25,7 @@ def register_ordered_removal_web(app, settings, *, enabled, render, identity_for
 
     def compatible(state):
         return (type(state) is dict and type(state.get('managed_policy_format')) is int
-                and state['managed_policy_format'] == 2 and state.get('runtime_mode') == 'continuous-observation'
+                and state['managed_policy_format'] == 2 and state.get('runtime_mode') in ('continuous-observation', 'continuous-managed')
                 and state.get('ordered_removal_review_available') is True)
 
     def metadata():

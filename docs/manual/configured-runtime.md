@@ -1,4 +1,4 @@
-# Configured Continuous Observation Runtime
+# Configured Continuous Runtime
 
 ## Status and boundaries
 
@@ -6,12 +6,13 @@ Policy update, 2026-10-30: ordinary bounded work on the known desk lab follows
 [Lab-First Development](development.md#lab-first-development-policy), not repeated
 per-fixture approvals. Use an explicitly prepared clean separate profile while
 archiving the old dev store; a legacy converter is not required. This does not
-change the implemented observation-only scope or bypass its compatibility checks.
+change the compatibility checks. The subsequent managed composition is documented
+in [Fresh Working-Version Lab](fresh-development.md).
 
 Implemented process configuration on **already prepared** version-2 fenced
-storage. Not enabled in the lab. This is not a migration/activation runbook,
-general managed-import release or production acceptance. The legacy lab database
-and its retained managed lifecycle evidence cannot be converted by startup.
+storage. Observation and managed execution are separate explicit selections;
+neither is production acceptance. The legacy lab database and its retained
+managed lifecycle evidence cannot be converted by startup.
 
 This increment supplies three pieces: explicit runtime selection, immutable
 public-inventory assertions, and a non-executing CLI check. It uses the existing
@@ -24,20 +25,25 @@ and [maintenance owner](continuous-maintenance.md), not another executor.
 | --- | --- |
 | `FTD_SHUN_API_RUNTIME=legacy` | Default; existing serial startup, which refuses fenced storage. |
 | `FTD_SHUN_API_RUNTIME=continuous-observation` | Explicit restricted continuous startup; existing exact profile only, no automatic fallback or initialization. |
+| `FTD_SHUN_API_RUNTIME=continuous-managed` | Explicit v2 standing consent/continuous ADD and restoration, ready/ordered removal and shared promotion; every enabled device needs a supported ADD profile. |
 | `FTD_SHUN_DEVICE_INVENTORY` | API-side mounted public JSON file. Compose maps host `FTD_SHUN_DEVICE_INVENTORY_PATH` to this mount. Required for configured continuous mode. |
 | `FTD_SHUN_AGENT_MAX_CONCURRENT_DEVICES` | Canonical integer 1–10, default 1. Declares the real agent's capacity; it must cover the existing sealed profile's concurrency. Changing this alone does not expand that immutable profile. |
 
 Socket mode, cycles, large snapshots and development authentication **off** are
 required. Existing API import admission/execution, legacy managed policy/removal
 admission, restoration and cleanup-worker settings must remain false. The strict
-Unix client always has settled cycles, large reads and an explicit empty ADD
-scope. There is no negotiation/downgrade to old agents or ordinary BEGIN.
+Unix client always has settled cycles and large reads. Observation has an explicit
+empty ADD scope; managed has exactly the supported enabled-device scope and needs
+the agent's independent ADD gate. There is no negotiation/downgrade to old agents
+or ordinary BEGIN.
 
 The baseline/manual spacing, operation deadline (+5s IPC margin) and history
-retention come from existing Settings. All API/Web v2 admission capabilities,
-ordered promotion and bulk execution remain default-off; this selector cannot
-enable them. Explicit developer dispatcher/client injection cannot be combined
-with configured selection. Synthetic injection remains a test-only factory path.
+retention come from existing Settings. Observation keeps v2 admission/promotion/
+execution off. Managed deliberately selects the existing v2 concurrent standing,
+ready/ordered removal and shared promotion capabilities. Its BFF must independently
+select the same mode. Explicit developer dispatcher/client/admission injection
+cannot be combined with configured selection. Synthetic injection remains a
+test-only factory path. Both modes retain unknown-write and retired-policy guards.
 
 ## Public inventory and stable identity
 
@@ -52,7 +58,8 @@ ones. Every database device must match an inventory entry by immutable ID,
 hostname, address, enabled state and exact pinned host-key text. Missing disabled
 IDs are not discarded as history. New/changed addresses or keys refuse rather
 than upsert, erase evidence or silently trust a replacement. Addition profiles
-are metadata, never authority or executable ADD scope.
+alone are metadata: observation still cannot ADD, and managed execution additionally
+requires real standing consent, fresh state and both trusted process/agent gates.
 
 Composition freezes all semantic fields, including sorted interface allowlists
 and addition profiles. Lifespan startup rechecks both the file and retained DB
@@ -101,7 +108,8 @@ The name **observation** is not a no-write guarantee: existing admitted REMOVE
 jobs and automatic Protected-IP removals may execute. Enabling protection may
 permanently retire matching managed authority. One maintenance owner expires
 requests/prunes evidence-aware history at its established cadence. Startup never
-grants/resumes maintenance or enables ADD. Preserve all existing independent
+grants/resumes maintenance. Observation cannot ADD; managed may dispatch previously
+confirmed standing authority and restoration. Preserve all existing independent
 pause, uncertainty and feature-specific controls.
 
 Normal shutdown drains current operations and local settlement; do not cancel
@@ -128,8 +136,8 @@ authorizing startup. A successful inspection is not a prepared fenced profile.
 Rollback on fenced storage requires a matching fenced-compatible image/configuration
 and drained lifecycle. Switching to `legacy` deliberately refuses; never drop
 fences, requeue unknown jobs, erase receipts, reenable retired policy or restore
-an older authority snapshot to force compatibility. No lab services/settings,
-inventory, credentials or FTD state changed for this increment.
+an older authority snapshot to force compatibility. Use the separate fresh-profile
+guide for the explicit development overlay, initialization and cutover procedure.
 
 ## Validation
 

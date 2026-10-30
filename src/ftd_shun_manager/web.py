@@ -193,6 +193,7 @@ def refresh_metadata(refresh: object) -> dict[str, object]:
         "refresh_enabled",
         "refresh_schedule_mode",
         "runtime_mode",
+        "bulk_execution_enabled",
         "manual_mutations_available",
         "managed_workflows_available",
         "managed_policy_format",
@@ -255,6 +256,12 @@ def create_app(settings: Settings | None = None, *, ready_removal_admission_enab
             or (bulk_policy_concurrent_enabled and bulk_policy_admission_enabled is not True)):
         raise ValueError('Concurrent Web consent requires its separate literal capability and standing admission.')
     settings = settings or Settings.from_environment()
+    if settings.api_runtime == 'continuous-managed':
+        if any(value is not False for value in (ready_removal_admission_enabled, ordered_removal_admission_enabled,
+                                                bulk_policy_admission_enabled, bulk_policy_concurrent_enabled)):
+            raise ValueError('Configured managed Web cannot be mixed with injected admission capabilities.')
+        ready_removal_admission_enabled = ordered_removal_admission_enabled = True
+        bulk_policy_admission_enabled = bulk_policy_concurrent_enabled = True
     if type(ready_removal_admission_enabled) is not bool or (ready_removal_admission_enabled and (
             settings.agent_mode != 'socket' or settings.development_auth is not False
             or settings.agent_cycles_enabled is not True or settings.large_snapshots_enabled is not True)):

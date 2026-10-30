@@ -15,6 +15,51 @@ priority. See [the planned constraints](working-version-plan.md#deferred-ip-cont
 
 ## Current increment
 
+**Executable clean-profile managed integration (2026-10-30).** Added
+`ftd-shun-dev-init`: complete fresh v2 storage in a separate absent path, private
+staging/checkpoint/integrity validation and exclusive mode-0600 publication. It
+never overwrites/converts old state or contacts SSH. Optional readonly transfer
+copies only validated current Protected-IP settings with a new labelled audit;
+no old authority, jobs, observations or receipts. Empty desired execution starts
+ready with a fresh-read barrier, not with implicit targets or imported authority.
+
+The explicit `continuous-managed` selector now configures API and BFF for existing
+v2 concurrent recurring consent, ready/ordered removal and shared promotion. The
+same continuous owner drives bounded discovery/ADD/restoration and protection
+cleanup with a real strict settled/large/v3 client and exact supported enabled-
+device profile scope. Legacy controllers remain false; legacy remains the default
+selector. API startup/check never initializes or repairs storage, adopts policy,
+or probes the agent. BFF retains real identity, CSRF, exact frozen consent and
+original-key receipts. Legacy write routes remain refused, not fallback controls.
+
+The opt-in `deploy/compose.managed-lab.yml` selects a separate `managed-v2.db` in
+the existing state volume, leaving `state.db` intact. It changes API/Web selection
+and agent protocol gates only; Caddy/Authelia, secrets and network boundaries stay
+unchanged. [Fresh Working-Version Lab](manual/fresh-development.md) provides setup,
+cutover, operator usage and non-overwriting rollback.
+
+Deployment preparation: current lab API/Web/agent images retained as
+`ftd-shun-{api,web,agent}:lab-pre-v2-20261030`; new images built successfully.
+No live cutover, database initialization, inventory/credential/environment change
+or device mutation has been performed. Read-only preflight found no unfinished
+queue work or enabled old managed policy, but current agent SSH attempts time
+out. TCP22 succeeds from the host and fails from a credential-free helper on
+`deploy_ftd-management`. Do not activate a fresh executor against this known
+unreachable path; repair Docker-to-FTD reachability before live acceptance.
+
+Validation: **28 new tests**, **2686 total Python tests passed (460.97s)**,
+**43 browser tests**, **63 Rust tests**, release build, compileall/Ruff/diff,
+nonsecret Compose validation and 361 local Markdown links pass. The built Python
+3.12 image also initializes a disposable tmpfs profile, passes non-executing
+managed API preflight and constructs Web with networking disabled. These cover
+actual configured API/BFF and shared worker with synthetic RPCs, not real
+device/load acceptance. Supporting details are in the development log.
+Next delivery work is live v2 import/adoption/restoration/cleanup acceptance, then
+automatic evidence-based recovery and confirmed Emergency Purge. Legacy converter
+work remains off the critical path. No tagged release or production claim.
+
+### Previous lab-first policy checkpoint
+
 **Lab-first development policy (2026-10-30, operator clarification).** This is an
 unreleased internal project with no production use; the current FPR1010 is the
 operator's desk test device. Normal in-scope implementation, validated lab

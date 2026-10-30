@@ -7316,6 +7316,66 @@ No code/configuration, database/archive, profile/gate, credential/inventory,
 service/device or GitHub tag/release was changed. Next is the practical fresh
 lab setup and working end-to-end path, not another approval/migration framework.
 
+## 2026-10-30 — Clean development setup and configured managed execution
+
+Implemented the practical fresh-profile route rather than a legacy converter.
+`ftd-shun-dev-init` builds all base/queue/v2 policy, preparations, cancellations,
+attempts, captured waits, dispatch, device leases, ordered waits and promoter
+storage in private staging. It checks integrity, checkpoints and exclusively
+publishes a mode-0600 complete file; existing/racing targets are never overwritten.
+Optional explicit readonly settings transfer copies only validated Protected IPs,
+including disabled rows, with a fresh maintenance audit. No old authority, jobs,
+observations or history is converted. The initially empty ready profile has a
+fresh-read barrier and no executable policy until real recurring consent.
+
+Added explicit `continuous-managed` process selection for API/BFF on existing
+exact fenced storage. It selects the real strict settled/large/v3 Unix client,
+all enabled supported profiles and existing concurrent standing/ready/ordered
+capabilities through the same continuous owner. No second/legacy controller,
+arbitrary CLI, startup migration, fake actor or gate fallback. Legacy remains
+default. Updated all five v2 Web compatibility checks for the explicit new mode,
+retaining independent local capabilities, CSRF, frozen consent and original keys.
+Status distinguishes executable v2 scope while refusing obsolete legacy routes.
+
+Added the opt-in managed-lab Compose overlay targeting separate `managed-v2.db`,
+with legacy controllers off, and a structured fresh setup/cutover/usage/rollback
+manual. Updated normative architecture, examples, README, manual routing and
+working plan/current status. Old DB conversion and cross-dev-version compatibility
+remain optional; no production/tagged release is claimed.
+
+Validation: 28 new disposable setup/configured-managed tests passed,
+including publication races/failures, settings-only source preservation,
+construction without init/RPC, exact configuration, actual API/BFF consent/CSRF,
+shared-worker ADD/restoration, permanent protection retirement/removal and
+no-readd after deleting protection. Full Python regression: **2686 passed in
+460.97s (7m40s)**. Supporting checks are recorded below.
+
+Prepared deployment without switching the lab: rollback-tagged existing API/Web/
+agent images as `ftd-shun-{api,web,agent}:lab-pre-v2-20261030`; built all three new
+images (agent release build succeeds). Read-only old state showed 13 terminal
+jobs (12 VERIFIED, one NOOP), zero enabled managed targets and three protection
+settings (two enabled). No unknown work was cleared. Current agent logs report
+SSH timeout; a direct host TCP22 connection succeeds while a temporary read-only,
+credential-free helper on the exact Docker management network cannot connect.
+No network/VPN change is authorized implicitly, so no fresh-store activation,
+inventory/profile/credential/.env change, service restart or device mutation was
+attempted. The old live services and old DB remain in place. Live v2 acceptance
+must follow restoration of Docker-to-FTD reachability; ordinary lab authorization
+does not require another per-fixture ceremony once that path works.
+
+Supporting checks: compileall/Ruff/diff and 361 local links in nine Markdown
+files pass. Compose validates with a temporary nonsecret environment and
+`--no-env-resolution` (no real env values printed). Browser regression: 43/43
+passed (138.45s). Rust release build succeeds; 58 unit plus five integration tests
+pass. The initial sandbox Rust run lacked local socket permissions (five EPERM
+failures); the correctly permissioned synthetic rerun passes without code changes.
+All three Docker images build. An isolated, network-disabled Python 3.12 image
+smoke test creates its tmpfs synthetic profile, passes managed `ftd-shun-api --check`
+without execution/migration and constructs Web. Its initial read-only-container
+attempt omitted writable `/tmp`, causing SQLite schema I/O failure; repeating
+with the existing real Compose tmpfs contract passes. No production workaround
+or schema/security relaxation was needed.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

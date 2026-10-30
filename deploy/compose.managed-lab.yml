@@ -1,0 +1,30 @@
+# Explicit working-version lab profile. Keep the old state.db; never use down -v.
+# First prepare the absent managed-v2.db with ftd-shun-dev-init (see manual).
+# Every enabled public device must have an independently supported ADD profile.
+x-managed-runtime: &managed-runtime
+  FTD_SHUN_API_RUNTIME: continuous-managed
+  FTD_SHUN_AGENT_MODE: socket
+  FTD_SHUN_DEVELOPMENT_AUTH: "false"
+  FTD_SHUN_AGENT_CYCLES_ENABLED: "true"
+  FTD_SHUN_LARGE_SNAPSHOTS_ENABLED: "true"
+  # Legacy controllers remain off; the selected v2 runtime owns all dispatch.
+  FTD_SHUN_IMPORT_ADMISSION_ENABLED: "false"
+  FTD_SHUN_IMPORT_EXECUTION_ENABLED: "false"
+  FTD_SHUN_MANAGED_POLICY_ADMISSION_ENABLED: "false"
+  FTD_SHUN_MANAGED_REMOVAL_ADMISSION_ENABLED: "false"
+  FTD_SHUN_MANAGED_RESTORATION_ENABLED: "false"
+  FTD_SHUN_MANAGED_REMOVAL_WORKER_ENABLED: "false"
+
+services:
+  api:
+    environment:
+      <<: *managed-runtime
+      FTD_SHUN_DATABASE: /var/lib/ftd-shun-manager/managed-v2.db
+  web:
+    environment:
+      <<: *managed-runtime
+  agent:
+    environment:
+      FTD_SHUN_AGENT_CYCLES_ENABLED: "true"
+      FTD_SHUN_LARGE_SNAPSHOTS_ENABLED: "true"
+      FTD_SHUN_AGENT_ADDITIONS_ENABLED: "true"

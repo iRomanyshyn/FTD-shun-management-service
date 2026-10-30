@@ -37,7 +37,7 @@ def register_bulk_cancellation_web(app, settings, *, render, identity_for, opera
                 response = client.get('/api/v1/status')
                 value = response.json()
                 if (response.status_code == 200 and type(value) is dict and type(value.get('managed_policy_format')) is int
-                        and value['managed_policy_format'] == 2 and value.get('runtime_mode') == 'continuous-observation'
+                        and value['managed_policy_format'] == 2 and value.get('runtime_mode') in ('continuous-observation', 'continuous-managed')
                         and value.get('bulk_import_cancellation_available') is True): return value
         except (httpx.HTTPError, ValueError, TypeError, KeyError): pass
         return None

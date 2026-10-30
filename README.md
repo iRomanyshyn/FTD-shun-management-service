@@ -145,10 +145,12 @@ python3 -m venv .venv
 
 See the [Development Manual](docs/manual/development.md) for the controlled mock-agent workflow. Never use mock mode in a deployed environment.
 
-The optional [configured continuous observation runtime](docs/manual/configured-runtime.md)
-adds explicit process selection, frozen public-inventory checks and
-`ftd-shun-api --check` on already prepared fenced storage. Legacy remains default;
-no startup migration, ADD activation or lab transition is implied.
+The [fresh working-version lab guide](docs/manual/fresh-development.md) provides
+non-overwriting clean v2 setup and an explicit `continuous-managed` API/Web profile
+for standing import, restoration and verified queued cleanup. Legacy remains the
+default; startup never migrates old development state or adopts old authority.
+The narrower [continuous observation profile](docs/manual/configured-runtime.md)
+and non-executing `ftd-shun-api --check` remain available separately.
 
 The separate [nonempty transition inspector](docs/manual/migration-inspection.md)
 fingerprints retained legacy data and reports migration blockers without applying

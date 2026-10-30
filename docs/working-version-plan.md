@@ -25,6 +25,17 @@ the credential, typed-operation, verification and authentication boundaries.
 
 ## 1. Managed and unmanaged
 
+Executable composition checkpoint (2026-10-30): `ftd-shun-dev-init` now prepares
+a complete separate empty v2 store without overwriting/converting old state;
+optional transfer is limited to validated Protected-IP settings. The explicit
+`continuous-managed` API/Web selector connects existing concurrent standing
+consent, exact profiled ADD scope, bounded continuous discovery/restoration and
+ready/ordered cleanup through one owner. The opt-in managed-lab overlay selects
+`managed-v2.db`; legacy remains default and startup never initializes. See
+[Fresh Working-Version Lab](manual/fresh-development.md) and current status for
+actual deployment/acceptance evidence. Automatic uncertainty recovery, Emergency
+Purge, multi-device/load acceptance and release packaging still remain.
+
 - A manually added service target is always maintained until explicitly removed.
   There is no one-time-add option in the working-version workflow.
 - An observed device/IP without active service authority is unmanaged. Observation

@@ -29,7 +29,7 @@ def register_bulk_confirmation_web(app, settings, *, enabled, concurrent_enabled
         response = client.get('/api/v1/status')
         value = response.json()
         if (response.status_code != 200 or type(value) is not dict or type(value.get('managed_policy_format')) is not int
-                or value['managed_policy_format'] != 2 or value.get('runtime_mode') != 'continuous-observation'
+                or value['managed_policy_format'] != 2 or value.get('runtime_mode') not in ('continuous-observation', 'continuous-managed')
                 or value.get('bulk_import_preparation_available') is not True):
             raise httpx.RequestError('Compatible standing-import API unavailable')
         return value

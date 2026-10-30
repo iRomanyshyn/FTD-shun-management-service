@@ -5416,3 +5416,37 @@ tags without an explicit request. A real tag must identify tested artifacts,
 documented capabilities/limits and supported installation/upgrade/backup/rollback
 procedures; it is not proof of untested FTD behavior. Security and truthful
 verification apply throughout development, not only after the first release.
+
+## Fresh development profile and configured managed runtime — 2026-10-30
+
+Provide an explicit development initializer for a new, absent database path.
+Build the complete base/queue/v2 cancellation/attempt/captured/dispatch/device/
+ordered-promotion profile privately, validate it, checkpoint SQLite and publish
+the finished file exclusively without overwriting anything. Failure before
+publication leaves no partial destination. Never convert/reset an existing store
+or initialize from startup/GET. Load 1..10 public devices and their sealed enabled
+scope; optionally copy only validated current Protected-IP settings from an
+explicit readonly source, with fresh maintenance audit. Copy no old authority,
+jobs, observations or receipts. Initial empty desired execution may be ready with
+a fresh-read barrier: no target or ADD exists until real recurring Web consent.
+
+Add `continuous-managed` as a separate explicit API/Web runtime selection on
+existing exact prepared storage. Legacy/observation defaults and behavior remain.
+Use the same one fenced continuous owner, strict settled large/v3 transport,
+bounded discovery, per-device ADD profiles and configured matching agent capacity.
+Require an explicit supported addition profile on every enabled device; freeze
+that public scope and recheck at start. Select existing concurrent standing,
+ready/ordered removal and shared promotion capabilities in this trusted process
+composition, never from a browser field or by mixing injected owners/capabilities.
+Both API and BFF must independently select the managed profile. Legacy admission/
+restoration/controller switches remain off, rather than constructing two workers.
+
+Use existing exact whole-scope reviews, real actor/CSRF, receipts, uncertainty,
+lease, protection-retirement and original-key guards unchanged. Unavailable
+legacy endpoints stay refused; no general command route or legacy policy resume
+is introduced. Status must distinguish the managed runtime and its ADD capability
+from actual authority, verified work and unsupported workflows. Startup/check
+never grant policy, initialize storage or prove agent/device readiness. Selecting
+managed mode can dispatch already authorized work and protection; announce that
+operational impact. This is laboratory integration, not multi-device/load or
+production acceptance, Emergency Purge or automatic uncertainty reconciliation.
