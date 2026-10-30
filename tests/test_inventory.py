@@ -1,4 +1,5 @@
 import json
+import os
 from ipaddress import IPv4Address
 
 import pytest
@@ -126,3 +127,38 @@ def test_reloaded_address_does_not_recreate_observations_or_history(tmp_path):
     assert store.list_devices() == [device]
     assert store.list_events() == history
     assert store.list_active_shuns() == observations
+
+
+@pytest.mark.parametrize('kind', ['oversized', 'fifo', 'directory', 'symlink'])
+def test_public_inventory_rejects_unbounded_or_nonregular_input(tmp_path, kind):
+    path = tmp_path / 'public.json'
+    if kind == 'oversized': path.write_bytes(b' ' * (256 * 1024 + 1))
+    elif kind == 'fifo': os.mkfifo(path)
+    elif kind == 'directory': path.mkdir()
+    else:
+        target = tmp_path / 'target.json'
+        target.write_text(json.dumps([public_device()]))
+        path.symlink_to(target)
+    with pytest.raises((OSError, ValueError)):
+        load_devices(path)
+
+
+def test_public_inventory_rejects_duplicate_addresses_even_for_disabled_devices(tmp_path):
+    path = tmp_path / 'public.json'
+    path.write_text(json.dumps([public_device(), public_device() | {'id': 2, 'hostname': 'disabled', 'enabled': False}]))
+    with pytest.raises(ValueError, match='unique'):
+        load_devices(path)
+
+
+@pytest.mark.parametrize('field', ['hostname', 'ssh_host_key'])
+def test_public_inventory_rejects_control_text_in_identity(tmp_path, field):
+    path = tmp_path / 'public.json'
+    path.write_text(json.dumps([public_device() | {field: 'test\nextra'}]))
+    with pytest.raises(ValueError): load_devices(path)
+
+
+def test_invalid_public_address_error_does_not_echo_source(tmp_path):
+    path = tmp_path / 'public.json'
+    path.write_text(json.dumps([public_device() | {'management_ip': 'sensitive-test-value'}]))
+    with pytest.raises(ValueError) as error: load_devices(path)
+    assert 'sensitive-test-value' not in str(error.value)

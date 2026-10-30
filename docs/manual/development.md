@@ -1,5 +1,19 @@
 # Development Manual
 
+## Configured observation-runtime checks
+
+```bash
+python3 -m pytest -q tests/test_configured_runtime.py tests/test_inventory.py tests/test_config.py tests/test_continuous_api.py
+```
+
+Disposable retained profiles cover explicit default-legacy selection, real strict
+Unix-client construction without I/O, no-init/check/GET guarantees, mismatched
+nonempty/partial state, full device/trust and disabled-ID matching, frozen startup
+drift, canonical inventory ordering, independent gates and one lifecycle owner.
+Only the lifecycle test substitutes semantic fake RPCs. No live DB/inventory,
+credential, service or FTD is accessed. See [Configured Runtime](configured-runtime.md)
+for the preflight/backup/rollback boundaries; it is not lab activation approval.
+
 ## Fenced concurrent standing-admission checks
 
 ```bash

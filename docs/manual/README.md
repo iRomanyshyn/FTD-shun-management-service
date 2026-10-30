@@ -61,7 +61,8 @@ not a runbook or permission to change gates, initialize schemas or run new fixtu
 | [Parallel Device Rounds](parallel-rounds.md) | Default-disabled actual bounded device sessions, shared typed queue/results and cancellation drain; no background/API/lab activation. |
 | [Continuous Dispatch](continuous-dispatch.md) | Internal independent lifecycle, continuous work, priority and per-device browser status/demand contract; no API runtime selection or lab activation. |
 | [Continuous Runtime Maintenance](continuous-maintenance.md) | Single controller-owned expiry/retention lifecycle, evidence holds, backoff, status and cancellation drain; no lab activation. |
-| [Restricted Continuous API](continuous-api.md) | Explicit existing-profile API/BFF composition, lifecycle/compatibility checks and refused unavailable workflows; no environment selector or lab activation. |
+| [Restricted Continuous API](continuous-api.md) | Explicit existing-profile API/BFF composition, lifecycle/compatibility checks and refused unavailable workflows; no lab activation. |
+| [Configured Observation Runtime](configured-runtime.md) | Default-legacy process selection, frozen public-inventory assertions and non-executing CLI check on prepared storage; no automatic migration or lab activation. |
 | [Version-2 Managed Policy Views](bulk-policy-views.md) | Bounded read-only policy/evidence pages and frozen policy-only stop-maintaining; no creation, combined removal or lab activation. |
 | [Version-2 Ready-Scope Removal](bulk-ready-removal.md) | Exact scope and default-off atomic retirement/shared queue admission for ready targets; no lab activation. |
 | [Version-2 Removal Confirmation](ready-removal-confirmation.md) | Independent default-off API/Web factory capabilities, frozen ready-only confirmation and admission-not-verification receipts. |

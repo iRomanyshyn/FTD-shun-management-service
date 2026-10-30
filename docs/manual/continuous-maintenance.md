@@ -2,7 +2,9 @@
 
 Status: internal lifecycle integrated with the default-disabled continuous
 dispatcher. A [restricted developer API composition](continuous-api.md) now owns
-that lifecycle. No deployed API/env selector, optional migration or lab activation.
+that lifecycle. A separate [configured observation selector](configured-runtime.md)
+now constructs the same owner on existing compatible storage. No lab deployment,
+optional migration or activation was performed.
 See [Continuous Dispatch](continuous-dispatch.md) for scheduling and prerequisites.
 
 ## Ownership and scheduling

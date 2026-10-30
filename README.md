@@ -136,3 +136,8 @@ python3 -m venv .venv
 ```
 
 See the [Development Manual](docs/manual/development.md) for the controlled mock-agent workflow. Never use mock mode in a deployed environment.
+
+The optional [configured continuous observation runtime](docs/manual/configured-runtime.md)
+adds explicit process selection, frozen public-inventory checks and
+`ftd-shun-api --check` on already prepared fenced storage. Legacy remains default;
+no startup migration, ADD activation or lab transition is implied.

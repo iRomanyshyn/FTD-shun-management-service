@@ -1,5 +1,6 @@
 """Internal state and event API. It is intended to listen only on a Unix socket."""
 
+import json
 import sqlite3
 from contextlib import asynccontextmanager
 from ipaddress import IPv4Address
@@ -363,6 +364,16 @@ def create_app(
         raise ValueError('Bulk policy admission needs an explicit continuous owner, literal capability and trusted profile scope.')
     settings = settings or Settings.from_environment()
     store = store or Store(settings.database_path)
+    if settings.api_runtime == 'continuous-observation':
+        if (continuous_dispatcher is not None or agent_client is not None or ready_removal_admission_enabled
+                or ordered_removal_admission_enabled or bulk_policy_admission_enabled or bulk_policy_concurrent_enabled):
+            raise ValueError('Configured observation cannot be mixed with injected runtime/client or admission capabilities.')
+        from .configured_runtime import ExistingRuntimeStore, configured_dispatcher
+
+        # Retain only the supplied storage path; every configured connection is
+        # non-creating, even if the file disappears after an existence check.
+        store = ExistingRuntimeStore(store.path)
+        continuous_dispatcher = configured_dispatcher(settings, store)
     continuous = None
     if continuous_dispatcher is not None:
         from .continuous_api import ContinuousApiRuntime
@@ -1162,6 +1173,23 @@ def create_app(
     return app
 
 
-def main() -> None:
+def main(argv=None) -> None:
+    import argparse
+
+    parser = argparse.ArgumentParser(description='Start the private API with its explicitly configured runtime.')
+    parser.add_argument('--check', action='store_true', help='Validate configured continuous composition without starting tasks or serving HTTP')
+    args = parser.parse_args(argv)
     settings = Settings.from_environment()
-    uvicorn.run(create_app(settings), uds=settings.api_socket, log_level="info")
+    if args.check and settings.api_runtime != 'continuous-observation':
+        parser.error('--check requires continuous-observation; legacy initialization was not invoked.')
+    try:
+        app = create_app(settings)
+    except (ValueError, OSError, sqlite3.Error) as error:
+        if args.check:
+            parser.exit(2, f'Runtime preflight refused: {error}. No execution was started.\n')
+        raise
+    if args.check:
+        print(json.dumps({'event': 'api.runtime.checked', 'runtime_mode': settings.api_runtime,
+                          'execution_started': False, 'migration_performed': False}), flush=True)
+        return
+    uvicorn.run(app, uds=settings.api_socket, log_level="info")

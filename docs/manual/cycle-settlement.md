@@ -1,8 +1,10 @@
 # Local Cycle Settlement
 
 Status: implemented opt-in protocol/client extension and required by the internal
-[continuous dispatcher](continuous-dispatch.md). Not selected by deployed API
-configuration, environment variables or Web routes. No live gate, fixture,
+[continuous dispatcher](continuous-dispatch.md). A separate opt-in
+[configured observation runtime](configured-runtime.md) now selects the strict
+client on already compatible storage; the lab still uses its prior mode.
+No Web route selects it. No live gate, fixture,
 migration, credential or lab service was changed.
 
 ## Why a final snapshot is not enough
@@ -94,8 +96,9 @@ Healthy devices remain independent; no latch is cleared/rearmed.
 
 ## Deployment and rollback
 
-No environment/API/Web selection, SQLite schema or migration is added. The lab
-API still constructs legacy clients. Do not enable strict continuous execution
+The original extension added no selector or SQLite migration. The later configured
+observation selector requires strict settlement, without enabling ADD or optional
+admission. The lab API still constructs legacy clients. Do not enable strict continuous execution
 against the lab as a smoke test or reuse consumed one-address permissions.
 Implementation is not live activation approval.
 

@@ -1,4 +1,4 @@
-"""Explicit developer API composition; no environment selector or migration."""
+"""Restricted existing-profile API composition; never a storage migration."""
 
 import re
 
@@ -26,6 +26,8 @@ class ContinuousApiRuntime:
         self.bulk_policy_device_ids = bulk_policy_device_ids
         self.bulk_policy_concurrent_enabled = bulk_policy_concurrent_enabled
         self._started = False
+        self._inventory_snapshot = None
+        self._inventory_path = settings.device_inventory_path
         self._validate(agent)
         if getattr(dispatcher, '_api_application_bound', False):
             raise QueueConflict('This dispatcher is already bound to an API application.')
@@ -67,7 +69,7 @@ class ContinuousApiRuntime:
             raise ValueError('API, dispatcher, agent and database must share the exact existing composition.')
         if (settings.agent_mode != 'socket' or settings.agent_cycles_enabled is not True
                 or settings.large_snapshots_enabled is not True or not runner.enabled
-                or settings.device_inventory_path is not None or settings.development_auth is not False
+                or settings.development_auth is not False
                 or runner.settled_cycles_required is not True):
             raise ValueError('Continuous API requires socket/cycles/large reads and an already loaded fixed inventory.')
         if (type(settings.poll_interval_seconds) is not int or not 60 <= settings.poll_interval_seconds <= 86400
@@ -96,6 +98,12 @@ class ContinuousApiRuntime:
         if not self.store.path.is_file():
             raise QueueConflict('Continuous API requires existing storage; nothing was initialized.')
         _profile, devices = runner._configured_devices()  # Exact optional profile/scope/settlement/capacity; no migration.
+        if settings.device_inventory_path != self._inventory_path:
+            raise QueueConflict('Continuous inventory path changed after composition.')
+        if self._inventory_path is not None:
+            from .configured_runtime import checked_inventory
+
+            self._inventory_snapshot = checked_inventory(self.store, self._inventory_path, self._inventory_snapshot)
         if self.bulk_policy_admission_enabled:
             if not self.bulk_policy_device_ids.issubset({device.id for device in devices}):
                 raise ValueError('Trusted policy profiles must belong to enabled sealed device scope.')

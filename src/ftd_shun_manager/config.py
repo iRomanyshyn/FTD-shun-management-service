@@ -63,8 +63,14 @@ class Settings:
     managed_restoration_enabled: bool = False
     managed_policy_admission_enabled: bool = False
     managed_removal_admission_enabled: bool = False
+    api_runtime: str = 'legacy'
+    agent_concurrency: int = 1
 
     def __post_init__(self) -> None:
+        if type(self.api_runtime) is not str or self.api_runtime not in {'legacy', 'continuous-observation'}:
+            raise ValueError('FTD_SHUN_API_RUNTIME must be legacy or continuous-observation')
+        if type(self.agent_concurrency) is not int or not 1 <= self.agent_concurrency <= 10:
+            raise ValueError('Agent concurrency must be a literal integer between 1 and 10')
         if type(self.managed_removal_admission_enabled) is not bool:
             raise ValueError("managed removal admission setting must be boolean")
         if self.managed_removal_admission_enabled and (
@@ -88,6 +94,9 @@ class Settings:
 
     @classmethod
     def from_environment(cls) -> "Settings":
+        concurrency = environ.get('FTD_SHUN_AGENT_MAX_CONCURRENT_DEVICES', '1')
+        if concurrency not in {str(number) for number in range(1, 11)}:
+            raise ValueError('FTD_SHUN_AGENT_MAX_CONCURRENT_DEVICES must be a canonical integer 1-10')
         cycles = environ.get("FTD_SHUN_AGENT_CYCLES_ENABLED", "false")
         if cycles not in {"true", "false"}:
             raise ValueError("FTD_SHUN_AGENT_CYCLES_ENABLED must be true or false")
@@ -156,4 +165,6 @@ class Settings:
             managed_restoration_enabled=restoration == "true",
             managed_policy_admission_enabled=managed_admission == "true",
             managed_removal_admission_enabled=removal_admission == "true",
+            api_runtime=environ.get('FTD_SHUN_API_RUNTIME', 'legacy'),
+            agent_concurrency=int(concurrency),
         )

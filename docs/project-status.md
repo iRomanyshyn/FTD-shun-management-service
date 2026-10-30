@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-10-26
+Last updated: 2026-10-30
 
 ## Deferred product ideas
 
@@ -14,6 +14,41 @@ lookup, cache/schema, new egress or activation exists. Core delivery retains
 priority. See [the planned constraints](working-version-plan.md#deferred-ip-context--enrichment--requested-2026-10-21).
 
 ## Current increment
+
+**Configured continuous observation runtime (2026-10-30).** Added explicit
+`FTD_SHUN_API_RUNTIME=legacy|continuous-observation` process selection, default
+legacy. The new mode constructs the existing restricted dispatcher with a real
+strict settled/large-read Unix client, configured deadlines/read spacing/retention,
+declared agent capacity and empty ADD scope. It requires already prepared exact
+fenced storage; missing/legacy/partial state refuses without initialization or
+fallback. Non-creating SQLite connections also refuse a file disappearing between
+existence checking and opening. Injected owner/client or optional admission capabilities cannot be
+combined with configured selection. All v2 admission/promotion/execution
+capabilities remain off. Existing admitted REMOVE/Protected-IP removal and the
+single maintenance owner retain their normal behavior; this is not no-write mode.
+
+Public inventory now has a bounded 256 KiB regular-file reader, duplicate-address/
+control-text checks and a complete immutable public projection. Configured startup
+matches every retained DB ID/hostname/IPv4/enabled state/host key, including disabled
+IDs; no upsert/deletion or implicit address/trust change. Freeze/recheck all public
+fields before lifespan tasks, allowing only semantic reordering/whitespace.
+Credential files remain agent-only. No hot reload or inventory migration exists.
+
+`ftd-shun-api --check` validates continuous composition without serving HTTP,
+starting lifecycle/maintenance or contacting sockets/devices. Legacy check refuses
+before initialization; no secret/host-key/inventory payload is printed. Normal
+SQLite/WAL access is not a forensic immutable-file guarantee or a state reservation.
+
+Validation: focused configuration/inventory/continuous tests **135 passed (9.58s)**;
+full Python **2584 passed (434.99s)**. Compileall, Ruff, diff, new-file whitespace
+and local links in all 12 changed/new Markdown files pass. Browser/Rust were not
+rerun: templates/JavaScript and agent are unchanged. No Compose changes or lab deployment,
+DB migration, gate/profile/credential/inventory edit or device mutation. Nonempty
+legacy conversion, reviewed address/trust changes, broader configured workflows,
+automatic recovery and real multi-device/load acceptance remain. See
+[Configured Observation Runtime](manual/configured-runtime.md).
+
+### Previous fenced concurrent standing-admission checkpoint
 
 **Fenced concurrent standing admission (2026-10-26).** Added a distinct opt-in
 coordinator/private route and independent default-false API/Web concurrent factory
@@ -2842,7 +2877,7 @@ The foundation increment was checked with:
 
 ## Next work, in order
 
-Current working-version sequence (2026-10-26):
+Current working-version sequence (2026-10-30):
 
 1. Connect reviewed v2 exact-scope removal/retirement admission to the shared
    fenced continuous queue, including captured RUNNING ADD ordering, protection,
@@ -2874,8 +2909,10 @@ Current working-version sequence (2026-10-26):
    suspension and strict post-authority reads while independent work continues;
    no automatic initialization,
    draft pruning, runtime selection or lab activation follows.
-3. Finish configured inventory/runtime selection and reviewed nonempty legacy
-   migration, then execute separately authorized transport/device/multi-device/
+3. Configured observation runtime selection/frozen inventory assertions now exist
+   on already prepared fenced profiles, with a non-executing check. Finish reviewed
+   nonempty legacy conversion and connection-metadata transitions plus broader
+   configured write-workflow selection, then execute separately authorized transport/device/multi-device/
    load and recovery validation. Do not activate experimental policy or fabricate
    success from prior one-address evidence.
 

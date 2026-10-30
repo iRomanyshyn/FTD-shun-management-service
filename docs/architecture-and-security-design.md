@@ -5297,3 +5297,39 @@ CSRF/current actor/post-I/O expiry and same-key unknown-reply recovery. Forms an
 historical receipts must honestly distinguish suspended and already-active desired
 policy, never claim verified device work or resume execution. No live migration,
 gate/profile activation, fixture or production acceptance follows this delivery.
+
+## Configured continuous observation runtime — 2026-10-30
+
+Add a strict process-start selector, `FTD_SHUN_API_RUNTIME`, defaulting to
+`legacy`. The only new value is `continuous-observation`. It constructs the
+existing restricted continuous composition, not a new executor or a general
+bulk-write release. Explicit developer injection remains separate and cannot
+be combined with configured selection. No request can select a runtime.
+
+Configured selection requires an existing exact fenced profile and non-creating
+SQLite `mode=rw` connections, including when a checked file disappears before
+opening. A supplied Store contributes only its path to this configured owner.
+Require a public inventory of at most ten devices. Compare every retained database device ID,
+hostname, IPv4, enabled state and pinned host key against that file, including
+disabled devices. Reject missing/extra/changed identities without upsert, deletion,
+base initialization or migration. Freeze the full semantic public configuration,
+including interface allowlists/addition profiles, and recheck it before lifespan
+start. Reordering/whitespace alone is not drift. There is no hot reload or implicit
+address/host-key reconciliation; a future reviewed inventory transition must
+preserve evidence and old authority before changing connection metadata.
+
+Use only the real strict Unix client, large settled cycles, empty executable ADD
+scope and the existing single maintenance/lifecycle owner. Read spacing, timeouts,
+history retention and declared agent concurrency must match the existing profile.
+Reject development authentication, legacy admission/controllers and mixed factory
+capabilities. All optional v2 admission/promotion capabilities remain false in
+configured mode. Existing admitted REMOVE and Protected-IP removal remain possible;
+the word observation is not a no-write promise. Construction/preflight starts no
+task, reads no credentials and makes no socket/device call. `ftd-shun-api --check`
+validates this composition without running it; it neither proves transport readiness
+nor authorizes activation. Do not run that check through legacy initialization.
+
+No optional schema or live gate is initialized/changed. Legacy/nonempty migration,
+inventory edits, new fixtures and executable lab acceptance still require their
+separate reviewed contracts/authorization. Rollback must retain matching code and
+fenced storage: selecting legacy never downgrades or erases device fences.

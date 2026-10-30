@@ -47,8 +47,9 @@ class ReadDemand:
 class ContinuousDispatcher:
     """Explicit developer lifecycle over one existing ParallelSynchronizer.
 
-    The owning service is not wired to construct/start this component. No schema,
-    policy, environment gate or lab activation is performed by construction/GET.
+    The restricted API can own this component through explicit composition or
+    configured observation startup on existing storage. Construction/GET never
+    initializes schema, grants/resumes policy or activates the lab.
     """
 
     def __init__(self, store, agent, *, clock=monotonic, history_retention_days=366,

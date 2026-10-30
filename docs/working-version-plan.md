@@ -30,6 +30,15 @@ the credential, typed-operation, verification and authentication boundaries.
 
 ## 2. Devices, identity and credentials
 
+Configured observation checkpoint (2026-10-30): the private API now has explicit
+default-legacy process selection on already prepared exact fenced storage,
+strict full public-inventory/retained-device matching and a non-executing
+`--check` path. Semantic configuration is frozen/rechecked before lifecycle start;
+no upsert, migration, admission/promotion capability, ADD or lab activation follows.
+Nonempty legacy conversion, reviewed connection-metadata changes, broader write
+configuration and scoped executable acceptance remain separate work. See
+[Configured Observation Runtime](manual/configured-runtime.md).
+
 Keep device configuration outside the Web UI. `.env` points to `devices.json`;
 the inventory contains stable internal IDs, display names, connection addresses
 (IP or DNS), ports, enabled state and pinned SSH host-key configuration.

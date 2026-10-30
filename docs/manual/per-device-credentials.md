@@ -26,7 +26,12 @@ Relative paths resolve against `deploy/`, not the current shell directory. Keep
 the same path for API and agent. Never reuse an ID for a replacement device.
 An address change under the same ID preserves database links and credentials;
 it does not authorize a different host key. Edit the public file and recreate
-API/agent together when changing that file/path. Missing devices must not be
+API/agent together when changing that file/path. The separately configured
+[continuous observation runtime](configured-runtime.md) only asserts an already
+matching DB projection: it refuses address/host-key/identity changes rather than
+applying the legacy upsert behavior. Such changes require a future reviewed
+inventory transition. Public files are bounded to 256 KiB and must be regular
+files, not final symlinks/FIFOs/directories. Missing devices must not be
 deleted/reassigned to discard history, pending cleanup or maintained policy.
 
 Copy `deploy/agent-credentials.example.json` to the ignored private filename.

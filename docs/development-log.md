@@ -7166,6 +7166,64 @@ Configured executable runtime/inventory rollout, reviewed nonempty conversion,
 approved retention, recovery and real multi-device/load validation remain.
 See [Concurrent Standing Admission](manual/bulk-concurrent-admission.md).
 
+## 2026-10-30 — Configured observation startup and frozen public inventory
+
+Continued core working-version integration in three sequential pieces: explicit
+process runtime selection on existing storage, full public-inventory assertions,
+and a non-executing CLI preflight. Added the normative boundary before code.
+`FTD_SHUN_API_RUNTIME` defaults to legacy and accepts only the separate restricted
+continuous-observation mode. Configured composition builds the existing continuous
+dispatcher/maintenance owner and strict large/settled Unix client with configured
+spacing/deadline/retention/capacity, no ADD scope and no optional admission/promotion
+capabilities. It refuses injected owners/clients, incompatible settings and absent,
+legacy or partial storage without initialization/migration/fallback. Ordinary
+default legacy still rejects fenced profiles. Existing admitted REMOVE and
+Protected-IP behavior remain, rather than falsely calling this a no-write mode.
+
+Public inventory now uses a <=256 KiB regular non-symlink/non-FIFO reader and an
+immutable complete credential-free projection. Reject duplicate addresses and
+control text as well as existing duplicate-field/identity/interface/credential
+checks. Configured composition compares every retained device ID, hostname, IPv4,
+enabled flag and exact pin, including disabled IDs, without upsert or evidence
+deletion. Freeze complete semantic interface/profile data and recheck file/DB
+before lifecycle tasks; harmless ordering/whitespace remains equivalent. There is
+no watcher/hot reload or address/trust migration and the API cannot attest a
+previously loaded running agent inventory.
+
+`ftd-shun-api --check` composes/validates without Uvicorn/lifespan/tasks, environment
+protection import, socket/credential/device I/O or state mutation. Legacy selection
+refuses before its initializing path. Success prints only mode and honest
+execution/migration flags. Normal SQLite WAL connections may touch sidecars; this
+is not forensic byte immutability, a lease/reservation or transport acceptance.
+
+Added disposable retained-profile tests for the actual factory/CLI/ASGI status,
+default/invalid configuration, gated/injected composition refusal, nonempty legacy/
+partial/absent schemas, public identity/trust/disabled membership, startup interface/
+profile/file/DB drift, semantic ordering, lifecycle ownership/drain and bounded
+malformed/nonregular inventory. Targeted initially **132 passed (9.70s)**, finally
+**135 passed (9.58s)** including non-creating connections under a vanished-file
+race, sanitized CLI refusal and normal private-UDS entrypoint composition.
+The configured owner wraps the supplied storage path with SQLite `mode=rw`;
+it cannot recreate a vanished file. Restarted the in-progress full regression
+after this hardening so the final run tests the actual final code. The initial
+restricted-sandbox run reached the synthetic threaded lifecycle and stalled;
+interrupted it, then reran outside sandbox restrictions using only disposable
+fixtures/fake RPCs. No production guard was relaxed to make tests pass.
+Final full Python **2584 passed (434.99s / 7m14s)**. Compileall, Ruff, diff,
+new-file whitespace and local links in all 12 changed/new Markdown files pass.
+No browser/Rust rerun: templates/JavaScript and agent unchanged; Compose unchanged.
+
+Updated example configuration, structured runtime/credential/continuous/settlement/
+development manuals, manual index, product README, working plan and status. No new
+DDL, wire/agent or Compose changes. No actual `.env`, inventory, credential, lab
+DB/profile/gate/service/image or FTD state was inspected/changed; no fixture
+authority reused. No deployment/activation or live acceptance claimed. Retain a
+checked SQLite-safe backup and matching fenced-compatible code/configuration for
+any separately approved transition; selecting legacy cannot downgrade fenced DBs.
+Nonempty legacy conversion, inventory transition and broader configured workflow/
+recovery/transport/multi-device/load validation remain separate work.
+See [Configured Observation Runtime](manual/configured-runtime.md).
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

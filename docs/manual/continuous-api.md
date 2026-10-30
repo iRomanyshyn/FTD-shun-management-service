@@ -1,7 +1,8 @@
 # Restricted Continuous API Composition
 
-Status: explicit developer factory integration, not environment-selectable or
-deployed. The ordinary application/CLI still defaults to the legacy synchronizer.
+Status: explicit developer factory integration plus a separate
+[configured observation selector](configured-runtime.md), not deployed.
+The ordinary application/CLI still defaults to the legacy synchronizer.
 No lab migration, runtime/profile activation, credentials or FTD fixture follows
 from this implementation. See [Continuous Dispatch](continuous-dispatch.md) and
 [Maintenance](continuous-maintenance.md) for the underlying lifecycle.
@@ -9,8 +10,9 @@ from this implementation. See [Continuous Dispatch](continuous-dispatch.md) and
 ## Scope and factory boundary
 
 The trusted Python `create_app` factory accepts an explicit `continuous_dispatcher`
-dependency. No URL/header/body field, environment variable or Compose override
-selects it. An explicitly supplied dispatcher must be the exact supported class,
+dependency. No URL/header/body field selects it. Configured selection constructs
+its own restricted dispatcher and refuses injection/mixed admission capabilities;
+it never selects these broader developer capabilities. An explicitly supplied dispatcher must be the exact supported class,
 enabled but inactive/unbroken, share the same Store object/path and supplied agent,
 and match API read intervals, IPC timeout margin and retention. No running task
 can be adopted; one dispatcher binds to one application for its lifetime. Reusing
@@ -26,10 +28,12 @@ must also match the configured socket/timeout, have large/settled reads and ADD
 disabled with an explicit empty scope. Synthetic injected agents are test fixtures,
 not a deployed mock mode or evidence of SSH/FTD acceptance.
 
-Inventory is already loaded into the existing sealed database profile; the factory
-requires `device_inventory_path=None` rather than silently ignoring/upserting a
-configured file. API-side reload/address reconciliation for this profile remains
-future work. Per-device secrets/SSH identity remain exclusively agent-owned.
+Inventory is already loaded into the existing sealed database profile. Developer
+composition may omit a file; when supplied, it must match the complete retained
+device projection, and all semantic public fields are frozen/rechecked at start.
+Configured selection requires that file. Neither path upserts or ignores changes.
+API-side reload/address reconciliation remains future work. Per-device secrets/
+SSH identity remain exclusively agent-owned.
 
 ## Storage compatibility and startup
 
@@ -164,10 +168,12 @@ for this code. A fenced profile cannot simply be downgraded to the old global
 executor: never drop fences, erase uncertainty/receipts or restore enabled policy
 to force compatibility. Drain through the application's normal lifespan first.
 
-Remaining product work includes concurrent v2 managed/import admission and
-ordered RUNNING-ADD removal,
-configured inventory/runtime selection, nonempty legacy
-migration, evidence-based automatic uncertainty recovery and scoped real-device/
+Concurrent v2 standing admission and ordered RUNNING-ADD removal now have their
+separate default-off factory integrations. Configured observation startup and
+frozen inventory checks are implemented without their activation. Remaining
+product work includes reviewed nonempty legacy/inventory
+migration, broader configured write-workflow selection,
+evidence-based automatic uncertainty recovery and scoped real-device/
 multi-device/load validation. This partial profile must not be described as the
 completed bulk-managed working version.
 
