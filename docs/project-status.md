@@ -15,6 +15,71 @@ priority. See [the planned constraints](working-version-plan.md#deferred-ip-cont
 
 ## Current increment
 
+**Lab-first development policy (2026-10-30, operator clarification).** This is an
+unreleased internal project with no production use; the current FPR1010 is the
+operator's desk test device. Normal in-scope implementation, validated lab
+deployments, explicit fresh-profile initialization and bounded semantic tests no
+longer need separate approval ceremonies for every fixture or feature selection.
+Announce writes/scope, use fresh test authority, verify outcomes and keep a short
+record. Security/runtime correctness, safe defaults and scoped destructive-action
+safeguards remain; no arbitrary CLI, credential exposure or false success.
+
+Legacy development-DB conversion and cross-dev-version receipt/key compatibility
+are removed from the release critical path. Prefer a clean separate DB/volume,
+retain the old test DB privately, keep inventory/credentials and explicitly carry
+useful settings rather than old queued work or standing authority. No actual
+database reset/archive, profile initialization, device write or service change was
+performed in this documentation update. Existing runtime capabilities/gates have
+not changed. The migration inspector remains an optional tool, not a delivery gate.
+
+The first operator-designated real GitHub tagged release starts released-data
+upgrade/migration/rollback obligations; a footer number or experimental/RC tag
+alone does not. No tag was created. Updated AGENTS, architecture, plan and relevant
+manuals with explicit precedence over older per-experiment restrictions. Validation
+is documentation-only (links/diff); the last code suite remains 2658 passing tests,
+not a new run for these prose changes. See
+[Lab-First Development](manual/development.md#lab-first-development-policy).
+
+### Previous transition-inspection checkpoint (no longer a release prerequisite)
+
+**Nonempty legacy transition inspection (2026-10-30).** Added a separate trusted-
+host CLI/module on exact current base/queue plus all seven legacy managed tables,
+optionally the exact draft journal. It opens an existing regular source with
+`mode=ro`/`query_only` and one read snapshot, generates schema contracts only in
+memory, checks integrity and streams all retained rows in <=100-row batches.
+Typed/domain-separated digests bind complete schema/header metadata/sequence,
+original requests/results/actors/TTLs/links, attempts, retired policy, observations/
+provenance, protection and audit, plus complete public inventory/future scope and
+concurrency. Five-minute exact original reinspection rejects state/configuration
+drift without rebase; harmless inventory ordering remains equivalent.
+
+Fixed operational blocker codes cover pauses, even expired leases, future cooldown,
+unfinished protection import, enabled legacy policy, pending/uncertain/read-
+reconciled work, failed/unknown managed attempts, cleanup holds and mismatched
+retained identities including disabled IDs. The first candidate source is retired-
+only; no policy is retired by inspection. Older missing terminal job evidence is
+counted honestly, never reconstructed; FAILED/UNVERIFIED barriers remain.
+
+Output is limited to counts/digests/fixed summaries; no raw IPs, actor/payload text
+or pins. Unsupported/partial/v2/incident/extra schemas refuse, never become empty.
+No Store source initialization, environment/secret/socket/device access, DDL,
+audit, backup, pruning or apply action. Always `migration_available=false`,
+`migration_ready=false`, `semantic_conversion_validated=false`, even when
+operational preconditions pass. This is not an authority token, source reservation,
+remote-quiescence proof or completed archive/original-key conversion.
+
+Validation: **74 new inspection tests**; focused inspection/maintenance/configured-
+runtime **151 passed (5.83s)**. Full Python **2658 passed (434.10s)**. Compileall,
+Ruff, diff, new-file whitespace and local links in all ten changed/new Markdown
+files pass. Browser/Rust not rerun: UI/JavaScript and agent unchanged. No Compose
+change or lab/source
+inspection, migration, deployment, gate/credential/device change or new fixture
+authorization. Actual checked conversion/archive/key exclusion, rollback and
+separately scoped acceptance remain. See
+[Nonempty Transition Inspection](manual/migration-inspection.md).
+
+### Previous configured observation-runtime checkpoint
+
 **Configured continuous observation runtime (2026-10-30).** Added explicit
 `FTD_SHUN_API_RUNTIME=legacy|continuous-observation` process selection, default
 legacy. The new mode constructs the existing restricted dispatcher with a real
@@ -2877,49 +2942,33 @@ The foundation increment was checked with:
 
 ## Next work, in order
 
-Current working-version sequence (2026-10-30):
+Current working-version sequence after the 2026-10-30 lab-first clarification:
 
-1. Connect reviewed v2 exact-scope removal/retirement admission to the shared
-   fenced continuous queue, including captured RUNNING ADD ordering, protection,
-   immutable receipts and honest uncertainty. No legacy single-target loop may
-   pretend to implement an atomic fleet action. Ready-only backend coordination
-   and readonly scope inspection plus independently gated frozen Web/API
-   confirmation are implemented. Ordered preflight and separately migrated
-   whole-scope durable reservation/revocation/expiry are implemented. Shared-worker
-   whole-scope promotion/attention with original TTL/capacity transfer is now
-   implemented behind a separate optional profile/default-off
-   factory capability. Separate strict ordered private API admission/current status/
-   local revocation and frozen session/CSRF-bound ordered Web consent/current
-   status/typed revocation are implemented, with an independent default-off Web
-   capability. Configured runtime/inventory, migration and scoped executable
-   device/multi-device/load/recovery acceptance remain before activation.
-   No live migration/activation follows.
-2. Connect bounded managed import/adoption/cancellation review to the compatible
-   continuous runtime; retain 10000-IP selected-device limits, managed-only
-   authority, skip/report behavior and default-disabled execution gates until
-   separately scoped acceptance. V2 durable draft creation/owner recovery/paged
-   reporting/full-scope proposal/draft cancellation API and owner-bound Web
-   workspace/frozen report/pure proposal review are now implemented without
-   authority. Independently gated atomic suspended standing confirmation, frozen
-   Web recurring consent and owner historical receipts are now implemented.
-   Exact confirmed-import cancellation review/member-page/private API/frozen Web
-   consent and live local captured-settlement status are now implemented, retaining
-   applied/adopted policy and original uncertainty. Separate default-off concurrent
-   standing admission now checks selected device/pair barriers, frozen expected
-   suspension and strict post-authority reads while independent work continues;
-   no automatic initialization,
-   draft pruning, runtime selection or lab activation follows.
-3. Configured observation runtime selection/frozen inventory assertions now exist
-   on already prepared fenced profiles, with a non-executing check. Finish reviewed
-   nonempty legacy conversion and connection-metadata transitions plus broader
-   configured write-workflow selection, then execute separately authorized transport/device/multi-device/
-   load and recovery validation. Do not activate experimental policy or fabricate
-   success from prior one-address evidence.
+1. Implement a practical explicit fresh-v2 lab setup in a separate database/volume;
+   keep the current test DB as a private archive, preserve inventory/credentials
+   and explicitly transfer useful Protected-IP configuration. Do not build a
+   legacy converter or carry old queues/standing authority into the fresh profile.
+2. Wire a configured executable managed workflow to the existing bounded import/
+   adoption/cancellation, ready/ordered removal and fenced continuous components.
+   Current configured selection is observation-only; this still needs code, not
+   merely switching ADD on. Keep safe defaults and the actual typed/verified path.
+3. Exercise the complete Web-to-FTD lifecycle on the desk lab: bounded managed
+   import/adoption, refresh priority, disappearance/restoration, quick unblock,
+   cancellation and permanent Protected-IP retirement. Use new labelled test
+   requests; ordinary lab steps do not need repeated per-fixture approval.
+4. Finish working-version uncertainty recovery and Emergency Purge, verify restart/
+   timeout behavior, then validate concurrency and measured larger loads as the
+   relevant test targets become available. Do not infer multiple-device/throughput
+   acceptance from one desk device or erase uncertainty to make a test pass.
+5. Refine usability/status and the approved unmanaged correlation flow, finish
+   installation/backup/rollback manuals and the tested capability/limitation list,
+   then prepare the first explicitly requested real GitHub tagged release.
 
-The bounded v2 policy page and policy-only stop-maintaining are implemented;
-they do not complete steps 1–3. Email and occurrence-scoped RDAP remain deferred.
-Follow the [Working-Version Plan](working-version-plan.md) and current increment
-above for precedence over the historical legacy backlog below.
+The existing components/tests are substantial, but the full executable working
+version is not yet delivered. Email and occurrence-scoped RDAP remain deferred.
+The latest [Lab-First Development](manual/development.md#lab-first-development-policy)
+and [Working-Version Plan](working-version-plan.md) supersede the historical
+per-experiment approval/migration backlog below.
 
 ### Historical legacy acceptance backlog
 

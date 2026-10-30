@@ -4,6 +4,14 @@ Security-focused internal service for monitoring and managing Cisco Secure Firew
 
 The governing specification is the [Architecture and Security Design](docs/architecture-and-security-design.md). The repository now contains the first Web/BFF and internal-state API increment, together with deployment assets and operational manuals.
 
+Development stage: this is an unreleased internal project, currently used only
+with the operator's desk FPR1010 test device, not in production. We prioritize a
+working lab version and may start clean dev databases while archiving old test
+state; a legacy-dev converter is not a release prerequisite. Formal compatibility/
+upgrade obligations begin with the first explicitly designated real GitHub tagged
+release. Security controls apply throughout. See [Development](docs/manual/development.md#lab-first-development-policy)
+and [Versioning](docs/manual/versioning.md#development-versus-a-real-release).
+
 The [Working-Version Plan](docs/working-version-plan.md) records the operator's
 2026-10-20 product alignment and current delivery priority: usable managed bulk
 import/restoration, continuous parallel device work, quick unblock, whitelist
@@ -141,3 +149,7 @@ The optional [configured continuous observation runtime](docs/manual/configured-
 adds explicit process selection, frozen public-inventory checks and
 `ftd-shun-api --check` on already prepared fenced storage. Legacy remains default;
 no startup migration, ADD activation or lab transition is implied.
+
+The separate [nonempty transition inspector](docs/manual/migration-inspection.md)
+fingerprints retained legacy data and reports migration blockers without applying
+changes. A clean preflight does not authorize conversion or startup on that DB.

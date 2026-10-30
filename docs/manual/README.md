@@ -2,6 +2,14 @@
 
 These manuals describe the first implementation increment. The service is safe to run for development and UI work today. Its separate FTD SSH agent implements verified removal for laboratory validation only; production Cisco writes remain unavailable until the documented FTD validation is complete.
 
+Current operating context (2026-10-30): unreleased internal development on the
+operator's desk FPR1010, with no production use. Follow the newer
+[lab-first policy](development.md#lab-first-development-policy) instead of repeating
+old per-fixture approval procedures. Old dev-DB conversion is not a delivery gate;
+clean separate profiles with private archives are acceptable. Formal released-data
+compatibility starts at the [first real tagged release](versioning.md#development-versus-a-real-release).
+Core security and honest result verification remain mandatory now.
+
 The [Working-Version Plan](../working-version-plan.md) records the newer approved
 product target and differences from these current operating procedures. It is
 not a runbook or permission to change gates, initialize schemas or run new fixtures.
@@ -63,6 +71,7 @@ not a runbook or permission to change gates, initialize schemas or run new fixtu
 | [Continuous Runtime Maintenance](continuous-maintenance.md) | Single controller-owned expiry/retention lifecycle, evidence holds, backoff, status and cancellation drain; no lab activation. |
 | [Restricted Continuous API](continuous-api.md) | Explicit existing-profile API/BFF composition, lifecycle/compatibility checks and refused unavailable workflows; no lab activation. |
 | [Configured Observation Runtime](configured-runtime.md) | Default-legacy process selection, frozen public-inventory assertions and non-executing CLI check on prepared storage; no automatic migration or lab activation. |
+| [Nonempty Transition Inspection](migration-inspection.md) | Read-only complete retained-source manifest, operational blockers and snapshot-bound reinspection; no converter, apply action or lab activation. |
 | [Version-2 Managed Policy Views](bulk-policy-views.md) | Bounded read-only policy/evidence pages and frozen policy-only stop-maintaining; no creation, combined removal or lab activation. |
 | [Version-2 Ready-Scope Removal](bulk-ready-removal.md) | Exact scope and default-off atomic retirement/shared queue admission for ready targets; no lab activation. |
 | [Version-2 Removal Confirmation](ready-removal-confirmation.md) | Independent default-off API/Web factory capabilities, frozen ready-only confirmation and admission-not-verification receipts. |

@@ -1,5 +1,11 @@
 # FTD Shun Management Service
 
+Current stage (2026-10-30): unreleased, internal, lab-only development on the
+operator's desk FPR1010. The latest
+[development-stage amendment](#pre-release-laboratory-policy--2026-10-30)
+supersedes older per-fixture approval and mandatory legacy-dev conversion planning,
+not the security or verified-operation contracts.
+
 ## 1. Purpose
 
 Develop a small, security-focused internal service for monitoring and managing Cisco Secure Firewall Threat Defense (FTD) `shun` entries across multiple similar devices.
@@ -5333,3 +5339,80 @@ No optional schema or live gate is initialized/changed. Legacy/nonempty migratio
 inventory edits, new fixtures and executable lab acceptance still require their
 separate reviewed contracts/authorization. Rollback must retain matching code and
 fenced storage: selecting legacy never downgrades or erases device fences.
+
+## Legacy-to-fenced transition inspection — 2026-10-30
+
+Before implementing nonempty conversion, supply a separate trusted-host read-only
+inspection command. Its first supported source is the exact current base/queue
+schema plus all seven legacy managed tables, optionally the exact non-authoritative
+preparation journal. Unsupported, partial, modified, incident/closure or already-v2
+profiles refuse; never suggest deleting evidence to make a profile eligible.
+Generate expected contracts in memory from trusted code, not by initializing the
+selected database. Open the source with SQLite `mode=ro` and `query_only=ON` inside
+one snapshot; no Store startup, environment/credential/socket/device read, DDL,
+audit, recovery action or backup file creation follows inspection.
+
+Stream a deterministic, typed, domain-separated SHA-256 manifest over the complete
+schema, logical SQLite header metadata and every retained row, including sequence state, not only active
+targets or counts. Bound Python row batches. Bind complete canonical public
+inventory and the requested future sealed scope/concurrency into a separate
+five-minute inspection digest. Reinspection with the original timestamp/digest
+must refuse drift/expiry/future time without rebase. This digest is observational,
+not a policy/migration token or proof of remote quiescence, and cannot be passed
+to an existing apply/resume action as authority.
+
+Report only fixed summaries/counts/digests and explicit operational blockers:
+unpaused ordinary or desired execution, any global lease, pending/uncertain/
+read-reconciled work, failed/unknown managed attempts, unfinished/attention cleanup,
+future cooldown, unfinished protection migration, enabled legacy policy or changed
+device identity/trust. A first conversion contract will be retired-only; never
+retire enabled policy as a preflight side effect. Missing old terminal queue
+evidence must remain honestly missing, not reconstructed. Inventory must match
+all retained IDs including disabled ones and have 1..10 total/at least one enabled
+device. Preserve every original receipt/actor/key, generation/tombstone, attempt,
+TTL/result, link, observation/occurrence/provenance, protection and audit record.
+
+Always report `migration_available=false` and `migration_ready=false`: operational
+preconditions alone do not complete semantic/archive/key-reservation compatibility,
+the converter, checked backup, rollback or separately scoped activation. No HTTP,
+startup hook, migration apply, policy grant/resume, uncertainty resolution, lab
+inspection/mutation or fixture authorization is introduced by this increment.
+
+## Pre-release laboratory policy — 2026-10-30
+
+The operator confirms that this project has no production use and the current
+FPR1010 is a test device on their desk. Optimize for a usable working version;
+do not impose released-product compatibility requirements on unreleased dev data.
+This amendment supersedes conflicting earlier lab-authorization and migration-
+planning statements. Older experiment results/limitations remain truthful history.
+
+Ordinary in-scope implementation, validated deployment, explicit clean-profile
+initialization and bounded semantic device tests on the known lab can proceed
+without a new approval for each fixture, schema initialization or tested gate
+selection. Announce writes and scope, use fresh labelled test authority/keys,
+verify results and record the outcome briefly. No arbitrary CLI, unsafe profile
+shortcut, fake Web identity, automatic uncertain-write replay, evidence clearing
+or fabricated success becomes permissible. Default-safe configuration examples
+and the existing secret/authentication/UDS/host-key/verification boundaries remain.
+Ask only when the target/impact is unclear, scope materially expands, secrets/
+trust/network changes are involved, or the action is materially destructive.
+
+Backward conversion of legacy development databases is not on the release critical
+path. Prefer an explicitly initialized clean DB in a separate path/volume, keeping
+the old test database as a private archive rather than overwriting it. Preserve
+inventory/credentials and explicitly transfer useful settings such as Protected
+IPs if needed; never infer new standing consent from archived imports, queues,
+requests or observations. This is a new dev environment, not a migration or a way
+to relabel old unknown operations as settled. Drain old work before switching.
+No startup/GET silently resets, repairs or replaces a store; no broad deletion is
+authorized. Existing migration inspectors/incident tools can remain optional, but
+their further extension is not required to ship the working lab version.
+
+Released-data compatibility, verified upgrade/migration and release rollback
+procedures become required from the first operator-designated real release
+published on GitHub with a version tag. A footer number, commit, dev deployment
+or experimental/RC tag alone is not that release decision. Do not create/publish
+tags without an explicit request. A real tag must identify tested artifacts,
+documented capabilities/limits and supported installation/upgrade/backup/rollback
+procedures; it is not proof of untested FTD behavior. Security and truthful
+verification apply throughout development, not only after the first release.

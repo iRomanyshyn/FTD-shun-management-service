@@ -2,6 +2,39 @@
 
 This repository is an English-language product repository. Write source code, documentation, commit messages, configuration comments, and operator-facing text in English unless a user explicitly requests a translation.
 
+## Current development stage — operator alignment, 2026-10-30
+
+This is an unreleased internal project with no production use. The current
+FPR1010 is the operator's desk laboratory device, not a working production firewall.
+Prioritize a usable end-to-end product over compatibility tooling for disposable
+development state. This section and the matching architecture amendment supersede
+older per-experiment lab approval and mandatory dev-migration planning below.
+
+- Ordinary in-scope development, validated lab deployments, explicit fresh-profile
+  initialization and bounded semantic ADD/REMOVE/restore tests on this known lab
+  may proceed without another approval for every fixture or feature switch.
+  Announce device writes/configuration changes and their bounded scope, use new
+  labelled test requests/keys, verify outcomes and leave a short development record.
+  Historical consumed experiments remain historical evidence, not reusable receipts.
+- Do not implement a legacy-dev database converter as a release prerequisite.
+  Prefer a clean database in a separate path/volume, retaining the old test DB as
+  a private archive. Keep inventory/credentials; transfer useful configuration
+  explicitly, not old queues, managed authority or uncertain operations.
+  No silent overwrite/deletion, broad volume cleanup or automatic reset is allowed;
+  destructive replacement still needs an exact, explicitly authorized scope.
+- Existing executable guards are real product correctness checks, not paperwork:
+  implement/select compatible tested profiles rather than bypassing gates, replaying
+  unknown writes, clearing evidence or inventing verified outcomes. Keep the security
+  invariants below, default-safe examples, real audit identity and agent-only secrets.
+- Ask again for production/unknown targets, materially broader or destructive
+  operations, secrets/trust/network changes, or a test with unclear impact. Do not
+  repeat approval requests solely because old runbooks called every lab step gated.
+- Strict released-data compatibility, upgrade/migration and release rollback
+  obligations start with the first operator-designated real release published on
+  GitHub with a version tag. A dev footer/commit or experimental tag is not that
+  decision; publishing a release/tag still requires the operator's request.
+  Follow [Versioning](docs/manual/versioning.md). Core security applies now too.
+
 ## Source of truth
 
 Read these documents before making a material change:
@@ -37,6 +70,12 @@ Do not rewrite historical log entries except to correct an objective error; add 
 - Do not commit `.env`, Authelia user files, device inventory files, private keys, secrets, database files, or production logs. Use the tracked example files instead.
 
 ## Implementation and validation
+
+The dated checkpoints below retain implementation history. Interpret their old
+per-fixture approval/no-lab-activation requirements under the newer development-
+stage policy above. They do not justify repeated approval requests for ordinary
+known-lab work or put legacy-dev conversion back on the critical path. Actual
+runtime availability, evidence limitations and correctness/security checks remain.
 
 - On 2026-10-20 sequential product alignment prioritized a usable working version:
   managed-only service additions/adoption,10000-IP selected-device import,

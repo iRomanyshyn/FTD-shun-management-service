@@ -2,6 +2,12 @@
 
 ## What is implemented
 
+Development-policy update (2026-10-30): initialize a clean separate lab profile
+and retain the old dev store privately instead of requiring nonempty legacy
+conversion before delivery. Ordinary in-scope lab setup/testing follows
+[Lab-First Development](development.md#lab-first-development-policy); actual
+initialization prerequisites and typed execution guards remain unchanged.
+
 `BulkPolicies` is a development component that atomically persists an actual
 version-2 policy grant, exact classified membership and audit. It supports up to
 10000 addresses on ten explicit devices / 100000 pairs per import. It is not
@@ -185,6 +191,9 @@ The lab's completed experiment remains retained in legacy format. Nonempty legac
 conversion is separate work. Before eventual conversion/activation, retain a
 checked SQLite-safe private backup and matching code/configuration; stop writers
 and settle RPCs. Filesystem copying of an active WAL database is not a backup.
+The later [read-only transition inspector](migration-inspection.md) now inventories
+recognized nonempty legacy sources and operational blockers. It does not implement
+conversion, archive/key compatibility, migration authorization or empty initialization.
 
 Code-only rollback on today's unchanged lab needs no database restore. A populated
 version2 database must be retained with compatible code or taken offline; older

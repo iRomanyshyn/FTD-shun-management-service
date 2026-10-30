@@ -3,6 +3,18 @@
 Agreed with the operator: 2026-10-20.
 Status: approved target behavior and delivery plan; not a deployment procedure.
 
+Delivery-policy update, 2026-10-30: this is still an unreleased internal lab project
+on the operator's desk FPR1010, with no production use. Ordinary in-scope lab
+development/deployment/bounded tests do not need per-fixture approval ceremonies.
+Use a clean separate dev database while archiving old test state; legacy conversion
+and cross-dev-version key compatibility are not prerequisites for the working
+version. Prioritize a complete usable path and lab feedback. The first explicitly
+designated real GitHub tagged release starts released-data upgrade/compatibility
+obligations. Core security, verification and scoped destructive-action safeguards
+remain. This update supersedes conflicting older planning below; it does not
+change which runtime capabilities are currently implemented. See
+[Development](manual/development.md#lab-first-development-policy).
+
 This records the sequential product discussion. The priority is a usable working
 version, with usability refined during actual use. Bulk managed addition and
 restoration belong in that version. Email is lower priority. The implementation
@@ -30,13 +42,26 @@ the credential, typed-operation, verification and authentication boundaries.
 
 ## 2. Devices, identity and credentials
 
+Nonempty transition checkpoint (2026-10-30): a separate read-only inspector now
+streams recognized retained legacy source state, binds full public inventory and
+future scope/concurrency, reports operational blockers and supports five-minute
+original-digest reinspection. It never converts old receipts into v2 authority,
+retires policy, resolves uncertainty or changes storage/runtime. Migration ready/
+available and semantic-conversion validation remain explicitly false. The actual
+archive/original-key reservation contract, atomic checked conversion/rollback and
+separately authorized activation remain. See
+[Nonempty Transition Inspection](manual/migration-inspection.md).
+Under the later lab-first policy above, these converter tasks are optional/deferred,
+not prerequisites for a fresh working lab profile.
+
 Configured observation checkpoint (2026-10-30): the private API now has explicit
 default-legacy process selection on already prepared exact fenced storage,
 strict full public-inventory/retained-device matching and a non-executing
 `--check` path. Semantic configuration is frozen/rechecked before lifecycle start;
 no upsert, migration, admission/promotion capability, ADD or lab activation follows.
-Nonempty legacy conversion, reviewed connection-metadata changes, broader write
-configuration and scoped executable acceptance remain separate work. See
+Explicit clean-profile setup, deliberate connection-metadata handling, broader write
+configuration and executable lab acceptance remain separate work; nonempty legacy
+conversion is no longer required. See
 [Configured Observation Runtime](manual/configured-runtime.md).
 
 Keep device configuration outside the Web UI. `.env` points to `devices.json`;

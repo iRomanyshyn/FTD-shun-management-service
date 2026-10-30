@@ -7224,6 +7224,98 @@ Nonempty legacy conversion, inventory transition and broader configured workflow
 recovery/transport/multi-device/load validation remain separate work.
 See [Configured Observation Runtime](manual/configured-runtime.md).
 
+## 2026-10-30 — Read-only nonempty legacy transition manifest
+
+Continued the next core runtime-transition prerequisite without modifying the lab.
+Documented the normative read-only boundary, then added a dedicated module/CLI for
+recognized current base/queue plus all seven legacy managed tables, optionally
+the exact non-authoritative draft journal. Contracts are generated in `:memory:`
+from trusted code, never by source initialization. Existing absolute regular-file
+source opens `mode=ro`/`query_only` in one read snapshot; committed WAL is included.
+Unknown/partial/modified/extra/v2/incident schemas and integrity failure refuse
+without repair/drop/adoption. The candidate conversion scope remains retired-only.
+
+Streamed <=100-row source batches produce typed length-framed/domain-separated
+SHA-256 table/source manifests over full schema, SQLite logical header metadata,
+sequence and every retained row, including old keys/actors/receipt payloads/results,
+TTLs/links, attempts, retired generations, occurrences/origins, protection and audit.
+Bind complete canonical public inventory, enabled future scope, concurrency and
+five-minute time into a separate observational inspection digest. Original
+reinspection refuses same-count/source/header/configuration drift and expiry/future
+time without rebase; inventory changes during reading refuse the whole report.
+No report contains raw IP/pin/actor/comment/payload output.
+
+Fixed blocker summaries distinguish ordinary/desired pauses, any lease (including
+expired), cooldown, unfinished protection import, enabled legacy policy, pending/
+unknown/read-reconciled jobs, pending/failed/unknown attempts and single/fleet
+cleanup holds, plus retained disabled identity/trust mismatch. Missing older
+terminal jobs remain counted as missing, not reconstructed or promoted to success.
+The report always keeps migration-ready/available and semantic-conversion validation
+false. Zero operational blockers is not an archive/key-compatibility proof, apply
+token, remote-quiescence attestation, policy resume or activation permission.
+
+Added **74 disposable inspection tests**, including actual shared queue/typed
+verified/no-op/failed/unknown attempts and evidence-aware pruning, retired grants,
+held cleanup, full schema/FK damage, bounded batches, committed WAL, typed hashes,
+same-count/header/configuration drift, exact replay/expiry, disabled IDs, nonregular
+paths, source readonly/no-init and sanitized CLI/no apply. Initial fixture mistakes
+used 12 values for the 11-column event table and lacked fetchone in a cursor proxy
+after adding header reads; corrected tests without weakening production checks.
+Focused inspection/maintenance/configured-runtime **151 passed (5.83s)**. A first
+restricted run reached existing threaded lifecycle tests and was interrupted;
+the complete focused set was rerun outside sandbox restrictions with synthetic
+fixtures only. Final full Python **2658 passed (434.10s / 7m14s)**. Compileall,
+Ruff, diff, new-file whitespace and local links in all ten changed/new Markdown
+files pass. Browser/Rust not rerun: templates/JavaScript and agent unchanged;
+Compose unchanged.
+
+Updated structured inspection/runtime/storage/development manuals, manual index,
+README, architecture, working plan and status. No selected-source DDL/data/control,
+backup creation, environment/credential/socket/HTTP/SSH/device access, startup hook
+or apply converter was added. No lab database/inventory was inspected or changed,
+no service was deployed, no gate/profile activated or consumed fixture reused.
+Code-only rollback needs no DB restore. Future conversion still needs a checked
+SQLite-safe backup, original-key/archive compatibility, atomic validation/rollback
+and separate scoped migration/activation acceptance. See
+[Nonempty Transition Inspection](manual/migration-inspection.md).
+
+## 2026-10-30 — Operator clarification: lab-first development, release boundary
+
+The operator clarified that this is an unreleased internal project with no real
+production use, running against their desk FPR1010 test device. Updated AGENTS
+and normative architecture with explicit precedence over older per-experiment
+approval and mandatory dev-migration planning. Ordinary in-scope development,
+validated deployments, explicit fresh-profile setup and bounded semantic lab tests
+can proceed without asking again for every fixture/gate. Announce writes/scope,
+use fresh labelled test authority, verify outcomes and keep short records.
+
+Removed legacy-dev conversion/archive-key compatibility from the delivery critical
+path. Prefer a clean DB in a separate path/volume with the old test DB privately
+archived, inventory/credentials retained and useful settings explicitly transferred;
+do not revive old queues or standing authority. Existing inspector code remains
+optional and unchanged. Revised next work toward fresh setup, executable managed
+integration, end-to-end lab use, recovery/Purge and usability instead of a converter.
+
+The first operator-designated real release published on GitHub with a version tag
+starts released-data upgrade/migration/rollback obligations, even if its version
+is still 0.x. A footer, commit, lab build or experimental/RC tag alone does not.
+Tag/release publication still needs the operator's request. Security is not
+deferred: typed operations, agent-only secrets, authentication/pinning/private
+sockets and truthful verification remain. No gate bypass, unknown-write replay,
+evidence clearing, silent DB reset/deletion or production expansion is authorized.
+Materially destructive/unclear scope and secrets/trust/network changes still need
+direction; historical consumed receipts are not recycled as fresh authority.
+
+Updated README, working plan, current status, manual index and development,
+versioning, configured-runtime, bulk-storage and optional-inspector guidance.
+Preserved historical log entries and prior implementation work in the dirty tree.
+Documentation-only validation: local links/changed heading anchors and
+`git diff --check`; no unrelated Python/browser/Rust/Compose suite rerun. The prior
+2658-test result remains historical, not a new claim for this policy update.
+No code/configuration, database/archive, profile/gate, credential/inventory,
+service/device or GitHub tag/release was changed. Next is the practical fresh
+lab setup and working end-to-end path, not another approval/migration framework.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

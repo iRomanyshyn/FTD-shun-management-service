@@ -2,6 +2,12 @@
 
 ## Status and boundaries
 
+Policy update, 2026-10-30: ordinary bounded work on the known desk lab follows
+[Lab-First Development](development.md#lab-first-development-policy), not repeated
+per-fixture approvals. Use an explicitly prepared clean separate profile while
+archiving the old dev store; a legacy converter is not required. This does not
+change the implemented observation-only scope or bypass its compatibility checks.
+
 Implemented process configuration on **already prepared** version-2 fenced
 storage. Not enabled in the lab. This is not a migration/activation runbook,
 general managed-import release or production acceptance. The legacy lab database
@@ -111,9 +117,13 @@ a verified SQLite-safe backup (including retained authority/evidence), matching
 images/configuration, and private copies of public inventory plus agent-owned
 credentials. Do not copy only a live main DB file while ignoring WAL.
 
-Nonempty legacy conversion and reviewed address/trust changes remain separate
-work. Their absence is not permission to initialize a new DB and lose retained
-history or to replace the current lab database. Preserve consumed-fixture receipts.
+Nonempty legacy conversion is optional/deferred, not a prerequisite for development.
+An explicitly initialized clean DB in a separate path/volume is the preferred lab
+route; archive the old test store rather than overwriting it or inferring new
+authority from its records. Address/trust changes still need deliberate handling.
+The separate [transition inspection](migration-inspection.md) now inventories a
+recognized nonempty legacy source and its blockers without converting it or
+authorizing startup. A successful inspection is not a prepared fenced profile.
 
 Rollback on fenced storage requires a matching fenced-compatible image/configuration
 and drained lifecycle. Switching to `legacy` deliberately refuses; never drop

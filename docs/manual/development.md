@@ -1,5 +1,59 @@
 # Development Manual
 
+## Lab-first development policy
+
+Operator alignment, 2026-10-30: this is an unreleased internal project with no
+production deployment. The current FPR1010 is the operator's desk test device.
+Prioritize usable managed import/restoration, quick unblock and real lab feedback,
+not compatibility infrastructure for disposable old development state.
+
+Proceed with normal in-scope implementation, validated lab deployment, explicit
+fresh-schema setup and bounded semantic ADD/REMOVE/restore tests without another
+approval for every fixture or feature gate. Announce device writes and their scope,
+use fresh labelled test keys/actors, verify actual outcomes and record a short
+result. Old one-address approvals/consumed receipts describe old tests, not a
+permanent requirement to ask again for every ordinary lab test.
+
+Prefer a clean DB in a separate path/volume; keep the old test DB as a private
+archive, not a mandatory conversion input. Keep inventory/credentials and transfer
+useful configuration explicitly. Do not copy old queues, imports or observations
+into standing authority, silently overwrite/reset stores or delete volumes.
+Drain old work before switching. Destructive replacement needs an exact authorized
+scope; a fresh separate store does not require a full legacy migration project.
+
+Keep semantic-only RPC, agent-only credentials, host-key pinning, authentication,
+private sockets, serialized device streams and truthful verified outcomes. Develop
+compatible tested profiles rather than bypassing runtime guards, clearing unknown
+work or fabricating success. Ask for direction on unknown/production targets,
+material scope expansion, secrets/trust/network changes or destructive actions.
+
+The first operator-designated real release published with a GitHub version tag
+starts released-data compatibility, upgrade/migration and formal rollback
+obligations. A dev version/footer or experimental tag is not that decision. Do
+not publish a tag/release without a request. See [Versioning](versioning.md).
+Older manuals still describe their implemented gates and historical experiments;
+their per-step approval language does not override this policy or the latest
+[architecture amendment](../architecture-and-security-design.md#pre-release-laboratory-policy--2026-10-30).
+
+For documentation-only changes, validate links and `git diff --check`; do not run
+unrelated full code/browser/agent suites. Code, protocol and deployment changes
+still get the applicable regression checks below and in `AGENTS.md`.
+
+## Nonempty legacy transition inspection
+
+```bash
+python3 -m pytest -q tests/test_migration_inspection.py tests/test_managed_maintenance.py tests/test_configured_runtime.py
+```
+
+Use only disposable recognized legacy profiles. Tests cover a complete streamed
+schema/row/header manifest, nonempty retired keys/receipts, actual shared-result
+attempts and evidence-aware pruning, cleanup barriers, readonly WAL snapshots,
+no-init/query-only source, bounded batches, type-separated hashes, same-count drift,
+reinspection/expiry and sanitized fixed CLI/no apply. In-memory contract generation
+may execute trusted DDL only in its own `:memory:` database. Do not point the
+command at the lab or initialize/erase optional evidence as a smoke shortcut.
+See [Transition Inspection](migration-inspection.md) for interpretation and limits.
+
 ## Configured observation-runtime checks
 
 ```bash

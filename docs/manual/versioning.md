@@ -1,5 +1,27 @@
 # Versioning and Release Identification
 
+## Development versus a real release
+
+As confirmed on 2026-10-30, this is an unreleased internal project on the operator's
+desk FPR1010 lab, not a production deployment. Before the first real release,
+development schemas/configuration may change without implementing converters for
+every older dev database. Document breaking changes, retain the old test store as
+a private archive, and explicitly initialize a clean separate profile when useful;
+do not silently reset/overwrite an existing DB or turn old jobs into new authority.
+
+The boundary is the first **operator-designated real release published on GitHub
+with a version tag**, not the existing footer version, a commit, rebuild, lab
+deployment or an experimental/RC tag alone. Tag/release publication requires an
+explicit operator request. No tag is created by recording this policy, and the
+version/tag still does not increment itself or select runtime capabilities.
+
+From that first real release, protect released data and supported contracts:
+document/test upgrades and migrations, retain checked backups/rollback artifacts,
+identify tested images and known limits, and do not reuse a published version for
+changed artifacts. This can start at `0.x`; it is separate from the stable `1.0.0`
+decision. Authentication, secret isolation, typed operations and verified outcomes
+are required before and after this boundary, not postponed until release.
+
 ## Current implementation
 
 The product version is assigned manually in
@@ -28,9 +50,11 @@ Use `MAJOR.MINOR.PATCH`, with manual, reviewed changes:
 - `MINOR`: a new feature increment, for example `0.1.1` to `0.2.0`.
 - `MAJOR`: incompatible changes after the stable public contract is established.
 
-During `0.x` development, the product is not stable: incompatible changes also
-require a minor increment and explicit migration/rollback notes. Do not hide a
-breaking schema, configuration or API change in a patch release. From `1.0.0`,
+During `0.x` development, the product is not stable. Published incompatible changes
+use a minor increment and explicit upgrade/reset/rollback notes; before the first
+real release those notes may specify a clean separate dev profile instead of a
+legacy converter. Do not hide a breaking schema, configuration or API change in
+a patch release. From `1.0.0`,
 minor releases preserve the documented stable contract; breaking changes require
 a major increment. Increasing a component/protocol version does not waive its
 compatibility checks or release gates.
