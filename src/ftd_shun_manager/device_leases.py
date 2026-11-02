@@ -222,6 +222,14 @@ class DeviceLeases:
         """Exact terminal agent proof of opening failure, not an unknown command."""
         self._release(token, opening_event='OPEN_FAILED')
 
+    def release_read_failed(self, token):
+        """Only exact terminal read-only failure in this live epoch permits retry."""
+        self._release(token, opening_event='READ_FAILED')
+
+    def release_read_receipt_recovered(self, token):
+        """Exact bound agent lookup, never old held-state or mutation recovery."""
+        self._release(token, opening_event='READ_RECEIPT_RECOVERED')
+
     def _release(self, token, *, opening_event):
         with schema_connection(self.store) as db, _atomic(db):
             previous = self.check(db, token)
@@ -236,7 +244,7 @@ class DeviceLeases:
                                   "AND json_extract(details_json,'$.device_executor.owner')=? "
                                   "AND json_extract(details_json,'$.device_executor.epoch')=?",
                                   (token.device_id, token.owner, token.epoch)).fetchone()):
-                raise QueueConflict('Opening-failure release cannot cover claimed work or device uncertainty.')
+                raise QueueConflict('Failed-session release cannot cover claimed work or device uncertainty.')
             timestamp = _stamp(self.queue._now())
             db.execute("UPDATE managed_bulk_device_executors SET state='IDLE',owner=NULL,lease_until=NULL,updated_at=? WHERE device_id=?",
                        (timestamp, token.device_id))

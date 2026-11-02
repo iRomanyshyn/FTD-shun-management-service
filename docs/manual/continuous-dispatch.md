@@ -156,6 +156,12 @@ authorize lab seeding. No removal is admitted merely by choosing its priority.
 
 ## Failure, backoff and shutdown
 
+The 2026-11-02 [settled read-only failure extension](read-failure-recovery.md)
+adds a separate exact terminal proof for failed initial/priority/final reads with
+zero mutation steps/claims. Its `agent_read_failed` retry uses the same capped
+backoff and fresh-epoch requirements below. It does not recover missing proof,
+old held leases or unknown ADD/REMOVE; opening status `03` stays opening-only.
+
 Exact pre-write deferral, failed rounds and lease contention use a five-second
 rescheduling delay to avoid a hot loop. A normally exhausted 16-mutation batch is
 not such an error and continues without that artificial delay. Submitted RPC failure

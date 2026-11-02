@@ -7620,6 +7620,217 @@ and code-only rollback without restoring data.
 browser/batch/multi-device/load acceptance; fix graceful idle-agent shutdown.
 No production or release/tag claim.
 
+## 2026-11-02 — Graceful agent signal handling and joined drain
+
+**Status:** Implemented, regression tested and deployed to the known desk lab.
+
+Replaced blocking accept/inline default dispatch with a nonblocking listener,
+bounded 100ms poll and the existing fixed pool for all capacities 1–10. Capacity
+1 still serializes one stream; successors wait in the existing bounded kernel
+backlog while it is busy, preserving legacy response handoffs without accepting
+an application work queue. STOPPED is never treated as busy/retryable.
+Explicit Tokio SIGTERM/SIGINT handlers request
+stop before accepting successors; already admitted sessions keep original budgets
+and complete normally. The listener closes before joining all workers, including
+their completion postambles, while Tokio remains alive. Repeated signals do not
+cancel work. Listener/worker errors drain remaining workers then report failure;
+stopped/panicked workers are not replaced. No result, remote-quiescence proof or
+API uncertainty resolution is inferred from process exit. Checked stale-socket
+startup cleanup stays unchanged; shutdown does not unlink a replacement path.
+
+Agent Compose stop grace is now 180 seconds; API still needs explicit 180-second
+drain first. No schema, wire, environment, credential/trust/network or policy
+change. Enabled nix poll/signal and Tokio signal features; lockfile adds only
+`signal-hook-registry` and `errno`, preserving existing pinned versions.
+
+**Validation:** 74 Rust tests passed, including real subprocess signals at
+capacity 1/4, joined handler/postamble drain, repeated signals during admitted
+local HEALTH requests, refused new connections, clean idle exit and stale-socket
+restart and serial legacy successor handoff. Ten repeated runs of the final four
+signal integration tests passed. Fixtures are private,
+synthetic and credential-isolated, with no SSH/device access. Saturation may
+reset a connection with unread data; the test synchronizes on the real dispatch
+`agent.dispatch.admitted` event rather than treating a guessed rejection packet
+as proof. Assignment is not device success or replay authority. Locked release
+build, fmt/Clippy `-D warnings` and 140 Python protocol/recovery tests pass. Base
+Compose validates with a temporary non-secret configuration tree; actual lab
+selection validates quietly. Current lab read-only precheck is healthy with five
+VERIFIED jobs, zero enabled managed targets, IDLE lease, three unchanged protected
+settings/fingerprint and integrity `ok`. Previous agent image retained as
+`ftd-shun-agent:lab-pre-shutdown-20261102`.
+
+Built/deployed final agent `09c4d1df4772...`; non-executing container preflight
+passed. API drained with exit 0; a separate readonly storage check confirmed
+zero RUNNING/uncertain jobs and IDLE before old-agent stop. The old agent needed
+its 30-second timeout/exit 137 once more, with no active work. New agent had
+180-second configured grace and passed strict read-only BEGIN `17` / v3 plus END:
+complete initial/final snapshots empty, terminal settlement valid, no mutations.
+Its real container PID-1 SIGTERM at `12:08:46.431Z` reached joined completion at
+`12:08:46.524Z`, exit 0, without SIGKILL. Restart handled its checked stale socket;
+a second strict read completed successfully with zero mutations.
+
+Restored unchanged API image `024797983f31...`; successful startup read at
+`2026-11-02T12:09:33Z`. Final state ready/no error, five VERIFIED jobs, no enabled
+managed targets, IDLE lease, three unchanged Protected-IP settings/fingerprint
+and SQLite integrity `ok`. Web `bf3f395e58eb...` unchanged; private health 200 and
+anonymous 401 pass, API/Web remain network-none. CA-verified browser HTML request
+returns HTTPS 302 to Authelia (a non-HTML probe correctly returns 401 with auth
+location). No DB restore, schema, gates, credentials, pins, auth or network change;
+no new fixture, device mutation or uncertainty clearing.
+
+**Remaining:** Submitted-session/unknown-write recovery,
+Emergency Purge and current browser/batch/multi-device/load acceptance. No
+production or release/tag claim; code-only rollback needs no DB restore and
+must retain all original authority/results/holds. Active-FTD signal interruption
+was not induced; admitted-work/repeated-signal acceptance is synthetic.
+
+## 2026-11-02 — Exact settled read-only failure and automatic retry
+
+**Status:** Implemented, full regression/build passed and deployed to the known
+desk lab with healthy read-only transport acceptance.
+
+Added distinct terminal status `04 version failed_read sequence` to opt-in BEGIN
+`17`, with unchanged legacy/strict modes, successful snapshots/END and opening
+status `03`. Agent tracks exact valid initial/priority/final read failure and
+zero mutation steps over the whole session; even NOOP/deferred ADD/REMOVE
+disqualify it. Successful bounded disconnect cleanup and original resource/
+handler/guard/worker completion precede terminal emission. Invalid IPC, generic
+failure, failed cleanup or missing proof cannot release anything. Failed reads
+retain failure logs and never become successful cycles/partial observations.
+
+The real client validates exact version/read/sequence, including between stream
+frames, closes on typed failure and never retries inside a session. It marks
+ADD/REMOVE before even a short/failed send; proof in mutations, old modes or
+after complete final snapshot while awaiting END settlement is rejected. The
+worker binds proof to its first open/current session's read, rejecting later
+misclassified types and cancelled callers. Transactional exact-live-epoch release
+requires no unsettled work or any mutation claim, even already VERIFIED/NOOP;
+audits `DEVICE_LEASE_READ_FAILED` and normal release atomically. Existing capped
+backoff, healthy-device independence, demand and fresh-evidence/current-authority
+rechecks are reused. Old held epochs, original uncertainty and policy stay intact.
+
+**Validation:** **2830 full Python tests passed (451.71s)**, including 64 new
+cases; 204 focused protocol/recovery cases pass. Rust 77 tests, locked release,
+fmt and strict Clippy pass; two proof/worker-ordering tests passed ten repetitions.
+Compileall/Ruff/diff pass. Shared vectors,
+real local SeqPacket and guarded worker completion, partial-stream/malformed/
+misbound/lost/late proof, no-op/deferral/send failure, expired/old fences, completed
+claims, audit rollback, cancellation/protection before retry and cancelled
+callers are covered. Fixtures are disposable/credential-isolated and never use
+FTD. Initial fixture errors (ADD requires v3/allowlisted profile and claims must
+predate the frozen cutoff) were corrected without relaxing product checks.
+Matching API/agent images built, and non-executing preflights passed with the
+existing managed lab configuration/storage. Rollback images retained as
+`ftd-shun-{api,agent}:lab-pre-read-recovery-20261102`; no live failure induced or
+device mutation requested.
+
+After clean API drain, a separate readonly inspection confirmed five VERIFIED
+jobs, no enabled managed targets, IDLE lease, unchanged three Protected-IP settings/
+fingerprint and integrity `ok`. Previous graceful-shutdown agent stopped with
+exit 0, no SIGKILL. Deployed API `e549c337c7b1...` and agent `d9e9efb3edd0...`.
+With API still stopped, the matching client passed actual FPR BEGIN `17` / v3
+and END: complete initial/final snapshots empty, valid terminal settlement and
+zero mutation requests. API then started and completed a fresh successful read
+at `2026-11-02T12:47:08Z`. Final state ready/no error, five VERIFIED jobs, zero
+enabled managed targets, IDLE lease, original protected fingerprint and SQLite
+integrity `ok`. Web `bf3f395e58eb...` unchanged; private health 200/anonymous 401,
+CA-verified HTML HTTPS 302 to Authelia, API/Web network-none and quiet three-file
+Compose checks pass. No DB restore, schema/gate/secret/trust/network/auth change,
+new fixture/device mutation or induced outage. Failure recovery is synthetic;
+the healthy live read is a transport non-regression check, not lost-proof or
+unknown-write recovery acceptance.
+
+**Impact/rollback:** No schema, selector/gate, secret/trust/network/auth or Web
+asset change. Matching agent/API code-only cutover with API-first drain; old
+BEGIN-17 code fails closed on unsupported failure proof. Retain images/evidence,
+never restore old DB/authority to resolve a hold. Manual documents operating
+scope, terminal semantics and rollback.
+
+**Remaining:** Proof-loss/hard-crash/submitted-session
+and unknown-write reconciliation, Emergency Purge and current browser/batch/
+multi-device/load acceptance. This is not general unknown-outcome recovery or
+production/release acceptance.
+
+## 2026-11-02 — Lease-bound completion journal and lost read receipt lookup
+
+**Status:** Implemented, full regression/build passed and deployed to the known
+desk lab with read-only normal/lost-terminal lookup acceptance.
+
+Added exact 20-byte tracked BEGIN `18` / local lookup `19`, using current durable
+device-lease owner UUIDv4 as 16-byte correlation. Configured continuous modes
+explicitly select tracking and reject capability drift before startup; low-level
+legacy/strict/BEGIN-17 defaults remain. Initial/terminal/failure bindings retain
+exact versions, selected ADD scope, typed results, budgets, UID and pinned secrets.
+
+New process-local agent journal has 4096 entries, no credentials/output/mutation
+authority. It reserves before tracked SSH, refuses retained duplicates, evicts
+only oldest completed entries and never treats missing/restarted state as safe.
+Successful cleanup and zero mutation steps (including no NOOP/deferral) prepare
+read-only evidence; handler/resource/guard return and original worker-IDLE
+postamble publish completion before the possibly lost nonblocking terminal send.
+Active/unsafe/unknown lookup cannot release anything; no SSH, FTD guard, command,
+cancellation or new executor follows the local query. Its 21-byte exact echo and
+absolute <=5s client deadline prevent inference from timing/error text.
+
+After only its own current tracked session misses settlement/fails, API may query
+that identity. Exact live owner/epoch/deadline, no unsettled jobs/attempts and no
+claim in the epoch (even completed claims) are independently rechecked before
+atomic `DEVICE_LEASE_READ_RECEIPT_RECOVERED` plus normal release. Retain original
+errors/data/results/authority. Retry uses new UUID/epoch/fresh read and ordinary
+capped backoff/current-policy checks. Old holds/crashes and unknown ADD/REMOVE
+remain unchanged; journal lookup is not general mutation reconciliation.
+
+**Validation:** **2892 full Python tests passed (443.69s)**; 82 Rust tests,
+strict Clippy/fmt, locked release, compileall/Ruff/diff and targeted Python checks
+pass. There are 60 new lookup cases and two new configured drift cases.
+Shared v1/v2/v3/status vectors, actual local sockets, closed-peer terminal loss,
+guard/postamble ordering, duplicate refusal, active-preserving capacity/eviction,
+restart-as-unknown, no-SSH lookup, missed initial/final receipts, local processing
+abort, healthy-device independence, new nonce/backoff/demand, malformed bindings,
+expired/old fences, completed claims and audit rollback are tested. Synthetic
+clock/notification and held-capacity fixtures were synchronized without changing
+product cooldown/lease checks. Configured test adapters now explicitly model the
+tracked boundary instead of accidentally selecting old BEGIN. The first full
+Python run completed with 2891 passing and one 100000-pair cancellation fixture
+exceeding its synthetic 20-second bridge deadline while image/compiler work ran.
+That unchanged fixture passed in isolation (55.56s for its whole scenario); the
+full no-build-contention rerun passed. Product deadlines were not relaxed.
+Matching images and non-executing preflights pass.
+
+Retained previous matching API/agent as
+`ftd-shun-{api,agent}:lab-pre-session-lookup-20261102`. Drained API (exit 0) and
+independently inspected readonly storage: IDLE, five VERIFIED jobs, zero enabled
+managed targets, unchanged three Protected-IP settings/fingerprint and integrity
+`ok`. Old agent stopped cleanly (exit 0, no SIGKILL). Deployed agent
+`b3335c280601...` before API `6c1484707809...`.
+
+With API stopped, labelled trusted-host `readonly-session-lookup-20261102` ran
+two fresh-UUID v3 sessions against device 1. Normal BEGIN `18` / END had complete
+empty initial/final snapshots and valid strict settlement; exact lookup confirmed
+read-only completion. A second complete END data response was consumed but its
+terminal record intentionally was not; the test closed that client, then exact
+lookup confirmed the original completion. Fresh unknown nonce returned unsafe.
+Zero ADD/REMOVE requests or FTD writes; this is deliberate local receipt non-
+consumption, not a network/trust/configuration outage or queued mutation test.
+
+API restarted and completed a fresh read at `2026-11-02T13:41:34Z`: ready/no error,
+five VERIFIED jobs, zero enabled managed targets, IDLE, original protected
+fingerprint and SQLite integrity `ok`. Web `bf3f395e58eb...` unchanged; private
+health 200/anonymous 401, CA-verified HTML HTTPS 302 to Authelia, API/Web network-
+none and quiet three-file Compose/all-service checks pass. No schema/gate/DB
+restore, credential/trust/network/auth change, new standing authority, clearing
+of uncertainty or device mutation. Controller-level automatic loss recovery is
+synthetic; direct live lookup is not hard-crash/unknown-write/fleet/load acceptance.
+
+**Impact/rollback:** No DB schema/authority/gate, environment, credential, trust,
+network, authentication or Web change. API-first drain and matching agent-first
+deployment required; old agents reject new BEGIN/lookup without fallback. Retain
+compatible images and all evidence, not a data restore/reset as recovery.
+
+**Remaining:** Durable/crash/old-held-epoch
+and mutation-result reconciliation, Emergency Purge, current browser/batch/
+multi-device/load acceptance. No production/release claim.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

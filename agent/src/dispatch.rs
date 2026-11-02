@@ -145,6 +145,35 @@ impl<T: Send + 'static> Pool<T> {
             TrySendError::Full(work)
         })
     }
+
+    pub(super) fn all_busy(&self) -> bool {
+        self.slots
+            .iter()
+            .all(|slot| slot.state.load(Ordering::Acquire) == BUSY)
+    }
+
+    pub(super) fn drain(mut self) -> Result<()> {
+        // Closing all senders wakes idle workers; admitted work still completes.
+        // Keep state references until every handler AND postamble has joined.
+        let states: Vec<_> = self
+            .slots
+            .iter()
+            .map(|slot| Arc::clone(&slot.state))
+            .collect();
+        self.slots.clear();
+        let mut panicked = false;
+        for worker in self._workers.drain(..) {
+            panicked |= worker.join().is_err();
+        }
+        if panicked
+            || states
+                .iter()
+                .any(|state| state.load(Ordering::Acquire) == STOPPED)
+        {
+            bail!("agent worker failed; all remaining workers drained without replacement");
+        }
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -165,6 +194,92 @@ mod tests {
                 Err(_) => bail!("synthetic pool did not become idle"),
             }
         }
+    }
+
+    #[test]
+    fn drain_waits_for_handler_and_completion_and_closes_idle_workers() -> Result<()> {
+        let (entered, started) = mpsc::channel();
+        let (release, pending) = mpsc::channel();
+        let pending = Mutex::new(pending);
+        let (postamble, completing) = mpsc::channel();
+        let (finish, pending_finish) = mpsc::channel();
+        let pending_finish = Arc::new(Mutex::new(pending_finish));
+        struct Postamble {
+            entered: mpsc::Sender<()>,
+            pending: Arc<Mutex<mpsc::Receiver<()>>>,
+        }
+        impl Completion for Postamble {
+            fn complete(self) {
+                let _ = self.entered.send(());
+                // Deliberately held synthetic postamble, never production I/O.
+                let result = self
+                    .pending
+                    .lock()
+                    .ok()
+                    .and_then(|receiver| receiver.recv_timeout(Duration::from_secs(5)).ok());
+                assert!(result.is_some());
+            }
+        }
+        let pool = Pool::new(4, move |_: ()| {
+            let _ = entered.send(());
+            let result = pending
+                .lock()
+                .ok()
+                .and_then(|receiver| receiver.recv_timeout(Duration::from_secs(5)).ok());
+            assert!(result.is_some());
+            Postamble {
+                entered: postamble.clone(),
+                pending: Arc::clone(&pending_finish),
+            }
+        })?;
+        pool.submit(())?;
+        started.recv_timeout(Duration::from_secs(2))?;
+        let (done, drained) = mpsc::channel();
+        let joining = std::thread::spawn(move || {
+            let _ = done.send(pool.drain());
+        });
+        assert!(matches!(drained.try_recv(), Err(mpsc::TryRecvError::Empty)));
+        release.send(())?;
+        completing.recv_timeout(Duration::from_secs(2))?;
+        assert!(matches!(drained.try_recv(), Err(mpsc::TryRecvError::Empty)));
+        finish.send(())?;
+        drained.recv_timeout(Duration::from_secs(2))??;
+        joining
+            .join()
+            .map_err(|_| anyhow::anyhow!("drain thread panicked"))?;
+        Ok(())
+    }
+
+    #[test]
+    fn drain_joins_healthy_siblings_even_when_a_worker_failed() -> Result<()> {
+        let (entered, active) = mpsc::channel();
+        let (release, pending) = mpsc::channel();
+        let pending = Mutex::new(pending);
+        let pool = Pool::new(2, move |item: usize| {
+            if item == 0 {
+                std::panic::resume_unwind(Box::new("synthetic"));
+            }
+            let _ = entered.send(());
+            let result = pending
+                .lock()
+                .ok()
+                .and_then(|receiver| receiver.recv_timeout(Duration::from_secs(5)).ok());
+            assert!(result.is_some());
+        })?;
+        pool.submit(0)?;
+        pool.submit(1)?;
+        active.recv_timeout(Duration::from_secs(2))?;
+        let (done, drained) = mpsc::channel();
+        let joining = std::thread::spawn(move || {
+            let _ = done.send(pool.drain());
+        });
+        assert!(matches!(drained.try_recv(), Err(mpsc::TryRecvError::Empty)));
+        release.send(())?;
+        assert!(drained.recv_timeout(Duration::from_secs(2))?.is_err());
+        joining
+            .join()
+            .map_err(|_| anyhow::anyhow!("drain thread panicked"))?;
+        Ok(())
     }
 
     #[test]

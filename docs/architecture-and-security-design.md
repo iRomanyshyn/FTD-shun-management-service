@@ -5531,3 +5531,118 @@ completed its terminal-settled session, not merely absence of an RPC exception.
 Local initial/priority snapshot processing errors must not bypass settlement.
 A local final-publication error after proved terminal settlement may release the
 completed lease while retaining its error and previous published observations.
+
+## Graceful agent shutdown — 2026-11-02
+
+Install SIGTERM/SIGINT handling before binding the service socket, not during
+configuration-only checks. A signal requests shutdown; it never cancels SSH,
+fabricates a result/settlement receipt or clears API leases. Repeated signals
+must not interrupt draining. Keep the Tokio driver alive until the listener and
+all admitted handlers plus their bounded local completion postambles finish.
+
+Use the same fixed pool for every declared capacity 1..10, including default 1.
+This replaces the former serial inline branch without adding reader/writer roles
+or overlapping same-device streams. There is no application backlog behind an
+active handler; saturation retains generic rejection, never recovery authority.
+At capacity 1 preserve the former serial handoff: while its worker is BUSY,
+leave successors in the existing bounded kernel backlog until it is idle,
+without accepting an application queue or racing legacy un-settled replies.
+The listener continues bounded stop checks; a stopped worker is not busy capacity
+and still fails closed. Higher capacities retain existing saturation behavior.
+The listener must remain responsive while the sole worker is active. Wait on a
+nonblocking listener with at most 100ms shutdown-check latency; after observing
+stop, close it before joining admitted work. An acceptance/admission check that
+preceded stop may finish; no successor is assigned after stop is observed.
+
+Close pool senders and join every original worker, including its completion
+postamble. Do not replace stopped/panicked workers, detach live handlers, free
+their slot on signal, renew deadlines or reinterpret unknown remote outcomes.
+Listener errors also drain admitted work before returning failure. Worker failure
+must not become a clean-shutdown success. Existing command/verification/IPC/cycle
+budgets, UID checks, guards, pins, secrets and exact binary packets stay unchanged.
+Shutdown is local lifecycle evidence only, never unknown-write replay authority.
+
+Provide a 180-second agent container stop grace for existing bounded handlers.
+Operators still drain the sole API first with its documented timeout, then stop
+agent, start agent and restore the API. A shorter external kill timeout/SIGKILL or
+an underlying operation violating its bound can still interrupt work; preserve
+original uncertainty. Idle shutdown should exit normally without SIGKILL. Leave
+the stale socket pathname for the existing checked startup cleanup; do not unlink
+an arbitrary replacement during shutdown. No schema, policy or wire change.
+
+## Settled read-only failure recovery — 2026-11-02
+
+Extend opt-in BEGIN `17` with exact terminal `04 version failed_read sequence`.
+The binding is its own initial read (`17`, sequence 0), valid SNAPSHOT (`11`) or
+END (`13`, sequence 1–18). Only an agent-observed failure of that read/transfer,
+with no ADD/REMOVE step attempted anywhere in the session and successful bounded
+disconnect cleanup, may produce this record. Validated decoding must precede
+step eligibility; IPC timeout, malformed commands and arbitrary rejection cannot
+produce it. Even deferred/no-op mutation steps disqualify the entire session.
+Retain normal budgets and emit only through post-handler/resource-drop, released
+device/address guard and worker-IDLE completion. Preserve a failed-read log,
+never advertise a completed cycle or successful snapshot. This proves no local
+future can issue a write, not remote TCP termination or valid observation.
+
+The opted-in client checks the exact current version/read opcode/sequence on its
+own connection, including between snapshot chunks, discards incomplete data and
+raises a distinct terminal read failure. It must have attempted no ADD/REMOVE;
+mark a mutation attempt before send, including short/failed sends. Reject proof
+in a mutation response, after any attempted mutation or after a complete END
+snapshot while waiting for normal settlement. No fallback, reconnect or retry
+inside the cycle; missing/malformed/late proof, old agent generic failures and
+EOF/timeout retain holds. BEGIN `10`/`16` and opening status `03` are unchanged.
+
+Only the first opening call or bound current session SNAPSHOT/END in the live
+API epoch may consume it. In the release transaction, require exact unexpired
+owner/epoch, no RUNNING/uncertain work and no mutation claim anywhere in that
+epoch, including completed claims. Audit `DEVICE_LEASE_READ_FAILED` plus ordinary
+release atomically. Do not alter results/attempts, policy or previous complete
+observations; valid earlier reads remain real observations, not successful final
+refresh. Reuse retained demand and per-device 5/10/20/40/60s backoff; a retry is a
+new fenced session with fresh full initial evidence and current policy checks.
+No startup repair, schema migration or HTTP recovery authority. Old holds and
+unknown ADD/REMOVE still require their separate reconciliation contract.
+
+## Bound session completion lookup — 2026-11-02
+
+Add explicit BEGIN `18 version device:u16 session_id:16` and local completion
+lookup `19 version device:u16 session_id:16` (exactly 20 bytes). Nonzero 16-byte
+session IDs come from the current durable device-lease UUID owner, not a browser
+field. Versions 1–3 retain the existing gates/budgets/operations; successful
+initial and terminal frames bind to `18`. Opening/read-failure statuses `03`/`04`
+extend only their initial binding. No CLI text or new mutation opcode exists.
+
+Before starting that handler, reserve its exact device/version/session key in
+an agent-process-local journal of at most 4096 entries. Reject retained duplicate
+keys without execution. Never evict active entries; evict only oldest completed
+entries on capacity pressure. Missing/evicted/restarted state is unknown, never
+proof of absence or permission to resend BEGIN. This journal is not durable
+idempotency, policy or mutation authority.
+
+Prepare a safe-read-only completion only after no ADD/REMOVE steps at all and
+successful bounded disconnect cleanup, or completed pre-command opening failure.
+It is not visible as complete until the handler/resources/guard have ended and
+the worker's original IDLE completion postamble publishes it, before attempting
+the terminal send. A failed send may lose the response but not this retained
+local record. Panics, failed cleanup and mutation sessions never yield safe
+read-only proof. Normal read IPC closure/local processing abort may complete
+read-only without fabricating a successful read. Retain original error/data.
+
+Lookup is a fixed UID-checked local-memory operation: no SSH, device guard,
+session cancellation or new work. Return exactly 21 bytes:
+`status version 19 device:u16 session_id:16`. Status `00` means retained completed
+read-only; `02` active; `01` unknown/unsafe. Validate the full echoed binding.
+Nothing else can release a lease. Bound lookup to at most five seconds; busy,
+missing, malformed, timeout, shutdown/restart or evicted proof retains the hold.
+
+Configured continuous clients explicitly select tracked sessions. Only after
+their own submitted session failed or missed strict terminal settlement may
+the worker perform this separate lookup using its existing exact lease owner.
+A successful proof uses the same transactional live owner/epoch/deadline,
+no unsettled work and no claim-in-epoch checks, with separate
+`DEVICE_LEASE_READ_RECEIPT_RECOVERED` plus ordinary release audit. Retry is a new
+epoch/session and fresh observation under existing demand/backoff/current-policy
+checks. No old held epoch, startup/GET repair, mutation result, uncertainty latch
+or revoked authority is cleared. Unknown ADD/REMOVE, API/agent hard-crash recovery
+and older held epochs remain separate reconciliation work. No DB schema change.

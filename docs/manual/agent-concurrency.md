@@ -1,5 +1,15 @@
 # Bounded Agent Connection Concurrency
 
+Current lifecycle update (2026-11-02): all capacities 1–10 now use one fixed pool;
+capacity 1 no longer blocks the listener inside its handler. Shutdown closes
+admission and joins handlers/postambles. See [Graceful Agent Shutdown](agent-shutdown.md).
+The later [bound completion lookup](session-completion-lookup.md) is a local-memory
+exception to device-guarded SSH operations: it reads exact session evidence only,
+never opens SSH, cancels a handler or changes the configured worker capacity.
+The clean managed desk lab and actual activation are described in
+[Fresh Working-Version Lab](fresh-development.md); older activation notes below
+describe the original isolated concurrency increment.
+
 Status: implemented opt-in transport prerequisite, **not end-to-end parallel
 scheduling**. The deployed lab was not changed. The current API still uses one
 global executor lease/cooldown and serial device collection. A separately explicit
@@ -11,7 +21,7 @@ completion ordering. Application activation and live acceptance remain pending.
 
 ## Configuration and limits
 
-`FTD_SHUN_AGENT_MAX_CONCURRENT_DEVICES=1` preserves the serial inline dispatcher.
+`FTD_SHUN_AGENT_MAX_CONCURRENT_DEVICES=1` selects one serialized connection worker.
 Accepted values are canonical decimal integers **1–10**, with no whitespace,
 signs or leading zeros. Missing means 1; invalid values fail configuration before
 serving requests. The agent's `--check-config` output includes
@@ -19,7 +29,7 @@ serving requests. The agent's `--check-config` output includes
 FTD. It validates credentials exactly as before; concurrency is not a credential
 fallback or an ADD gate.
 
-Values above 1 create a fixed number of connection workers. Four remains the
+All values create that fixed number of connection workers. Four remains the
 working-version planning target after coordinated validation; this increment
 does not change the deployed default to four or validate FTD hardware capacity.
 The existing Compose `env_file` already supplies agent environment values: no

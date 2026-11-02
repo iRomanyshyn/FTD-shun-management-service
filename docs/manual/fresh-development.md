@@ -233,6 +233,57 @@ No failed SSH connection was induced on FPR; failure paths are synthetic tests.
 No schema/data restore or credential/trust/network change. Use matching rollback
 code, never clear old holds or restore an earlier authority snapshot.
 
+### Graceful agent shutdown rollout — 2026-11-02
+
+Only agent was replaced, retaining `ftd-shun-agent:lab-pre-shutdown-20261102`.
+The three-file Compose selection now gives it 180-second stop grace; explicitly
+drain API first as described in [Graceful Agent Shutdown](agent-shutdown.md).
+No schema, authority/gate, credentials, trust, auth or network change.
+
+After API drain and readonly IDLE/no-active-work inspection, the new agent passed
+strict read-only BEGIN `17` / v3 and END before and after stop/restart. Both
+complete snapshots were empty and settled, with zero mutation requests. The real
+idle container PID-1 handled SIGTERM in about 93ms and exited 0, fixing the old
+timeout/exit-137 limitation. Already admitted work/repeated signals were tested
+synthetically, not by interrupting real FTD work.
+
+The unchanged API's fresh startup read completed at `2026-11-02T12:09:33Z`;
+five VERIFIED jobs, no enabled managed policy, IDLE lease, three unchanged
+Protected-IP settings and integrity `ok`. Web image unchanged; health/auth
+boundaries pass. Retain all old outcomes/holds: clean local shutdown is not
+evidence permitting unknown-write replay.
+
+### Settled read-only recovery rollout — 2026-11-02
+
+Matching API/agent now consume [read-only failure proof](read-failure-recovery.md)
+for initial/priority/final reads with zero mutation attempts/claims and successful
+cleanup. Prior pair remains `ftd-shun-{api,agent}:lab-pre-read-recovery-20261102`;
+there is no schema, gate, credential/trust, auth, network or Web change.
+
+After API drain and readonly IDLE/no-active-work inspection, agent stopped cleanly
+with exit 0. The new pair passed real strict read-only BEGIN `17` / v3 plus END
+before API start: complete empty snapshots and terminal settlement, no mutations.
+The API's fresh read at `2026-11-02T12:47:08Z` confirmed ready/no error, unchanged
+five VERIFIED jobs, zero enabled managed policy, IDLE, three protected settings
+and integrity `ok`. Web/auth boundaries pass. Failed-read paths were tested only
+synthetically; missing proof, old holds and unknown ADD/REMOVE remain held.
+
+### Tracked completion lookup rollout — 2026-11-02
+
+Configured clients now use [BEGIN `18` and local lookup `19`](session-completion-lookup.md),
+with matching prior API/agent retained as `lab-pre-session-lookup-20261102`.
+No schema/gate/secret/network/auth or Web change. Drain API, inspect retained
+scope and deploy agent before API; old agents cannot serve the new BEGIN.
+
+Real read-only device-1 acceptance covered normal strict v3 END and a separate
+fresh-UUID session whose terminal record was deliberately not consumed. Exact
+lookup recovered its completed read-only state; unknown nonce was unsafe. Both
+snapshots empty, no ADD/REMOVE or device writes. After API restart, fresh read at
+`2026-11-02T13:41:34Z` confirmed ready/no error, five VERIFIED jobs, no enabled
+managed policy, IDLE, unchanged three protected settings and integrity `ok`.
+Web/auth boundaries pass. This is not live mutation/crash/old-held-state recovery;
+agent restart or missing/evicted proof retains the original hold.
+
 ### Synthetic regression
 
 ```bash

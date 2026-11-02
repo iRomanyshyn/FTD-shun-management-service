@@ -8,6 +8,8 @@ mod addition;
 mod credentials;
 mod cycle;
 mod dispatch;
+mod sessions;
+mod shutdown;
 mod snapshot;
 
 // Offline executable specification only; never linked into the shipped agent.
@@ -25,6 +27,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result, bail};
+#[cfg(test)]
 use dispatch::Completion;
 use nix::sys::socket::sockopt::PeerCredentials;
 use nix::sys::socket::{
@@ -41,7 +44,7 @@ use zeroize::Zeroizing;
 
 const RESPONSE_OK: [u8; 1] = [0x00];
 const RESPONSE_REJECTED: [u8; 1] = [0x01];
-const MAX_REQUEST_BYTES: usize = 8;
+const MAX_REQUEST_BYTES: usize = 20;
 const MAX_AGENT_RESPONSE_BYTES: usize = 64 * 1024;
 const MAX_CISCO_OUTPUT_BYTES: usize = 64 * 1024;
 const FTD_INTERACTION_TIMEOUT: Duration = Duration::from_secs(15);
@@ -51,6 +54,7 @@ const FTD_PROMPT: &[u8] = b"> ";
 
 #[derive(Clone)]
 struct Agent {
+    sessions: Arc<sessions::Sessions>,
     devices: BTreeMap<u16, Device>,
     credentials: credentials::Credentials,
     operation_timeout: Duration,
@@ -194,6 +198,7 @@ impl Agent {
 
         Ok((
             Self {
+                sessions: Arc::new(sessions::Sessions::default()),
                 credentials: credentials::Credentials::from_environment(
                     &devices.keys().copied().collect(),
                 )?,
@@ -606,12 +611,18 @@ fn is_safe_interface(interface: &str) -> bool {
             .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'/' | b'.' | b'_' | b'-'))
 }
 
-fn serve(agent: Agent, socket_file: PathBuf, peer_uid: u32, runtime: Handle) -> Result<()> {
+fn serve(
+    agent: Agent,
+    socket_file: PathBuf,
+    peer_uid: u32,
+    runtime: Handle,
+    stop: shutdown::Shutdown,
+) -> Result<()> {
     remove_existing_socket(&socket_file)?;
     let listener = socket(
         AddressFamily::Unix,
         SockType::SeqPacket,
-        SockFlag::SOCK_CLOEXEC,
+        SockFlag::SOCK_CLOEXEC | SockFlag::SOCK_NONBLOCK,
         None,
     )?;
     bind(listener.as_raw_fd(), &UnixAddr::new(&socket_file)?)?;
@@ -625,39 +636,63 @@ fn serve(agent: Agent, socket_file: PathBuf, peer_uid: u32, runtime: Handle) -> 
             .map(|(id, device)| (*id, device.management_ip)),
     ));
     let agent = Arc::new(agent);
-    let workers = if agent.max_concurrent_devices > 1 {
+    let workers = {
+        let count = agent.max_concurrent_devices;
         let agent = Arc::clone(&agent);
         let guards = Arc::clone(&guards);
         let runtime = runtime.clone();
-        Some(dispatch::Pool::new(
-            agent.max_concurrent_devices,
-            move |(connection, accepted): (OwnedFd, Instant)| {
-                let settlement = respond(&agent, &connection, &runtime, &guards, accepted);
-                ConnectionCompletion {
-                    connection,
-                    settlement,
-                }
-            },
-        )?)
-    } else {
-        None
+        dispatch::Pool::new(count, move |(connection, accepted): (OwnedFd, Instant)| {
+            let (settlement, tracked) =
+                respond_for_worker(&agent, &connection, &runtime, &guards, accepted);
+            ConnectionCompletion {
+                connection,
+                settlement,
+                tracked: tracked.map(|key| (Arc::clone(&agent.sessions), key)),
+            }
+        })?
     };
 
-    loop {
-        let connection = accept_connection(listener.as_raw_fd())?;
-        let accepted = Instant::now();
-        if cycle::set_ipc_timeout(&connection, Duration::from_secs(10)).is_err() {
-            continue;
-        }
-        if !authorized_peer(&connection, peer_uid) {
-            let _ = send(
-                connection.as_raw_fd(),
-                &RESPONSE_REJECTED,
-                MsgFlags::MSG_NOSIGNAL,
-            );
-            continue;
-        }
-        if let Some(workers) = &workers {
+    eprintln!("{{\"event\":\"agent.listener.ready\"}}");
+    let result = (|| -> Result<()> {
+        while stop.wait_readable(&listener)? {
+            if agent.max_concurrent_devices == 1 && workers.all_busy() {
+                // Preserve legacy serial handoffs: leave successors in the
+                // bounded kernel backlog, not an application/SSH work queue.
+                std::thread::sleep(Duration::from_millis(100));
+                continue;
+            }
+            let connection = match accept_connection(listener.as_raw_fd()) {
+                Ok(connection) => connection,
+                Err(error)
+                    if matches!(
+                        error.downcast_ref::<nix::errno::Errno>(),
+                        Some(nix::errno::Errno::EAGAIN | nix::errno::Errno::EINTR)
+                    ) =>
+                {
+                    continue;
+                }
+                Err(error) => return Err(error),
+            };
+            if stop.requested() {
+                break; // Accepted but not admitted: close, never invent a receipt.
+            }
+            let accepted = Instant::now();
+            if cycle::set_ipc_timeout(&connection, Duration::from_secs(10)).is_err() {
+                continue;
+            }
+            if !authorized_peer(&connection, peer_uid) {
+                let _ = send(
+                    connection.as_raw_fd(),
+                    &RESPONSE_REJECTED,
+                    MsgFlags::MSG_NOSIGNAL,
+                );
+                continue;
+            }
+            // This last stop observation is the admission boundary. Work already
+            // admitted here is drained even if the signal arrives before submit.
+            if stop.requested() {
+                break;
+            }
             if let Err(error) = workers.submit((connection, accepted)) {
                 let connection = match error {
                     std::sync::mpsc::TrySendError::Full((connection, _)) => connection,
@@ -671,16 +706,18 @@ fn serve(agent: Agent, socket_file: PathBuf, peer_uid: u32, runtime: Handle) -> 
                     &RESPONSE_REJECTED,
                     MsgFlags::MSG_NOSIGNAL,
                 );
+            } else {
+                eprintln!("{{\"event\":\"agent.dispatch.admitted\"}}");
             }
-        } else {
-            let settlement = respond(&agent, &connection, &runtime, &guards, accepted);
-            ConnectionCompletion {
-                connection,
-                settlement,
-            }
-            .complete();
         }
-    }
+        Ok(())
+    })();
+    drop(listener); // Refuse new connections before waiting for admitted RPCs.
+    eprintln!("{{\"event\":\"agent.shutdown.draining\"}}");
+    let drained = workers.drain();
+    result.and(drained)?;
+    eprintln!("{{\"event\":\"agent.shutdown.completed\"}}");
+    Ok(())
 }
 
 fn authorized_peer(connection: &OwnedFd, peer_uid: u32) -> bool {
@@ -691,15 +728,22 @@ fn authorized_peer(connection: &OwnedFd, peer_uid: u32) -> bool {
 enum Reply {
     Packet(Vec<u8>),
     Settled([u8; 4]),
+    Tracked(Option<[u8; 4]>, sessions::Key),
 }
 
 struct ConnectionCompletion {
     connection: OwnedFd,
     settlement: Option<[u8; 4]>,
+    tracked: Option<(Arc<sessions::Sessions>, sessions::Key)>,
 }
 
 impl dispatch::Completion for ConnectionCompletion {
     fn complete(self) {
+        if let Some((sessions, key)) = self.tracked
+            && sessions.complete(key).is_err()
+        {
+            eprintln!("{{\"event\":\"agent.session.completion_unavailable\"}}");
+        }
         if let Some(record) = self.settlement {
             // Handler/cleanup/guard have finished and the pool is already IDLE.
             // A slow/disconnected peer must never hold a free worker here.
@@ -716,13 +760,13 @@ impl dispatch::Completion for ConnectionCompletion {
     }
 }
 
-fn respond(
+fn respond_for_worker(
     agent: &Agent,
     connection: &OwnedFd,
     runtime: &Handle,
     guards: &dispatch::DeviceGuards,
     accepted: Instant,
-) -> Option<[u8; 4]> {
+) -> (Option<[u8; 4]>, Option<sessions::Key>) {
     // Fixed std workers do not inherit spawn_blocking's Tokio context. Timer/SSH
     // futures are constructed below before Handle::block_on enters the runtime.
     let _runtime_context = runtime.enter();
@@ -734,14 +778,35 @@ fn respond(
         handle_connection(agent, connection, runtime, guards)
     };
     match response {
-        Reply::Settled(record) => Some(record),
+        Reply::Settled(record) => (Some(record), None),
+        Reply::Tracked(record, key) => {
+            if record.is_none() {
+                let _ = send(
+                    connection.as_raw_fd(),
+                    &RESPONSE_REJECTED,
+                    MsgFlags::MSG_NOSIGNAL,
+                );
+            }
+            (record, Some(key))
+        }
         Reply::Packet(response) => {
             if !response.is_empty() {
                 let _ = send(connection.as_raw_fd(), &response, MsgFlags::MSG_NOSIGNAL);
             }
-            None
+            (None, None)
         }
     }
+}
+
+#[cfg(test)]
+fn respond(
+    agent: &Agent,
+    connection: &OwnedFd,
+    runtime: &Handle,
+    guards: &dispatch::DeviceGuards,
+    accepted: Instant,
+) -> Option<[u8; 4]> {
+    respond_for_worker(agent, connection, runtime, guards, accepted).0
 }
 
 fn accept_connection(listener: std::os::fd::RawFd) -> Result<OwnedFd> {
@@ -763,9 +828,24 @@ fn handle_connection(
         Ok(_) => return Reply::Packet(RESPONSE_REJECTED.to_vec()),
         Err(_) => return Reply::Packet(RESPONSE_REJECTED.to_vec()),
     };
+    if packet[0] == sessions::LOOKUP {
+        return sessions::decode(&packet[..received], sessions::LOOKUP)
+            .and_then(|key| {
+                if !agent
+                    .devices
+                    .get(&key.device)
+                    .is_some_and(|device| device.enabled)
+                {
+                    bail!("unknown or disabled lookup device");
+                }
+                agent.sessions.lookup(key)
+            })
+            .map(Reply::Packet)
+            .unwrap_or_else(|_| Reply::Packet(RESPONSE_REJECTED.to_vec()));
+    }
     let device_id = if matches!(
         packet.first().copied(),
-        Some(0x10 | cycle::BEGIN_SETTLED | cycle::BEGIN_RECOVERABLE)
+        Some(0x10 | cycle::BEGIN_SETTLED | cycle::BEGIN_RECOVERABLE | sessions::BEGIN)
     ) {
         cycle::decode_begin(&packet[..received]).map(|(device, _)| device)
     } else {
@@ -795,6 +875,23 @@ fn handle_connection(
 }
 
 fn handle_packet(agent: &Agent, connection: &OwnedFd, runtime: &Handle, packet: &[u8]) -> Reply {
+    if packet.first() == Some(&sessions::BEGIN) {
+        let key = match sessions::decode(packet, sessions::BEGIN) {
+            Ok(key) if agent.sessions.reserve(key).is_ok() => key,
+            _ => return Reply::Packet(RESPONSE_REJECTED.to_vec()),
+        };
+        let record = match cycle::handle(agent, connection, runtime, packet) {
+            Ok(record) => record,
+            Err(error) => {
+                eprintln!(
+                    "{}",
+                    serde_json::json!({"event":"agent.cycle.rejected","reason":error.to_string()})
+                );
+                None
+            }
+        };
+        return Reply::Tracked(record, key);
+    }
     if matches!(
         packet.first().copied(),
         Some(0x10 | cycle::BEGIN_SETTLED | cycle::BEGIN_RECOVERABLE)
@@ -1016,10 +1113,31 @@ async fn main() -> Result<()> {
         );
         return Ok(());
     }
+    use tokio::signal::unix::{SignalKind, signal};
+    let mut terminate =
+        signal(SignalKind::terminate()).context("could not install SIGTERM handler")?;
+    let mut interrupt =
+        signal(SignalKind::interrupt()).context("could not install SIGINT handler")?;
     let runtime = Handle::current();
-    tokio::task::spawn_blocking(move || serve(agent, socket_file, peer_uid, runtime))
-        .await
-        .context("agent listener thread stopped unexpectedly")??;
+    let stop = shutdown::Shutdown::default();
+    let serving_stop = stop.clone();
+    let mut serving = tokio::task::spawn_blocking(move || {
+        serve(agent, socket_file, peer_uid, runtime, serving_stop)
+    });
+    let result = tokio::select! {
+        result = &mut serving => result,
+        _ = terminate.recv() => {
+            stop.request();
+            eprintln!("{{\"event\":\"agent.shutdown.requested\",\"signal\":\"SIGTERM\"}}");
+            serving.await
+        },
+        _ = interrupt.recv() => {
+            stop.request();
+            eprintln!("{{\"event\":\"agent.shutdown.requested\",\"signal\":\"SIGINT\"}}");
+            serving.await
+        },
+    };
+    result.context("agent listener thread stopped unexpectedly")??;
     Ok(())
 }
 
@@ -1032,6 +1150,7 @@ mod tests {
             "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
         )?;
         Ok(Agent {
+            sessions: Arc::new(sessions::Sessions::default()),
             devices: [1, 2, 3]
                 .into_iter()
                 .map(|id| {
@@ -1088,6 +1207,7 @@ mod tests {
             ConnectionCompletion {
                 connection,
                 settlement,
+                tracked: None,
             }
         })?;
         for index in 0..30 {
@@ -1212,6 +1332,7 @@ mod tests {
             ConnectionCompletion {
                 connection,
                 settlement: record,
+                tracked: None,
             }
         })?;
         for index in 0..100 {
@@ -1272,9 +1393,140 @@ mod tests {
         ConnectionCompletion {
             connection,
             settlement: Some([0, 1, cycle::BEGIN_SETTLED, 1]),
+            tracked: None,
         }
         .complete();
         assert!(started.elapsed() < Duration::from_secs(1));
+        Ok(())
+    }
+
+    #[test]
+    fn read_failure_terminal_waits_for_handler_guard_and_worker_idle() -> Result<()> {
+        use nix::errno::Errno;
+        use nix::sys::socket::socketpair;
+        use std::sync::{Mutex, mpsc};
+        let guards = Arc::new(dispatch::DeviceGuards::new([(
+            7,
+            Ipv4Addr::new(192, 0, 2, 7),
+        )]));
+        let shared = Arc::clone(&guards);
+        let (entered, waiting) = mpsc::channel();
+        let (release, cleanup) = mpsc::channel();
+        let cleanup = Mutex::new(cleanup);
+        let pool = dispatch::Pool::new(1, move |connection: OwnedFd| {
+            let record = shared.run(7, || -> Result<Option<[u8; 4]>> {
+                entered.send(())?;
+                cleanup
+                    .lock()
+                    .map_err(|_| anyhow::anyhow!("cleanup lock"))?
+                    .recv()?;
+                cycle::finish_result(
+                    cycle::BEGIN_RECOVERABLE,
+                    3,
+                    Err(anyhow::anyhow!("synthetic read failed")),
+                    Ok(()),
+                    Some((0x13, 1)),
+                    0,
+                )
+            });
+            assert!(matches!(&record, Some(Ok(Some(_)))));
+            let record = record.and_then(Result::ok).flatten();
+            ConnectionCompletion {
+                connection,
+                settlement: record,
+                tracked: None,
+            }
+        })?;
+        for _ in 0..30 {
+            let (client, server) = socketpair(
+                AddressFamily::Unix,
+                SockType::SeqPacket,
+                None,
+                SockFlag::SOCK_CLOEXEC,
+            )?;
+            cycle::set_ipc_timeout(&client, Duration::from_secs(2))?;
+            pool.submit(server)?;
+            waiting.recv_timeout(Duration::from_secs(2))?;
+            assert_eq!(guards.run(7, || true), None);
+            let mut packet = [0; 16];
+            assert_eq!(
+                recv(client.as_raw_fd(), &mut packet, MsgFlags::MSG_DONTWAIT),
+                Err(Errno::EAGAIN)
+            );
+            release.send(())?;
+            assert_eq!(
+                recv(client.as_raw_fd(), &mut packet, MsgFlags::MSG_TRUNC)?,
+                4
+            );
+            assert_eq!(&packet[..4], &[4, 3, 0x13, 1]);
+            assert_eq!(guards.run(7, || true), Some(true));
+            // Receipt means the next assignment can follow without a sleep.
+        }
+        pool.drain()?;
+        Ok(())
+    }
+
+    #[test]
+    fn lost_bound_terminal_is_published_only_in_postamble_and_lookup_never_opens_ssh() -> Result<()>
+    {
+        use nix::sys::socket::socketpair;
+        let mut agent = synthetic_dispatch_agent()?;
+        agent.cycles_enabled = true;
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()?;
+        let guards = dispatch::DeviceGuards::new([(1, Ipv4Addr::new(192, 0, 2, 1))]);
+        let key = sessions::Key {
+            device: 1,
+            version: 1,
+            id: [1; 16],
+        };
+        let mut packet = vec![sessions::BEGIN, 1, 0, 1];
+        packet.extend(key.id);
+        let (client, server) = socketpair(
+            AddressFamily::Unix,
+            SockType::SeqPacket,
+            None,
+            SockFlag::SOCK_CLOEXEC,
+        )?;
+        send(client.as_raw_fd(), &packet, MsgFlags::MSG_NOSIGNAL)?;
+        // Synthetic credentials are unavailable: failure occurs before TCP/CLI.
+        let (record, tracked) =
+            respond_for_worker(&agent, &server, runtime.handle(), &guards, Instant::now());
+        assert_eq!(record, Some([3, 1, sessions::BEGIN, 0]));
+        assert_eq!(tracked, Some(key));
+        assert_eq!(agent.sessions.lookup(key)?[0], 2);
+        assert_eq!(guards.run(1, || true), Some(true));
+        drop(client); // Force terminal delivery failure, not outcome fabrication.
+        ConnectionCompletion {
+            connection: server,
+            settlement: record,
+            tracked: Some((Arc::clone(&agent.sessions), key)),
+        }
+        .complete();
+        assert_eq!(agent.sessions.lookup(key)?[0], 0);
+        let (client, server) = socketpair(
+            AddressFamily::Unix,
+            SockType::SeqPacket,
+            None,
+            SockFlag::SOCK_CLOEXEC,
+        )?;
+        packet[0] = sessions::LOOKUP;
+        send(client.as_raw_fd(), &packet, MsgFlags::MSG_NOSIGNAL)?;
+        // A held FTD guard cannot block/turn lookup into another SSH session.
+        let reply = guards
+            .run(1, || {
+                handle_connection(&agent, &server, runtime.handle(), &guards)
+            })
+            .context("guard")?;
+        assert_eq!(reply, Reply::Packet(agent.sessions.lookup(key)?));
+        packet[0] = sessions::BEGIN;
+        send(client.as_raw_fd(), &packet, MsgFlags::MSG_NOSIGNAL)?;
+        assert_eq!(
+            handle_connection(&agent, &server, runtime.handle(), &guards),
+            Reply::Packet(vec![1])
+        );
+        assert_eq!(agent.sessions.lookup(key)?[0], 0);
         Ok(())
     }
 

@@ -45,6 +45,26 @@ class CycleOperation(IntEnum):
     ADD = 0x14
     BEGIN_SETTLED = 0x16
     BEGIN_RECOVERABLE = 0x17
+    BEGIN_TRACKED = 0x18
+
+
+SESSION_LOOKUP = 0x19
+
+
+def encode_session_request(operation: int, version: int, device_id: int, session_id: bytes):
+    if (type(operation) is not int or operation not in (0x18, SESSION_LOOKUP)
+            or type(version) is not int or version not in (1, 2, 3)
+            or type(device_id) is not int or not 1 <= device_id <= 65535
+            or type(session_id) is not bytes or len(session_id) != 16 or not any(session_id)):
+        raise ValueError('Invalid exact session binding.')
+    return bytes([operation, version]) + device_id.to_bytes(2, 'big') + session_id
+
+
+def decode_session_lookup(packet: bytes, version: int, device_id: int, session_id: bytes):
+    request = encode_session_request(SESSION_LOOKUP, version, device_id, session_id)
+    if len(packet) != 21 or packet[0] not in (0, 1, 2) or packet[1:] != request[1:2] + bytes([SESSION_LOOKUP]) + request[2:]:
+        raise ValueError('Missing or invalid exact session lookup receipt.')
+    return packet[0] == 0
 
 
 def encode_cycle_request(operation: CycleOperation, sequence: int, *,
@@ -74,7 +94,7 @@ def decode_cycle_response(packet: bytes, operation: CycleOperation, sequence: in
     operation = CycleOperation(operation)
     if operation == CycleOperation.ADD and version != 3:
         raise ValueError("ADD requires cycle version 3")
-    begin = operation in {CycleOperation.BEGIN, CycleOperation.BEGIN_SETTLED, CycleOperation.BEGIN_RECOVERABLE}
+    begin = operation in {CycleOperation.BEGIN, CycleOperation.BEGIN_SETTLED, CycleOperation.BEGIN_RECOVERABLE, CycleOperation.BEGIN_TRACKED}
     if (begin and sequence != 0) or (
         not begin and not 1 <= sequence <= MAX_CYCLE_REMOVALS + 2
     ):
@@ -113,17 +133,29 @@ def decode_cycle_response(packet: bytes, operation: CycleOperation, sequence: in
 def decode_cycle_settlement(packet: bytes, sequence: int, *, version: int, begin=CycleOperation.BEGIN_SETTLED):
     """Local completed-handler receipt, never mutation/recovery authority."""
     if (type(version) is not int or version not in (1, 2, 3)
-            or begin not in (CycleOperation.BEGIN_SETTLED, CycleOperation.BEGIN_RECOVERABLE)
+            or begin not in (CycleOperation.BEGIN_SETTLED, CycleOperation.BEGIN_RECOVERABLE, CycleOperation.BEGIN_TRACKED)
             or type(sequence) is not int or not 1 <= sequence <= MAX_CYCLE_REMOVALS + 2
             or packet != bytes([0, version, begin, sequence])):
         raise ValueError('Missing or invalid exact cycle settlement receipt.')
 
 
-def decode_cycle_open_failure(packet: bytes, *, version: int):
+def decode_cycle_open_failure(packet: bytes, *, version: int, begin=CycleOperation.BEGIN_RECOVERABLE):
     """Exact terminal proof that opening ended before any Cisco command."""
     if (type(version) is not int or version not in (1, 2, 3)
-            or packet != bytes([3, version, CycleOperation.BEGIN_RECOVERABLE, 0])):
+            or begin not in (CycleOperation.BEGIN_RECOVERABLE, CycleOperation.BEGIN_TRACKED)
+            or packet != bytes([3, version, begin, 0])):
         raise ValueError('Missing or invalid exact cycle opening-failure receipt.')
+
+
+def decode_cycle_read_failure(packet: bytes, operation: CycleOperation, sequence: int, *, version: int):
+    """Terminal failed-read proof, never a snapshot or mutation success."""
+    if (type(version) is not int or version not in (1, 2, 3)
+            or type(sequence) is not int
+            or not ((operation in (CycleOperation.BEGIN_RECOVERABLE, CycleOperation.BEGIN_TRACKED) and sequence == 0)
+                    or (operation in (CycleOperation.SNAPSHOT, CycleOperation.END)
+                        and 1 <= sequence <= MAX_CYCLE_REMOVALS + 2))
+            or packet != bytes([4, version, operation, sequence])):
+        raise ValueError('Missing or invalid exact cycle read-failure receipt.')
 
 
 _IP_OPERATIONS = {Operation.GET_SHUN, Operation.REMOVE_SHUN}

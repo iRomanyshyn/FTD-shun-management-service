@@ -2,6 +2,13 @@
 
 ## Scope and current boundary
 
+Current desk-lab selection uses the [fresh managed profile](fresh-development.md).
+Agent SIGTERM/SIGINT now closes admission and drains its fixed workers, including
+capacity 1. Compose allows 180 seconds for agent stop; drain API first with the
+explicit matching timeout. See [Graceful Agent Shutdown](agent-shutdown.md) for
+ordering, evidence limits and rollback. Older rollout notes below describe their
+original increments and do not supersede the current lab profile.
+
 [Combined managed cleanup](managed-cleanup.md) has independent disabled admission
 (`FTD_SHUN_MANAGED_REMOVAL_ADMISSION_ENABLED=false`), requiring socket mode and
 the separate cleanup worker. It does not initialize single/fleet authority tables

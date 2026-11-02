@@ -29,6 +29,10 @@ enum Step {
 }
 
 pub(super) fn decode_begin(packet: &[u8]) -> Result<(u16, u8)> {
+    if packet.first() == Some(&sessions::BEGIN) {
+        let key = sessions::decode(packet, sessions::BEGIN)?;
+        return Ok((key.device, key.version));
+    }
     if packet.len() != 4
         || !matches!(packet[0], BEGIN | BEGIN_SETTLED | BEGIN_RECOVERABLE)
         || !matches!(packet[1], VERSION | snapshot::VERSION | addition::VERSION)
@@ -48,18 +52,44 @@ fn after_cleanup(
     sequence: u8,
     cleanup: Result<()>,
 ) -> Result<Option<[u8; 4]>> {
-    if !matches!(begin, BEGIN | BEGIN_SETTLED | BEGIN_RECOVERABLE)
-        || !matches!(version, 1..=3)
+    if !matches!(
+        begin,
+        BEGIN | BEGIN_SETTLED | BEGIN_RECOVERABLE | sessions::BEGIN
+    ) || !matches!(version, 1..=3)
         || !(1..=18).contains(&sequence)
     {
         bail!("invalid local settlement binding");
     }
-    if matches!(begin, BEGIN_SETTLED | BEGIN_RECOVERABLE) {
+    if matches!(begin, BEGIN_SETTLED | BEGIN_RECOVERABLE | sessions::BEGIN) {
         cleanup?;
         Ok(Some([0, version, begin, sequence]))
     } else {
         Ok(None) // Legacy cleanup failure never acquires new receipt semantics.
     }
+}
+
+pub(super) fn finish_result(
+    begin: u8,
+    version: u8,
+    result: Result<u8>,
+    cleanup: Result<()>,
+    failed_read: Option<(u8, u8)>,
+    mutation_steps: u8,
+) -> Result<Option<[u8; 4]>> {
+    if matches!(begin, BEGIN_RECOVERABLE | sessions::BEGIN)
+        && matches!(version, 1..=3)
+        && result.is_err()
+        && cleanup.is_ok()
+        && mutation_steps == 0
+        && let Some((opcode, sequence)) = failed_read
+        && ((opcode == begin && sequence == 0)
+            || (matches!(opcode, SNAPSHOT | END) && (1..=18).contains(&sequence)))
+    {
+        // Not emitted here: ConnectionCompletion still waits for the
+        // console/resource drop, guard release and worker-IDLE boundary.
+        return Ok(Some([4, version, opcode, sequence]));
+    }
+    result.and_then(|sequence| after_cleanup(begin, version, sequence, cleanup))
 }
 
 fn decode_step(packet: &[u8], expected: u8, version: u8) -> Result<Step> {
@@ -312,7 +342,7 @@ pub(super) fn handle(
         .and_then(|result| result);
     let mut session = match opened {
         Ok(session) => session,
-        Err(error) if packet[0] == BEGIN_RECOVERABLE => {
+        Err(error) if matches!(packet[0], BEGIN_RECOVERABLE | sessions::BEGIN) => {
             eprintln!(
                 "{}",
                 serde_json::json!({
@@ -322,7 +352,12 @@ pub(super) fn handle(
                 })
             );
             // Emitted only by ConnectionCompletion after guards/worker settle.
-            return Ok(Some([3, version, BEGIN_RECOVERABLE, 0]));
+            if packet[0] == sessions::BEGIN {
+                agent
+                    .sessions
+                    .prepare_read_only(sessions::decode(packet, sessions::BEGIN)?)?;
+            }
+            return Ok(Some([3, version, packet[0], 0]));
         }
         Err(error) => return Err(error),
     };
@@ -345,6 +380,7 @@ pub(super) fn handle(
         sequence: 1,
         version,
     };
+    let mut failed_read = Some((packet[0], 0));
     let result = (|| -> Result<u8> {
         let initial = runtime.block_on(timeout(
             cycle
@@ -354,6 +390,7 @@ pub(super) fn handle(
         ))??;
         snapshot::send_frames(connection, &initial, started + step_timeout)?;
         loop {
+            failed_read = None; // An IPC/invalid-frame failure is not read proof.
             if cycle.remaining().is_zero() {
                 bail!("cycle session deadline exceeded");
             }
@@ -362,6 +399,12 @@ pub(super) fn handle(
             let size = recv(connection.as_raw_fd(), &mut packet, MsgFlags::MSG_TRUNC)?;
             if size == 0 || size > packet.len() {
                 bail!("cycle request closed or oversized");
+            }
+            if matches!(
+                decode_step(&packet[..size], cycle.sequence, version),
+                Ok(Step::Snapshot | Step::End)
+            ) {
+                failed_read = Some((packet[0], packet[2]));
             }
             let deadline = Instant::now() + cycle.remaining().min(step_timeout);
             let execution = runtime
@@ -408,17 +451,36 @@ pub(super) fn handle(
     let cleanup = cleanup
         .context("settled cycle disconnect timed out")
         .and_then(|result| result.map_err(Into::into));
-    let result = result.and_then(|sequence| after_cleanup(packet[0], version, sequence, cleanup));
+    if packet[0] == sessions::BEGIN && cleanup.is_ok() && cycle.removals + cycle.additions == 0 {
+        agent
+            .sessions
+            .prepare_read_only(sessions::decode(packet, sessions::BEGIN)?)?;
+    }
+    let reason = result
+        .as_ref()
+        .err()
+        .or_else(|| cleanup.as_ref().err())
+        .map(|error| error.to_string());
+    let result = finish_result(
+        packet[0],
+        version,
+        result,
+        cleanup,
+        failed_read,
+        cycle.removals + cycle.additions,
+    );
+    let read_failed_settled = matches!(&result, Ok(Some([4, ..])));
     eprintln!(
         "{}",
         serde_json::json!({
-            "event": if result.is_ok() { "agent.cycle.completed" } else { "agent.cycle.failed" },
+            "event": if result.is_ok() && !read_failed_settled { "agent.cycle.completed" } else { "agent.cycle.failed" },
             "protocol_version": version,
             "device_id": device_id, "commands": cycle.commands, "removal_steps": cycle.removals,
             "elapsed_ms": started.elapsed().as_millis(),
             "addition_steps": cycle.additions,
             "mutation_steps": cycle.removals + cycle.additions,
-            "reason": result.as_ref().err().map(|error| error.to_string()),
+            "reason": reason,
+            "read_failure_settled": read_failed_settled,
         })
     );
     result
@@ -427,6 +489,181 @@ pub(super) fn handle(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn read_failure_vectors_require_read_only_session_and_successful_cleanup() -> Result<()> {
+        let vectors: serde_json::Value =
+            serde_json::from_str(include_str!("../../tests/fixtures/agent-read-failure.json"))?;
+        for vector in vectors.as_array().context("vectors")? {
+            let version = vector["version"].as_u64().context("version")? as u8;
+            for (name, opcode, sequence) in [
+                ("initial_failed", BEGIN_RECOVERABLE, 0),
+                ("snapshot_failed", SNAPSHOT, 1),
+                ("end_failed", END, 2),
+            ] {
+                let failed = || Err(anyhow::anyhow!("synthetic read failure"));
+                let record = finish_result(
+                    BEGIN_RECOVERABLE,
+                    version,
+                    failed(),
+                    Ok(()),
+                    Some((opcode, sequence)),
+                    0,
+                )?
+                .context("terminal read failure")?;
+                let hex: String = record.iter().map(|byte| format!("{byte:02x}")).collect();
+                assert_eq!(hex, vector[name]);
+                for mutations in [1, 16] {
+                    assert!(
+                        finish_result(
+                            BEGIN_RECOVERABLE,
+                            version,
+                            failed(),
+                            Ok(()),
+                            Some((opcode, sequence)),
+                            mutations
+                        )
+                        .is_err()
+                    );
+                }
+                assert!(
+                    finish_result(
+                        BEGIN_RECOVERABLE,
+                        version,
+                        failed(),
+                        Err(anyhow::anyhow!("cleanup failed")),
+                        Some((opcode, sequence)),
+                        0
+                    )
+                    .is_err()
+                );
+                for begin in [BEGIN, BEGIN_SETTLED] {
+                    assert!(
+                        finish_result(
+                            begin,
+                            version,
+                            failed(),
+                            Ok(()),
+                            Some((opcode, sequence)),
+                            0
+                        )
+                        .is_err()
+                    );
+                }
+                assert!(
+                    finish_result(BEGIN_RECOVERABLE, version, failed(), Ok(()), None, 0).is_err()
+                );
+            }
+        }
+        for binding in [
+            (BEGIN_RECOVERABLE, 1),
+            (BEGIN_SETTLED, 0),
+            (REMOVE, 1),
+            (ADD, 1),
+            (SNAPSHOT, 0),
+            (END, 19),
+        ] {
+            assert!(
+                finish_result(
+                    BEGIN_RECOVERABLE,
+                    3,
+                    Err(anyhow::anyhow!("bad read")),
+                    Ok(()),
+                    Some(binding),
+                    0
+                )
+                .is_err()
+            );
+        }
+        for version in [0, 4] {
+            assert!(
+                finish_result(
+                    BEGIN_RECOVERABLE,
+                    version,
+                    Err(anyhow::anyhow!("bad version")),
+                    Ok(()),
+                    Some((END, 1)),
+                    0
+                )
+                .is_err()
+            );
+        }
+        assert_eq!(
+            finish_result(BEGIN_RECOVERABLE, 3, Ok(1), Ok(()), Some((END, 1)), 0)?,
+            Some([0, 3, BEGIN_RECOVERABLE, 1])
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn read_errors_and_timeouts_never_mutate_but_prior_noop_and_deferral_still_disqualify()
+    -> Result<()> {
+        for opcode in [BEGIN_RECOVERABLE, SNAPSHOT, END] {
+            let mut cycle = fixture();
+            cycle.console.fail_snapshot = true;
+            let result = if opcode == BEGIN_RECOVERABLE {
+                cycle.snapshot(opcode, 0).await.map(|_| 0)
+            } else {
+                cycle.execute(&[opcode, VERSION, 1]).await.map(|_| 1)
+            };
+            assert!(result.is_err());
+            assert_eq!(cycle.console.writes, 0);
+            assert!(
+                finish_result(
+                    BEGIN_RECOVERABLE,
+                    VERSION,
+                    result,
+                    Ok(()),
+                    Some((opcode, if opcode == BEGIN_RECOVERABLE { 0 } else { 1 })),
+                    cycle.removals + cycle.additions
+                )?
+                .is_some()
+            );
+        }
+        for opcode in [ADD, REMOVE] {
+            for defer in [false, true] {
+                let mut cycle = fixture();
+                cycle.version = addition::VERSION;
+                cycle.addition_profile = Some(addition::Profile::Fpr1010Management);
+                cycle.allowed.insert("management".into());
+                cycle.console.interfaces.clear();
+                if opcode == ADD && !defer {
+                    cycle.console.interfaces.insert("management".into());
+                }
+                if defer {
+                    cycle.commands = MAX_COMMANDS - 2;
+                }
+                let (response, _) = cycle
+                    .execute(&[opcode, addition::VERSION, 1, 198, 51, 100, 250])
+                    .await?;
+                assert_eq!(response[0][0], if defer { 2 } else { 0 });
+                assert_eq!(cycle.console.writes, 0);
+                assert_eq!(cycle.removals + cycle.additions, 1);
+                cycle.console.fail_snapshot = true;
+                assert!(
+                    finish_result(
+                        BEGIN_RECOVERABLE,
+                        addition::VERSION,
+                        cycle.snapshot(END, 2).await.map(|_| 2),
+                        Ok(()),
+                        Some((END, 2)),
+                        cycle.removals + cycle.additions
+                    )
+                    .is_err()
+                );
+            }
+        }
+        let mut cycle = fixture();
+        cycle.console.slow_snapshot = true;
+        let failure = timeout(
+            Duration::from_millis(1),
+            cycle.snapshot(BEGIN_RECOVERABLE, 0),
+        )
+        .await;
+        assert!(failure.is_err());
+        assert_eq!(cycle.console.writes, 0);
+        Ok(())
+    }
 
     #[tokio::test]
     async fn recoverable_opening_shares_exact_vectors_and_strict_cleanup() -> Result<()> {
@@ -560,10 +797,18 @@ mod tests {
         ack_override: Option<String>,
         verify_override: Option<String>,
         preflight_override: Option<String>,
+        fail_snapshot: bool,
+        slow_snapshot: bool,
     }
 
     impl Console for FakeConsole {
         async fn snapshot(&mut self, _: &BTreeSet<String>) -> Result<BTreeSet<ObservedShun>> {
+            if self.fail_snapshot {
+                bail!("synthetic snapshot failure");
+            }
+            if self.slow_snapshot {
+                tokio::time::sleep(Duration::from_millis(100)).await;
+            }
             if let Some(ip) = self.last_add {
                 return Ok(self
                     .interfaces
@@ -857,6 +1102,7 @@ mod tests {
             .enable_all()
             .build()?;
         let mut agent = Agent {
+            sessions: Arc::new(sessions::Sessions::default()),
             devices: BTreeMap::from([(
                 1,
                 Device {
@@ -965,6 +1211,7 @@ mod tests {
             .enable_all()
             .build()?;
         let mut agent = Agent {
+            sessions: Arc::new(sessions::Sessions::default()),
             devices: BTreeMap::new(),
             credentials: credentials::Credentials::PerDevice(BTreeMap::new()),
             operation_timeout: Duration::from_secs(45),

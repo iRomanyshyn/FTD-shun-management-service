@@ -89,6 +89,7 @@ def test_configured_confirmation_scans_after_floor_without_manual_refresh(config
     fake, offset = TracedAgent(), [0.0]
     monkeypatch.setattr(OperationQueue, '_now', lambda _self: datetime.now(UTC) + timedelta(seconds=offset[0]))
     monkeypatch.setattr(UnixAgentClient, 'open_cycle', lambda _self, device: fake.open_cycle(device))
+    monkeypatch.setattr(UnixAgentClient, 'open_tracked_cycle', lambda _self, device, _owner: fake.open_cycle(device))
     app = create_app(settings)
     service = app.state.synchronizer.dispatcher
     service.clock = service.runner._clock = lambda: monotonic() + offset[0]
@@ -146,6 +147,7 @@ def test_advisory_scan_retains_demand_without_stealing_or_replaying(configured, 
         calls.append(device)
         return fake.open_cycle(device)
     monkeypatch.setattr(UnixAgentClient, 'open_cycle', open_cycle)
+    monkeypatch.setattr(UnixAgentClient, 'open_tracked_cycle', lambda _self, device, _owner: open_cycle(_self, device))
     app = create_app(settings)
     service = app.state.synchronizer.dispatcher
     service.clock = service.runner._clock = lambda: monotonic() + offset[0]

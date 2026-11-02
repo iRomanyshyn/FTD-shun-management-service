@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-10-30
+Last updated: 2026-11-02
 
 ## Deferred product ideas
 
@@ -14,6 +14,107 @@ lookup, cache/schema, new egress or activation exists. Core delivery retains
 priority. See [the planned constraints](working-version-plan.md#deferred-ip-context--enrichment--requested-2026-10-21).
 
 ## Current increment
+
+**Bound session completion lookup (2026-11-02).** Configured continuous clients
+now select exact BEGIN `18` with the current lease-owner UUID, and local lookup
+`19` with a fully echoed device/version/session binding. A bounded 4096-entry
+agent-memory journal reserves before SSH, preserves active entries, rejects
+retained duplicates and publishes completion only in the original worker-IDLE
+postamble after handler/guard/resource drop. Terminal-send loss does not erase
+that retained evidence; eviction/restart/missing/active/unsafe state is never safe.
+Lookup runs no SSH or guard/cancellation operation and has an absolute <=5s bound.
+
+Only a completed no-mutation session with successful cleanup (or pre-command
+opening failure) can support current-live-epoch, no-claim/no-uncertainty release,
+with separate `DEVICE_LEASE_READ_RECEIPT_RECOVERED` audit and normal new-session
+backoff. Earlier error/data and all jobs/authority/unknown writes remain unchanged.
+Old held epochs/startup repair and lost mutation outcomes remain separate work.
+No schema/environment/Web/secret/network change; matching API/agent required.
+Validation: **2892 full Python tests passed (443.69s)**, 82 Rust tests, strict
+Clippy/fmt/locked release, compileall/Ruff/diff and matching image/preflight checks
+pass. An initial run hit the existing 100000-pair test bridge's 20s deadline during
+competing builds; isolated and full no-build-contention reruns pass without
+changing product timeouts. Deployed API `6c1484707809...` and agent
+`b3335c280601...`, retaining matching
+`ftd-shun-{api,agent}:lab-pre-session-lookup-20261102`. API drained cleanly,
+readonly IDLE/no-active-work inspection preceded agent exit 0 and replacement.
+With API stopped, real v3 BEGIN `18` / END passed twice: ordinary strict settlement
+and deliberately unconsumed terminal record recovered through exact lookup.
+Unknown nonce returned unsafe; both complete snapshots empty, zero mutations.
+Restored API's fresh read completed at `2026-11-02T13:41:34Z`: ready/no error,
+five VERIFIED jobs, zero enabled policy, IDLE, unchanged three protected settings
+and integrity `ok`. Web unchanged, health 200/anonymous 401, CA-verified HTML HTTPS
+302 to Authelia and private networking pass. No live mutation or network outage;
+automatic controller failure recovery remains synthetic, not hard-crash/unknown-
+write/multi-device/load/production acceptance.
+See [Bound Session Completion](manual/session-completion-lookup.md).
+
+### Previous in-band read-failure checkpoint
+
+**Settled read-only failure recovery (2026-11-02).** BEGIN `17` now has a distinct
+exact terminal `04 version failed_read sequence`, issued after successful local
+cleanup/handler/resource drop/guard release/worker IDLE only if no ADD/REMOVE step
+was attempted. It covers initial, priority and final reads/partial transfers,
+not malformed IPC, missing proof or any mutation session (even NOOP/deferral).
+The client binds the current read/version/sequence and marks mutation attempts
+before send. Worker accepts only its own first open/current bound read. Exact
+live-epoch release refuses any claimed/uncertain work, including completed claims,
+and atomically audits `DEVICE_LEASE_READ_FAILED` plus release. Old holds/results/
+policy remain unchanged. Existing per-device backoff/demand/fresh-read checks are
+reused; status distinguishes `agent_read_failed`. No schema/configuration/Web
+change or unknown-write replay.
+
+Validation: **2830 full Python tests passed (451.71s)**, 77 Rust tests, locked
+release/strict Clippy/fmt, compileall/Ruff/diff and 204 focused recovery/protocol
+tests pass. Two terminal-proof/worker-ordering Rust tests passed ten repeated
+runs. Matching API/agent images built and non-executing preflights passed on the
+existing lab profile. Deployed API `e549c337c7b1...` and agent `d9e9efb3edd0...`,
+retaining `ftd-shun-{api,agent}:lab-pre-read-recovery-20261102`. API drained cleanly;
+readonly zero-active/uncertain-work inspection preceded clean agent exit 0.
+With API stopped, new BEGIN `17` / v3 and END returned empty complete snapshots
+and valid terminal settlement, zero mutations. Restored API's successful fresh
+read completed at `2026-11-02T12:47:08Z`: ready/no error, five VERIFIED jobs, zero
+enabled managed policy, IDLE lease, unchanged three Protected-IP settings and
+integrity `ok`. Web image/network boundaries unchanged; health 200, anonymous
+401 and CA-verified browser HTTPS 302 to Authelia pass. No device mutation or
+induced outage; read-failure acceptance is synthetic, not general unknown-write/
+multi-device/load/production acceptance.
+See [Settled Read-Only Recovery](manual/read-failure-recovery.md).
+
+### Previous graceful-shutdown checkpoint
+
+**Graceful agent shutdown (2026-11-02).** Explicit SIGTERM/SIGINT request closes
+admission/listener and joins every original worker and completion postamble while
+Tokio stays live. The same fixed pool now serves capacities 1–10; default 1 remains
+one serialized stream, with no application backlog behind an active handler.
+Repeated signals do not cancel/replace work, renew bounds, fabricate results or
+clear uncertainty. Listener/worker failures drain healthy siblings and fail closed.
+The new 180-second agent Compose grace covers existing supported RPC budgets;
+operators still explicitly drain API first. No schema, wire, secret/trust/network
+change; Cargo.lock adds only signal support dependencies.
+
+Validation: 74 Rust tests, 10 repeated real-signal integration runs, locked
+release build/fmt/strict Clippy and 140 Python protocol/recovery tests pass. Base
+Compose validates in an isolated temporary tree with non-secret configuration;
+real three-file selection validates quietly too. Agent-only lab rollout passed;
+checkpoint image was `09c4d1df4772...`, with `lab-pre-shutdown-20261102` retained for
+rollback. API was gracefully drained and zero active/uncertain work confirmed
+before replacing the old idle agent (which still needed timeout/exit 137).
+The new real PID-1 SIGTERM completed in about 93ms with exit 0. Read-only BEGIN
+`17` / v3 and END returned complete empty snapshots and valid terminal settlement
+both before and after its stop/restart; zero mutation requests.
+
+The unchanged API then completed a fresh successful read at
+`2026-11-02T12:09:33Z`. State is ready/no error, five VERIFIED jobs, no active
+managed policy, one IDLE lease, three unchanged protected settings/fingerprint
+and integrity `ok`. API/Web images and private networking are unchanged. Web
+health 200/anonymous 401 and CA-verified browser HTTPS 302 to Authelia pass.
+No schema/configuration authority, secret/trust/network change or device mutation.
+Real active-FTD interruption/multi-device/load acceptance remains separate;
+synthetic admitted-work tests do not resolve unknown remote commands.
+See [Graceful Agent Shutdown](manual/agent-shutdown.md).
+
+### Previous pre-command opening recovery checkpoint
 
 **Proven pre-command SSH opening recovery (2026-10-30).** Opt-in BEGIN `17`
 keeps strict settlement and binds initial/terminal success to its own opcode.
@@ -3146,14 +3247,18 @@ Current working-version sequence after the 2026-10-30 lab-first clarification:
    Use new labelled requests; no repeated per-fixture approval is needed here.
 3. **In progress:** automatic recovery. Local pre-BEGIN failures and exact proved
    pre-command SSH opening failures now retry with evidence-preserving release/
-   backoff. Initial-read/later session failure and lost mutation reply recovery
-   still need their own executable reconciliation proof.
+   backoff. Settled read-only initial/priority/final failures now have their own
+   exact no-mutation completion and live-epoch release. Missing terminal proof,
+   hard crashes and lost mutation replies still need executable reconciliation.
+   Current-live-epoch lost read receipts additionally use exact lease-bound agent
+   completion lookup; missing/restarted/active evidence and old holds stay held.
 4. Finish that uncertainty recovery and confirmed Emergency Purge, verify restart/
    timeout behavior, then validate concurrency and measured larger loads as the
    relevant test targets become available. Do not infer multiple-device/throughput
    acceptance from one desk device or erase uncertainty to make a test pass.
-   Also fix the observed idle agent's SIGTERM handling before routine restarts:
-   current safe cutover drains API and verifies idle state before agent shutdown.
+   Graceful agent SIGTERM/SIGINT handling is implemented with joined drain and
+   180-second agent grace; current lab acceptance is recorded above. Continue
+   draining API and inspecting retained evidence before agent replacement.
 5. Refine usability/status and the approved unmanaged correlation flow, finish
    installation/backup/rollback manuals and the tested capability/limitation list,
    then prepare the first explicitly requested real GitHub tagged release.

@@ -35,7 +35,7 @@ older per-experiment lab approval and mandatory dev-migration planning below.
   decision; publishing a release/tag still requires the operator's request.
   Follow [Versioning](docs/manual/versioning.md). Core security applies now too.
 
-## Current laboratory runtime — 2026-10-30
+## Current laboratory runtime — updated 2026-11-02
 
 The known desk lab now uses `deploy/compose.yml`, `deploy/compose.local-lab.yml`
 and **`deploy/compose.managed-lab.yml` together**. Use all three for subsequent
@@ -66,14 +66,53 @@ reuse either closed fixture's original keys as new authority.
 
 The API now retries typed local failures before BEGIN and exact agent-proved
 SSH opening failure before any Cisco command. Configured clients select strict
-BEGIN `17`; missing/generic/later proof and unknown ADD/REMOVE retain holds.
+BEGIN `17`; missing/generic/later opening proof and unknown ADD/REMOVE retain holds.
 Release needs a first-opening proof, live exact epoch and no claimed/uncertain
 work; normal strict release also needs actual terminal settlement in that epoch,
 including after local processing errors. Old LEASED/ATTENTION is never cleared.
 Matching API/agent rollback tags are `lab-pre-opening-20261030`; Web is unchanged.
 The idle old agent needed stop timeout/SIGKILL only after API drain and verified
-zero RUNNING/non-IDLE state; graceful idle signal handling remains a follow-up.
+zero RUNNING/non-IDLE state. That historical shutdown limitation is fixed by the
+2026-11-02 increment below.
 See docs/manual/opening-recovery.md before changing this boundary or rolling back.
+
+The agent now handles SIGTERM/SIGINT with listener closure and joined worker
+drain, retaining original session bounds/settlement and all uncertainty. The
+180-second Compose agent grace does not replace explicit API-first drain.
+Capacity 1 remains serialized with successors in the existing bounded kernel
+backlog. Real PID-1 idle SIGTERM exited 0 promptly after a settled read-only FPR
+cycle; synthetic tests also cover admitted work and repeated signals. API/Web
+images, DB, credentials, gates and networks are unchanged. Agent rollback tag is
+`ftd-shun-agent:lab-pre-shutdown-20261102`; older code loses graceful shutdown.
+Follow docs/manual/agent-shutdown.md. Process exit never proves unknown remote
+work safe to replay.
+
+The 2026-11-02 matching API/agent update additionally consumes exact settled
+read-only failure `04 version failed_read sequence` for initial/priority/final
+reads, with zero mutation steps, successful cleanup and post-handler/guard/IDLE
+completion. The client/worker bind its own current read; live-epoch release also
+refuses any mutation claim, even completed, and audits `DEVICE_LEASE_READ_FAILED`.
+Use the existing capped backoff/new fresh session, never clear old holds or replay
+unknown ADD/REMOVE. API/agent rollback tags are now
+`ftd-shun-{api,agent}:lab-pre-read-recovery-20261102`; no schema/gate/secret/network
+change, Web unchanged. Healthy FPR read acceptance passed with five VERIFIED jobs,
+zero enabled targets, IDLE and unchanged three protected settings. Failure tests
+are synthetic, not induced live outages. See docs/manual/read-failure-recovery.md.
+
+The later 2026-11-02 tracked-session rollout now selects BEGIN `18` with the
+current lease-owner UUID. Local lookup `19` can recover a lost read-only terminal
+receipt from the same still-running agent's bounded 4096-entry completion journal.
+It publishes only after original handler/resource/guard/worker-IDLE completion;
+missing/evicted/active/restarted/unsafe state never releases a hold. Exact live
+epoch and no-claim/no-uncertainty checks remain, with separate
+`DEVICE_LEASE_READ_RECEIPT_RECOVERED` audit. New API needs matching tracked-capable
+agent; no fallback. Rollback pair is now
+`ftd-shun-{api,agent}:lab-pre-session-lookup-20261102`. Healthy and deliberately
+unconsumed-END read-only FPR checks passed, unknown nonce refused; API ready,
+five VERIFIED jobs, no enabled targets, IDLE and unchanged protection. No writes,
+DB/schema/gate/secret/network/auth changes; Web unchanged. This does not recover
+old held epochs/crashes or unknown mutations. Follow
+docs/manual/session-completion-lookup.md.
 
 ## Source of truth
 

@@ -28,12 +28,17 @@ pub(super) fn encode_versioned(
         || (opcode == 7 && version != VERSION)
         || !matches!(
             opcode,
-            7 | 0x10 | 0x11 | 0x13 | cycle::BEGIN_SETTLED | cycle::BEGIN_RECOVERABLE
+            7 | 0x10
+                | 0x11
+                | 0x13
+                | cycle::BEGIN_SETTLED
+                | cycle::BEGIN_RECOVERABLE
+                | sessions::BEGIN
         )
         || entries.len() > MAX_ENTRIES
         || (matches!(
             opcode,
-            7 | 0x10 | cycle::BEGIN_SETTLED | cycle::BEGIN_RECOVERABLE
+            7 | 0x10 | cycle::BEGIN_SETTLED | cycle::BEGIN_RECOVERABLE | sessions::BEGIN
         ) && sequence != 0)
         || (matches!(opcode, 0x11 | 0x13) && !(1..=18).contains(&sequence))
     {

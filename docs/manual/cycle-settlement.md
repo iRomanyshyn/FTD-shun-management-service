@@ -9,7 +9,11 @@ sessions retain the requirements below. See
 The newer [opening-recovery extension](opening-recovery.md) adds explicit BEGIN
 `17` and exact terminal no-command failure proof. Its successful END receipt binds
 to `17`; the legacy `16` contract below stays unchanged. Configured continuous
-clients now select `17`, never negotiate fallback or use it for unknown writes.
+clients now select [tracked `18`](session-completion-lookup.md), retaining strict
+settlement without fallback or unknown-write replay.
+The [settled read-only failure extension](read-failure-recovery.md) also uses
+`17`, with separate terminal status `04` and no mutation attempt/claim. It does
+not turn a failed read into ordinary successful END settlement.
 
 Status: implemented opt-in protocol/client extension and required by the internal
 [continuous dispatcher](continuous-dispatch.md). A separate opt-in
@@ -64,7 +68,8 @@ disconnect cleanup. Strict cleanup failure/timeout returns rejection, never a
 receipt; legacy cleanup behavior is preserved. The pending internal receipt is
 not emitted while resources, device/address guard or semantic handler remain
 active. A typed completion object retains FD/record until the pool marks itself
-idle. The inline serial dispatcher finalizes only after its handler returns.
+idle. Since the [shutdown increment](agent-shutdown.md), capacity 1 also uses that
+same joined fixed pool, not an inline serial handler.
 
 Finalization performs at most one nonblocking terminal send and FD close; no SSH,
 CLI, peer waiting or replacement worker. One next assignment may wait only for

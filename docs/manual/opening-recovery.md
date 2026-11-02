@@ -2,12 +2,22 @@
 
 ## Scope
 
+Current configured selection now uses [tracked BEGIN `18`](session-completion-lookup.md),
+with the same exact pre-command opening proof bound to `18`. The original
+BEGIN-17 low-level extension and its restrictions below remain unchanged.
+
 Configured `continuous-observation` and `continuous-managed` now explicitly select
 recoverable opening on the existing strict client. Low-level clients default off;
 legacy BEGIN `10` and strict BEGIN `16` are unchanged. This recovers a proved
 opening failure, not an uncertain write, missing snapshot or old held lease.
 No schema, HTTP recovery action, new credential/network configuration or policy
 authority is introduced. The default API runtime remains legacy.
+
+The 2026-11-02 [settled read-only extension](read-failure-recovery.md) separately
+covers failed initial/priority/final reads with exact status `04`, no attempted
+mutation and successful cleanup. It does not broaden opening status `03` or
+recover unknown ADD/REMOVE. The opening-specific restrictions below still apply
+to `03`, not to that independently validated new terminal record.
 
 ## Fixed protocol
 
@@ -48,10 +58,11 @@ or authentication. Repeated invalid credentials may meet device lockout policy;
 repair the credential/configuration instead of treating retries as authentication
 fallback. The 60-second cap limits reconnect frequency, not operator error risk.
 
-Busy/saturated dispatch, malformed/unknown requests, wrong UID, disabled devices,
-missing profiles/gates, initial snapshot errors and every later failure retain
-generic rejection. None can manufacture an opening-failure record. A lost terminal
-record remains a hold, even if the agent logged a no-command failure.
+Busy/saturated dispatch, malformed/unknown requests, wrong UID, disabled devices
+and missing profiles/gates retain generic rejection. Initial snapshot errors and
+later failures cannot manufacture opening status `03`; only the separate exact
+read-only contract can produce `04`. A lost terminal record remains a hold, even
+if the agent logged a no-command failure.
 
 ## Client, lease and status
 
@@ -76,8 +87,9 @@ session needs a complete fresh initial read and current authority/protection/
 cancellation checks before claims. Success resets the streak.
 
 Old LEASED/ATTENTION, unknown ADD/REMOVE and failures after initial command/read
-submission remain held. Neither a later typed exception nor a fresh observation
-alone resolves them. Automatic submitted-session reconciliation remains unfinished.
+submission remain held unless the separate exact settled read-only proof applies.
+Neither a later opening-failure exception nor a fresh observation alone resolves
+them. Automatic unknown-write/submitted-session reconciliation remains unfinished.
 
 ## Deployment and rollback
 
@@ -92,6 +104,8 @@ dc run --rm --no-deps agent --check-config
 ```
 
 Gracefully stop/drain the sole API, settle its sessions, then stop the idle agent.
+The newer [agent shutdown lifecycle](agent-shutdown.md) now joins admitted work
+and exits cleanly on SIGTERM/SIGINT; use its stop grace and API-first ordering.
 Deploy the new agent first, then the new API. Web does not need replacement.
 API startup can execute already admitted work; inspect existing queue/authority.
 Do not induce a lab outage by changing pins, credentials or networks for a smoke

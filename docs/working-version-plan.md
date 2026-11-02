@@ -388,8 +388,15 @@ permanent-latch implementation is not automatically relaxed by this document.
 The first implemented recovery slice (2026-10-30) retries only locally proven
 socket failures before the very first BEGIN send, with audited live-epoch release
 and capped backoff. A subsequent exact no-command terminal extension now also
-recovers failed SSH opening before an executor exists. Initial snapshot failures,
-later submitted-session errors and lost ADD/REMOVE replies retain their holds. See
+recovers failed SSH opening before an executor exists. The 2026-11-02 settled
+read-only extension additionally retries initial/priority/final read failures
+only with exact post-handler completion proof, no mutation steps/claims and
+successful cleanup. Missing proof, old holds, later mutation-session errors and
+lost ADD/REMOVE replies retain their holds. A later tracked-session completion
+journal adds exact lookup for a lost read-only receipt in the current live epoch;
+no startup repair, old held-state release or mutation replay follows. See
+[Bound Session Completion](manual/session-completion-lookup.md),
+[Settled Read-Only Recovery](manual/read-failure-recovery.md) and
 [the bounded retry contract](manual/continuous-dispatch.md#failure-backoff-and-shutdown).
 Retained legacy abandonment/isolation decisions and uncertainty must be preserved
 through an explicit compatibility/migration plan; never silently erase receipts

@@ -32,8 +32,9 @@ and [maintenance owner](continuous-maintenance.md), not another executor.
 Socket mode, cycles, large snapshots and development authentication **off** are
 required. Existing API import admission/execution, legacy managed policy/removal
 admission, restoration and cleanup-worker settings must remain false. The strict
-Unix client always has settled cycles, large reads and explicit recoverable
-opening BEGIN `17` ([contract and matching rollout](opening-recovery.md)).
+Unix client always has settled cycles, large reads and explicit tracked
+recoverable BEGIN `18` ([completion lookup and matching rollout](session-completion-lookup.md)).
+BEGIN `17` remains available to explicitly selected low-level clients.
 Observation has an explicit
 empty ADD scope; managed has exactly the supported enabled-device scope and needs
 the agent's independent ADD gate. There is no negotiation/downgrade to old agents

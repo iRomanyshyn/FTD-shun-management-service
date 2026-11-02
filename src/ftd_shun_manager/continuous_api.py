@@ -106,6 +106,9 @@ class ContinuousApiRuntime:
                 or runner.agent.large_snapshots is not True or runner.agent.settled_cycles is not True
                 or runner.agent.additions_enabled is not self.managed_execution or runner.agent.addition_device_ids != expected_ids):
             raise ValueError('Continuous API requires a matching strict large-read transport and exact selected ADD scope.')
+        if (settings.api_runtime in {'continuous-observation', 'continuous-managed'}
+                and (runner.agent.recoverable_cycles is not True or runner.agent.tracked_cycles is not True)):
+            raise ValueError('Configured continuous runtime requires explicit tracked recoverable strict sessions.')
         if (service._task is not None or runner._round is not None or runner._service_active
                 or runner._broken or service.maintenance.status()['running'] or service.maintenance.status()['broken']):
             raise QueueConflict('API must exclusively own an inactive, unbroken continuous lifecycle.')

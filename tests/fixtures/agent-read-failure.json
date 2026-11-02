@@ -1,0 +1,5 @@
+[
+  {"version":1,"begin":"17010007","initial_failed":"04011700","snapshot_failed":"04011101","end_failed":"04011302"},
+  {"version":2,"begin":"17020007","initial_failed":"04021700","snapshot_failed":"04021101","end_failed":"04021302"},
+  {"version":3,"begin":"17030007","initial_failed":"04031700","snapshot_failed":"04031101","end_failed":"04031302"}
+]

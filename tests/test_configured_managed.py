@@ -43,10 +43,13 @@ def test_constructed_capabilities_are_exact_noncreating_and_do_not_connect(confi
     def forbidden(*_args, **_kwargs): pytest.fail('Construction must not initialize or connect')
     for component in (Store, OperationQueue): monkeypatch.setattr(component, 'initialize', forbidden)
     monkeypatch.setattr(UnixAgentClient, 'open_cycle', forbidden)
+    monkeypatch.setattr(UnixAgentClient, 'open_tracked_cycle', forbidden)
+    monkeypatch.setattr(UnixAgentClient, 'read_only_session_completed', forbidden)
     app = create_app(settings)
     runtime = app.state.synchronizer
     agent = runtime.dispatcher.runner.agent
     assert type(agent) is UnixAgentClient and agent.settled_cycles and agent.large_snapshots
+    assert agent.tracked_cycles is True
     assert agent.additions_enabled and agent.addition_device_ids == frozenset({1})
     status = runtime.status()
     assert status['runtime_mode'] == 'continuous-managed' and status['bulk_execution_enabled']
@@ -85,6 +88,7 @@ def test_real_configured_lifecycle_confirms_adds_restores_and_stops_without_repl
     offset = [0.0]
     monkeypatch.setattr(OperationQueue, '_now', lambda _self: datetime.now(UTC) + timedelta(seconds=offset[0]))
     monkeypatch.setattr(UnixAgentClient, 'open_cycle', lambda _self, device: fake.open_cycle(device))
+    monkeypatch.setattr(UnixAgentClient, 'open_tracked_cycle', lambda _self, device, _owner: fake.open_cycle(device))
     app = create_app(settings)
     service = app.state.synchronizer.dispatcher
     service.clock = service.runner._clock = lambda: monotonic() + offset[0]

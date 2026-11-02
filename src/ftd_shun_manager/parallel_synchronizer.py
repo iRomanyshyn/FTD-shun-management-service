@@ -8,7 +8,12 @@ from copy import deepcopy
 from time import monotonic
 from uuid import uuid4
 
-from .agent_client import AgentCycleNotStarted, AgentCycleOpenFailed, AgentUnavailable
+from .agent_client import (
+    AgentCycleNotStarted,
+    AgentCycleOpenFailed,
+    AgentCycleReadFailed,
+    AgentUnavailable,
+)
 from .bulk_discovery import BulkDiscovery
 from .device_leases import DeviceLeases, DeviceOperationQueue
 from .operation_queue import OperationQueue, QueueConflict
@@ -37,6 +42,10 @@ class _DeviceWorker(Synchronizer):
         self._stop_mutations = self.rpc_failed = False
         self.request_not_submitted = False
         self.opening_failed = False
+        self.read_failed = False
+        self.receipt_recovered = False
+        self.session_bound = False
+        self._read_session = None
         self.session_settled = False
         self._rpc_calls = 0
         self._managed_restoration_error = None
@@ -53,10 +62,20 @@ class _DeviceWorker(Synchronizer):
 
     async def _agent_call(self, function, *args):
         opening = self._rpc_calls == 0 and function == self.agent.open_cycle and args == (self.device_id,)
+        session = self._read_session
+        reading = opening or (session is not None and not args
+                              and getattr(function, '__self__', None) is session
+                              and function in (session.snapshot, session.finish))
         self._rpc_calls += 1
         try:
             self._rpc_started = self.clock()
-            return await super()._agent_call(function, *args)
+            if opening and getattr(self.agent, 'tracked_cycles', False) is True:
+                self.session_bound = True
+                function, args = self.agent.open_tracked_cycle, (self.device_id, self.instance_id)
+            result = await super()._agent_call(function, *args)
+            if opening:
+                self._read_session = result
+            return result
         except AgentCycleNotStarted:
             self.rpc_failed = True
             self.request_not_submitted = opening
@@ -64,6 +83,10 @@ class _DeviceWorker(Synchronizer):
         except AgentCycleOpenFailed:
             self.rpc_failed = True
             self.opening_failed = opening
+            raise
+        except AgentCycleReadFailed:
+            self.read_failed = reading and not self.rpc_failed
+            self.rpc_failed = True
             raise
         except BaseException:
             # No replacement after an RPC/lease failure, even for read-only work.
@@ -252,7 +275,7 @@ class ParallelSynchronizer:
             worker.require_settlement = self.settled_cycles_required
             self._results[str(device.id)] = {'state': 'running', 'epoch': token.epoch}
             await worker._collect()
-            # Only exact first-opening proof permits a failed session's release.
+            # Only exact bound terminal failure proof permits failed-session release.
             # A local processing error is not terminal agent settlement either.
             if worker.request_not_submitted:
                 self.leases.release_unsubmitted(token)
@@ -260,13 +283,26 @@ class ParallelSynchronizer:
             elif worker.opening_failed:
                 self.leases.release_unopened(token)
                 worker._devices[device.id]['error_category'] = 'agent_open_failed'
+            elif worker.read_failed:
+                self.leases.release_read_failed(token)
+                worker._devices[device.id]['error_category'] = 'agent_read_failed'
+            elif worker.session_bound and (worker.rpc_failed or not worker.session_settled):
+                worker.rpc_failed = True
+                try:
+                    completed = await asyncio.to_thread(self.agent.read_only_session_completed, device.id, token.owner)
+                except (AgentUnavailable, ValueError, OSError):
+                    completed = False
+                if completed is True:
+                    self.leases.release_read_receipt_recovered(token)
+                    worker.receipt_recovered = True
+                    worker._devices[device.id]['error_category'] = 'agent_read_receipt_recovered'
             elif not worker.rpc_failed:
                 if self.settled_cycles_required and not worker.session_settled:
                     worker.rpc_failed = True
                 else:
                     worker.queue.finish_cycle(token.owner, 0)
             self._results[str(device.id)] = {
-                'state': 'retrying' if worker.request_not_submitted or worker.opening_failed else
+                'state': 'retrying' if worker.request_not_submitted or worker.opening_failed or worker.read_failed or worker.receipt_recovered else
                          'held' if worker.rpc_failed else worker._cycle_outcome,
                 'epoch': token.epoch, 'details': deepcopy(worker._devices.get(device.id, {})),
             }

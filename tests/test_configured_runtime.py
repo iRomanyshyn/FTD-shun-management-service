@@ -55,6 +55,8 @@ def forbid_initialization(monkeypatch):
     monkeypatch.setattr(OperationQueue, 'initialize', forbidden)
     monkeypatch.setattr(ProtectedPolicy, 'migrate_legacy_environment', forbidden)
     monkeypatch.setattr(UnixAgentClient, 'open_cycle', forbidden)
+    monkeypatch.setattr(UnixAgentClient, 'open_tracked_cycle', forbidden)
+    monkeypatch.setattr(UnixAgentClient, 'read_only_session_completed', forbidden)
     monkeypatch.setenv('FTD_SHUN_TRUSTED_AUTO_REMOVE_IPS', 'must-not-be-read')
 
 
@@ -68,6 +70,7 @@ def test_configured_construction_and_status_do_not_initialize_connect_or_enable_
     assert type(agent) is UnixAgentClient
     assert agent.large_snapshots and agent.settled_cycles and not agent.additions_enabled
     assert agent.recoverable_cycles is True
+    assert agent.tracked_cycles is True
     assert agent.addition_device_ids == frozenset() and agent.timeout_seconds == 125
     assert runtime.dispatcher.runner.agent_concurrency == 2
 
@@ -82,6 +85,22 @@ def test_configured_construction_and_status_do_not_initialize_connect_or_enable_
             assert (await client.post('/api/v1/refresh-hint')).status_code == 503
     asyncio.run(scenario())
     assert dump(store) == before and not fake.seen
+
+
+@pytest.mark.parametrize('field', ['tracked_cycles', 'recoverable_cycles'])
+def test_configured_session_capability_drift_refuses_start_without_connect(configured, monkeypatch, field):
+    settings, store, _fake, _entries = configured
+    before = dump(store)
+    forbid_initialization(monkeypatch)
+    app = create_app(settings, store)
+    runtime = app.state.synchronizer
+    setattr(runtime.dispatcher.runner.agent, field, False)
+    async def scenario():
+        with pytest.raises(ValueError, match='tracked'):
+            async with app.router.lifespan_context(app):
+                pytest.fail('Incompatible transport must not start.')
+    asyncio.run(scenario())
+    assert dump(store) == before and runtime.dispatcher._task is None
 
 
 @pytest.mark.parametrize('change', [
@@ -184,6 +203,7 @@ def test_semantic_inventory_order_is_stable_and_real_lifecycle_has_one_owner(con
     settings.device_inventory_path.write_text(json.dumps(list(reversed(entries)), indent=2))
     # Semantic fake only at the RPC boundary; not SSH/transport acceptance.
     monkeypatch.setattr(UnixAgentClient, 'open_cycle', lambda _self, device: fake.open_cycle(device))
+    monkeypatch.setattr(UnixAgentClient, 'open_tracked_cycle', lambda _self, device, _owner: fake.open_cycle(device))
 
     async def scenario():
         async with app.router.lifespan_context(app):
