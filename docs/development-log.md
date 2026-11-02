@@ -7882,6 +7882,103 @@ changes. Authenticated workflow/large-list acceptance remains synthetic, not a
 new live bulk acceptance claim. Rollback is Web-image-only using the saved tag
 and the same three-file no-dependencies update; no database restore is needed.
 
+## 2026-11-02 — Restoration-off history and explicit unblock semantics
+
+Replaced ambiguous Maintain presence/Stopped badges with Auto-restore on/off.
+Shuns and Managed shuns share explanations separating observed device blocks,
+automatic restoration and Protected-IP automatic removal. Policy-only revocation
+is now "Turn off auto-restore only — leave device unchanged"; combined cleanup
+and ordered removal names explicitly describe turning restoration off and queuing
+the separate removal. No change to confirmation tokens, typed IP, CSRF/roles,
+scope, original keys, receipts, protections or independent capabilities.
+
+The configured managed view collapses only explicitly off, absent, zero-pending
+rules with explicit no-attention/no-missing-evidence and known safe/no ADD history.
+Observed blocks, pending operations, failed/unknown outcomes and incomplete fields
+stay in the main table. Counts describe the same bounded page, never a fake fleet
+zero; original revision-bound pagination covers all retained rules. Open keyed
+history/activity disclosures survive passive replacement. Original generation,
+actor and verified additions remain under "Past activity — not current device
+state", avoiding a historical VERIFIED ADD masquerading as a current block.
+No DB/schema, filtering API, authority, queue, worker or agent changes.
+
+Validation: 22 new presentation cases cover quiet history, non-hidden active/
+observed/pending/failed/unknown/missing fields, strict zero semantics, escaping and
+honest page links/counts. Existing focused revocation/removal tests pass after
+visible-copy expectation updates; original policy/audit/replay/unknown checks
+remain. All 45 Chromium cases pass, including an actual live-region replacement,
+preserved nested disclosures, a reobserved historical IP moving back into the main
+table, no device hints/admissions and widths 360/768/1100. Synthetic desktop layout
+was visually inspected. Compileall/Ruff/diff and all 35 packaged templates pass.
+The final full Python suite passes: **2914 tests in 441.90s**.
+
+Read-only lab rules show one current operator-enabled/observed target and two
+quiet retired fixtures. Kept these unchanged; no test imports, fixture authority,
+refresh hints or device writes were submitted. Preserved prior Web `fb2a2a5114c8...`
+as `ftd-shun-web:lab-pre-restoration-ux-20261102`, then replaced Web only with
+`cbdb212010e0...` using all three current Compose files and no-dependencies/no-build
+up. API `6c1484707809...` and agent `b3335c280601...` retain their original start
+times. Health 200/anonymous 401, CA-verified edge 302 to Authelia and private
+networking pass. Read-only API/SQLite check: ready/no error, last successful read
+`2026-11-02T15:16:52Z`, IDLE, six VERIFIED jobs, one enabled rule, unchanged three
+Protected-IP settings/fingerprint and integrity `ok`.
+
+An additional template-only render in the deployed Python image reads current
+public rule/status metadata through GET, preserves all three rows and confirms
+the history section and on/off labels. Its labelled maintenance identity is only
+local template data, not an HTTP identity or grant; no forms, hints, authority or
+device commands were submitted. Actual browser workflow tests remain synthetic.
+
+Rollback is the saved Web image only; no database restore or API/agent restart.
+Web restart invalidates ephemeral confirmation forms, not retained drafts,
+receipts, rules or queue work. Browser workflow testing remains synthetic; this
+increment is not live bulk/load/production acceptance.
+
+## 2026-11-02 — Requested-refresh timing and compact activity indicators
+
+Fixed a presentation mismatch: pending manual demand previously left the periodic
+4m30s remainder visible as though it were the requested refresh wait; an earlier
+successful read then reset it to five minutes. Header/device rows now distinguish
+requested eligibility, waiting for device/current command, active reading and
+the next periodic check. Mutation phases are device work, not snapshot progress.
+Only server revisions update data; a local zero timer never proves completion or
+admits another command. Current per-device demand stays coalescible/clickable.
+
+Status/Queue now have compact CSS activity icons and badges: quiet idle, static
+wait clock, small running ring and paused queue, with independent error/attention
+markers. Successful history is not active work. Full counts/descriptions remain
+accessible and in hover text; large counts abbreviate to 99+. Reduced-motion
+preferences disable rotation without hiding state. Fixed-height triggers and
+existing out-of-flow alerts keep content stable; no per-second live announcements
+or extra working-page paragraphs. Routine details remain inside Status/Queue.
+
+The same pure metadata projections are exercised without DOM/network through a
+Node-only export of the existing browser asset. Added 20 deterministic cases and
+two Chromium scenarios for request/wait/read/completion, periodic reset, no fake
+refresh at zero, trigger activity/attention, real data replacement, 360/768/1100
+layouts and reduced motion. Existing per-device fixture flags now track its
+reported pending count; old display-copy assertions were updated, not product
+gates. Final combined browser/Node run: **67 passed (47 Chromium / 20 pure)**.
+Focused existing Python refresh/auth/BFF/template contracts: **77 passed**.
+JS syntax, Ruff and diff checks pass. No Python/agent implementation changed;
+the full Python/Rust suites were not rerun for this frontend-only increment.
+Synthetic desktop waiting and narrow attention-state screenshots were inspected.
+
+All 35 packaged templates compile in an isolated networkless image. Preserved Web
+`cbdb212010e0...` as `ftd-shun-web:lab-pre-status-ux-20261102`, then deployed only
+Web `c97c9240588c...` with all three current lab Compose files and
+`up -d --no-deps --no-build web`. API `6c1484707809...` and agent
+`b3335c280601...` retain their original images/start times; API/Web network-none.
+Health 200/anonymous 401 and CA-verified HTML edge 302 to Authelia pass. Read-only
+API/SQLite check: ready/no error, last successful device read
+`2026-11-02T16:15:54Z`, IDLE, six VERIFIED jobs, one enabled rule, unchanged three
+Protected-IP settings/fingerprint and integrity `ok`. Compileall also passes.
+No new API/RPC, DB schema, setting, authority, backend scheduling/dispatch, credential,
+trust, network or authentication changes. No live refresh hints/imports/device
+writes are used for this UI validation. Rollback is Web-image-only; API/agent
+do not need restart. Web restart clears ephemeral confirmation forms, not saved
+rules, drafts, receipts or queue work.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

@@ -127,7 +127,7 @@ def test_frozen_retirement_is_policy_only_audited_and_old_replay_never_retires_n
             assert (registry.snapshot(), store.list_events()) == initial
             fields = {"csrf": client.cookies.get("ftd_shun_csrf"), "review": token(page), "confirm_ip": str(IP)}
             response = await client.post("/managed-shuns/retirement-confirm", data=fields)
-            assert response.status_code == 200 and "Recorded policy-only result" in response.text
+            assert response.status_code == 200 and "Auto-restoration turned off — no device command" in response.text
             assert 'action="/managed-shuns/retirement-confirm"' not in response.text
             assert not registry.snapshot()["entries"][0]["enabled"]
             event = next(e for e in store.list_events() if e["event_type"] == "MANAGED_SHUN_RETIRED")
@@ -241,7 +241,7 @@ def test_stale_review_conflict_has_no_partial_change_and_status_failure_does_not
             page = await prepare(client)
             behavior["status_error"] = True
             response = await client.post("/managed-shuns/retirement-confirm", data={**fields, "review": token(page)})
-            assert response.status_code == 200 and "Recorded policy-only result" in response.text
+            assert response.status_code == 200 and "Auto-restoration turned off — no device command" in response.text
     asyncio.run(scenario())
 
 
@@ -445,7 +445,7 @@ def test_policy_retirement_keeps_unrelated_admitted_one_time_add_and_snapshot(la
     async def scenario():
         async with browser(app) as client:
             page = await prepare(client)
-            assert "already submitted one-time jobs" in page.text
+            assert "Already submitted independent jobs" in page.text
             response = await client.post("/managed-shuns/retirement-confirm", data={
                 "csrf": client.cookies.get("ftd_shun_csrf"), "review": token(page), "confirm_ip": str(IP)})
             assert response.status_code == 200

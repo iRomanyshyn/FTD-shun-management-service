@@ -1,8 +1,9 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>Review stop maintaining — policy only</h1>
+<h1>Turn off auto-restore only</h1>
 {% if refresh %}{% include "refresh-panel.html" %}{% endif %}
-<p class="policy-warning"><strong>No device command.</strong> This retires maintenance for one exact managed device/IP. It does not remove an existing shun or cancel already submitted one-time jobs, a running ADD or separate cleanup. Manage those independently in Queue / Managed removal handoffs.</p>
+<p class="preview-boundary"><strong>No device command.</strong> Leave the device unchanged; do not restore this block again. This turns off automatic restoration for the reviewed device/IP. It does not remove an existing block or automatically remove a later FTD-created block. Use Protected IPs if the address must be unblocked whenever detected.</p>
+<p class="preview-help">Already submitted independent jobs, a running addition or separate removal are not cancelled. They may still finish; inspect Queue separately. Turning this rule off does not turn it back on later.</p>
 {% if message %}<p class="preview-error" role="alert">{{ message }}</p>{% endif %}
 <dl class="import-review-metadata">
 <dt>Device</dt><dd>{{ review.hostname }} ({{ review.device_id }}) · {{ 'Enabled' if review.device_enabled else 'Disabled — retirement is still allowed' }}</dd>
@@ -17,7 +18,7 @@
 </dl>
 {% if result %}
 <section aria-label="Policy retirement receipt">
-<h2>Recorded policy-only result</h2>
+<h2>Auto-restoration turned off — no device command</h2>
 <p>{{ result.changed_targets }} target retired by the original request. Saved registry revision {{ result.managed_revision }}. {{ 'Original-key replay; no new change was applied.' if result.replayed else 'No device command or queue request was submitted.' }}</p>
 <p>This receipt describes the original request and reviewed generation, not current policy after any later changes. Open Managed shuns to inspect current state. Old-key retries never retire a newer generation.</p>
 </section>
@@ -25,9 +26,9 @@
 <form method="post" action="/managed-shuns/retirement-confirm" class="import-confirm-form">
 <input type="hidden" name="csrf" value="{{ csrf_token }}">
 <input type="hidden" name="review" value="{{ review.token }}">
-<label for="confirm-retirement-ip">Type {{ review.ip }} to stop maintaining this target only</label>
+<label for="confirm-retirement-ip">Type {{ review.ip }} to turn off auto-restoration for this device/IP only</label>
 <input id="confirm-retirement-ip" name="confirm_ip" value="{{ confirm_ip }}" autocomplete="off" inputmode="decimal" required>
-<button type="submit">Stop maintaining — do not remove shun</button>
+<button type="submit">Turn off auto-restore — leave device unchanged</button>
 </form>
 {% endif %}
 <p class="preview-help">This frozen review is bound to your subject and CSRF cookie, expires within ten minutes and is lost on Web restart. It cannot authorize creation, re-enable, removal or resumption of restoration.</p>

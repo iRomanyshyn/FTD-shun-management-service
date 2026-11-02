@@ -1,27 +1,31 @@
 {% extends "base.html" %}
+{% from "managed-policy-ui.html" import behavior_help, policy_table %}
 {% block content %}
 <h1>Managed shuns</h1>
 {% include "refresh-panel.html" %}
-<p class="page-intro">Addresses the service keeps blocked and restores if they disappear. Device observations below show whether a block was last seen, not whether the service originally created it.</p>
-<p class="preview-help">Stop maintaining leaves the current block in place. Stop maintaining and remove also requests an unblock after confirmation. Neither interrupts a command already running.</p>
+<p class="page-intro">Auto-restore rules tell the service which addresses to keep blocked. <strong>Auto-restore off means no future restoration — not automatic unblocking.</strong> The last device check shows whether a block was observed, independently of this setting.</p>
+<p class="preview-help">Turn off auto-restore only leaves the device unchanged. Turn off auto-restore and remove block also requests an unblock after confirmation. Neither interrupts a command already running.</p>
+{{ behavior_help() }}
 {% if refresh.runtime_mode != 'continuous-managed' %}<p class="policy-warning">Automatic blocking is unavailable in this service mode. {% if refresh.ready_removal_admission_enabled is not sameas true %}Combined removal is also unavailable.{% endif %} You can still review settings and use available stop-maintaining controls.</p>{% endif %}
 <section id="managed-shun-state" data-live-region>
 {% if managed.changed %}
 <p role="status" class="policy-warning">Policy changed while browsing. <a href="/managed-shuns">Open the current policy</a> before continuing. No scope was rebased.</p>
 {% else %}
-<p><strong>{{ 'Maintenance suspended' if managed.restoration_suspended else 'Maintenance setting enabled' }}.</strong> {{ managed.total }} saved device/IP targets, including stopped targets. Open Status and Queue for current device availability and results.</p>
+<p><strong>{{ 'Automatic restoration paused for all rules' if managed.restoration_suspended else 'Automatic restoration is not globally paused' }}.</strong> {{ managed.total }} saved device/IP rules, including history. Individual rules and device checks still apply. Open Status and Queue for availability and results.</p>
 <details class="technical-details" id="managed-policy-details"><summary>Technical details</summary><p>Registry revision {{ managed.revision }} · {{ managed.total }} / {{ managed.limit }} retained target keys. Saved settings do not prove a device change.</p></details>
 {% if not managed.attempt_ledger_initialized %}<p class="policy-warning">Attempt ledger is not initialized. No recorded attempt is not proof of a verified outcome.</p>{% endif %}
-<div class="table-scroll"><table aria-label="Managed policy"><thead><tr><th>Device / IP</th><th>Maintenance</th><th>Last observed state</th><th>Operations / attention</th><th>Added by</th></tr></thead><tbody>
-{% for entry in managed.entries %}<tr{% if entry.protected %} class="protected-shun"{% endif %}>
-<td>{{ entry.hostname }}<br><a href="/shuns/{{ entry.ip }}">{{ entry.ip }}</a>{% if not entry.device_enabled %}<br><strong>Device disabled</strong>{% endif %}</td>
-<td><span class="state-badge {{ 'policy-enabled' if entry.enabled else '' }}">{{ 'Maintain presence' if entry.enabled else 'Stopped' }}</span><br>Generation {{ entry.generation }}</td>
-<td>{{ 'Observed present' if entry.observed_present else 'Not currently observed' }}{% if entry.protected %}<br><strong>Protected IP</strong>{% endif %}<br>Presence alone does not prove service creation.</td>
-<td>{% if entry.attention %}<strong class="preview-error">Retained failed or unverified ADD — needs attention</strong><br>{% endif %}{% if entry.missing_unknown_job %}<strong class="preview-error">Original unknown queue evidence is missing; no success inferred.</strong><br>{% endif %}{{ entry.pending_jobs }} pending/running job(s).{% if entry.last_attempt_state %}<br>Last attempt: {{ entry.last_attempt_state }} · generation {{ entry.last_attempt_generation }}{% else %}<br>No recorded ADD attempt.{% endif %}{% if entry.last_verified_application_at %}<br>Last verified ADD: <time class="local-timestamp" datetime="{{ entry.last_verified_application_at }}">{{ entry.last_verified_application_at }}</time>{% endif %}</td>
-<td>{{ entry.actor_display_name }} ({{ entry.actor_subject }})<br><time class="local-timestamp" datetime="{{ entry.authorized_at }}">{{ entry.authorized_at }}</time>{% if entry.label %}<br>{{ entry.label }}{% endif %}{% if entry.reason %}<p class="policy-comment">{{ entry.reason }}</p>{% endif %}</td>
-</tr>{% else %}<tr><td colspan="5">No retained managed targets.</td></tr>{% endfor %}
-</tbody></table></div>
-<nav class="history-pagination" aria-label="Managed policy pagination"><p>Page {{ managed.page }} of {{ managed.pages }} · Up to 100 target keys per page</p><div class="pagination-controls">
+{% set groups = namespace(current=[], history=[]) %}
+{% for entry in managed.entries %}
+{% if entry.enabled is sameas false and entry.observed_present is sameas false and entry.attention is sameas false and entry.missing_unknown_job is sameas false and entry.pending_jobs is integer and entry.pending_jobs == 0 and entry.last_attempt_state is defined and entry.last_attempt_state in (none, 'VERIFIED', 'NOOP') %}
+{% set groups.history = groups.history + [entry] %}{% else %}{% set groups.current = groups.current + [entry] %}{% endif %}
+{% endfor %}
+{% if groups.current %}<h2>Rules and items to review</h2>{{ policy_table(groups.current) }}
+{% elif managed.entries %}<p>No auto-restoring rules or active items on this page. Previous rules are kept in the history below; they do not schedule new restoration.</p>
+{% else %}<p>No saved auto-restore rules.</p>{% endif %}
+{% if groups.history %}<details id="managed-restoration-off-history" class="managed-history"><summary>Auto-restore off — history ({{ groups.history | length }} on this page)</summary>
+<p>These rules no longer restore blocks, and no block was seen in the last device read. This is not a list of addresses to unblock automatically. If FTD blocks one again, it remains unmanaged unless you explicitly enable new maintenance or protect the IP.</p>
+{{ policy_table(groups.history, history=true) }}</details>{% endif %}
+<nav class="history-pagination" aria-label="Managed policy pagination"><p>Page {{ managed.page }} of {{ managed.pages }} · Up to 100 saved rules per page, including collapsed history</p><div class="pagination-controls">
 {% if managed.page > 1 %}<a rel="prev" href="/managed-shuns?page={{ managed.page - 1 }}&amp;revision={{ managed.revision }}">Previous 100</a>{% endif %}
 {% if managed.page < managed.pages %}<a rel="next" href="/managed-shuns?page={{ managed.page + 1 }}&amp;revision={{ managed.revision }}">Next 100</a>{% endif %}
 <a href="/managed-shuns">Current policy</a></div></nav>
@@ -30,15 +34,16 @@
 <section id="managed-retirement-preparation" data-live-region>
 {% if not managed.changed and refresh.managed_policy_retirement_available and ('Operator' in identity.roles or 'Administrator' in identity.roles) %}
 {% set maintained = managed.entries | selectattr('enabled') | list %}{% if maintained %}
-<details><summary>Stop maintaining one target — no device command</summary>
+<details><summary>Turn off auto-restore only — leave device unchanged</summary>
+<p>This does not unblock the address or automatically remove future FTD-created blocks. Use Protected IPs for automatic unblocking.</p>
 <form method="post" action="/managed-shuns/retirement-review" class="import-confirm-form">
 <input type="hidden" name="csrf" value="{{ csrf_token }}"><label for="retirement-target">Exact target on this page</label><select id="retirement-target" name="target" required><option value="">Choose one device/IP</option>{% for entry in maintained %}<option value="{{ entry.device_id }}:{{ entry.ip }}">{{ entry.hostname }} — {{ entry.ip }}</option>{% endfor %}</select>
-<label for="retirement-reason">Reason (optional)</label><input id="retirement-reason" name="reason" maxlength="500"><button type="submit">Review stop maintaining only</button></form>
+<label for="retirement-reason">Reason (optional)</label><input id="retirement-reason" name="reason" maxlength="500"><button type="submit">Review turning off auto-restore</button></form>
 </details>{% endif %}{% endif %}
 </section>
 <section id="ready-removal-preparation" data-live-region>
 {% if refresh.ready_removal_review_available is sameas true and ('Operator' in identity.roles or 'Administrator' in identity.roles) %}
-<details><summary>Stop maintaining and remove</summary>
+<details><summary>Turn off auto-restore and remove block</summary>
 <p>Review first, then confirm. This option requires no conflicting work on the selected addresses. Disabled devices or unresolved operations block the whole request; nothing is silently skipped.</p>
 {% if not managed.changed and managed.entries %}
 <form method="post" action="/managed-shuns/v2/removal-review" class="import-confirm-form">

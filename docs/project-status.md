@@ -15,6 +15,50 @@ priority. See [the planned constraints](working-version-plan.md#deferred-ip-cont
 
 ## Current increment
 
+**Requested-refresh/status usability (2026-11-02).** Pending refresh now shows its
+own eligibility/wait/read state instead of the unrelated periodic remainder;
+header and device-row timing agree. Idle timing returns to the recalculated
+periodic deadline only with server metadata, not elapsed-time success. Compact
+Status/Queue triggers distinguish idle, waiting, working and paused states, with
+independent attention, full accessible counts, reduced motion and fixed height.
+Retained completed jobs do not animate. Backend schedule, queue, authority and
+transport are unchanged; this is JS/CSS/template presentation only.
+Validation: 20 deterministic Node cases plus 47 Chromium cases pass (67 total),
+77 focused Python BFF/auth/template cases pass, JS syntax/compileall/Ruff/diff and
+all 35 packaged templates pass. Deployed only Web `c97c9240588c...`, retaining
+`ftd-shun-web:lab-pre-status-ux-20261102`. API/agent start times/images are unchanged;
+health 200, anonymous 401 and trusted-TLS Authelia redirect 302 pass. Read-only
+lab checks retain six VERIFIED jobs, one enabled rule, three protected settings
+and integrity `ok`, with a successful device read at `2026-11-02T16:15:54Z`.
+No Python implementation,
+API/agent, schema, environment or device-write changes. See
+[Operations](manual/operations.md) for timing and icon meanings.
+
+### Previous restoration-state checkpoint
+
+**Restoration-state usability (2026-11-02).** Managed rule badges now say
+**Auto-restore on/off**, not Maintain presence/Stopped. Shuns/Managed shuns explain
+observed blocks, recurring restoration and Protected-IP automatic removal as
+separate concepts. Policy-only and combined removal actions are named explicitly;
+off never means automatic unblock. The managed runtime collapses only quiet,
+off/absent rules into page-local history. Still-observed blocks, pending work,
+failed/unknown results and incomplete status remain visible. Past verified ADD,
+generation and actor references are retained under labelled historical activity.
+Same revision-bound 100-rule pagination; no storage filtering/deletion, gate,
+authority, dispatch or protocol changes. **2914 full Python tests pass (441.90s)**,
+including 22 new presentation cases, alongside 45 Chromium cases,
+compileall/Ruff/diff and all 35 packaged templates. Deployed only Web
+`cbdb212010e0...`, rollback `ftd-shun-web:lab-pre-restoration-ux-20261102`.
+API/agent images/start times are unchanged. Health 200, anonymous 401 and trusted-
+TLS Authelia redirect 302 pass. Read-only lab status retains the operator's one
+active rule plus two retired fixtures, six VERIFIED jobs, three protected settings
+and integrity `ok`. An in-image template-only render against the read-only lab
+page preserves all three rows and groups the retired history without submissions.
+No device mutations or test authority created by this pass.
+See [Managed shuns operator guide](manual/managed-shuns.md#operator-guide-observed-blocks-auto-restoration-and-protection).
+
+### Previous import-usability checkpoint
+
 **Import usability pass (2026-11-02).** Operator-facing pages no longer advertise
 internal import generations or legacy implementation choices. Imports now presents
 paste / review / confirm steps, Saved drafts and Confirmed imports. Main actions

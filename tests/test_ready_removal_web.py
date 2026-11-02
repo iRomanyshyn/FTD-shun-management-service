@@ -100,7 +100,7 @@ def test_independent_default_off_gates_allow_review_but_never_submit(composition
     async def scenario():
         async with surface(api_enabled=api_gate, web_enabled=web_gate) as (client, _, calls):
             page, fields = await review(client)
-            assert 'disabled' in page.text.split('Stop maintaining and queue removal')[0].rsplit('<button', 1)[1]
+            assert 'disabled' in page.text.split('Turn off auto-restore and queue removal')[0].rsplit('<button', 1)[1]
             response = await client.post('/managed-shuns/v2/removal-confirm', data=fields)
             assert response.status_code == 503 and 'not submitted' in response.text
             assert not any(method == 'POST' and path.startswith('/api/v2/managed-removals/') for method, path, _ in calls)

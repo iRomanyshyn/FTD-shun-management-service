@@ -1,5 +1,13 @@
 # Managed Controls — Revocation Only
 
+UI terminology, 2026-11-02: policy-only **Stop maintaining** is now labelled
+**Turn off auto-restore only — leave device unchanged**; its confirmation is
+**Turn off auto-restore — leave device unchanged**. Combined removal is
+**Turn off auto-restore and remove block**. These names do not change the
+coordinators, permissions, frozen scopes or independently gated device work below.
+See the [operator guide](managed-shuns.md#operator-guide-observed-blocks-auto-restoration-and-protection)
+for off-rule history and the difference from automatic Protected-IP removal.
+
 ## Supported actions and limits
 
 The Managed shuns page now supports two local revocation actions. They do not

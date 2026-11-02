@@ -39,6 +39,22 @@ For documentation-only changes, validate links and `git diff --check`; do not ru
 unrelated full code/browser/agent suites. Code, protocol and deployment changes
 still get the applicable regression checks below and in `AGENTS.md`.
 
+## Refresh/status frontend checks
+
+```bash
+node --test tests/browser/status-presentation.cjs tests/browser/freshness.cjs
+python3 -m pytest -q tests/test_refresh_bff.py tests/test_app_creation.py tests/test_continuous_api.py tests/test_managed_policy_ui.py
+```
+
+The pure Node projections cover requested versus periodic deadlines, read/work
+phases, elapsed eligibility without completion, independent activity/attention,
+paused mutations and bounded badges. Chromium uses production assets and a local
+synthetic server to check actual DOM updates, pending/coalesced requests, native
+keyboard disclosures, reduced motion, non-shifting layouts and frozen forms.
+No lab environment file, real identity, FTD connection or live hint is used.
+Focused Python checks retain private BFF authentication/CSRF and template contracts.
+Use the full Python/agent checks elsewhere in this manual when those layers change.
+
 ## Fresh working-version setup and execution
 
 Use [Fresh Working-Version Lab](fresh-development.md) for the normal next-stage

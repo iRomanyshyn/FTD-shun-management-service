@@ -349,16 +349,23 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
       for await (const chunk of request) body += chunk;
       assert.ok(body.includes("fixture-token"), "POST carries rendered CSRF token");
       postCount += 1;
-      if (!status.refresh_in_progress) executionCount += 1;
+      if (!status.refresh_in_progress && status.refresh_schedule_mode !== "per_device") executionCount += 1;
       response.setHeader("Content-Type", "application/json");
       response.statusCode = failPost ? 503 : 200;
       if (!failPost) {
-        const priority = status.refresh_in_progress && status.session_cycles_enabled && status.refresh_schedule_mode !== "per_device";
-        status.refresh_in_progress = true;
-        status.interactive_refresh_state = priority ? "checkpoint_pending" : "running";
-        if (priority) {
-          status.priority_refresh_available = false;
-          status.device_cycle.priority_state = "waiting_for_checkpoint";
+        if (status.refresh_schedule_mode === "per_device") {
+          const devices = Object.values(status.devices).filter((device) => device.state !== "disabled");
+          devices.forEach((device) => { device.refresh_pending = true; });
+          status.pending_refresh_device_count = devices.length;
+          status.interactive_refresh_state = status.refresh_in_progress ? "checkpoint_pending" : "queued";
+        } else {
+          const priority = status.refresh_in_progress && status.session_cycles_enabled;
+          status.refresh_in_progress = true;
+          status.interactive_refresh_state = priority ? "checkpoint_pending" : "running";
+          if (priority) {
+            status.priority_refresh_available = false;
+            status.device_cycle.priority_state = "waiting_for_checkpoint";
+          }
         }
         status.status_revision += 1;
       }
@@ -702,6 +709,98 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
         assert.equal(await page.evaluate("document.querySelector('[data-refresh-request]').disabled"), true);
       } finally { await page.close(); }
     });
+    await t.test("requested-refresh countdown is separate from periodic timing and resets only with fresh metadata", async () => {
+      status = initial();
+      Object.assign(status, { refresh_schedule_mode: "per_device", active_device_count: 0,
+        pending_refresh_device_count: 0, next_baseline_refresh: future(270),
+        next_interactive_refresh: future(2), device_cycles: {} });
+      Object.assign(status.devices["1"], { active: false, refresh_pending: false,
+        next_baseline_refresh: status.next_baseline_refresh, next_interactive_refresh: status.next_interactive_refresh });
+      const hints = postCount, executions = executionCount;
+      const page = await connectPage(debugOrigin, `${origin}/history`);
+      try {
+        assert.equal(await page.evaluate("document.querySelector('[data-refresh-timing-label]').textContent"), "Next periodic check");
+        assert.equal(await page.evaluate("document.querySelector('#status-menu').dataset.activity"), "idle");
+        await page.evaluate("document.querySelector('#status-menu').open=true;document.querySelector('[data-refresh-request]').click()");
+        await page.until("document.querySelector('[data-refresh-timing-label]').textContent==='Requested refresh' && !document.querySelector('[data-refresh-request]').disabled");
+        assert.equal(postCount, hints + 1);
+        assert.equal(await page.evaluate("document.querySelector('#status-menu').dataset.activity"), "waiting");
+        assert.doesNotMatch(await page.evaluate("document.querySelector('.baseline-countdown').textContent"), /4m/);
+        assert.doesNotMatch(await page.evaluate("document.querySelector('[data-device-status]').textContent"), /Next periodic check/);
+        const reads = pageReads;
+        await page.until("document.querySelector('.baseline-countdown').textContent.includes('waiting for an available device')");
+        assert.equal(pageReads, reads, "An elapsed deadline does not fetch state or invent completion");
+        assert.equal(await page.evaluate("document.querySelector('#status-menu').dataset.activity"), "waiting");
+        Object.assign(status, { refresh_in_progress: true, active_device_count: 1,
+          device_cycles: { "1": { action: "priority_snapshot" } } });
+        status.devices["1"].active = true;
+        status.status_revision += 1;
+        await wake(page);
+        await page.until("document.querySelector('#status-menu').dataset.activity==='busy'");
+        assert.match(await page.evaluate("document.querySelector('.baseline-countdown').textContent"), /checking/);
+        assert.equal(await page.evaluate("document.querySelector('[data-status-indicator]').textContent"), "");
+        assert.equal(await page.evaluate("getComputedStyle(document.querySelector('#status-menu .utility-icon')).animationName"), "utility-spin");
+        const newEvent = `HISTORY_EVENT_${historyRows.length + 1}`;
+        appendHistory();
+        complete();
+        Object.assign(status, { active_device_count: 0, pending_refresh_device_count: 0, device_cycles: {} });
+        Object.assign(status.devices["1"], { active: false, refresh_pending: false,
+          next_baseline_refresh: status.next_baseline_refresh, next_interactive_refresh: status.next_interactive_refresh });
+        await wake(page);
+        await page.until("document.querySelector('[data-refresh-timing-label]').textContent==='Next periodic check'");
+        assert.match(await page.evaluate("document.querySelector('.baseline-countdown').textContent"), /[45]m/);
+        assert.match(await page.evaluate("document.querySelector('[data-refresh-timing-help]').textContent"), /recalculated after a successful/);
+        await page.until(`document.querySelector('#recent-events').textContent.includes('${newEvent}')`);
+        assert.equal(await page.evaluate("document.querySelector('#status-menu').dataset.activity"), "idle");
+        assert.ok(pageReads > reads, "New server data revisions, not a timer, update the page");
+        assert.equal(await page.evaluate("getComputedStyle(document.querySelector('#status-menu .utility-icon')).animationName"), "none");
+        assert.equal(await page.evaluate("document.querySelector('[data-refresh-request]').disabled"), false);
+        assert.equal(postCount, hints + 1);
+        assert.equal(executionCount, executions, "Presentation never creates device sessions");
+      } finally { await page.close(); }
+    });
+    await t.test("status and queue triggers expose independent activity and issues without layout jumps or obligatory motion", async () => {
+      status = initial();
+      Object.assign(status, { refresh_schedule_mode: "per_device", active_device_count: 0,
+        pending_refresh_device_count: 0, device_cycles: {} });
+      status.queue.counts = { VERIFIED: 10000 };
+      const hints = postCount, executions = executionCount;
+      const page = await connectPage(debugOrigin, `${origin}/history`);
+      try {
+        assert.equal(await page.evaluate("document.querySelector('#queue-menu').dataset.activity"), "idle");
+        assert.equal(await page.evaluate("document.querySelector('[data-queue-indicator]').textContent"), "");
+        for (const width of [1100, 768, 360]) {
+          await page.call("Emulation.setDeviceMetricsOverride", { width, height: 800, deviceScaleFactor: 1, mobile: width === 360 });
+          const baseline = await page.evaluate("document.querySelector('#recent-events').getBoundingClientRect().top+scrollY");
+          for (const [phase, counts] of [["waiting", { QUEUED: 3 }], ["busy", { RUNNING: 1, QUEUED: 2, UNVERIFIED: 1 }], ["idle", { VERIFIED: 99999 }]]) {
+            status.queue.counts = counts;
+            status.queue.revision += 1;
+            status.status_revision += 1;
+            await wake(page);
+            await page.until(`document.querySelector('#queue-menu').dataset.activity==='${phase}'`);
+            assert.equal(await page.evaluate("document.querySelector('#recent-events').getBoundingClientRect().top+scrollY"), baseline);
+            assert.equal(await page.evaluate("document.documentElement.scrollWidth<=innerWidth"), true);
+            assert.equal(await page.evaluate("document.querySelector('#status-menu').open || document.querySelector('#queue-menu').open"), false);
+            if (phase === "busy") {
+              assert.equal(await page.evaluate("document.querySelector('#queue-menu').dataset.attention"), "true");
+              assert.match(await page.evaluate("document.querySelector('#queue-menu > summary').getAttribute('aria-label')"), /1 running; 2 queued; 1 need attention/);
+              assert.match(await page.evaluate("document.querySelector('[data-queue-indicator]').textContent"), /!1/);
+              await page.call("Emulation.setEmulatedMedia", { features: [{ name: "prefers-reduced-motion", value: "reduce" }] });
+              assert.equal(await page.evaluate("getComputedStyle(document.querySelector('#queue-menu .utility-icon')).animationName"), "none");
+              assert.equal(await page.evaluate("document.querySelector('#queue-menu').dataset.activity"), "busy");
+              await page.call("Emulation.setEmulatedMedia", { features: [] });
+            }
+          }
+        }
+        status.queue.mutations_suspended = true;
+        status.status_revision += 1;
+        await wake(page);
+        await page.until("document.querySelector('#queue-menu').dataset.activity==='paused'");
+        assert.equal(await page.evaluate("document.querySelector('#queue-menu').dataset.attention"), "true");
+        assert.equal(postCount, hints);
+        assert.equal(executionCount, executions);
+      } finally { await page.close(); }
+    });
     await t.test("independent device demand stays clickable and timers never fabricate refreshed data", async () => {
       status = initial();
       Object.assign(status, { refresh_schedule_mode: "per_device", active_device_count: 1,
@@ -717,7 +816,8 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
       try {
         await page.until("document.querySelector('[data-refresh-request]').textContent.includes('2 device(s)')");
         assert.equal(await page.evaluate("document.querySelector('[data-refresh-request]').disabled"), false);
-        assert.match(await page.evaluate("document.querySelector('[data-status-indicator]').textContent"), /2 waiting/);
+        assert.match(await page.evaluate("document.querySelector('#status-menu > summary').getAttribute('aria-label')"), /2 device refresh request/);
+        assert.match(await page.evaluate("document.querySelector('[data-status-indicator]').textContent"), /\ds/);
         assert.match(await page.evaluate("document.querySelector('[data-device-status]').textContent"), /Device fence held/);
         assert.match(await page.evaluate("document.querySelector('[data-cycle-progress]').textContent"), /Adding and verifying.*3 items/);
         await page.evaluate("document.querySelector('#ip-search').value='203.0.113'; document.querySelector('#status-menu').open=true");
@@ -734,6 +834,7 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
         await page.until("document.querySelector('[data-refresh-request]').textContent.includes('waiting for verification')");
         assert.equal(pageReads, reads, "Elapsed countdown is not new observation evidence");
         status.pending_refresh_device_count = 1;
+        status.devices["1"].refresh_pending = false;
         status.data_revision += 1;
         status.status_revision += 1;
         generation += 1;
@@ -814,6 +915,60 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
         await wake(page);
         await page.until("document.querySelector('#managed-shun-state').textContent.includes('No scope was rebased')");
         assert.equal(await page.evaluate("document.querySelector('#retirement-target')"), null);
+        assert.equal(postCount, hints);
+        assert.equal(executionCount, executions);
+      } finally { await page.close(); managed = previous; }
+    });
+    await t.test("auto-restoration off is quiet history, never hidden current blocks or uncertain work", async () => {
+      const previous = managed;
+      status = initial();
+      Object.assign(status, { runtime_mode: "continuous-managed", managed_policy_format: 2,
+        managed_workflows_available: false, managed_policy_view_available: true });
+      const target = (suffix, changes = {}) => ({ device_id: 1, hostname: "Fixture FTD",
+        ip: `198.51.100.${suffix}`, enabled: false, device_enabled: true, observed_present: false,
+        protected: false, generation: 1, pending_jobs: 0, attention: false, missing_unknown_job: false,
+        last_attempt_state: "VERIFIED", last_attempt_generation: 1,
+        last_verified_application_at: "2026-10-30T12:52:19Z", actor_subject: "fixture",
+        actor_display_name: "<b>Fixture actor</b>", authorized_at: "2026-10-30T12:45:57Z",
+        label: "Fixture only", reason: "", ...changes });
+      managed = { initialized: true, intent_format: 2, limit: 200000, revision: 7,
+        restoration_suspended: false, attempt_ledger_initialized: true, read_only: true,
+        entries: [target(201, { enabled: true }), target(202), target(203, { observed_present: true }),
+          target(204, { attention: true, last_attempt_state: "UNVERIFIED" }), target(205, { pending_jobs: 1 }),
+          target(206, { missing_unknown_job: true }), target(207, { last_attempt_state: "FAILED" })] };
+      const hints = postCount, executions = executionCount;
+      const page = await connectPage(debugOrigin, `${origin}/managed-shuns`);
+      try {
+        assert.equal(await page.evaluate("document.querySelectorAll('table[aria-label=\"Managed policy\"] tbody tr').length"), 6);
+        assert.equal(await page.evaluate("document.querySelector('#managed-restoration-off-history').open"), false);
+        assert.equal(await page.evaluate("document.querySelector('main').innerText.includes('198.51.100.202')"), false);
+        assert.equal(await page.evaluate("document.querySelector('main').innerText.includes('Past verified addition:')"), false);
+        assert.equal(await page.evaluate("document.querySelector('main').innerText.includes('not automatic unblocking')"), true);
+        assert.equal(await page.evaluate("document.querySelector('main').innerText.includes('block is still observed')"), true);
+        assert.equal(await page.evaluate("document.querySelector('main').innerText.includes('unknown outcome — needs attention')"), true);
+        assert.equal(await page.evaluate("document.querySelectorAll('#managed-shun-state b').length"), 0);
+        await page.evaluate("document.querySelector('#managed-behavior-help').open=true;document.querySelector('#managed-restoration-off-history').open=true;document.getElementById('managed-attempt-1-198.51.100.202').open=true");
+        assert.equal(await page.evaluate("document.querySelector('main').innerText.includes('does not remove an existing block or automatically remove a later block')"), true);
+        assert.equal(await page.evaluate("document.querySelector('main').innerText.includes('Past verified addition:')"), true);
+        await page.until("Boolean(document.getElementById('managed-attempt-1-198.51.100.202').querySelector('time').textContent.match(/GMT|UTC/))");
+        const reads = pageReads;
+        managed.entries[1].label = "Updated historical fixture";
+        status.data_revision += 1;
+        await wake(page);
+        await page.until("document.querySelector('#managed-restoration-off-history')?.textContent.includes('Updated historical fixture')");
+        assert.ok(pageReads > reads);
+        assert.equal(await page.evaluate("document.querySelector('#managed-restoration-off-history').open"), true);
+        assert.equal(await page.evaluate("document.getElementById('managed-attempt-1-198.51.100.202').open"), true);
+        for (const width of [1100, 768, 360]) {
+          await page.call("Emulation.setDeviceMetricsOverride", { width, height: 800, deviceScaleFactor: 1, mobile: width === 360 });
+          assert.equal(await page.evaluate("document.documentElement.scrollWidth<=window.innerWidth"), true);
+        }
+        managed.entries[1].observed_present = true;
+        status.data_revision += 1;
+        await wake(page);
+        await page.until("!document.querySelector('#managed-restoration-off-history')");
+        assert.equal(await page.evaluate("document.querySelectorAll('table[aria-label=\"Managed policy\"] tbody tr').length"), 7);
+        assert.equal(await page.evaluate("document.querySelector('main').innerText.includes('198.51.100.202')"), true);
         assert.equal(postCount, hints);
         assert.equal(executionCount, executions);
       } finally { await page.close(); managed = previous; }
@@ -1738,7 +1893,7 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
         status.managed_policy_revision = 1;
         status.status_revision += 1;
         await wake(page);
-        await page.until("document.querySelector('#managed-shun-state').textContent.includes('Maintain presence')");
+        await page.until("document.querySelector('#managed-shun-state').textContent.includes('Auto-restore on')");
         assert.ok(await page.evaluate("document.querySelector('#managed-shun-state').textContent.includes('Not currently observed')"));
         assert.equal(await page.evaluate("document.querySelectorAll('#managed-shun-state img, #managed-shun-state form, #managed-shun-state button').length"), 0);
         assert.equal(await page.evaluate("document.querySelectorAll('#managed-removal-preparation form').length"), 1);

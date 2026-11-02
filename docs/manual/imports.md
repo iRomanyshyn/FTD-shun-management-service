@@ -37,13 +37,19 @@ writes. Open **Managed shuns** for current maintenance and observations; open
 is separate from acceptance. A block present on a device is not proof that this
 service created it.
 
-**Stop maintaining** leaves an existing block in place. **Stop maintaining and
-remove** also requests removal after a separate review and confirmation. The
+**Turn off auto-restore only** leaves the device unchanged; it does not unblock
+the address or automatically remove a later FTD-created block. **Turn off
+auto-restore and remove block** also requests removal after a separate review and confirmation. The
 separate wait-for-addition option handles an addition already in progress; an
 unknown result requires attention, not blind retry. Cancelling uncompleted import
 work preserves already-applied/adopted blocks and does not unblock addresses.
 Enabled protection permanently stops matching maintenance; disabling protection
 does not revive the retired import.
+
+Quiet off rules appear in collapsed history, not as current restoration work.
+Still-observed blocks, pending work and uncertainty remain visible. Past verified
+additions are historical, not proof that an address is currently blocked. See
+[Managed shuns](managed-shuns.md#operator-guide-observed-blocks-auto-restoration-and-protection).
 
 ## Connection problems and saved drafts
 

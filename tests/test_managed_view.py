@@ -95,7 +95,7 @@ def test_bff_view_requires_auth_read_only_for_all_roles_and_escapes_metadata(lab
             response = await client.get("/managed-shuns")
             assert response.status_code == 200 and response.headers["cache-control"] == "no-store"
             assert 'href="/managed-shuns" aria-current="page"' in response.text
-            assert "Maintain presence" in response.text and "Not currently observed" in response.text
+            assert "Auto-restore on" in response.text and "Not currently observed" in response.text
             assert "Controller disabled" in response.text and "Not recorded" in response.text
             assert "Experimental automatic restoration is disabled" in response.text
             assert "&lt;b&gt;Fixture&lt;/b&gt;" in response.text and "<script>not executable</script>" not in response.text

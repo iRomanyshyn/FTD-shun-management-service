@@ -165,7 +165,7 @@ def test_optional_cleanup_error_does_not_hide_policy_or_claim_empty_queue(lab):
     async def scenario():
         async with browser(app, "ftd-shun-viewers") as client:
             response = await client.get("/managed-shuns")
-            assert response.status_code == 200 and "Maintain presence" in response.text
+            assert response.status_code == 200 and "Auto-restore on" in response.text
             assert "This is not an empty queue" in response.text
             assert "No recorded cleanup requests" not in response.text
             assert 'action="/managed-shuns/removal-review"' not in response.text

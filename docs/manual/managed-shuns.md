@@ -1,5 +1,55 @@
 # Managed Shuns — Standing Policy and Gated Restoration
 
+## Operator guide: observed blocks, auto-restoration and protection
+
+Current UI terminology, 2026-11-02. The configured managed lab is described in
+[Fresh Working-Version Lab](fresh-development.md); the older implementation
+checkpoints below retain their original storage/gate contracts.
+
+| Screen / setting | Meaning |
+| --- | --- |
+| **Shuns** | Blocks observed during the last successful device reads. Search can also show labelled historical observations. |
+| **Managed shuns · Auto-restore on** | Keep this device/IP blocked; restore a missing block while execution and safety checks permit. |
+| **Managed shuns · Auto-restore off** | Do not restore missing blocks. Neither remove an existing block nor automatically remove a later FTD-created block. |
+| **Protected IPs · Protection enabled** | Request removal whenever the protected address is detected blocked. Permanently stop matching auto-restoration. |
+
+**Auto-restore off is not a blacklist of addresses to remove.** It is retained
+history of previous management. A subsequently detected block is unmanaged unless
+new maintenance is explicitly authorized or the IP is protected. Turning protection
+off never revives the old maintenance rule. A global pause overrides enabled rules;
+an **on** badge is a saved setting, not a guarantee a worker is currently running.
+
+The configured managed view separates quiet, off rules into collapsed
+**Auto-restore off — history** on each 100-rule page. Collapse requires explicit
+disabled restoration, a negative local observation, no pending work, no attention
+or missing evidence, and no failed/unknown/nonterminal addition result. Missing
+metadata is not zero. Still-observed blocks, uncertain/failed work and pending
+commands remain in the main table even with restoration off. Pagination covers all
+retained rules, including collapsed history; page-local counts are not fleet totals.
+No history is deleted and no new storage filtering or authority is introduced.
+
+**Last device check** describes the last observation, not a verified deletion.
+**Past activity — not current device state** contains past verified additions,
+rule generations and original actor references. A VERIFIED addition can remain
+in history after a later verified removal; it is not a current block or pending job.
+Timestamps retain local formatting and timezone. Open history/activity disclosures
+are preserved during local status updates while their entries remain in scope.
+
+Actions are explicit and still require the existing frozen confirmation:
+
+- **Turn off auto-restore only — leave device unchanged:** retire this rule, not
+  an unblock. Already running additions and independent queued operations may
+  still finish; inspect Queue separately.
+- **Turn off auto-restore and remove block:** retire matching restoration and
+  queue removal together. Acceptance is not verified device success. A later
+  independent FTD block is not automatically removed by this action.
+- **Remove after an addition already in progress:** the separate ordered review
+  waits for captured work to settle before removal. Unknown results require
+  attention, not replay or an implicit ready-only fallback.
+
+For automatic unblocking, use **Protected IPs**, not an off auto-restore rule.
+The same explanations are available in the Shuns and Managed shuns Web help.
+
 ## Status and decision
 
 **Registry foundation and read-only API/UI visibility implemented on 2026-10-17.

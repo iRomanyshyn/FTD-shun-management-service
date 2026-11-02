@@ -1,7 +1,10 @@
 {% extends "base.html" %}
+{% from "managed-policy-ui.html" import behavior_help %}
 {% block content %}
 <h1>Shun search and current entries</h1>
 {% if refresh %}{% include "refresh-panel.html" %}{% endif %}
+<p class="page-intro">Shuns are blocks observed on the devices during the last successful reads. <a href="/managed-shuns">Managed shuns</a> controls which blocks the service restores; <a href="/protected-ips">Protected IPs</a> controls automatic unblocking.</p>
+{{ behavior_help() }}
 
 <section class="universal-search" aria-labelledby="ip-search-heading">
 <h2 id="ip-search-heading">IP search</h2>

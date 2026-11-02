@@ -104,8 +104,33 @@ recovery waiting. Pending queued work schedules another eligible cycle instead
 of waiting for the idle five-minute baseline. All reads and queued removals
 are dispatched by the same worker.
 
-The UI shows the last complete successful sweep, a browser countdown derived
-from the synchronizer's next-baseline timestamp, and the interactive state.
+The UI shows the last confirmed device data and distinguishes requested checks
+from periodic polling. In the current managed runtime, **Requested refresh**
+shows eligibility during cooldown, waiting for an available device/current
+operation afterward, and checking information when a read is actually in progress.
+The unrelated periodic timer is not shown as that request's wait time, including
+in the per-device rows. **Next periodic check** returns once the demand/read is no
+longer pending; its deadline is recalculated from a successful read. A change
+from the former periodic remainder to five minutes after a fresh read is expected,
+not another manual wait. Deadlines are advisory eligibility, never a completion ETA.
+
+Status/Queue triggers stay compact even when closed:
+
+- Neutral outline: no current activity; retained successful jobs do not animate.
+- Clock: waiting for refresh eligibility, a device, or queued work. Status shows
+  the requested-refresh countdown where known; Queue shows active job counts.
+- Small rotating ring: an actual reported device check/work session or RUNNING
+  queue work. Reduced-motion preferences disable rotation, not the state signal.
+- Warning mark/border: stale/error data, failed/unverified operations, worker
+  problems or a mutation pause. Work and attention can be shown simultaneously.
+
+Hover/assistive descriptions retain full counts; large badges abbreviate to
+`99+`. A global mutation pause has a distinct paused queue state; monitoring can
+continue. Critical warnings remain outside closed menus. Trigger heights are
+fixed; local countdown ticks do not move the main content or announce every second.
+Visible pending demand polls local BFF metadata each second, not FTD. Only actual
+server data/cycle revisions update observations; reaching zero does not.
+
 Treat a refresh warning as stale state for the named device; do not take a
 write action based on an assumed current FTD state. A failed or malformed
 snapshot is retained as a failure only and is never interpreted as an empty
@@ -120,12 +145,12 @@ treated as a present FTD block. Results show the last seen time, last verified
 removal when one exists, latest event, number of known devices, and the
 **Protected IP** marker for an exact trusted-policy match.
 
-A page view may still submit the normal asynchronous, globally rate-limited
+A page view may still submit the normal asynchronous, rate-limited
 refresh hint. The **Request refresh** control gives that same hint explicitly;
 it never waits for FTD SSH or promises an immediate live result. Its countdown
 shows when another browser hint is permitted. The service independently enforces
 the minimum interval, so reloading or using multiple browsers cannot bypass it.
-If the next five-minute baseline is less than the configured minimum interval
+In the older whole-sweep profile, if the next five-minute baseline is less than the configured minimum interval
 away (60 seconds by default), the service preserves that scheduled refresh
 instead of starting a redundant manual one. The button then displays the
 scheduled-refresh countdown. At any earlier point, an accepted button request

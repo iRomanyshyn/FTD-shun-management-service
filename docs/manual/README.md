@@ -53,7 +53,7 @@ not a runbook or permission to change gates, initialize schemas or run new fixtu
 | [Import Cancellation](import-cancellation.md) | Whole-import uncompleted-work revocation, retained additions/adoption, in-flight settlement and immutable receipts; explicit schema, no automatic activation. |
 | [Managed Import Web](managed-import-web.md) | Saved preparations, exact review/consent, retained receipts and uncompleted-work cancellation; current capacity/gates and unknown-reply recovery. |
 | [Browser Import Review](import-review.md) | Frozen exact-target confirmation, identity/CSRF, bounded ephemeral drafts, same-key retry, default-off admission and rollback. |
-| [Managed Shuns](managed-shuns.md) | Registry foundation, lifecycle/storage bounds, standing consent and independently gated restoration. |
+| [Managed Shuns](managed-shuns.md) | Auto-restore on/off, observed blocks versus off-rule history, explicit revocation/removal and the difference from Protected IPs; registry and restoration contracts. |
 | [Standing Managed Policy](managed-grants.md) | Frozen one-pair standing consent, default-off policy-only admission, retries/revocation and unchanged live gates. |
 | [Standing Address Lists](managed-batch-grants.md) | Paste/device selection, frozen 100-row review and atomic default-off recurring policy for up to 1000 exact pairs; no immediate commands. |
 | [Managed Restoration](managed-restoration.md) | Default-off bounded snapshot discovery/shared dispatch, retained uncertainty/provenance and queue/recovery hooks. |

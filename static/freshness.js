@@ -15,6 +15,82 @@
     const total = Math.max(0, Math.ceil(seconds));
     return total >= 60 ? `${Math.floor(total / 60)}m ${String(total % 60).padStart(2, "0")}s` : `${total}s`;
   };
+  const count = (value) => Number.isSafeInteger(value) && value >= 0 ? value : 0;
+  const compactCount = (value) => value > 99 ? "99+" : String(value);
+  // Presentation only: deadlines indicate eligibility, never completed device
+  // reads. Keep requested reads separate from the periodic fallback schedule.
+  const refreshPresentation = (status, remaining, requesting = false, localError = "") => {
+    const devices = Object.entries(status.devices || {}).filter(([, device]) => device.state !== "disabled");
+    const pending = status.refresh_schedule_mode === "per_device"
+      ? Math.max(count(status.pending_refresh_device_count), devices.filter(([, device]) => device.refresh_pending).length)
+      : ["queued", "checkpoint_pending"].includes(status.interactive_refresh_state) ? 1 : 0;
+    const active = devices.filter(([, device]) => device.active || device.state === "refreshing");
+    const phases = status.refresh_schedule_mode === "per_device"
+      ? active.map(([id]) => status.device_cycles?.[id]?.action)
+      : status.refresh_in_progress ? [status.device_cycle?.action] : [];
+    const reading = phases.some((phase) => ["opening_session", "priority_snapshot", "final_snapshot"].includes(phase))
+      || (status.refresh_schedule_mode !== "per_device" && status.refresh_in_progress
+        && !phases.some((phase) => ["add_and_verify", "remove_and_verify"].includes(phase)));
+    const working = Boolean(status.refresh_in_progress || active.length || count(status.active_device_count));
+    const attention = Boolean(localError || status.last_error || devices.some(([, device]) =>
+      device.last_error || device.stale || ["error", "stale", "pending"].includes(device.state)));
+    const cooldown = remaining(status.next_interactive_refresh);
+    const baseline = remaining(status.next_baseline_refresh);
+    const result = { activity: "idle", attention, pending, badge: "", phase: "idle",
+      summary: devices.length ? "Observations current" : "No enabled devices",
+      timingLabel: "Next periodic check", timing: baseline === null ? "not scheduled"
+        : baseline > 0 ? `in ${duration(baseline)}` : "due; waiting for device",
+      timingHelp: "Periodic timing is recalculated after a successful device read. A requested refresh may run sooner. Eligibility is not completion." };
+    if (requesting) {
+      Object.assign(result, { activity: "waiting", phase: "requesting", summary: "Sending refresh request…",
+        timingLabel: "Requested refresh", timing: "sending request…" });
+    } else if (pending && reading) {
+      Object.assign(result, { activity: "busy", phase: "reading", summary: "Requested refresh in progress…",
+        timingLabel: "Requested refresh", timing: "checking device information…" });
+    } else if (pending) {
+      const timing = cooldown > 0 ? `eligible in ${duration(cooldown)}`
+        : working ? "waiting for the current device operation" : "waiting for an available device";
+      Object.assign(result, { activity: "waiting", phase: "waiting", summary: `Refresh requested · ${timing}`,
+        timingLabel: "Requested refresh", timing,
+        badge: cooldown > 0 ? duration(cooldown) : `${pending} waiting` });
+    } else if (reading) {
+      Object.assign(result, { activity: "busy", phase: "reading", summary: "Checking device information…",
+        timingLabel: "Device check", timing: "in progress; waiting for fresh data" });
+    } else if (working) {
+      Object.assign(result, { activity: "busy", phase: "working", summary: "Device work in progress" });
+    } else if (status.refresh_enabled && baseline !== null && baseline <= 0) {
+      Object.assign(result, { activity: "waiting", phase: "due", summary: "Periodic check due · waiting for device" });
+    }
+    if (attention && result.phase === "idle") result.summary = "Device information needs attention";
+    if (localError) result.timingHelp = "Timings are last reported. Check the warning; elapsed time does not confirm a successful refresh.";
+    result.description = `${result.summary}. ${pending ? `${pending} device refresh request(s) pending. ` : ""}`
+      + (attention ? `Needs attention. ${localError || status.last_error || "Check device details."}` : "");
+    return result;
+  };
+  const queuePresentation = (status, submitting = false, localError = "") => {
+    const counts = status.queue?.counts || {};
+    const running = count(counts.RUNNING), queued = count(counts.QUEUED);
+    const attention = count(counts.FAILED) + count(counts.UNVERIFIED);
+    const paused = status.queue?.mutations_suspended === true;
+    const problem = Boolean(attention || paused || localError || status.managed_removal_worker_error || status.managed_restoration_error);
+    const total = running + queued;
+    return { activity: running ? "busy" : paused ? "paused" : queued || submitting ? "waiting" : "idle",
+      attention: problem,
+      badge: [total ? compactCount(total) : submitting ? "…" : paused ? "Paused" : "",
+        attention ? `!${compactCount(attention)}` : problem ? "!" : ""].filter(Boolean).join(" · "),
+      description: `Queue: ${running} running; ${queued} queued; ${attention} need attention.`
+        + (paused ? " Device mutations are paused; monitoring continues." : "")
+        + (submitting ? " Submitting operation; acceptance is not verified success." : "")
+        + (localError ? ` ${localError}` : "")
+        + (status.managed_removal_worker_error ? ` ${status.managed_removal_worker_error}` : "")
+        + (status.managed_restoration_error ? ` ${status.managed_restoration_error}` : "") };
+  };
+  // The same pure projection is tested with Node without starting a DOM, timer,
+  // network request or device workflow. The browser keeps the normal controller.
+  if (typeof module !== "undefined" && module.exports && typeof document === "undefined") {
+    module.exports = { refreshPresentation, queuePresentation };
+    return;
+  }
   const parseStatus = (value) => {
     if (!value || typeof value.instance_id !== "string"
         || !["status_revision", "data_revision", "cycle_revision"].every(
@@ -138,6 +214,17 @@
     const warning = panel.querySelector("[data-refresh-warning]");
     const deviceRows = panel.querySelector("[data-device-status]");
     const queueRows = panel.querySelector("[data-operation-queue]");
+    const paintMenu = (selector, view) => {
+      const menu = panel.querySelector(selector);
+      if (!menu) return;
+      menu.dataset.activity = view.activity;
+      menu.dataset.attention = String(view.attention);
+      const trigger = menu.querySelector("summary");
+      trigger.title = view.description;
+      trigger.setAttribute("aria-label", view.description);
+      trigger.querySelector("[data-menu-badge]").textContent = view.badge;
+      trigger.querySelector("[data-menu-alert]").hidden = !view.attention || view.badge.includes("!");
+    };
     const remaining = (value) => {
       const deadline = Date.parse(value || "");
       return Number.isNaN(deadline) ? null : (deadline - Date.now() - (clockOffset || 0)) / 1000;
@@ -185,9 +272,15 @@
       if (errorMessage && !disabled) label = "Refresh unavailable — retry";
       button.disabled = disabled;
       button.textContent = label;
-      panel.querySelector(".baseline-countdown").textContent = status.refresh_in_progress && status.refresh_schedule_mode !== "per_device"
-        ? "refreshing…" : baseline === null ? "not scheduled"
-          : baseline > 0 ? `in ${duration(baseline)}` : "due now";
+      const view = refreshPresentation(status, remaining, manualPending, errorMessage || actionError);
+      panel.querySelector(".baseline-countdown").textContent = view.timing;
+      panel.querySelector("[data-refresh-timing-label]").textContent = view.timingLabel;
+      panel.querySelector("[data-refresh-timing-help]").textContent = view.timingHelp;
+      const summary = panel.querySelector("[data-status-summary]");
+      if (summary) summary.textContent = view.summary;
+      panel.dataset.refreshPhase = view.phase;
+      paintMenu("#status-menu", { ...view, description: `Status: ${view.description}` });
+      return view;
     };
 
     const render = () => {
@@ -213,16 +306,11 @@
       warning.hidden = !status.last_error && !unsafe.length;
       warning.textContent = status.last_error ? `Refresh warning: ${status.last_error}`
         : unsafe.length ? `Unconfirmed or stale data: ${unsafe.map((device) => device.hostname).join(", ")}. Check Status before acting.` : "";
-      const summary = panel.querySelector("[data-status-summary]");
-      if (summary) summary.textContent = status.refresh_schedule_mode === "per_device"
-        ? `${status.active_device_count || 0} updating · ${status.pending_refresh_device_count || 0} refresh pending`
-        : status.refresh_in_progress ? "Updating devices…"
-        : `${devices.length} device(s) · ${unsafe.length ? `${unsafe.length} need attention` : "Observations current"}`;
-      const indicator = panel.querySelector("[data-status-indicator]");
-      if (indicator) indicator.textContent = (unsafe.length || status.last_error ? "· !" : "")
-        + (status.refresh_schedule_mode === "per_device" && status.pending_refresh_device_count ? ` · ${status.pending_refresh_device_count} waiting` : "");
-      message.textContent = errorMessage || actionError || (actionPending ? "Submitting operation…" : status.refresh_in_progress
-        ? "Refreshing device information…"
+      const refreshView = renderButton();
+      message.textContent = errorMessage || actionError || (actionPending ? "Submitting operation…"
+        : ["requesting", "waiting", "due"].includes(refreshView.phase) ? refreshView.summary
+        : refreshView.phase === "reading" ? "Refreshing device information…"
+        : refreshView.phase === "working" ? "Device operations are running; a fresh read is confirmed separately."
         : status.cycle_revision > 0
           ? ({ success: "Refresh completed.", partial: "Refresh partially completed. Check device details.",
               failed: "Refresh failed. Previous observations are retained.",
@@ -234,18 +322,22 @@
         actionWarning.hidden = !errorMessage && !actionError;
         actionWarning.textContent = errorMessage || actionError;
       }
-      message.hidden = !errorMessage && !actionError && !actionPending && !status.refresh_in_progress
+      message.hidden = !errorMessage && !actionError && !actionPending
         && !["failed", "partial", "interrupted", "not_started"].includes(status.cycle_outcome);
       deviceRows.replaceChildren();
-      Object.values(status.devices || {}).forEach((device) => {
+      Object.entries(status.devices || {}).forEach(([id, device]) => {
         const row = document.createElement("tr");
-        const state = ({ ready: "Current", refreshing: "Refreshing", error: "Error",
+        const action = status.device_cycles?.[id]?.action;
+        const state = device.state === "refreshing" && ["add_and_verify", "remove_and_verify"].includes(action)
+          ? "Device work" : ({ ready: "Current", refreshing: "Refreshing", error: "Error",
           stale: "Stale", pending: "Not yet confirmed", disabled: "Disabled" })[device.state] || "Unknown";
-        const timing = status.refresh_schedule_mode === "per_device" && device.state !== "disabled"
-          ? [device.refresh_pending ? `Refresh requested: ${remaining(device.next_interactive_refresh) > 0
-            ? duration(remaining(device.next_interactive_refresh)) : "waiting for verification"}.` : "",
-            `Next scheduled check: ${remaining(device.next_baseline_refresh) === null ? "not scheduled"
-              : duration(remaining(device.next_baseline_refresh))}.`,
+        const deviceView = status.refresh_schedule_mode === "per_device" && device.state !== "disabled"
+          ? refreshPresentation({ ...status, devices: { [id]: device }, refresh_in_progress: Boolean(device.active),
+            active_device_count: device.active ? 1 : 0, pending_refresh_device_count: device.refresh_pending ? 1 : 0,
+            next_interactive_refresh: device.next_interactive_refresh,
+            next_baseline_refresh: device.next_baseline_refresh }, remaining) : null;
+        const timing = deviceView
+          ? [`${deviceView.timingLabel}: ${deviceView.timing}.`,
             device.retry_in_seconds > 0 ? `Retry eligibility: ${duration(device.retry_in_seconds)}; not a successful refresh.` : ""]
             .filter(Boolean).join(" ") : "";
         [device.hostname, state + (device.stale && device.state === "refreshing" ? " — previous data stale" : ""),
@@ -257,7 +349,6 @@
         row.classList.toggle("device-stale", Boolean(device.stale));
         deviceRows.append(row);
       });
-      renderButton();
       renderQueue();
     };
 
@@ -298,8 +389,7 @@
       const activeTotal = totalFor(activeStates);
       const attentionTotal = totalFor(attentionStates);
       const completedTotal = totalFor(completedStates);
-      const indicator = panel.querySelector("[data-queue-indicator]");
-      if (indicator) indicator.textContent = `${activeTotal}${attentionTotal ? ` · ${attentionTotal} need attention` : ""}`;
+      paintMenu("#queue-menu", queuePresentation(status, Boolean(actionPending), errorMessage || actionError));
       const queueWarning = panel.querySelector("[data-queue-warning]");
       const recoveryWarning = panel.querySelector("[data-recovery-warning]");
       if (recoveryWarning) {
@@ -502,7 +592,7 @@
         busy = false;
         render();
         schedule(manualPending || actionPending ? 0 : failures ? Math.min(30000, 3000 * 2 ** Math.min(failures, 3))
-          : status.refresh_in_progress || status.interactive_refresh_state === "queued" ? 1000 : 5000);
+          : status.refresh_in_progress || status.pending_refresh_device_count > 0 || status.interactive_refresh_state === "queued" ? 1000 : 5000);
       }
     };
 

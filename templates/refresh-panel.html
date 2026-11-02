@@ -2,12 +2,13 @@
 <script type="application/json" data-refresh-initial>{{ refresh | tojson }}</script>
 <div class="utility-toolbar">
 <span class="service-summary" data-status-summary>Device status</span>
-<details id="status-menu" class="utility-menu" data-utility-menu>
-<summary>Status <span data-status-indicator></span></summary>
+<details id="status-menu" class="utility-menu" data-utility-menu data-activity="idle" data-attention="false">
+<summary><span class="utility-icon" aria-hidden="true"></span><span>Status</span><span class="utility-badge" data-menu-badge data-status-indicator aria-hidden="true"></span><span class="utility-alert" data-menu-alert aria-hidden="true" hidden>!</span></summary>
 <div class="utility-panel">
 <h2 id="refresh-heading">Refresh status</h2>
 <p data-runtime-notice{% if refresh.runtime_mode | default('legacy') != 'continuous-observation' %} hidden{% endif %}>Continuous observation profile: {% if refresh.managed_policy_view_available %}managed policy viewing is available; {% endif %}{% if refresh.managed_policy_retirement_available %}stop-maintaining is available; {% endif %}{% if refresh.ordered_removal_admission_enabled is sameas true %}ordered removal API admission is available with separate Web confirmation; ADD/import admission remains unavailable.{% elif refresh.ready_removal_admission_enabled is sameas true %}ready-only removal API admission is available with separate Web confirmation; ADD/import admission remains unavailable.{% else %}ADD/import admission and device-removal admission are unavailable.{% endif %} Protected-IP policy and its automatic removal remain active under the existing safety checks.</p>
-<p class="refresh-status">Data last confirmed: <time class="last-successful-refresh" datetime="{{ refresh.last_successful_refresh or '' }}">{{ refresh.last_successful_refresh or "not yet available" }}</time>. Next scheduled check: <span class="baseline-countdown">{{ refresh.next_baseline_refresh or "not scheduled" }}</span>.</p>
+<p class="refresh-status">Data last confirmed: <time class="last-successful-refresh" datetime="{{ refresh.last_successful_refresh or '' }}">{{ refresh.last_successful_refresh or "not yet available" }}</time>. <span data-refresh-timing-label>Next periodic check</span>: <span class="baseline-countdown">{{ refresh.next_baseline_refresh or "not scheduled" }}</span>.</p>
+<p class="preview-help" data-refresh-timing-help>Periodic timing is recalculated after a successful device read. A requested refresh may run sooner. Eligibility is not completion.</p>
 <form method="post" action="/refresh" class="request-refresh-form" data-refresh-form>
 <input type="hidden" name="csrf" value="{{ csrf_token }}">
 <input type="hidden" name="q" value="{{ search_query | default('') }}">
@@ -20,8 +21,8 @@
 {% endfor %}
 </tbody></table>
 </div></details>
-<details id="queue-menu" class="utility-menu" data-utility-menu>
-<summary>Queue · <span data-queue-indicator>0</span></summary>
+<details id="queue-menu" class="utility-menu" data-utility-menu data-activity="idle" data-attention="false">
+<summary><span class="utility-icon" aria-hidden="true"></span><span>Queue</span><span class="utility-badge" data-menu-badge data-queue-indicator aria-hidden="true"></span><span class="utility-alert" data-menu-alert aria-hidden="true" hidden>!</span></summary>
 <div class="utility-panel queue-panel" aria-labelledby="operation-queue-heading">
 <h2 id="operation-queue-heading">Operation queue</h2>
 <p data-queue-summary>Loading queue status…</p>

@@ -416,14 +416,14 @@ def test_actual_v2_bff_page_frozen_review_csrf_roles_revocation_and_replay(compo
     async def scenario():
         async with policy_browser() as (client, calls):
             page = await client.get('/managed-shuns')
-            assert page.status_code == 200 and 'Addresses the service keeps blocked' in page.text
-            assert 'Review stop maintaining only' in page.text and 'Combined removal is also unavailable.' in page.text
+            assert page.status_code == 200 and 'Auto-restore rules tell the service' in page.text
+            assert 'Review turning off auto-restore' in page.text and 'Combined removal is also unavailable.' in page.text
             assert (await client.get('/managed-shuns?page=1&revision=0')).status_code == 200
             assert 'No scope was rebased' in (await client.get('/managed-shuns?revision=0')).text
             csrf = client.cookies.get('ftd_shun_csrf')
             review = await client.post('/managed-shuns/retirement-review', data={
                 'csrf': csrf, 'target': '1:198.51.100.1', 'reason': 'Synthetic stop'})
-            assert review.status_code == 200 and '<h1>Review stop maintaining' in review.text
+            assert review.status_code == 200 and '<h1>Turn off auto-restore only</h1>' in review.text
             assert 'Policy format' not in review.text and 'Version 2' not in review.text
             assert dump(store) == before
             fields = {'csrf': csrf, 'review': re.search('name="review" value="([^"]+)"', review.text)[1],

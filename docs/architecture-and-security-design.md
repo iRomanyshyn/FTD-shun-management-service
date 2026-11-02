@@ -5671,3 +5671,47 @@ resubmission/rebase remain unchanged. Passive updates preserve focus, input,
 selection and technical-details expansion without device demand or new authority.
 Keep primary actions above long member tables and responsive spacing between
 fields and controls. See [Imports](manual/imports.md).
+
+### Restoration-off rules are history, not an unblock policy — 2026-11-02
+
+Use **Auto-restore on/off** for the saved managed rule, separate from the latest
+device observation and past operation outcomes. Off retires future restoration;
+it never means periodic REMOVE or proof a block was removed. A later independent
+FTD block remains unmanaged without new explicit consent or enabled protection.
+Name policy-only revocation **Turn off auto-restore only — leave device
+unchanged** and combined cleanup **Turn off auto-restore and remove block**.
+Protected-IP automatic removal remains the separate higher-priority policy.
+
+In the configured managed page, collapse only explicitly off, locally absent,
+zero-pending rules with explicit no-attention/no-missing-evidence metadata and a
+known safe terminal or no addition attempt. Keep observed blocks, pending work,
+failures/uncertainty and incomplete status visible regardless of the rule flag.
+This is presentation grouping of the same bounded page, not data deletion,
+server-side filtering or uncertainty resolution. Page counts/links retain the
+full revision-bound scope, including history; never imply global zero enabled
+rules from a history-only page. Clearly label past verified additions as historical
+and keep original generation/actor/evidence accessible. Open keyed disclosures
+must survive passive updates while present. All revocation/admission, identity,
+CSRF, frozen scope, profile, pause, protection and no-replay checks are unchanged.
+
+### Requested-refresh timing and compact activity indicators — 2026-11-02
+
+Present a requested refresh independently of the periodic fallback deadline.
+While demand is pending or a read is running, show its eligibility/wait/checking
+state, not an unrelated baseline remainder. After fresh server evidence satisfies
+the request, periodic timing uses the new successful-read deadline. Apply the
+same distinction to device rows. A mutation session is device work, not proof
+that a fresh snapshot is currently being read. Elapsed eligibility never confirms
+data, starts a device command or triggers state replacement by itself.
+
+Status/Queue triggers use independent activity and attention signals: quiet idle,
+static wait clock, bounded rotating activity ring, paused queue, and a warning
+mark/border that can coexist with running work. Completed successful history is
+not activity. Compact badges retain full accessible/hover counts and timing;
+do not rely on color or motion alone. Respect reduced motion, native disclosure
+keyboard/Escape behavior, stable toolbar height and out-of-flow critical alerts.
+Keep routine detail inside the panels rather than adding persistent work-page
+messages. Visible pending demand may use one-second local metadata polling under
+the existing serialized/timeout/backoff loop; polling never submits device hints.
+Frozen forms, revisions, identity/CSRF, backend timing, dispatch, held evidence and
+unknown-write recovery remain unchanged. No new API, protocol, setting or schema.
