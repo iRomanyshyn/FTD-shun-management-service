@@ -1,0 +1,15 @@
+{% macro steps(current) -%}
+<ol class="import-steps" aria-label="Import steps">
+{% for label in ('Paste addresses', 'Review addresses', 'Confirm import') %}
+<li{% if loop.index == current %} aria-current="step"{% endif %}><span>{{ loop.index }}</span> {{ label }}</li>
+{% endfor %}
+</ol>
+{%- endmacro %}
+
+{% macro draft_state(value) -%}
+{{ {'PREPARED': 'Ready for review', 'EXPIRED': 'Expired', 'CANCELLED': 'Cancelled', 'CONFIRMED': 'Confirmed'}.get(value, value) }}
+{%- endmacro %}
+
+{% macro classification(value) -%}
+<span class="state-badge import-classification {{ 'protected-ip-badge' if value == 'EXCLUDED_PROTECTED' else 'import-origin' if value == 'PROPOSE_ADOPT' else 'policy-enabled' if value == 'PROPOSE_ADD' else '' }}" data-classification="{{ value }}">{{ {'PROPOSE_ADD': 'New block', 'PROPOSE_ADOPT': 'Already shunned — will maintain', 'ALREADY_MANAGED': 'Already managed', 'EXCLUDED_PROTECTED': 'Protected — skipped'}.get(value, value) }}</span>
+{%- endmacro %}

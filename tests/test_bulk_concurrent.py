@@ -75,7 +75,7 @@ def test_active_fenced_add_continues_new_policy_requires_its_own_fresh_read_and_
     async def scenario():
         async with surface(policy_api=True, policy_web=True, profile_ids=frozenset({1}), concurrent_api=True, concurrent_web=True) as (client, calls, _):
             location, page, fields = await prepare_review(client, text='198.51.100.55')
-            assert 'alongside active work' in page.text and 'already active when reviewed' in page.text
+            assert '<h1>Confirm import</h1>' in page.text and 'Maintenance was already active when reviewed' in page.text
             result = await client.post(WEB + '/confirm', data=fields)
             assert result.status_code == 200 and 'desired execution was already active' in result.text, result.text[:500]
             key = operation_key(location.split('/')[-1])
@@ -264,7 +264,7 @@ def test_new_web_capability_is_independent_and_mode_is_server_frozen(composition
     async def scenario():
         async with surface(policy_api=True, policy_web=True, profile_ids=frozenset({1}), concurrent_api=True, concurrent_web=local) as (client, calls, _):
             _, page, fields = await prepare_review(client)
-            assert 'alongside active work' in page.text
+            assert '<h1>Confirm import</h1>' in page.text
             before = dump(composition[1])
             response = await client.post(WEB+'/confirm', data=fields)
             assert response.status_code == (200 if local else 503), response.text[:400]

@@ -5646,3 +5646,28 @@ epoch/session and fresh observation under existing demand/backoff/current-policy
 checks. No old held epoch, startup/GET repair, mutation result, uncertainty latch
 or revoked authority is cleared. Unknown ADD/REMOVE, API/agent hard-crash recovery
 and older held epochs remain separate reconciliation work. No DB schema change.
+
+### Operator-facing import terminology and presentation — 2026-11-02
+
+Present imports as the operator's task, not a choice of internal storage/protocol
+generations. Use paste / review / confirm steps, readable planned actions and
+text-labelled colors for new, existing, managed and protected/excluded targets.
+Keep full original references, digests and revisions available in collapsed
+technical details. The product footer version remains separate and visible.
+Developer documentation, fixed routes and format validation retain exact versions.
+
+Presentation must distinguish draft saving, recurring consent, historical
+confirmation, current maintenance and verified device outcomes. Never infer that
+execution is unavailable from disabled legacy gates on the configured managed
+runtime; equally, stored enabled policy alone is not proof of worker availability
+or successful application. Show suspension and unavailable controls honestly.
+Unknown replies cannot be described as rollback or unsaved policy; preserve saved
+owner recovery, original-key explicit retry and uncertain-form locking.
+
+This is a presentation change only. Owner/role/CSRF boundaries, independent local
+and API capabilities, accepted-count/recurring consent, complete frozen scope,
+expiry, strict validation, protection priority, held evidence and no automatic
+resubmission/rebase remain unchanged. Passive updates preserve focus, input,
+selection and technical-details expansion without device demand or new authority.
+Keep primary actions above long member tables and responsive spacing between
+fields and controls. See [Imports](manual/imports.md).

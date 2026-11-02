@@ -2,15 +2,17 @@
 {% block content %}
 <h1>Managed shuns</h1>
 {% include "refresh-panel.html" %}
-<p>Version-2 standing policy is separate from current device observations. This page reads local data only; it never adopts shuns or submits device commands.</p>
-<p class="policy-warning">{% if refresh.ready_removal_admission_enabled is sameas true %}Ready-only removal has a separate exact-scope review and independently gated confirmation. ADD/import admission remains unavailable.{% else %}ADD and combined device removal are unavailable in this API profile. Ready-removal preparation grants no execution authority.{% endif %} You can stop maintaining an exact target; that alone does not remove its existing shun or cancel a RUNNING command. Stopped policy is never re-enabled by an old request.</p>
+<p class="page-intro">Addresses the service keeps blocked and restores if they disappear. Device observations below show whether a block was last seen, not whether the service originally created it.</p>
+<p class="preview-help">Stop maintaining leaves the current block in place. Stop maintaining and remove also requests an unblock after confirmation. Neither interrupts a command already running.</p>
+{% if refresh.runtime_mode != 'continuous-managed' %}<p class="policy-warning">Automatic blocking is unavailable in this service mode. {% if refresh.ready_removal_admission_enabled is not sameas true %}Combined removal is also unavailable.{% endif %} You can still review settings and use available stop-maintaining controls.</p>{% endif %}
 <section id="managed-shun-state" data-live-region>
 {% if managed.changed %}
 <p role="status" class="policy-warning">Policy changed while browsing. <a href="/managed-shuns">Open the current policy</a> before continuing. No scope was rebased.</p>
 {% else %}
-<p>Registry revision {{ managed.revision }} · {{ managed.total }} / {{ managed.limit }} retained target keys · Standing suspension {{ 'on' if managed.restoration_suspended else 'off' }}. ADD remains disabled regardless of this stored flag.</p>
+<p><strong>{{ 'Maintenance suspended' if managed.restoration_suspended else 'Maintenance setting enabled' }}.</strong> {{ managed.total }} saved device/IP targets, including stopped targets. Open Status and Queue for current device availability and results.</p>
+<details class="technical-details" id="managed-policy-details"><summary>Technical details</summary><p>Registry revision {{ managed.revision }} · {{ managed.total }} / {{ managed.limit }} retained target keys. Saved settings do not prove a device change.</p></details>
 {% if not managed.attempt_ledger_initialized %}<p class="policy-warning">Attempt ledger is not initialized. No recorded attempt is not proof of a verified outcome.</p>{% endif %}
-<div class="table-scroll"><table aria-label="Version-2 managed policy"><thead><tr><th>Device / IP</th><th>Desired policy</th><th>Observed state</th><th>Retained evidence</th><th>Original authorization</th></tr></thead><tbody>
+<div class="table-scroll"><table aria-label="Managed policy"><thead><tr><th>Device / IP</th><th>Maintenance</th><th>Last observed state</th><th>Operations / attention</th><th>Added by</th></tr></thead><tbody>
 {% for entry in managed.entries %}<tr{% if entry.protected %} class="protected-shun"{% endif %}>
 <td>{{ entry.hostname }}<br><a href="/shuns/{{ entry.ip }}">{{ entry.ip }}</a>{% if not entry.device_enabled %}<br><strong>Device disabled</strong>{% endif %}</td>
 <td><span class="state-badge {{ 'policy-enabled' if entry.enabled else '' }}">{{ 'Maintain presence' if entry.enabled else 'Stopped' }}</span><br>Generation {{ entry.generation }}</td>
@@ -36,8 +38,8 @@
 </section>
 <section id="ready-removal-preparation" data-live-region>
 {% if refresh.ready_removal_review_available is sameas true and ('Operator' in identity.roles or 'Administrator' in identity.roles) %}
-<details><summary>Review stop maintaining and remove — ready targets only</summary>
-<p>Preparation reads local scope only. Disabled devices and unresolved work block execution, not silently shrink the request. Web/API confirmation is independently gated.</p>
+<details><summary>Stop maintaining and remove</summary>
+<p>Review first, then confirm. This option requires no conflicting work on the selected addresses. Disabled devices or unresolved operations block the whole request; nothing is silently skipped.</p>
 {% if not managed.changed and managed.entries %}
 <form method="post" action="/managed-shuns/v2/removal-review" class="import-confirm-form">
 <input type="hidden" name="csrf" value="{{ csrf_token }}">
@@ -52,8 +54,8 @@
 </section>
 <section id="ordered-removal-preparation" data-live-region>
 {% if refresh.ordered_removal_review_available is sameas true and ('Operator' in identity.roles or 'Administrator' in identity.roles) %}
-<details><summary>Review ordered removal — wait for a current managed ADD</summary>
-<p>Separate explicit consent: stop matching maintenance, reserve the complete scope and wait for captured ADD/session settlement. No ready-only fallback, ADD replay or automatic retry. Inspection alone changes nothing.</p>
+<details><summary>Remove after an addition already in progress</summary>
+<p>Stop maintaining and wait for the current addition to finish before removing the block. This needs separate confirmation. An unknown result stops the removal for attention; it is not retried automatically. Reviewing changes nothing.</p>
 {% if not managed.changed and managed.entries %}<form method="post" action="/managed-shuns/v2/ordered-removal-review" class="import-confirm-form">
 <input type="hidden" name="csrf" value="{{ csrf_token }}"><label for="ordered-removal-target">One exact target on this page</label>
 <select id="ordered-removal-target" name="target" required><option value="">Choose one device/IP</option>{% for entry in managed.entries %}<option value="{{ entry.device_id }}:{{ entry.ip }}">{{ entry.hostname }} — {{ entry.ip }}</option>{% endfor %}</select>

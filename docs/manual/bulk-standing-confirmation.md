@@ -1,5 +1,14 @@
 # Version-2 Suspended Standing Import Confirmation
 
+UI terminology update, 2026-11-02: **Confirm import** retains the exact accepted
+pair count and recurring-consent checkbox. Active reviewed maintenance uses
+**Confirm import and maintain blocks**; suspended reviewed maintenance uses
+**Save import — maintenance suspended**. **Confirmed imports** stores historical
+confirmations, not device success. References/digests are available under
+**Technical details**. See [Imports](imports.md) for the operator workflow and
+[Fresh Working-Version Lab](fresh-development.md) for current lab composition;
+the initial checkpoint below is not the current lab activation status.
+
 Status: implemented behind independent default-false API/Web factory capabilities.
 **Not enabled, migrated or deployed in the lab.** This workflow saves durable
 recurring policy only, with desired execution suspended. It does not admit ADD,

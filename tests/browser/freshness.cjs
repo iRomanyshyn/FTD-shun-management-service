@@ -786,7 +786,7 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
       const hints = postCount, executions = executionCount;
       const page = await connectPage(debugOrigin, `${origin}/managed-shuns`);
       try {
-        assert.equal(await page.evaluate("document.querySelectorAll('table[aria-label=\"Version-2 managed policy\"] tbody tr').length"), 100);
+        assert.equal(await page.evaluate("document.querySelectorAll('table[aria-label=\"Managed policy\"] tbody tr').length"), 100);
         assert.equal(await page.evaluate("document.querySelector('.primary-nav a[aria-current=page]').textContent"), "Managed shuns");
         assert.ok(await page.evaluate("document.querySelector('[data-runtime-notice]').textContent.includes('stop-maintaining is available')"));
         assert.ok(await page.evaluate("document.querySelector('#managed-shun-state').textContent.includes('Original unknown queue evidence is missing')"));
@@ -808,7 +808,7 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
         const next = await page.evaluate("document.querySelector('a[rel=next]').getAttribute('href')");
         assert.equal(next, "/managed-shuns?page=2&revision=7");
         await page.call("Page.navigate", {url: origin + next});
-        await page.until("document.querySelectorAll('table[aria-label=\"Version-2 managed policy\"] tbody tr').length===1");
+        await page.until("document.querySelectorAll('table[aria-label=\"Managed policy\"] tbody tr').length===1");
         managed.revision += 1;
         status.data_revision += 1;
         await wake(page);
@@ -830,7 +830,7 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
       status.fixture_ready_local_enabled = true; // Renderer fixture, never a production status capability.
       const page = await connectPage(debugOrigin, `${origin}/managed-shuns/v2/removal-review`);
       try {
-        assert.equal(await page.evaluate("document.querySelectorAll('table[aria-label=\"Frozen v2 removal scope\"] tbody tr').length"), 2);
+        assert.equal(await page.evaluate("document.querySelectorAll('table[aria-label=\"Frozen removal scope\"] tbody tr').length"), 2);
         assert.equal(await page.evaluate("document.querySelector('.import-confirm-form button').disabled"), false);
         assert.equal(await page.evaluate("document.querySelectorAll('td b').length"), 0);
         assert.equal(await page.evaluate("document.querySelector('.import-confirm-form').checkValidity()"), false);
@@ -933,6 +933,11 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
       const page = await connectPage(debugOrigin, `${origin}/managed-imports/v2`);
       try {
         assert.equal(await page.evaluate("document.querySelector('.primary-nav [aria-current=page]').getAttribute('href')"), "/managed-imports/v2");
+        assert.equal(await page.evaluate("document.querySelector('h1').textContent"), "Imports");
+        assert.equal(await page.evaluate("document.querySelector('.import-steps [aria-current=step]').textContent.trim()"), "1 Paste addresses");
+        assert.equal(await page.evaluate("/version.?2|\\bv2\\b|legacy/i.test(document.querySelector('main').innerText)"), false);
+        assert.equal(await page.evaluate("document.querySelector('#bulk-draft-form button').textContent"), "Save and review addresses");
+        assert.equal(await page.evaluate("document.querySelector('#bulk-source').getAttribute('aria-describedby')"), "bulk-source-help");
         assert.equal(await page.evaluate("document.querySelector('#bulk-draft-form').checkValidity()"), false);
         await page.evaluate("document.querySelector('#bulk-source').value='shun 198.51.100.250 # draft only';document.querySelector('input[name=device_ids][value=\"1\"]').checked=true;document.querySelector('#bulk-label').value='Keep my label';document.querySelector('#bulk-source').focus()");
         const reads = pageReads;
@@ -946,9 +951,10 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
         assert.equal(await page.evaluate("document.querySelector('input[name=device_ids][value=\"2\"]').disabled"), true);
         assert.equal(await page.evaluate("document.activeElement.id"), "bulk-source");
         assert.equal(await page.evaluate("document.querySelector('#bulk-draft-form').checkValidity()"), true);
-        for (const width of [1100, 375]) {
-          await page.call("Emulation.setDeviceMetricsOverride", { width, height: 800, deviceScaleFactor: 1, mobile: width === 375 });
+        for (const width of [1100, 768, 360]) {
+          await page.call("Emulation.setDeviceMetricsOverride", { width, height: 800, deviceScaleFactor: 1, mobile: width === 360 });
           assert.equal(await page.evaluate("document.documentElement.scrollWidth<=window.innerWidth"), true);
+          assert.equal(await page.evaluate("document.querySelector('#bulk-draft-form button').getBoundingClientRect().top>=document.querySelector('.import-device-selection').getBoundingClientRect().bottom"), true);
         }
         assert.equal(postCount, hints);
         assert.equal(executionCount, executions);
@@ -957,8 +963,24 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
       const absent = await connectPage(debugOrigin, `${origin}/managed-imports/v2`);
       try {
         assert.equal(await absent.evaluate("document.querySelector('#bulk-draft-form button').disabled"), true);
-        assert.ok(await absent.evaluate("document.body.textContent.includes('journal is not initialized')"));
+        assert.ok(await absent.evaluate("document.body.textContent.includes('Import storage is not initialized')"));
       } finally { await absent.close(); }
+    });
+    await t.test("managed runtime describes the actual queue without obsolete import restrictions", async () => {
+      status = initial();
+      Object.assign(status, { runtime_mode: "continuous-managed", managed_policy_format: 2,
+        managed_workflows_available: false, bulk_import_preparation_available: true,
+        import_execution_enabled: false, session_cycles_enabled: true });
+      const hints = postCount, executions = executionCount;
+      const page = await connectPage(debugOrigin, `${origin}/managed-imports/v2`);
+      try {
+        await page.evaluate("document.querySelector('#queue-menu').open=true");
+        assert.equal(await page.evaluate("document.querySelector('.queue-panel').innerText.includes('Commands run one at a time on each device')"), true);
+        assert.equal(await page.evaluate("document.querySelector('.queue-panel').innerText.includes('ADD execution is disabled')"), false);
+        assert.equal(await page.evaluate("document.querySelector('[data-product-version]').textContent.startsWith('v')"), true);
+        assert.equal(postCount, hints);
+        assert.equal(executionCount, executions);
+      } finally { await page.close(); }
     });
     await t.test("v2 frozen report and exact proposal paginate, escape and highlight exclusions without admission", async () => {
       status = initial();
@@ -967,6 +989,17 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
       const hints = postCount, executions = executionCount;
       const page = await connectPage(debugOrigin, `${origin}/managed-imports/v2/33333333-3333-4333-8333-333333333333/review`);
       try {
+        assert.equal(await page.evaluate("document.querySelector('h1').textContent"), "Review import");
+        assert.equal(await page.evaluate("document.querySelector('.import-steps [aria-current=step]').textContent.trim()"), "2 Review addresses");
+        assert.equal(await page.evaluate("/version.?2|\\bv2\\b|legacy|PROPOSE_ADD|EXCLUDED_PROTECTED/i.test(document.querySelector('main').innerText)"), false);
+        assert.equal(await page.evaluate("document.querySelector('.technical-details').open"), false);
+        assert.equal(await page.evaluate("document.querySelector('main').innerText.includes('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')"), false);
+        assert.equal(await page.evaluate("document.querySelector('[data-classification=EXCLUDED_PROTECTED]').textContent"), "Protected — skipped");
+        assert.equal(await page.evaluate("document.querySelector('[data-classification=PROPOSE_ADOPT]').textContent"), "Already shunned — will maintain");
+        assert.notEqual(await page.evaluate("getComputedStyle(document.querySelector('[data-classification=PROPOSE_ADD]')).backgroundColor"), await page.evaluate("getComputedStyle(document.querySelector('[data-classification=EXCLUDED_PROTECTED]')).backgroundColor"));
+        assert.equal(await page.evaluate("document.querySelector('.import-summary button').getBoundingClientRect().top<document.querySelector('table[aria-label=\"Frozen bulk targets\"]').getBoundingClientRect().top"), true);
+        await page.evaluate("document.querySelector('.technical-details').open=true");
+        assert.equal(await page.evaluate("document.querySelector('main').innerText.includes('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')"), true);
         assert.equal(await page.evaluate("document.querySelectorAll('table[aria-label=\"Frozen bulk targets\"] tbody tr').length"), 100);
         assert.equal(await page.evaluate("document.querySelectorAll('table[aria-label=\"Frozen bulk targets\"] td b').length"), 0);
         assert.equal(await page.evaluate("document.querySelectorAll('.protected-shun').length"), 1);
@@ -979,6 +1012,7 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
         await delay(300);
         assert.equal(pageReads, reads);
         assert.equal(await page.evaluate("document.querySelector('.import-review-metadata').textContent"), binding);
+        assert.equal(await page.evaluate("document.querySelector('.technical-details').open"), true);
         const next = await page.evaluate("document.querySelector('a[rel=next]').getAttribute('href')");
         await page.call("Page.navigate", {url: origin + next});
         await page.until("document.querySelectorAll('table[aria-label=\"Frozen bulk targets\"] tbody tr').length===2");
@@ -1006,6 +1040,9 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
       status.fixture_bulk_policy_local_enabled = true;
       const page = await connectPage(debugOrigin, `${origin}/managed-imports/v2/confirmation-review`);
       try {
+        assert.equal(await page.evaluate("document.querySelector('.import-steps [aria-current=step]').textContent.trim()"), "3 Confirm import");
+        assert.equal(await page.evaluate("/version.?2|\\bv2\\b|legacy|PROPOSE_ADD|EXCLUDED_PROTECTED/i.test(document.querySelector('main').innerText)"), false);
+        assert.equal(await page.evaluate("document.querySelector('.technical-details').open"), false);
         assert.equal(await page.evaluate("document.querySelector('#bulk-policy-consent button').disabled"), false);
         assert.equal(await page.evaluate("document.querySelector('#bulk-policy-consent').checkValidity()"), false);
         await page.evaluate("document.querySelector('#bulk-accepted-count').value='102';document.querySelector('input[name=maintain_present]').checked=true");
@@ -1077,8 +1114,8 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
       const page = await connectPage(debugOrigin, `${origin}/managed-imports/v2/confirmation-review`);
       try {
         assert.equal(await page.evaluate("document.querySelector('#bulk-policy-consent button').disabled"), false);
-        assert.equal(await page.evaluate("document.querySelector('h1').textContent.includes('alongside active work')"), true);
-        assert.equal(await page.evaluate("document.body.textContent.includes('already active when reviewed')"), true);
+        assert.equal(await page.evaluate("document.querySelector('h1').textContent"), "Confirm import");
+        assert.equal(await page.evaluate("document.body.textContent.includes('Maintenance was already active when reviewed')"), true);
         await page.evaluate("document.querySelector('#bulk-accepted-count').value='101';document.querySelector('input[name=maintain_present]').checked=true;document.querySelector('#bulk-accepted-count').focus()");
         const binding = await page.evaluate("document.querySelector('.import-review-metadata').textContent");
         const reads = pageReads;

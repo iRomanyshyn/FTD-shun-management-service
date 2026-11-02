@@ -7831,6 +7831,57 @@ compatible images and all evidence, not a data restore/reset as recovery.
 and mutation-result reconciliation, Emergency Purge, current browser/batch/
 multi-device/load acceptance. No production/release claim.
 
+## 2026-11-02 — Operator-facing import usability
+
+Removed internal import-generation/legacy labels from operator pages without
+renaming fixed routes, schema identities or validation contracts. Imports now
+shows paste / review / confirm steps, Saved drafts, Confirmed imports and readable
+colored planned actions. Primary review/confirmation actions precede long tables.
+Full references/digests/revisions are retained under collapsed Technical details;
+the product footer version is unchanged. Pair counts and expiry are explained,
+device/input/action spacing works at narrow widths, and managed removal forms no
+longer constrain reason/IP fields to a short count-sized input.
+
+Replaced misleading unconditional "confirmation/execution unavailable" and "ADD
+disabled" claims with draft/current-runtime-aware descriptions. The managed Queue
+description no longer uses the disabled legacy import flag to describe configured
+continuous-managed execution. Unknown confirmation responses are never labelled
+unsaved/rolled back. Protected exclusions, closed drafts, paused maintenance,
+unavailable storage, original-key recovery and the uncertain-draft lock remain
+explicit. Exact count/recurring consent, owner/role/CSRF/local/API gates, frozen
+scope/expiry, evidence/holds and passive input/focus preservation are unchanged.
+
+Added a task-oriented Imports operator manual and presentation amendment. No DB,
+authority, dispatch, RPC, credential, trust, network or authentication changes;
+Web-only rollout needs no API/agent restart or device write.
+
+Validation: all **44 real-Chromium cases pass**, including no internal version/
+enum labels, readable colored exclusions, main action placement, collapsed/full
+technical references, input/focus/consent preservation, native validation, gated
+controls and the configured managed Queue description with legacy flags off.
+Desktop/mobile synthetic screenshots were inspected; widths 360/768/1100 are
+checked without page overflow. Compileall, Ruff, diff and all 34 packaged-template
+compilations pass. Initial targeted/full runs found old visible-copy assertions;
+the affected focused cases pass after expectation updates with policy/CSRF/scope/
+unknown-result assertions preserved. The final clean full Python rerun passes:
+**2892 tests in 456.96s**, without competing image/compiler builds.
+
+Preserved original Web `bf3f395e58eb...` as
+`ftd-shun-web:lab-pre-import-ux-20261102`, then deployed only Web
+`fb2a2a5114c8...` using all three current lab Compose files and
+`up -d --no-deps --no-build web`. API `6c1484707809...` and agent
+`b3335c280601...` retain their original start times; API/Web remain network-none.
+Private Web health 200/anonymous 401 and CA-verified HTML edge 302 to Authelia pass.
+Pre-rollout read-only API/SQLite check: ready/no error, fresh read
+`2026-11-02T14:46:26Z`, IDLE, five VERIFIED jobs, zero enabled managed targets,
+three Protected-IP settings and unchanged fingerprint, integrity `ok`.
+Post-rollout check retains those values with a fresh successful read at
+`2026-11-02T14:51:35Z`; no new jobs or standing authority appeared.
+No new lab authority, imports, device mutations, environment switches or schema
+changes. Authenticated workflow/large-list acceptance remains synthetic, not a
+new live bulk acceptance claim. Rollback is Web-image-only using the saved tag
+and the same three-file no-dependencies update; no database restore is needed.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

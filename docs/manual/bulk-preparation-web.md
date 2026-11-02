@@ -1,5 +1,14 @@
 # Version-2 Import Preparation Web Workspace
 
+UI terminology update, 2026-11-02: the operator-facing workspace is **Imports**,
+with **Saved drafts**, **Confirmed imports**, **Save and review addresses**,
+**Review planned changes** and **Continue to confirmation**. Developer format
+names below describe unchanged contracts, not labels or version choices shown to
+users. Full references/digests/revisions remain under **Technical details**.
+See the current [operator guide](imports.md) and
+[configured managed lab](fresh-development.md); the original deployment status
+below records this feature's initial implementation checkpoint.
+
 Status: implemented for the explicit compatible v2 continuous API and existing
 preparation journal. **Not migrated, activated or deployed in the lab.** These
 pages create/inspect/revoke local drafts only. A separate independently gated

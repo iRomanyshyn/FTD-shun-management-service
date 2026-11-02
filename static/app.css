@@ -118,6 +118,29 @@ th, td { border-bottom: 1px solid #8886; text-align: left; padding: .7rem .6rem;
 .managed-grant-form button { justify-self: start; }
 .import-review-targets { max-height: 28rem; overflow: auto; margin-block: 1rem; }
 .import-review-metadata dd { margin-bottom: .6rem; overflow-wrap: anywhere; }
+.page-intro { max-width: 70ch; }
+.import-steps { list-style: none; display: flex; flex-wrap: wrap; gap: .6rem 1.5rem; padding: 0; margin: 1.5rem 0; color: light-dark(#595959, #b9b9b9); }
+.import-steps li { display: flex; align-items: center; gap: .5rem; }
+.import-steps span { display: inline-grid; place-items: center; border: 1px solid #8888; border-radius: 50%; width: 1.8rem; height: 1.8rem; flex-shrink: 0; }
+.import-steps [aria-current] { color: CanvasText; font-weight: 700; }
+.import-steps [aria-current] span { background: #1d4ed8; color: white; border-color: #1d4ed8; }
+.import-workspace-form { border: 1px solid #8886; border-radius: .5rem; padding: clamp(.75rem, 2vw, 1.5rem); margin-bottom: 2rem; }
+.import-workspace-form > label { font-weight: 600; margin-top: .4rem; }
+.import-workspace-form textarea { resize: vertical; min-height: 12rem; }
+.import-workspace-form .preview-help { margin: .2rem 0 .6rem; }
+.import-device-selection { min-width: 0; border: 1px solid #8888; border-radius: .3rem; margin: .6rem 0; }
+.import-next-action { display: flex; flex-wrap: wrap; align-items: center; gap: .8rem; margin-block: 1rem; }
+.import-next-action button, .import-summary button, #bulk-policy-consent > button { background: #1d4ed8; color: white; border: 1px solid #1d4ed8; border-radius: .3rem; }
+.action-link { display: inline-block; border-radius: .3rem; background: #1d4ed8; color: white; padding: .6rem .9rem; font-weight: 600; text-decoration: none; }
+.import-summary { border-left: .25rem solid #2563eb; padding: .5rem 1rem; margin-block: 1.5rem; background: color-mix(in srgb, #2563eb 6%, transparent); }
+.import-summary h2 { margin-top: 0; }
+.technical-details { border-block: 1px solid #8886; padding: .8rem 0; margin-block: 1.25rem; }
+.technical-details > summary { color: light-dark(#595959, #b9b9b9); }
+.import-classification { margin-inline-start: 0; white-space: normal; }
+.import-classification[data-classification="EXCLUDED_PROTECTED"] { background: #92400e; }
+#managed-retirement-preparation .import-confirm-form, #ready-removal-preparation .import-confirm-form, #ordered-removal-preparation .import-confirm-form { display: grid; grid-template-columns: minmax(0, 1fr); max-width: 42rem; }
+#managed-retirement-preparation input:not([type="hidden"]), #ready-removal-preparation input:not([type="hidden"]), #ordered-removal-preparation input:not([type="hidden"]), #managed-retirement-preparation select, #ready-removal-preparation select, #ordered-removal-preparation select { width: 100%; min-width: 0; font: inherit; }
+#managed-retirement-preparation button, #ready-removal-preparation button, #ordered-removal-preparation button { justify-self: start; }
 .import-result { border-inline-start: .3rem solid #087f5b; padding: .75rem; }
 .cleanup-record { border-inline-start: .2rem solid #808080; padding: .2rem .8rem; margin-block: .8rem; }
 .cleanup-record p { margin-block: .5rem; }

@@ -15,6 +15,28 @@ priority. See [the planned constraints](working-version-plan.md#deferred-ip-cont
 
 ## Current increment
 
+**Import usability pass (2026-11-02).** Operator-facing pages no longer advertise
+internal import generations or legacy implementation choices. Imports now presents
+paste / review / confirm steps, Saved drafts and Confirmed imports. Main actions
+precede long member tables; readable, colored planned actions replace enum names.
+References/digests/revisions remain under Technical details. Pair counts are
+explained, input/device controls have responsive spacing, and inactive drafts,
+suspension, missing storage and uncertain replies retain explicit safeguards.
+Product version remains in the footer. Managed shuns and Queue no longer claim
+that ADD/import is unavailable merely because the configured managed runtime
+keeps legacy gates off. No admission/execution/authority/storage/authentication or
+protocol changes. **2892 full Python tests pass (456.96s)**, together with all
+44 Chromium cases, compileall/Ruff/diff and 34 packaged template checks. Deployed Web
+`fb2a2a5114c8...` only, with rollback `ftd-shun-web:lab-pre-import-ux-20261102`.
+API/agent start times and images are unchanged; private health 200/anonymous 401
+and trusted-TLS Authelia redirect 302 pass. Read-only lab checks retain five
+VERIFIED jobs, zero enabled targets and all three Protected-IP settings, with a
+fresh successful device read at `2026-11-02T14:51:35Z`. No live
+import or device mutation was used for this UI pass.
+See [Imports — Operator Guide](manual/imports.md).
+
+### Previous session-completion checkpoint
+
 **Bound session completion lookup (2026-11-02).** Configured continuous clients
 now select exact BEGIN `18` with the current lease-owner UUID, and local lookup
 `19` with a fully echoed device/version/session binding. A bounded 4096-entry

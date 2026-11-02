@@ -100,7 +100,7 @@ def test_navigation_creation_private_actor_frozen_report_proposal_and_cancel(com
             frozen = dump(store)
             proposal = await client.get(location + '/review')
             assert proposal.status_code == 200 and operation_key(key) in proposal.text
-            assert 'This proposal does not save policy.' in proposal.text and 'Prepare separate recurring-policy consent' in proposal.text
+            assert 'This review does not save maintenance.' in proposal.text and 'Continue to confirmation' in proposal.text
             assert dump(store) == frozen
             client.headers['Remote-Groups'] = 'ftd-shun-viewers'
             assert (await client.get(location + '/review')).status_code == 403
@@ -128,7 +128,7 @@ def test_protected_exclusions_and_adoption_are_visible_not_authority(composition
             page = await client.get(response.headers['location'] + '/review')
             assert page.status_code == 200, page.text[:500]
             assert 'PROPOSE_ADOPT' in page.text and 'EXCLUDED_PROTECTED' in page.text and 'protected-shun' in page.text
-            assert '1 protected pairs excluded' in page.text and 'no admission' in page.text
+            assert '1 protected pairs excluded' in page.text and 'This review does not save maintenance.' in page.text
     asyncio.run(scenario())
     assert outside(store) == before
 
@@ -203,7 +203,7 @@ def test_unknown_creation_reply_recovers_owner_list_without_resubmitting(composi
             response = await stage(client)
             assert response.status_code == 503 and 'outcome is unknown' in response.text
             assert 'id="bulk-source"' in response.text and '>198.51.100.1</textarea>' in response.text
-            assert 'Save draft only</button>' in response.text and 'type="submit" disabled' in response.text
+            assert 'Save and review addresses</button>' in response.text and 'type="submit" disabled' in response.text
             with composition[1]._connection() as db: key = db.execute('SELECT id FROM import_preparation_plans').fetchone()[0]
             assert WEB + '/' + key in response.text
             before = dump(composition[1])
@@ -263,7 +263,7 @@ def test_malformed_proposal_never_shows_success_or_creates_authority(composition
             location = (await stage(client)).headers['location']
             before = dump(composition[1])
             page = await client.get(location + '/review')
-            assert page.status_code == 503 and 'Prepare separate recurring-policy consent' not in page.text
+            assert page.status_code == 503 and 'Continue to confirmation' not in page.text
             assert dump(composition[1]) == before
     asyncio.run(scenario())
 
@@ -286,8 +286,8 @@ def test_closed_drafts_remain_reports_but_never_reopen_proposal(composition, bul
                     maintain_present=True, enabled=True, addition_device_ids=frozenset({1}))
             before = dump(composition[1])
             page = await client.get(location)
-            assert page.status_code == 200 and closed in page.text
-            assert 'Inspect exact future managed-policy proposal</a>' not in page.text
+            assert page.status_code == 200 and f'data-draft-state="{closed}"' in page.text
+            assert 'Review planned changes</a>' not in page.text
             assert (await client.get(location + '/review')).status_code == 409
             if closed == 'CONFIRMED':
                 assert (await client.post(location + '/cancel', data={'csrf': client.cookies.get('ftd_shun_csrf')})).status_code == 409
@@ -327,7 +327,7 @@ def test_missing_journal_is_explicit_and_disables_creation(composition, surface)
     async def scenario():
         async with surface() as (client, _, _):
             page = await client.get(WEB)
-            assert page.status_code == 200 and 'journal is not initialized' in page.text
+            assert page.status_code == 200 and 'Import storage is not initialized' in page.text
             assert 'type="submit" disabled' in page.text
     asyncio.run(scenario())
     assert dump(composition[1]) == before
@@ -346,9 +346,9 @@ def test_maximum_bff_scope_pagination_and_proposal_without_any_jobs(ten_device_c
             last = await client.get(location + '?page=1000')
             assert first.status_code == last.status_code == 200
             assert 'Page 1 of 1000' in first.text and 'Page 1000 of 1000' in last.text
-            assert first.text.count('PROPOSE_ADD</span>') == last.text.count('PROPOSE_ADD</span>') == 100
+            assert first.text.count('data-classification="PROPOSE_ADD"') == last.text.count('data-classification="PROPOSE_ADD"') == 100
             proposed = await client.get(location + '/review?page=1000')
             assert proposed.status_code == 200 and '100000 accepted pairs' in proposed.text
-            assert 'This proposal does not save policy.' in proposed.text
+            assert 'This review does not save maintenance.' in proposed.text
     asyncio.run(scenario())
     assert outside(composition[1]) == before and not composition[2].seen

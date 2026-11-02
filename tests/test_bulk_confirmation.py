@@ -83,7 +83,7 @@ def test_atomic_real_actor_policy_receipt_restart_pruning_retirement_and_origina
             event = next(row for row in composition[1].list_events() if row['event_type'] == 'MANAGED_BULK_IMPORT_CONFIRMED')
             assert event['actor_subject'] == 'alice' and event['actor_roles'] == ['Operator']
             assert not composition[3]._wake.is_set()
-            assert 'Saved policy receipts' in (await client.get(WEB)).text
+            assert 'Confirmed imports' in (await client.get(WEB)).text
             assert (await client.get(WEB + '/receipts/' + key)).status_code == 200
             retire(bulk, [(1, IPv4Address('198.51.100.1')), (2, IPv4Address('198.51.100.1'))])
             before = dump(composition[1])
@@ -94,7 +94,7 @@ def test_atomic_real_actor_policy_receipt_restart_pruning_retirement_and_origina
             bulk[1][0] += timedelta(minutes=11)
             app.state.synchronizer.policy_revocation.preparations.prune_expired()
             receipt = await client.get(WEB + '/receipts/' + key)
-            assert receipt.status_code == 200 and 'Historical managed-policy receipt' in receipt.text
+            assert receipt.status_code == 200 and '<h1>Import confirmation</h1>' in receipt.text
             fresh = web.create_app(composition[0])  # No admission capability or ephemeral review.
             async with httpx.AsyncClient(transport=httpx.ASGITransport(app=fresh), base_url='https://fixture.test', headers=client.headers) as restarted:
                 assert (await restarted.get(WEB + '/receipts/' + key)).status_code == 200
@@ -205,7 +205,7 @@ def test_paged_review_preserves_original_scope_count_consent_and_no_submit(compo
             response = await client.post(WEB + '/confirmation-review/page', data=fields | {'page': '2'})
             assert response.status_code == 200, response.text[:500]
             assert fields['review'] in response.text and 'value="102"' in response.text and 'value="true" checked' in response.text
-            assert response.text.count('PROPOSE_ADD</td>') == 2
+            assert response.text.count('data-classification="PROPOSE_ADD"') == 2
             assert dump(composition[1]) == before and not any(path == API + 'confirm' for _, path, _ in calls)
     asyncio.run(scenario())
 
