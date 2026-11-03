@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import sqlite3
 from copy import deepcopy
 from time import monotonic
@@ -17,6 +18,7 @@ from .agent_client import (
 from .bulk_discovery import BulkDiscovery
 from .device_leases import DeviceLeases, DeviceOperationQueue
 from .operation_queue import OperationQueue, QueueConflict
+from .session_timing import SessionTiming
 from .synchronizer import Synchronizer
 
 
@@ -30,6 +32,7 @@ class _DeviceWorker(Synchronizer):
         self.snapshot_callback = None
         self.clock = monotonic
         self.require_settlement = False
+        self._timing = SessionTiming()
 
     def bind(self, token, lease_seconds, *, priority_removals=False):
         self.queue = DeviceOperationQueue(self.store, token, priority_removals=priority_removals)
@@ -51,6 +54,7 @@ class _DeviceWorker(Synchronizer):
         self._managed_restoration_error = None
         self._cycle_cutoff = self.queue.cutoff()
         self._cycle_outcome = 'running'
+        self._timing = SessionTiming()
 
     def _collection_devices(self):
         return [device for device in self.store.list_devices() if device.id == self.device_id]
@@ -67,6 +71,7 @@ class _DeviceWorker(Synchronizer):
                               and getattr(function, '__self__', None) is session
                               and function in (session.snapshot, session.finish))
         self._rpc_calls += 1
+        started, local_before = monotonic(), self._timing.local_seconds
         try:
             self._rpc_started = self.clock()
             if opening and getattr(self.agent, 'tracked_cycles', False) is True:
@@ -92,6 +97,10 @@ class _DeviceWorker(Synchronizer):
             # No replacement after an RPC/lease failure, even for read-only work.
             self.rpc_failed = True
             raise
+        finally:
+            # Base RPC first renews its lease via _local_call. Do not count
+            # that database time twice or describe it as device/SSH latency.
+            self._timing.rpc(monotonic() - started - (self._timing.local_seconds - local_before))
 
     def _publish_snapshot(self, device_id, snapshot):
         super()._publish_snapshot(device_id, snapshot)
@@ -107,16 +116,21 @@ class _DeviceWorker(Synchronizer):
             self.snapshot_callback(device_id, self._rpc_started, self._last_complete_read)
 
     async def _local_call(self, function, *args, **kwargs):
+        started = monotonic()
         task = asyncio.create_task(asyncio.to_thread(function, *args, **kwargs))
         cancelled = False
-        while True:
-            try:
-                result = await asyncio.shield(task)
-                break
-            except asyncio.CancelledError:
-                cancelled = self._stop_mutations = True
-                if task.cancelled():
-                    raise
+        try:
+            while True:
+                try:
+                    result = await asyncio.shield(task)
+                    break
+                except asyncio.CancelledError:
+                    cancelled = self._stop_mutations = True
+                    if task.cancelled():
+                        raise
+        finally:
+            if timing := getattr(self, '_timing', None):
+                timing.local(function, monotonic() - started)
         if cancelled:
             raise asyncio.CancelledError
         return result
@@ -284,12 +298,14 @@ class ParallelSynchronizer:
         if worker is None:
             worker = self._workers[device.id] = _DeviceWorker(
                 self.store, self.agent, device.id, **self.configuration)
+        timing_bound = False
         try:
             token = self.leases.claim(device.id, str(uuid4()), self._lease_seconds, enabled=True)
             if token is None:
                 self._results[str(device.id)] = {'state': 'lease_held'}
                 return
             worker.bind(token, self._lease_seconds, priority_removals=self._priority_removals)
+            timing_bound = True
             worker.snapshot_callback, worker.clock = self._snapshot_callback, self._clock
             worker.require_settlement = self.settled_cycles_required
             self._results[str(device.id)] = {'state': 'running', 'epoch': token.epoch}
@@ -328,3 +344,8 @@ class ParallelSynchronizer:
         except (ValueError, OSError, sqlite3.Error) as error:
             # Retain any acquired fence; never fabricate missing/late evidence.
             self._results[str(device.id)] = {'state': 'held', 'error': str(error)}
+        finally:
+            if timing_bound:
+                print(json.dumps({'event': 'device.session.timing', 'device_id': device.id,
+                                  'epoch': token.epoch, 'settled': worker.session_settled,
+                                  **worker._timing.report()}, sort_keys=True), flush=True)

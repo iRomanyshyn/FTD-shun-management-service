@@ -42,7 +42,18 @@ invent successful results, alter credentials/trust or silently erase the dataset
   decision; publishing a release/tag still requires the operator's request.
   Follow [Versioning](docs/manual/versioning.md). Core security applies now too.
 
-## Current laboratory runtime — updated 2026-11-02
+## Current laboratory runtime — updated 2026-11-03
+
+Latest API-only increment: `399df3aedb97...` factors obsolete-work profile scans
+within each transaction and logs bounded `device.session.timing` aggregates.
+Rollback image `ftd-shun-api:lab-pre-dispatch-timing-20261103` supports the current
+recovery profile. API drained exit 0/IDLE before replacement; Web/agent are unchanged.
+Original 32,425-pair task continues (4,304 processed at the bounded observation),
+with unchanged protected settings/standing authority/retained recovery receipt.
+Observed throughput is only about six verified addresses/minute, not large-import
+acceptance. Prioritize remaining execution/session overhead; do not recreate the
+task, renew expired delegation, remove root checks or clear evidence to speed it up.
+See current status/log for measurements and limits; timing is not execution proof.
 
 The known desk lab now uses `deploy/compose.yml`, `deploy/compose.local-lab.yml`
 and **`deploy/compose.managed-lab.yml` together**. Use all three for subsequent

@@ -1,6 +1,7 @@
 """Slow local SQL must not freeze API timers/status or escape lease drain."""
 
 import asyncio
+import json
 from concurrent.futures import ThreadPoolExecutor
 from threading import Event
 from time import monotonic
@@ -109,7 +110,7 @@ def test_blocked_discovery_keeps_event_loop_and_status_responsive_but_stop_drain
     asyncio.run(scenario())
 
 
-def test_one_ssh_session_processes_a_verified_chunk_not_one_login_per_address(continuous, bulk):
+def test_one_ssh_session_processes_a_verified_chunk_not_one_login_per_address(continuous, bulk, capsys):
     service, agent, _ = continuous
     assert isinstance(agent, TracedAgent)
     grant(bulk, devices=(1,), count=40)
@@ -138,3 +139,8 @@ def test_one_ssh_session_processes_a_verified_chunk_not_one_login_per_address(co
         chunks.append(current)
     assert max(chunks) == 16 and all(value <= 16 for value in chunks)
     assert len(chunks) < sum(chunks), 'A shared SSH session must amortize login across addresses'
+    timings = [event for line in capsys.readouterr().out.splitlines()
+               if (event := json.loads(line)).get('event') == 'device.session.timing']
+    assert timings and len({(row['device_id'], row['epoch']) for row in timings}) == len(timings)
+    assert any('claim_next_mutation' in row['local_phases_seconds'] for row in timings)
+    assert all(row['local_calls'] > 0 and row['agent_calls'] > 0 for row in timings)

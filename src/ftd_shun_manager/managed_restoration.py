@@ -151,13 +151,13 @@ def cancel_obsolete(db, queue):
     from .bulk_policy import _state as bulk_state
 
     if bulk_present(db):
-        bulk_state(db)
         from .bulk_dispatch import cancel_obsolete as cancel_bulk
         from .bulk_dispatch import present as dispatch_present
 
         if dispatch_present(db):
             cancel_bulk(db, queue)
             return
+        bulk_state(db)
         for job in db.execute("""SELECT j.* FROM operation_jobs j JOIN managed_bulk_attempts a ON a.job_id=j.id
                 WHERE j.state='QUEUED'""").fetchall():
             queue._finish(db, job, 'CANCELLED', 'Bulk dispatch/retry is unavailable; original attempt evidence retained')

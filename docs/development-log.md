@@ -8277,6 +8277,67 @@ status/agent context to remove the resolved connectivity blocker. Documentation
 validation uses diff/link checks; no implementation change or unrelated full
 Python/Rust/browser suite rerun in this observation-only increment.
 
+## 2026-11-03 — Profile and reduce repeated import dispatch validation
+
+Continued the original operator-confirmed import, without reimporting or creating
+test authority. Initial read-only state: 4,213/32,425 VERIFIED, six rolling pending/
+running jobs, no unknown result or device error. Profiled only query-only SQL in
+one consistent snapshot: 16 eligibility calls consumed 1.084s, with repeated whole
+profile validation dominating; full root verification separately took 1.609s under
+cProfile (instrumentation overhead included, not baseline claim latency).
+
+Changed the obsolete-delegation sweep to validate the full profile at entry/exit
+of its caller-owned transaction and use existing same-transaction eligibility
+checks per candidate. Removed the redundant caller validation only on that
+dispatch branch. Original binding/current policy/protection/time/recovery/unknown
+checks and whole-root claim verification remain. Final validation failure rolls
+back cancellation states and audit. Added regressions for 16-member validation
+count, expiry, between-transaction suspension, final-failure rollback and refusal
+without a transaction.
+
+Added bounded `device.session.timing` events per bound visit with fixed local phase
+labels, numeric elapsed/local/agent times and device/epoch correlation. Local
+renewal is excluded from agent time; failures and orderly drain are measured too.
+No CLI, arguments or secrets, no new status freshness/success/retry authority.
+Initial focused checks: 71 pass; final-source focused checks: **152 pass**.
+Full suite: **2978 passed in 565.93s**, compileall/Ruff/diff pass. Built API
+`399df3aedb97...` passes configured `--check` without lifecycle/RPC/migration.
+Three paired query-only samples over the same actual snapshot gave identical
+16-member eligibility results: median repeated validation **1.6505s** versus
+boundary validation **0.2436s**. These are local validation timings, not a claimed
+6.8-fold whole-import speedup. Before deployment the original runtime verified
+24 more addresses in 281.84s (**5.11/minute**), with four settled epochs, no new
+hold/unknown and integrity `ok`; full Python tests were running concurrently.
+No schema/deployment configuration, protection, consent, agent protocol or device
+operation limits changed.
+
+Retained compatible API `553abe73cab2...` as
+`ftd-shun-api:lab-pre-dispatch-timing-20261103`. Drained only API: actual exit 0,
+IDLE epoch 1612 and zero running/unknown jobs before replacement. Deployed API
+`399df3aedb97...`; Web container `236f2c0c5f50` / image `161fef4f92f0...` and
+agent container `e73bc6221426` / image `6620e6618a0d...` stayed unchanged.
+Exact fingerprints of protection (three IPs), bulk registry, 32,428 targets,
+six standing requests, four manifests/32,430 retained members and the original
+single recovery receipt match before/after. No new import/authority or direct
+device command was submitted by the acceptance monitor.
+
+Post-update bounded sample: **4,280 to 4,304/32,425**, **24 VERIFIED in 241.98s
+(5.95/minute)**, four settled epochs, no device error/new hold/unknown results,
+status **0.639–2.081s** and integrity `ok`. This is an observed same-task comparison,
+not an isolated causal throughput benchmark (the before sample shared CPU with
+tests). Complete epochs 1613–1615 verified five each; 1616 verified eight and
+deferred one further call before writing; 1617 is a partial sample boundary.
+Diagnostic events for those complete epochs retain actual settlement and show
+agent-call time **33.217–46.602s**, local work **14.779–23.096s** (initial 1613
+local time 18.230s). Remaining local claim work is **8.249–14.398s/session**.
+Agent timing includes IPC, initial/final snapshots and semantic CLI verification;
+it does not yet isolate individual Cisco commands. Web health 200/anonymous 401
+and verified-CA HTTPS/Authelia redirect 302 pass. Original import remains running.
+No whole-list, 100,000-address, multi-device or production performance acceptance;
+roughly six/minute remains too slow for large lists. Next isolate agent phases
+and reduce avoidable session/refill overhead, retaining outcomes/priority and
+never renewing expired delegation or replaying uncertain work.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

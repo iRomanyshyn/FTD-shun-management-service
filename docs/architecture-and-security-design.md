@@ -1,5 +1,23 @@
 # FTD Shun Management Service
 
+## Import execution profiling — 2026-11-03
+
+The obsolete bulk-delegation sweep validates the entire recognized profile at
+entry and exit of its caller-owned write transaction, not separately for every
+queued candidate. Each candidate still validates its exact request/job binding
+and reads current target, protection, freshness, recovery barrier and uncertainty
+guards. No validated authority is retained across calls or transactions; failed
+final validation rolls back result transitions and audit with the owning claim.
+Whole-root verification at admission/claim remains unchanged.
+
+One bounded `device.session.timing` operational event per device/epoch separates
+awaited local work from agent-call wall time, excluding local lease renewal from
+the latter. Fixed local phase labels and numeric aggregates contain no arguments,
+CLI output, addresses or credentials. Measurements include failures/drain and are
+diagnostics only: agent time includes IPC/semantic verification, not isolated SSH
+command time. Timings/counts never prove command submission, success, freshness,
+settlement or permission to retry/release. Existing typed evidence remains required.
+
 ## Large pasted Cisco shun exports — 2026-11-02
 
 ### Offline recovery of a fully verified held epoch — 2026-11-02

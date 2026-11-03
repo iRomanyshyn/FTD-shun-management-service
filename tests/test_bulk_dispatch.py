@@ -72,6 +72,68 @@ def claim(dispatch, **changes):
                                         **({'bulk_dispatch_enabled': True} | changes))
 
 
+@pytest.mark.parametrize('expired', [False, True])
+def test_obsolete_sweep_validates_profile_at_boundaries_not_for_every_candidate(bulk, dispatch, monkeypatch, expired):
+    _, snapshot, candidates = setup(bulk, dispatch, count=16)
+    admit(dispatch, snapshot, candidates)
+    if expired:
+        bulk[1][0] += timedelta(seconds=121)
+    original, calls = bulk_dispatch._state, []
+
+    def checked(db):
+        assert db.in_transaction
+        calls.append(1)
+        return original(db)
+
+    monkeypatch.setattr(bulk_dispatch, '_state', checked)
+    dispatch.queue.cancel_obsolete_policy()
+    assert len(calls) == 2
+    with dispatch.store._connection() as db:
+        expected = 'CANCELLED' if expired else 'QUEUED'
+        assert db.execute('SELECT COUNT(*) FROM operation_jobs WHERE state=?', (expected,)).fetchone()[0] == 16
+        assert db.execute('SELECT COUNT(*) FROM managed_bulk_attempts WHERE state=?', (expected,)).fetchone()[0] == 16
+    result = claim(dispatch)
+    assert result is None if expired else result['state'] == 'RUNNING'
+
+
+def test_obsolete_sweep_never_reuses_profile_between_transactions(bulk, dispatch):
+    _, snapshot, candidates = setup(bulk, dispatch, count=2)
+    admit(dispatch, snapshot, candidates)
+    dispatch.queue.cancel_obsolete_policy()
+    with dispatch.store._connection() as db:
+        db.execute('UPDATE managed_bulk_registry SET restoration_suspended=1')
+    dispatch.queue.cancel_obsolete_policy()
+    with dispatch.store._connection() as db:
+        assert db.execute("SELECT COUNT(*) FROM managed_bulk_attempts WHERE state='CANCELLED'").fetchone()[0] == 2
+    assert claim(dispatch) is None
+
+
+def test_obsolete_sweep_final_validation_failure_rolls_back_results_and_audit(bulk, dispatch, monkeypatch):
+    _, snapshot, candidates = setup(bulk, dispatch, count=3)
+    admit(dispatch, snapshot, candidates)
+    bulk[1][0] += timedelta(seconds=121)
+    before = dump(dispatch.store)
+    original, calls = bulk_dispatch._state, []
+
+    def checked(db):
+        calls.append(1)
+        result = original(db)
+        if len(calls) == 2:
+            raise BulkUnavailable('Synthetic final validation failure')
+        return result
+
+    monkeypatch.setattr(bulk_dispatch, '_state', checked)
+    with pytest.raises(BulkUnavailable, match='final validation'):
+        dispatch.queue.cancel_obsolete_policy()
+    assert dump(dispatch.store) == before
+
+
+def test_obsolete_sweep_refuses_without_a_transaction(bulk, dispatch):
+    setup(bulk, dispatch)
+    with dispatch.store._connection() as db, pytest.raises(ValueError, match='transaction'):
+        bulk_dispatch.cancel_obsolete(db, dispatch.queue)
+
+
 def test_schema_upgrade_preserves_rows_and_is_suspended_without_admission(bulk, journal, waits):
     policy, _ = bulk
     _, proposal = prepare(bulk)

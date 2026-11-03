@@ -58,6 +58,17 @@ still get the applicable regression checks below and in `AGENTS.md`.
 
 ## Import execution responsiveness and whole-task progress
 
+For transaction-boundary cancellation validation and bounded session diagnostics:
+
+```bash
+python3 -m pytest -q tests/test_session_timing.py tests/test_bulk_dispatch.py tests/test_local_work_responsiveness.py tests/test_claim_expiry_settlement.py
+```
+
+These checks retain per-member authority/time checks, between-transaction
+revocation, atomic final-validation rollback, shared SSH sessions and cancellation
+drain. Timing checks exclude local renewal from agent time and bound/redact labels;
+timing is never result evidence. See [runtime diagnostics](continuous-dispatch.md#execution-timing-diagnostics).
+
 For the narrow optional held-epoch recovery profile:
 
 ```bash

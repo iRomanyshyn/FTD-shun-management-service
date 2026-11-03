@@ -130,15 +130,21 @@ def _authority_valid(db, attempt, now, state):
 
 
 def cancel_obsolete(db, queue):
+    if not db.in_transaction:
+        raise ValueError('Bulk cancellation requires a caller-owned transaction.')
+    state = _state(db)
     rows = db.execute('''SELECT j.* FROM operation_jobs j JOIN managed_bulk_attempts a ON a.job_id=j.id
         WHERE j.state='QUEUED' ''').fetchall()  # Shared queue is bounded to 1000 pending jobs.
     for job in rows:
         attempt = db.execute('SELECT * FROM managed_bulk_attempts WHERE job_id=?', (job['id'],)).fetchone()
         validate_binding(db, attempt, job)
         request = db.execute('SELECT * FROM operation_requests WHERE id=?', (attempt['id'],)).fetchone()
-        if (not authority_valid(db, attempt, queue._now()) or request['state'] != 'ACTIVE'
+        if (not _authority_valid(db, attempt, queue._now(), state) or request['state'] != 'ACTIVE'
                 or request['expires_at'] <= _stamp(queue._now())):
             queue._finish(db, job, 'CANCELLED', 'Bulk authority/evidence expired or was revoked before dispatch')
+    # No authority survives this call/transaction. Each candidate still reads
+    # current policy/protection/time; verify all retained evidence after changes.
+    _state(db)
 
 
 class BulkDispatch:

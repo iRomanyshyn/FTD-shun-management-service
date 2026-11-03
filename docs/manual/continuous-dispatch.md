@@ -19,6 +19,41 @@ admission requires new fresh evidence and existing authority/backoff checks.
 Generic errors, expired leases, failed END and attempted/unknown RPCs retain their
 original holds. This prevention path never releases an old ATTENTION lease.
 
+## Execution timing diagnostics
+
+The 2026-11-03 API emits one `device.session.timing` JSON event after each bound
+device visit (including failures), correlated by device ID and epoch. Inspect it
+with the normal Compose API logs and all current lab overlays. No diagnostic
+endpoint, device command, feature switch or schema upgrade is needed.
+
+- `elapsed_seconds`: wall time since binding, including final release processing.
+- `local_seconds` / `local_calls`: awaited local work, including thread scheduling,
+  database locking, queue validation and result persistence, also on failed calls.
+- `local_phases_seconds`: fixed labels for renewal, claims, result persistence,
+  snapshot publication/discovery and obsolete-work sweeps; other work is combined.
+- `agent_seconds` / `agent_calls`: agent-call wall time/attempts, excluding their
+  local lease-renewal time. Includes IPC, SSH/CLI and semantic verification; it is
+  not a per-Cisco-command measurement or proof a call reached the agent.
+- `settled`: the existing session receipt flag, not success inferred from duration.
+
+Totals need not sum to elapsed time: coordinator work outside these wrappers is
+not separately timed. Labels/aggregates reset on every bind and contain no call
+arguments, pasted lists, CLI output or credentials. Use real terminal outcomes to
+measure verified throughput, not diagnostic call counts. Timing never releases a
+fence or resolves uncertainty.
+
+The obsolete-work sweep now performs full profile validation at transaction entry
+and exit instead of once per queued candidate. Per-candidate current authority,
+time/protection/uncertainty and original binding checks remain. Whole-root claim
+verification is unchanged; there is no cross-transaction authority cache. This is
+an API-only compatible update: no DDL, migration or data replacement. Drain API
+before replacement; retain the prior profile-compatible API image for rollback.
+Web/agent, inventory, credentials, protection and admitted import authority need
+not change. Compare actual same-workload throughput after deployment; these local
+optimizations do not establish 100,000-address device capacity.
+
+## Session scheduling
+
 `ContinuousDispatcher.start` validates exact existing storage, the complete fixed
 device scope and declared matching agent capacity before launching work. It never
 migrates/initializes optional storage, resumes policy, changes gates or adopts old

@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-11-02
+Last updated: 2026-11-03
 
 ## Deferred product ideas
 
@@ -14,6 +14,45 @@ lookup, cache/schema, new egress or activation exists. Core delivery retains
 priority. See [the planned constraints](working-version-plan.md#deferred-ip-context--enrichment--requested-2026-10-21).
 
 ## Current increment
+
+**Import hot-path profiling (2026-11-03).** The original 32,425-pair lab task
+continued overnight: first read-only observation this increment showed 4,213
+VERIFIED members, no device error or unknown jobs. Read-only cProfile on one
+consistent actual database snapshot measured 16 queued eligibility checks at
+1.084s, mostly repeated full-profile validation; complete original root verification
+was separately 1.609s under profiler (not ordinary uninstrumented timing).
+
+Obsolete-delegation checks now share full profile validation at entry/exit of one
+caller-owned transaction, retaining each member's binding/current eligibility and
+rollback on final failure. Whole-root claim checks remain. Added bounded session
+timing diagnostics separating local phases from agent calls without double-counting
+lease renewal; no arguments/CLI/secrets or new execution authority are logged.
+Final-source focused validation: **152 passed**; full suite: **2978 passed in
+565.93s**, compileall/Ruff/diff and built-image non-executing runtime check pass.
+Same query-only snapshot, identical 16-member eligibility results: repeated scans
+median **1.6505s**, transaction-boundary checks **0.2436s** (three samples).
+This is local validation timing, not a whole-import speedup. Pre-update actual
+sample: 24 VERIFIED in 281.84s (**5.11/minute**), no new holds/unknown results,
+integrity `ok` (full tests ran concurrently, so this is not an isolated benchmark).
+
+**Deployed API only:** `399df3aedb97...`, after actual exit-0 drain, IDLE epoch
+1612 and zero running/unknown jobs. Retained compatible rollback image:
+`ftd-shun-api:lab-pre-dispatch-timing-20261103`. Web/agent containers and images
+are unchanged. Post-update sample: **4,280 → 4,304 / 32,425**, 24 VERIFIED in
+**241.98s (5.95/minute)**, four settled epochs, no error/ATTENTION/unknown result,
+status **0.639–2.081s**, integrity `ok`. Complete epochs 1613–1615 verified five
+addresses each; 1616 verified eight (one further call deferred before writing).
+All three Protected IPs, standing targets/requests, original manifests/members
+and immutable recovery receipt retain identical fingerprints. Web health 200,
+anonymous 401 and public-CA-verified HTTPS auth redirect 302 pass.
+
+Completed session diagnostics show **33–47s agent time** versus **15–23s local
+work**, with claim validation accounting for most local time. Agent time includes
+IPC/full reads/CLI/verification, not isolated per-command measurements. The original
+task remains running. About six verified addresses/minute is still inadequate for
+large lists; next isolate agent phases and reduce avoidable session/refill work.
+No schema, gates, agent, Web, credentials or network changes. See
+[timing diagnostics](manual/continuous-dispatch.md#execution-timing-diagnostics).
 
 **Verified held-epoch recovery (2026-11-02).** A new trusted-host offline tool can
 recover only a fully evidenced 1–16-claim VERIFIED/NOOP ATTENTION epoch after

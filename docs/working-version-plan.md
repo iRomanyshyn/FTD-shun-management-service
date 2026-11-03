@@ -3,6 +3,17 @@
 Agreed with the operator: 2026-10-20.
 Status: approved target behavior and delivery plan; not a deployment procedure.
 
+Execution-performance increment, 2026-11-03: transaction-boundary obsolete-work
+validation removes repeated per-candidate profile scans without dropping current
+eligibility/root checks. Bounded per-session diagnostics separate local phases
+from agent-call time. API-only lab rollout continues the original task; observed
+24-result samples were 5.11/minute before and 5.95/minute after, not isolated load
+benchmarks. This remains too slow for large imports. Next distinguish agent
+login/full-snapshot time from per-target CLI/verification and reduce avoidable
+session/refill overhead. Do not solve throughput by renewing expired authority,
+replaying unknown writes or dropping verification/interactive priority. See the
+current status/log for exact validation and retained-data evidence.
+
 Execution-performance checkpoint, 2026-11-02: after an operator-caused pre-command
 network outage, the managed runtime automatically reconnected and continued its
 original 32,425-pair import without another restart, hint or confirmation. A live
