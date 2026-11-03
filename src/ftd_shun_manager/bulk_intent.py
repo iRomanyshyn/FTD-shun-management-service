@@ -12,7 +12,7 @@ from ipaddress import IPv4Address
 from uuid import UUID
 
 MAX_DEVICES = 10
-MAX_ADDRESSES = 10000
+MAX_ADDRESSES = 100000
 MAX_PAIRS = 100000
 MAX_DESCRIPTOR_BYTES = 8192
 CLASSES = ("PROPOSE_ADD", "PROPOSE_ADOPT", "ALREADY_MANAGED", "EXCLUDED_PROTECTED")
@@ -80,7 +80,7 @@ class ManifestSummary:
 def summarize_manifest(rows, device_ids):
     """Consume sorted literal (device, IPv4Address, classification) rows once.
 
-    Retains <=10000 distinct addresses, not a list of all pairs. The extra row
+    Retains <=100000 distinct addresses, not a list of all pairs. The extra row
     detecting overflow is consumed, never truncated into an accepted prefix.
     """
     devices = _devices(device_ids)
@@ -99,7 +99,7 @@ def summarize_manifest(rows, device_ids):
         previous = key
         addresses.add(int(ip))
         if len(addresses) > MAX_ADDRESSES:
-            raise ValueError("Manifest exceeds 10000 distinct IPv4 addresses.")
+            raise ValueError(f"Manifest exceeds {MAX_ADDRESSES} distinct IPv4 addresses.")
         code = CLASSES.index(kind)
         counts[code] += 1
         checksum.update(device.to_bytes(2, "big") + ip.packed + bytes([code + 1]))

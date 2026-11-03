@@ -6,7 +6,7 @@ from datetime import timedelta
 from ipaddress import IPv4Address
 from threading import RLock
 
-from .bulk_dispatch import BulkCandidate, BulkDispatch, _lease, _snapshot, authority_valid, present
+from .bulk_dispatch import BulkCandidate, BulkDispatch, _authority_valid, _lease, _snapshot, present
 from .bulk_policy import BulkUnavailable, _state
 from .import_preparations import _stamp
 from .operation_queue import QueueConflict, QueueFull
@@ -35,16 +35,20 @@ class BulkDiscovery:
         with self._lock:
             self.remaining, self.checked = ADMISSION_LIMIT, 0
             self.devices = {}
+            self._publish_status()
 
     def status(self):
-        with self._lock:
-            counts = Counter()
-            for device in self.devices.values():
-                counts.update(device['counts'])
-            return deepcopy({'enabled': self.enabled, 'admitted_this_cycle': ADMISSION_LIMIT - self.remaining,
-                             'admission_limit': ADMISSION_LIMIT, 'checked_this_cycle': self.checked,
-                             'check_limit': CHECK_LIMIT, 'device_window': DEVICE_WINDOW,
-                             'counts_are_sampled_checks': True, 'counts': dict(counts), 'devices': self.devices})
+        # Immutable detached publication: never wait behind a slow SQL admission.
+        return deepcopy(self._published_status)
+
+    def _publish_status(self):
+        counts = Counter()
+        for device in self.devices.values():
+            counts.update(device['counts'])
+        self._published_status = deepcopy({'enabled': self.enabled, 'admitted_this_cycle': ADMISSION_LIMIT - self.remaining,
+            'admission_limit': ADMISSION_LIMIT, 'checked_this_cycle': self.checked,
+            'check_limit': CHECK_LIMIT, 'device_window': DEVICE_WINDOW,
+            'counts_are_sampled_checks': True, 'counts': dict(counts), 'devices': self.devices})
 
     def ordered_devices(self, devices):
         if not self.enabled or not self.addition_device_ids:
@@ -62,6 +66,7 @@ class BulkDiscovery:
     def _report(self, device, snapshot, counts, state):
         self.devices[str(device)] = {'snapshot_at': _stamp(snapshot.completed_at), 'state': state,
                                      'counts': dict(counts)}
+        self._publish_status()
 
     def discover(self, snapshot, owner):
         if not self.enabled:
@@ -118,7 +123,7 @@ class BulkDiscovery:
                     elif db.execute('SELECT 1 FROM managed_bulk_attempts WHERE intent_id=? AND snapshot_id=?',
                                     (row['intent_id'], snapshot.id)).fetchone():
                         reason = 'snapshot_used'
-                    elif not authority_valid(db, attempt, self.queue._now()):
+                    elif not _authority_valid(db, attempt, self.queue._now(), state):
                         reason = 'held'
                     else:
                         history = db.execute('''SELECT MAX(requested_at),SUM(requested_at>?) FROM managed_bulk_attempts

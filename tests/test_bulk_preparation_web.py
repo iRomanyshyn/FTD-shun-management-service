@@ -146,8 +146,8 @@ def test_invalid_forms_do_not_call_creation_and_preserve_transient_input(composi
             if damage == 'devices_duplicate': extra = {'devices': ('1', '1')}
             if damage == 'devices_alias': extra = {'devices': ('01',)}
             if damage == 'devices_missing': extra = {'devices': ()}
-            if damage == 'bytes': extra = {'text': 'я' * 524289}
-            if damage == 'lines': extra = {'text': '\n' * 20001}
+            if damage == 'bytes': extra = {'text': 'я' * (16 * 1024 * 1024 // 2 + 1)}
+            if damage == 'lines': extra = {'text': '\n' * 100001}
             response = await stage(client, **extra)
             assert response.status_code in ({422, 413} if damage == 'bytes' else {code}), response.text[:500]
             assert not writes(calls)

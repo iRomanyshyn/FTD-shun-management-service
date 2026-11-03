@@ -1,13 +1,49 @@
 // Deterministic presentation checks: no browser, sockets, API or device access.
 const assert = require("node:assert/strict");
 const test = require("node:test");
-const { refreshPresentation, queuePresentation } = require("../../static/freshness.js");
+const { refreshPresentation, queuePresentation, failureText } = require("../../static/freshness.js");
 
 const initial = () => ({ refresh_schedule_mode: "per_device", refresh_enabled: true,
   refresh_in_progress: false, pending_refresh_device_count: 0, active_device_count: 0,
   next_baseline_refresh: "baseline", next_interactive_refresh: "interactive",
   devices: { "1": { state: "ready", active: false, refresh_pending: false } }, device_cycles: {} });
 const timing = (baseline = 270, interactive = 30) => (key) => ({ baseline, interactive })[key] ?? null;
+
+test('fetch and response-body network failures retain data with a readable retry notice', () => {
+  for (const error of [new TypeError('NetworkError when attempting to fetch resource'),
+      { name: 'NetworkError' }, { name: 'TimeoutError' }, { name: 'AbortError' }]) {
+    assert.match(failureText(error), /Keeping last data and retrying automatically/);
+    assert.doesNotMatch(failureText(error), /NetworkError/);
+  }
+});
+
+test('authentication and action errors keep their actual explanation', () => {
+  assert.equal(failureText(new Error('Authentication is required.')), 'Authentication is required.');
+  assert.equal(failureText(new Error('Outcome unconfirmed; inspect the original request.')),
+    'Outcome unconfirmed; inspect the original request.');
+});
+
+test('a whole import remains visible while its rolling device queue is temporarily empty', () => {
+  const status = { queue: { counts: {}, imports: { tasks: [{ outstanding: 32000, attention: 0 }] } } };
+  const view = queuePresentation(status);
+  assert.equal(view.activity, 'waiting');
+  assert.equal(view.badge, '…');
+  assert.match(view.description, /rolling dispatch/);
+});
+
+test('whole-import attention is independent of materialized jobs', () => {
+  const view = queuePresentation({ queue: { counts: {}, imports: { tasks: [{ outstanding: 0, attention: 1 }] } } });
+  assert.equal(view.attention, true);
+  assert.match(view.badge, /!1/);
+});
+
+test('a held device marks pending import work for attention instead of pretending it is only waiting', () => {
+  const view = queuePresentation({ devices: { '1': { state: 'error', last_error: 'Retained device hold' } },
+    queue: { counts: {}, imports: { tasks: [{ outstanding: 32000, attention: 0 }] } } });
+  assert.equal(view.attention, true);
+  assert.match(view.badge, /!/);
+  assert.match(view.description, /open Status/);
+});
 
 test("requested refresh displays its eligibility, not the unrelated 4m 30s periodic timer", () => {
   const status = { ...initial(), pending_refresh_device_count: 1 };

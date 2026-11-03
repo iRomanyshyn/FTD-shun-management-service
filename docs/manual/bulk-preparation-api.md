@@ -69,9 +69,11 @@ or recurring-consent flag.
 
 ## Bounds, frozen reports and integrity
 
-Retain the parser's 1 MiB UTF-8, 20000-line and 10000-row bounds. Explicit device
-selection yields a complete product up to 10000 unique IPv4 addresses × ten
-devices = 100000 pairs. Never truncate to fit a legacy 1000-pair scope. Invalid,
+Retain the parser's 16 MiB UTF-8, 100000-line and 100000-row bounds. Explicit device
+selection yields a complete product of at most 100000 device/IP pairs: 100000
+unique IPv4 addresses on one device or 10000 on ten. Cisco export rows extract
+only the source address; destination/interface/traffic qualifiers are not cloned.
+Never truncate to fit a legacy 1000-pair scope. Invalid,
 unsupported and duplicate source diagnostics remain visible; active protection
 excludes pairs. The four frozen classes remain PROPOSE_ADD, PROPOSE_ADOPT,
 ALREADY_MANAGED and EXCLUDED_PROTECTED. Observed unmanaged state does not become

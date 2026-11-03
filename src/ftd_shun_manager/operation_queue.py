@@ -28,6 +28,14 @@ class QueueConflict(ValueError):
     pass
 
 
+class ClaimNotSubmitted(QueueConflict):
+    """A late pre-send eligibility failure; the claim transaction rolls back.
+
+    Only the claim boundary raises this, before returning a job to an executor.
+    It proves nothing about earlier RPCs or an expired executor lease.
+    """
+
+
 class QueueFull(ValueError):
     pass
 
@@ -636,10 +644,15 @@ class OperationQueue:
                 for request in requests:
                     self._event(db, "SHUN_OPERATION_RUNNING", request, job)
                 self._bump(db)
-                if restoration and (executor["lease_until"] <= stamp(self._now())
-                                    or not any(request["expires_at"] > stamp(self._now()) for request in requests)
-                                    or (bulk and not bulk_authority_valid(db, restoration, self._now()))):
-                    raise QueueConflict("Restoration lease or delegation expired during claim.")
+                if restoration:
+                    if executor["lease_until"] <= stamp(self._now()):
+                        raise QueueConflict("Executor lease expired during claim; device fence retained.")
+                    if (not any(request["expires_at"] > stamp(self._now()) for request in requests)
+                            or (bulk and not bulk_authority_valid(db, restoration, self._now()))):
+                        # Raising exits this transaction without committing RUNNING,
+                        # attempt transitions or audit events. The caller may finish
+                        # its existing session, but must not send/retry this job.
+                        raise ClaimNotSubmitted("Claim eligibility expired before submission; fresh evidence required.")
                 self._executor(db, owner, device_id)
                 return {**dict(job), "state": "RUNNING", "dispatch_kind": job_action}
         return None
@@ -840,6 +853,12 @@ class OperationQueue:
             # Counts and independently selected groups must describe one snapshot.
             db.execute("BEGIN")
             executor = db.execute("SELECT revision,next_eligible_at,mutations_suspended FROM operation_executor WHERE id=1").fetchone()
+            from .bulk_attempts import present as bulk_present
+            from .bulk_policy import _state
+
+            bulk = bulk_present(db)
+            if bulk:
+                _state(db)  # One complete validation for this read-only SQLite snapshot.
             counts = {row["state"]: row["n"] for row in db.execute(
                 "SELECT state,COUNT(*) AS n FROM operation_jobs GROUP BY state"
             )}
@@ -853,7 +872,8 @@ class OperationQueue:
             jobs = []
             target_counts = {}
             for row in rows:
-                restoration = attempt_for_job(db, row["id"])
+                restoration = (db.execute('SELECT * FROM managed_bulk_attempts WHERE job_id=?', (row['id'],)).fetchone()
+                               if bulk else attempt_for_job(db, row["id"]))
                 query = """SELECT r.id,r.actor_subject,r.actor_display_name,r.source,r.state,r.expires_at
                     FROM operation_requests r JOIN operation_links l ON l.request_id=r.id WHERE l.job_id=?"""
                 live = db.execute(query + " AND r.state='ACTIVE' AND r.expires_at>? LIMIT 2000",
@@ -888,11 +908,11 @@ class OperationQueue:
             progress_filter = """FROM operation_requests r JOIN operation_links l ON l.request_id=r.id
                 JOIN operation_jobs j ON j.id=l.job_id
                 WHERE r.state='ACTIVE' AND j.state IN ('QUEUED','RUNNING')"""
+            if bulk:
+                progress_filter += ' AND NOT EXISTS(SELECT 1 FROM managed_bulk_attempts a WHERE a.id=r.id)'
             progress_count = db.execute("SELECT COUNT(DISTINCT r.id) " + progress_filter).fetchone()[0]
             system_case = "WHEN EXISTS(SELECT 1 FROM managed_restoration_attempts a WHERE a.id=r.id) THEN 'managed_shun_policy'" if present(db) else ""
-            from .bulk_attempts import present as bulk_present
-
-            if bulk_present(db):
+            if bulk:
                 system_case = "WHEN EXISTS(SELECT 1 FROM managed_bulk_attempts a WHERE a.id=r.id) THEN 'managed_shun_policy'"
             progress_requests = db.execute(f"""SELECT DISTINCT r.id,r.actor_subject,r.actor_display_name,
                 CASE {system_case} WHEN EXISTS(SELECT 1 FROM manual_import_batches b WHERE b.id=r.id)
@@ -907,11 +927,15 @@ class OperationQueue:
                 view = dict(request)
                 request_progress.append({**view, "total": total, "processed": processed,
                                          "counts": outcomes})
+            from .import_progress import import_progress
+
+            imports = import_progress(db) if bulk else None
         return {"revision": executor["revision"], "next_eligible_at": executor["next_eligible_at"],
                 "mutations_suspended": bool(executor["mutations_suspended"]),
                 "counts": counts, "items": jobs,
                 "display_limits": {"active": 100, "attention": 20, "completed": 20},
                 "add_execution_enabled": bool(addition_device_ids),
+                "imports": imports,
                 "progress": {"requests": request_progress, "total_requests": progress_count, "limit": 20}}
 
     def prune_completed(self, retention_days: int) -> None:

@@ -5,9 +5,10 @@ from datetime import datetime, timedelta
 from ipaddress import IPv4Address
 from uuid import UUID, uuid5
 
-from .bulk_intent import CLASSES, _integer, _uuid, decode_bulk_descriptor
+from .bulk_intent import CLASSES, MAX_ADDRESSES, MAX_PAIRS, _integer, _uuid, decode_bulk_descriptor
 from .bulk_intent import _digest as require_digest
 from .bulk_ordered_removals import _time
+from .import_preview import MAX_LINES, MAX_ROWS
 
 FLAGS = {'intent_format': 2, 'can_execute': False, 'policy_saved': False, 'device_work_admitted': False}
 STATUSES = {'Ready', 'Duplicate', 'Invalid', 'Unsupported', 'Ambiguous'}
@@ -36,8 +37,8 @@ def _summary(value):
     _uuid(value['plan_id'])
     require_digest(value['digest'])
     _text(value['label'], 100, multiline=True)
-    _integer(value['address_count'], 0, 10000, 'address count')
-    _integer(value['target_count'], 0, 100000, 'pair count')
+    _integer(value['address_count'], 0, MAX_ADDRESSES, 'address count')
+    _integer(value['target_count'], 0, MAX_PAIRS, 'pair count')
     counts = value['classification_counts']
     if type(counts) is not dict or set(counts) != set(CLASSES):
         raise ValueError('Complete classified totals are required.')
@@ -126,11 +127,11 @@ def validate_report(value, plan_id, subject, page):
         _text(device['hostname'], 255)
         if not device['hostname']: raise ValueError('Original device label is required.')
     if value['target_count'] != value['address_count'] * len(devices): raise ValueError('Original device product is incomplete.')
-    _integer(value['ignored_lines'], 0, 20000, 'ignored lines')
-    _integer(value['source_row_count'], 0, 10000, 'source rows')
+    _integer(value['ignored_lines'], 0, MAX_LINES, 'ignored lines')
+    _integer(value['source_row_count'], 0, MAX_ROWS, 'source rows')
     counts = value['source_counts']
     if type(counts) is not dict or set(counts) - STATUSES: raise ValueError('Unknown source diagnostics.')
-    for count in counts.values(): _integer(count, 0, 10000, 'source count')
+    for count in counts.values(): _integer(count, 0, MAX_ROWS, 'source count')
     if sum(counts.values()) != value['source_row_count'] or counts.get('Ready', 0) != value['address_count']:
         raise ValueError('Source diagnostics do not match original input totals.')
     pages = max(1, (max(value['target_count'], value['source_row_count']) + 99) // 100)
@@ -176,18 +177,18 @@ def validate_report(value, plan_id, subject, page):
     for row in rows:
         if type(row) is not dict or set(row) != {'line', 'ip', 'status', 'source_lines', 'reason'}:
             raise ValueError('Exact generated diagnostics are required; raw source is forbidden.')
-        _integer(row['line'], 1, 20000, 'source line')
+        _integer(row['line'], 1, MAX_LINES, 'source line')
         if type(row['status']) is not str or row['status'] not in STATUSES: raise ValueError('Unknown source status.')
         if row['ip'] is not None:
             if type(row['ip']) is not str or str(IPv4Address(row['ip'])) != row['ip'] or row['status'] not in {'Ready', 'Duplicate'}:
                 raise ValueError('Invalid diagnostic address.')
         elif row['status'] in {'Ready', 'Duplicate'}: raise ValueError('An exact diagnostic address is missing.')
         _text(row['reason'], 500)
-        if type(row['source_lines']) is not list or not 1 <= len(row['source_lines']) <= 20000:
+        if type(row['source_lines']) is not list or not 1 <= len(row['source_lines']) <= MAX_LINES:
             raise ValueError('Original source line references are unavailable.')
         last = 0
         for number in row['source_lines']:
-            _integer(number, last + 1, 20000, 'source line reference')
+            _integer(number, last + 1, MAX_LINES, 'source line reference')
             last = number
         if row['line'] not in row['source_lines']: raise ValueError('Source line identity is inconsistent.')
     return value

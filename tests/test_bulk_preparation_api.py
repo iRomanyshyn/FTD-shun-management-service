@@ -209,14 +209,14 @@ def test_creation_strict_input_and_limits_never_change_state(composition, damage
     if damage == 'roles_duplicate': body['actor']['roles'] = ['Operator', 'Operator']
     if damage == 'roles_unknown': body['actor']['roles'] = ['Root']
     if damage == 'viewer': body['actor']['roles'], code = ['Viewer'], 403
-    if damage == 'text_bytes': body['text'] = 'я' * 524289
+    if damage == 'text_bytes': body['text'] = 'я' * (16 * 1024 * 1024 // 2 + 1)
     if damage == 'text_type': body['text'] = True
     if damage == 'label_control': body['label'] = 'bad\x00'
     if damage == 'label_size': body['label'] = 'a' * 101
     if damage == 'reason_size': body['reason'] = 'a' * 501
     if damage == 'action': body['action'] = 'MAINTAIN'
-    if damage == 'source_lines': body['text'] = '\n' * 20001
-    if damage == 'source_rows': body['text'] = '\n'.join(f'198.18.{i // 256}.{i % 256}' for i in range(10001))
+    if damage == 'source_lines': body['text'] = '\n' * 100001
+    if damage == 'source_rows': body['text'] = '198.18.0.1 ' * 100001
     before = dump(store)
 
     async def scenario():

@@ -78,8 +78,18 @@ def _lease(db, queue, owner, device_id=None):
 
 def authority_valid(db, attempt, now):
     """Current pre-send eligibility; never settles or clears original evidence."""
-    state = _state(db)
+    return _authority_valid(db, attempt, now, _state(db))
+
+
+def _authority_valid(db, attempt, now, state):
+    """Internal same-transaction check; caller already validated the whole profile."""
+    if not db.in_transaction:
+        raise ValueError('Validated authority checks require a caller-owned transaction.')
     if state is None or not present(db) or state['restoration_suspended'] or mutations_suspended(db):
+        return False
+    from .device_recovery import fresh_after_recovery
+
+    if not fresh_after_recovery(db, attempt['device_id'], attempt['snapshot_started_at']):
         return False
     barrier = db.execute('SELECT dispatch_resume_after FROM managed_bulk_registry WHERE id=1').fetchone()[0]
     row = db.execute('''SELECT t.*,d.enabled AS device_enabled,
@@ -223,7 +233,7 @@ class BulkDispatch:
                            'authorization_request_id': candidate.authorization_request_id,
                            'target_revision': candidate.target_revision, 'snapshot_id': snapshot.id,
                            'snapshot_started_at': started, 'snapshot_at': completed, 'requested_at': timestamp}
-                if not authority_valid(db, attempt, now):
+                if not _authority_valid(db, attempt, now, state):
                     raise QueueConflict('Current authority, protection, device or fresh absence evidence changed.')
                 history = db.execute('''SELECT MAX(requested_at),SUM(requested_at>?) FROM managed_bulk_attempts
                     WHERE device_id=? AND ip=?''', (_stamp(now - timedelta(hours=1)), candidate.device_id, candidate.ip.packed)).fetchone()
@@ -250,8 +260,9 @@ class BulkDispatch:
                 _event(db, self.store, row, 'QUEUED', timestamp)
                 attempts.append({'attempt_id': key, 'operation_id': job_id, 'state': 'QUEUED', 'replayed': False})
             _lease(db, self.queue, owner, snapshot.device_id)
-            if any(not authority_valid(db, db.execute('SELECT * FROM managed_bulk_attempts WHERE id=?', (a['attempt_id'],)).fetchone(),
-                                       self.queue._now()) for a in attempts):
+            state = _state(db)  # Revalidate all inserted evidence before committing the portion.
+            if any(not _authority_valid(db, db.execute('SELECT * FROM managed_bulk_attempts WHERE id=?', (a['attempt_id'],)).fetchone(),
+                                        self.queue._now(), state) for a in attempts):
                 raise QueueConflict('Evidence expired during portion admission.')
             self.queue._bump(db)
             return {'attempts': attempts, 'replayed': False, 'device_work_sent': False}

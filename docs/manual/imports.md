@@ -22,14 +22,78 @@ other service modes can show unavailable controls rather than enable execution.
    It does not bypass a pause, missing profile, protection or an unresolved
    operation. Suspended maintenance is explicitly identified and stays suspended.
 
-The paste limits are 1 MiB UTF-8, 20,000 lines and 10,000 parsed rows, with up to
-10 selected devices / 100,000 pairs. Invalid/unsupported/ambiguous inputs,
+The paste limits are 16 MiB UTF-8, 100,000 lines and 100,000 parsed rows, with up to
+100,000 unique addresses, 10 selected devices and 100,000 device/IP pairs in total.
+For example, 95,081 addresses fit one device, but not two; select fewer devices or
+split the list if the complete product exceeds the pair limit. This limit applies
+before protected exclusions. Oversized input is rejected completely, never cut off.
+Invalid/unsupported/ambiguous inputs,
 duplicates and protected exclusions remain visible. Raw pasted text and comments
 are not saved. Drafts expire after ten minutes; reopening or retrying does not
 extend the deadline. Reports are paginated in groups of 100, without dropping
 the rest of the selection.
 
+You can paste Cisco `show shun` exports directly, for example:
+
+```text
+shun (outside_907) 198.51.100.10 0.0.0.0 0 0 0
+```
+
+Only the source address (`198.51.100.10`) becomes a candidate. The destination
+(`0.0.0.0` here), interface, ports and protocol are validated but not imported.
+Your selected devices and their configured ADD profiles determine the new block;
+this is not a configuration clone. Malformed export rows are reported, not guessed.
+Ordinary IP lists and surrounding text/comments remain supported.
+
+The live byte counter includes native form line endings. Input is not truncated
+by the textarea, and size/line/pair errors identify the actual failed limit.
+Saving or reviewing even a large draft never starts additions. Confirmation is
+still required; test the report before confirming a real list. Synthetic input/
+storage tests do not establish 100,000-shun throughput or FPR1010 device capacity.
+
 ## Understand the result
+
+### Whole-import progress and stopping the remaining work
+
+Open **Queue** for one progress card per import, not sixteen one-address internal
+requests. The denominator is the complete original accepted device/IP scope,
+including addresses not yet in the rolling queue. Counts distinguish verified
+ADD, verified no-op, adoption/existing maintenance, merely observed presence,
+waiting/queued/running, stopped/superseded and failed/unverified/missing evidence.
+Processed does not mean successfully created. Observations never prove creation.
+The card describes initial application; recurring maintenance can continue after
+it finishes. Recent finished imports collapse; original receipts remain available.
+
+The original owner or an Administrator can choose **Cancel remaining import…**
+from this card. This opens the existing whole-import confirmation, not an instant
+cancellation. Review its frozen consequences and type the accepted pair count.
+Already applied/adopted blocks stay maintained and are not unblocked. Unstarted
+work is stopped; a running command and its verification finish safely. Unknown
+outcomes stay unknown and require attention. Do not individually cancel the
+internal one-address delegations as a substitute for cancelling the whole import.
+
+### What a device batch means
+
+One bounded SSH session handles up to 16 ADD/REMOVE operations. Commands on one
+FTD remain sequential, with target verification for each IP and initial/final
+complete reads. This is not one SSH login per IP or a pasted CLI script. Healthy
+devices can progress independently within the configured concurrency. A full
+batch can continue with the next session without waiting five minutes; interactive
+reads/removals retain their next-checkpoint priority. Time/command limits can end
+a batch early, and counts do not promise a throughput or ETA. Large lists on a
+slow FTD can still take substantial time; no verification is sacrificed for speed.
+
+Slow local reconciliation/claim/settlement is awaited outside the API event loop.
+Status publishes the last completed discovery summary rather than waiting on its
+SQL lock. A temporary connection failure keeps old data visible and retries; it
+does not submit a second import or mark a timed-out write successful.
+
+If **Status** reports a held/ATTENTION device, the import remains pending and its
+Queue card shows attention, not a successful or ordinary waiting device. Restart
+does not release that fence. Do not reimport the list, clear the lease or replay
+unknown commands to get past it. **Cancel remaining import…** is still a reviewed
+policy revocation, not recovery of the device fence. Preserve the original
+outcomes and investigate settlement/recovery separately.
 
 **Confirmed imports** records saved maintenance settings, not successful device
 writes. Open **Managed shuns** for current maintenance and observations; open

@@ -20,7 +20,7 @@ from .managed_fleet_waits import ManagedFleetWaits
 from .managed_removals import ManagedRemovals
 from .managed_restoration import CompleteSnapshot
 from .managed_shuns import ManagedShuns
-from .operation_queue import QueueConflict, QueueFull
+from .operation_queue import ClaimNotSubmitted, QueueConflict, QueueFull
 from .protected_policy import ProtectedPolicy
 from .store import Store
 
@@ -372,8 +372,15 @@ class Synchronizer:
                 self.queue.finish_cycle(self.instance_id, self.interactive_min_interval_seconds)
 
     async def _agent_call(self, function, *args):
-        self.queue.renew(self.instance_id, self._lease_seconds)
+        await self._local_call(self.queue.renew, self.instance_id, self._lease_seconds)
         return await asyncio.to_thread(function, *args)
+
+    async def _local_call(self, function, *args, **kwargs):
+        """Legacy collector stays inline; parallel workers override bounded local work."""
+        return function(*args, **kwargs)
+
+    async def _publish_complete_snapshot(self, device_id, snapshot):
+        await self._local_call(self._publish_snapshot, device_id, snapshot)
 
     def _has_pending(self, device_id: int | None = None) -> bool:
         if self.queue.has_pending(device_id, addition_device_ids=self.addition_device_ids,
@@ -398,7 +405,7 @@ class Synchronizer:
         if not self._mutations_blocked:
             try:
                 discovery = self.bulk_discovery if self.bulk_dispatch_enabled else self.managed_discovery
-                devices = discovery.ordered_devices(devices)
+                devices = await self._local_call(discovery.ordered_devices, devices)
             except (sqlite3.Error, ValueError):
                 self._restoration_failed()
         for device in devices:
@@ -426,8 +433,8 @@ class Synchronizer:
                 else:
                     snapshot = await self._agent_call(self.agent.list_shuns, device.id)
                 read_completed = self.queue._now()
-                self._publish_snapshot(device.id, snapshot)
-                self._discover_snapshot(device.id, snapshot, read_started, read_completed)
+                await self._publish_complete_snapshot(device.id, snapshot)
+                await self._local_call(self._discover_snapshot, device.id, snapshot, read_started, read_completed)
             except (AgentUnavailable, OSError, ValueError, sqlite3.Error) as error:
                 if cycle is not None:
                     cycle.abort()
@@ -460,7 +467,7 @@ class Synchronizer:
                 )
                 continue
 
-            allowed = self.policy.enabled_ips()
+            allowed = await self._local_call(self.policy.enabled_ips)
             trusted_ips = sorted(
                 {entry.ip for entry in snapshot if entry.ip in allowed},
                 key=int,
@@ -546,8 +553,8 @@ class Synchronizer:
 
     async def _session_mutations(self, device_id: int, cycle, snapshot) -> str | None:
         try:
-            allowed = self.policy.enabled_ips()
-            self._admit_trusted(device_id, sorted({entry.ip for entry in snapshot
+            allowed = await self._local_call(self.policy.enabled_ips)
+            await self._local_call(self._admit_trusted, device_id, sorted({entry.ip for entry in snapshot
                                if entry.ip in allowed}, key=int))
             for _ in range(0 if self._mutations_blocked else MAX_CYCLE_MUTATIONS):
                 if self._stop_mutations:
@@ -567,20 +574,29 @@ class Synchronizer:
                             print(json.dumps({"event": "queue.priority_refresh.deferred",
                                               "device_id": device_id, "joining_final_snapshot": True}), flush=True)
                             break
-                        self._publish_snapshot(device_id, snapshot)
-                        self._discover_snapshot(device_id, snapshot, read_started, read_completed)
+                        await self._publish_complete_snapshot(device_id, snapshot)
+                        await self._local_call(self._discover_snapshot, device_id, snapshot, read_started, read_completed)
                         if self._mutations_blocked:
                             break
-                        allowed = self.policy.enabled_ips()
-                        self._admit_trusted(device_id, sorted({entry.ip for entry in snapshot
+                        allowed = await self._local_call(self.policy.enabled_ips)
+                        await self._local_call(self._admit_trusted, device_id, sorted({entry.ip for entry in snapshot
                                            if entry.ip in allowed}, key=int))
                     self._device_cycle["priority_state"] = "satisfied"
                     self._set_interactive_state("running")
                 cutoff = self._cycle_cutoff if self._cycle_cutoff is not None else self.queue.cutoff()
-                job = self.queue.claim_next_mutation(device_id, self.instance_id, cutoff,
-                                                    additions_enabled=device_id in self.addition_device_ids,
-                                                    managed_restoration_enabled=self.managed_restoration_enabled,
-                                                    bulk_dispatch_enabled=self.bulk_dispatch_enabled)
+                try:
+                    job = await self._local_call(self.queue.claim_next_mutation, device_id, self.instance_id, cutoff,
+                                                additions_enabled=device_id in self.addition_device_ids,
+                                                managed_restoration_enabled=self.managed_restoration_enabled,
+                                                bulk_dispatch_enabled=self.bulk_dispatch_enabled)
+                except ClaimNotSubmitted as error:
+                    # Only the exact rolled-back pre-send claim permits this path.
+                    # Settle prior operations with the real END/final read below;
+                    # unknown RPCs, generic SQL errors and lost leases still hold.
+                    self._device_cycle["budget_deferred"] = True
+                    print(json.dumps({"event": "queue.claim.not_submitted", "device_id": device_id,
+                                      "reason": str(error)}), flush=True)
+                    break
                 if job is None:
                     break
                 target = IPv4Address(job["ip"])
@@ -600,17 +616,17 @@ class Synchronizer:
                     try:
                         result = await self._agent_call(cycle.remove_shun, target)
                     except (AgentUnavailable, OSError, ValueError) as error:
-                        self.queue.finish_removal(job["id"], self.instance_id, "UNVERIFIED", str(error))
+                        await self._local_call(self.queue.finish_removal, job["id"], self.instance_id, "UNVERIFIED", str(error))
                         self.note_state_change()
                         print(json.dumps({"event": "queue.removal.unverified", "device_id": device_id,
                                           "ip": str(target), "operation_id": job["id"], "reason": str(error)}), flush=True)
                         raise
                 if result is None:
-                    self.queue.defer_removal(job["id"], self.instance_id)
+                    await self._local_call(self.queue.defer_removal, job["id"], self.instance_id)
                     self._device_cycle["budget_deferred"] = True
                     self.note_state_change()
                     break
-                self.queue.finish_removal(job["id"], self.instance_id, "VERIFIED" if result else "NOOP")
+                await self._local_call(self.queue.finish_removal, job["id"], self.instance_id, "VERIFIED" if result else "NOOP")
                 self.note_state_change()
                 self._device_cycle["completed"] += 1
                 print(json.dumps({"event": "queue.removal.completed", "device_id": device_id,
@@ -623,8 +639,8 @@ class Synchronizer:
             read_started = self.queue._now()
             snapshot = await self._finish_session(cycle)
             read_completed = self.queue._now()
-            self._publish_snapshot(device_id, snapshot)
-            self._discover_snapshot(device_id, snapshot, read_started, read_completed)
+            await self._publish_complete_snapshot(device_id, snapshot)
+            await self._local_call(self._discover_snapshot, device_id, snapshot, read_started, read_completed)
             self._priority_pending = False
             self._device_cycle.update(action="completed", priority_state="satisfied")
             return self._mutations_blocked
@@ -641,16 +657,16 @@ class Synchronizer:
         try:
             result = await self._agent_call(cycle.add_shun, target)
             if result is None:
-                self.queue.defer_addition(job["id"], self.instance_id)
+                await self._local_call(self.queue.defer_addition, job["id"], self.instance_id)
                 self.note_state_change()
                 return False
             if not isinstance(result, AdditionResult):
                 raise AgentUnavailable("agent returned an invalid typed addition result")
-            state = self.queue.finish_addition(job["id"], self.instance_id, result)
+            state = await self._local_call(self.queue.finish_addition, job["id"], self.instance_id, result)
         except (AgentUnavailable, OSError, ValueError, sqlite3.Error) as error:
             # Even malformed/unavailable results after a possible send must not
             # be inferred from a later snapshot or automatically replayed.
-            self.queue.finish_addition(job["id"], self.instance_id, "UNVERIFIED", reason=str(error))
+            await self._local_call(self.queue.finish_addition, job["id"], self.instance_id, "UNVERIFIED", reason=str(error))
             self.note_state_change()
             print(json.dumps({"event": "queue.addition.unverified", "device_id": device_id,
                               "ip": str(target), "operation_id": job["id"], "reason": str(error)}), flush=True)

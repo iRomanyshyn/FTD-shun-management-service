@@ -3,6 +3,18 @@
 Agreed with the operator: 2026-10-20.
 Status: approved target behavior and delivery plan; not a deployment procedure.
 
+Execution-performance checkpoint, 2026-11-02: after an operator-caused pre-command
+network outage, the managed runtime automatically reconnected and continued its
+original 32,425-pair import without another restart, hint or confirmation. A live
+sample verified 24 additional targets in 260.25s (5.53/minute), with no new unknown
+results; complete sampled SSH sessions verified seven operations each. This is
+not whole-list load acceptance, and that rate is not adequate for large imports.
+The immediate next delivery task is to profile local admission/claim/settlement,
+SSH command/verification time and between-session work separately, then optimize
+the measured hot path while retaining protection, verified results, whole-task
+cancellation and interactive priority. Re-measure actual throughput and status
+responsiveness on the same lab workload; raising input limits alone is not enough.
+
 Delivery-policy update, 2026-10-30: this is still an unreleased internal lab project
 on the operator's desk FPR1010, with no production use. Ordinary in-scope lab
 development/deployment/bounded tests do not need per-fixture approval ceremonies.
@@ -302,10 +314,13 @@ including the equal-millisecond boundary. Original suspended/quiescent confirmat
 remains separate. No lab activation/executable runtime selection. See
 [Concurrent Standing Admission](manual/bulk-concurrent-admission.md).
 
-Target up to 10,000 IPv4 addresses in one import, with explicit device selection.
-An address/device pair is the maintained unit: 10,000 addresses on 10 selected FTDs
-can require 100,000 policy pairs. Storage and admission limits must be revised
-accordingly; increasing only the text-field limit is insufficient.
+Target up to 100,000 IPv4 addresses in one import (operator increase, 2026-11-02),
+with explicit device selection and a retained 100,000-pair total bound. One device
+can therefore receive 100,000 addresses; ten selected devices fit 10,000 each.
+Input supports 16 MiB UTF-8 / 100,000 lines/rows, including structured Cisco
+show-shun exports with source-only extraction. Storage/report/manifest bounds and
+matching complete snapshot reads must agree; a larger text field alone is not
+sufficient. A real large-list execution/throughput test remains separate.
 
 Preview and confirmation identify accepted, duplicate, invalid and actively
 protected addresses. Invalid and protected inputs are skipped with a conspicuous

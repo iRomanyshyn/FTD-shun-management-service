@@ -44,8 +44,8 @@ are consecutive. An entry may cross a chunk boundary. Every nonempty snapshot
 has `ceil(data_bytes/32768)` chunks. Empty is manifest 0/0/0 plus mandatory
 SHA-256-of-empty end; rejection/EOF is never an empty snapshot.
 
-Hard bounds: 20,000 entries, 2 MiB aggregate data, at most 64 data chunks,
-at most 66 frames and no response frame larger than the existing 64 KiB receive
+Hard bounds (2026-11-02): 200,000 entries, 16 MiB aggregate data, at most 512 data chunks,
+at most 514 frames and no response frame larger than the existing 64 KiB receive
 buffer. Manifest count/byte/chunk consistency is validated before buffering;
 each declared entry requires 6–69 bytes. The receiver accepts nothing for
 reconciliation until terminal digest, full strict entry decoding, exact count,
@@ -63,8 +63,8 @@ deferral; no stream follows and no observation is implied.
 ## Console and time budgets
 
 Only full snapshot commands in the opted-in read/v2 session may collect up to
-4 MiB before the validated FTD prompt. Login, target reads and writes keep the
-64 KiB cap. Parsed full results are capped at 20,000 entries before encoding.
+32 MiB before the validated FTD prompt. Login, target reads and writes keep the
+64 KiB cap. Parsed full results are capped at 200,000 entries before encoding.
 All output is parsed/validated before any snapshot frame is sent. Paging,
 unknown output, absent prompt or exceeded cap still fail closed; there is no
 automatic pager command or blind delay.
@@ -79,6 +79,16 @@ indefinitely. No second SSH session is opened for a stream or refresh hint.
 
 ## Upgrade, validation and rollback
 
+The 2026-11-02 capacity increment requires the matching new API/agent for reads
+above the older 20,000-entry/2 MiB limits. Framing/opcodes/digests and strict
+deadlines are unchanged; there is no downgrade or partial snapshot. If rolling
+back, preserve retained imports/policy/queue evidence and expect older images
+to refuse oversized input/descriptors/snapshots. A code rollback does not erase
+large saved drafts or reduce the device population. Do not clear state or restore
+an old DB to make it fit. Real 95,081-entry FTD prompt/throughput/timeout behavior
+has not been accepted by synthetic tests; the lab deployment only checks its
+existing small observation, not a bulk mutation.
+
 No schema migration or data reset is needed. Preserve paired images and a
 SQLite-safe backup under the queue manual before operational upgrade. Gracefully
 stop the API executor before agent replacement; upgrade API/agent together
@@ -86,7 +96,7 @@ with the new flag false first. Web needs no protocol change. Never run a second
 writer alongside the scheduler. Then explicitly approve lab opt-in in both
 services; do not apply a large real blocklist as a transport test.
 
-Synthetic tests must cover 7,307 and 20,000 entries, boundary-split entries,
+Synthetic tests must cover 7,307, 95,081 and 200,000 entries, boundary-split entries,
 long interface names, empty streams, count/byte/chunk/digest rejection, packet
 truncation, wrong bindings/order, incomplete streams, absolute time budgets,
 flag mismatch and existing v1/removal behavior. Use shared Python/Rust vectors

@@ -5,10 +5,11 @@ from typing import Annotated
 import httpx
 from fastapi import HTTPException, Query, Request
 from fastapi.responses import RedirectResponse
+from pydantic import ValidationError
 from starlette.concurrency import run_in_threadpool
 
 from .bulk_confirmation_view import validate_receipts
-from .bulk_intent import _uuid
+from .bulk_intent import MAX_PAIRS, _uuid
 from .bulk_preparation_api import PreparationInput
 from .bulk_preparation_view import (
     operation_key,
@@ -95,10 +96,19 @@ def register_bulk_preparation_web(app, settings, *, render, identity_for, operat
             if [str(value) for value in devices] != raw_devices: raise ValueError('Use canonical device IDs.')
             change = PreparationInput.model_validate({'actor': actor(identity), 'text': fields.get('text', [''])[0],
                 'device_ids': devices, 'label': fields.get('label', [''])[0], 'reason': fields.get('reason', [''])[0]})
-            parsed = parse_blocklist(change.text)
-        except (ValueError, TypeError):
+            parsed = await run_in_threadpool(parse_blocklist, change.text)
+            pair_count = len(parsed['ips']) * len(devices)
+            if pair_count > MAX_PAIRS:
+                raise ValueError(f'{len(parsed["ips"]):,} addresses on {len(devices)} devices would create {pair_count:,} pairs. '
+                                 f'The limit is {MAX_PAIRS:,} device/IP pairs; select fewer devices or split the list.')
+        except (ValueError, TypeError) as error:
+            if isinstance(error, ValidationError):
+                detail = '; '.join(f'{".".join(map(str, item["loc"]))}: {item["msg"]}'
+                                   for item in error.errors(include_input=False)[:3])
+            else:
+                detail = str(error)
             return await run_in_threadpool(workspace, request, identity,
-                message='Invalid draft input. Select 1–10 distinct devices and use at most 1 MiB UTF-8, 20000 lines and 10000 parsed rows; label/reason limits are 100/500 characters.',
+                message=f'Cannot save draft: {detail} Nothing was saved or queued.',
                 code=422, fields=fields)
         return await run_in_threadpool(save, request, identity, change, len(parsed['ips']) * len(devices), fields)
 
@@ -114,7 +124,10 @@ def register_bulk_preparation_web(app, settings, *, render, identity_for, operat
                 saved = validate_creation(response.json(), expected_count)
                 return RedirectResponse(WEB + '/' + saved['plan_id'], status_code=303)
             if response.status_code in {403, 409, 422, 429}:
-                return workspace(request, identity, message='Draft creation was rejected. Inspect saved drafts and current input before another attempt.',
+                rejected = response.json()
+                detail = rejected.get('detail') if type(rejected) is dict else None
+                message = detail if type(detail) is str and len(detail) <= 1000 else 'Inspect saved drafts and current input before another attempt.'
+                return workspace(request, identity, message=f'Draft creation was rejected. {message}',
                                  code=response.status_code, fields=fields)
             raise httpx.RequestError('Draft creation outcome unconfirmed')
         except (httpx.HTTPError, ValueError, TypeError, KeyError):

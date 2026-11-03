@@ -23,9 +23,10 @@ not a runbook or permission to change gates, initialize schemas or run new fixtu
 | [Deployment](deployment.md) | Caddy, Authelia, Unix sockets, secrets, and container layout. |
 | [Per-Device Credentials](per-device-credentials.md) | Agent-only ID/login/secret mapping, configuration check, opt-in Compose migration and rollback; legacy compatibility retained. |
 | [Operations](operations.md) | Roles, removal workflow, logs, backup, health, and incident response. |
-| [Imports — Operator Guide](imports.md) | Paste/review/confirm, maintained blocks, skipped inputs, saved drafts, confirmations and connection recovery in the managed runtime. |
+| [Imports — Operator Guide](imports.md) | Paste/review/confirm, whole-task progress/cancellation, shared SSH batches, saved drafts and truthful held-device state in the managed runtime. |
 | [Operation Queue](operation-queue.md) | Queued removal, progress/cancellation, limits, lease recovery, migration, backup restore, and rollback. |
 | [Offline Recovery](recovery.md) | Checked backup, durable mutation pause, composite queue/policy suspension and reviewed ordinary resume. |
+| [Verified Held-Session Recovery](verified-epoch-recovery.md) | Offline, backup/review-bound release of an exactly evidenced fully verified epoch; original hold/claims retained, no unknown-write replay. |
 | [Offline Managed Maintenance](managed-maintenance.md) | Explicit empty-schema migration, exact-state five-minute review and separate policy resume; no live activation or uncertainty override. |
 | [Offline Attention Inspection](managed-attention.md) | Read-only uncertainty catalog and exact-case inspection, full fleet membership in snapshot-bound pages, evidence provenance and planned resolution boundaries. |
 | [Incident Acknowledgments](incident-acknowledgements.md) | Reviewed offline ordinary/single/fleet administrative receipts, whole-scope evidence and unchanged uncertainty/controls. |

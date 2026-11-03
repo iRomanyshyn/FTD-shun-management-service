@@ -99,8 +99,27 @@ class _DeviceWorker(Synchronizer):
         if self.queue.priority_removals and not self._stop_mutations:
             allowed = self.policy.enabled_ips()
             self._admit_trusted(device_id, sorted({entry.ip for entry in snapshot if entry.ip in allowed}, key=int))
+
+    async def _publish_complete_snapshot(self, device_id, snapshot):
+        await super()._publish_complete_snapshot(device_id, snapshot)
+        # Scheduling demand belongs to the owning event loop, never the SQL thread.
         if self.snapshot_callback is not None:
             self.snapshot_callback(device_id, self._rpc_started, self._last_complete_read)
+
+    async def _local_call(self, function, *args, **kwargs):
+        task = asyncio.create_task(asyncio.to_thread(function, *args, **kwargs))
+        cancelled = False
+        while True:
+            try:
+                result = await asyncio.shield(task)
+                break
+            except asyncio.CancelledError:
+                cancelled = self._stop_mutations = True
+                if task.cancelled():
+                    raise
+        if cancelled:
+            raise asyncio.CancelledError
+        return result
 
     def _priority_read_due(self, device_id):
         last = getattr(self, '_last_complete_read', None)

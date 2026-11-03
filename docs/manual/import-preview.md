@@ -95,7 +95,14 @@ so colour is not the only cue. A green Ready badge is not execution success.
 
 ## Limits and privacy
 
-- 1 MiB of UTF-8 source text, 20,000 lines, 10,000 total preview rows (including
+Complete Cisco `shun (interface) source destination sport dport proto` export
+rows are recognized separately from ambiguous free text. Both addresses and
+numeric ranges are validated, but only the source becomes a target. Original
+interfaces/destinations/traffic qualifiers are not imported. Malformed export
+rows never fall back to extracting their destination or another token. This is
+data parsing, never a raw CLI interface.
+
+- 16 MiB of UTF-8 source text, 100,000 lines, 100,000 total preview rows (including
   duplicates/refused rows), up to 64 selected devices and 100,000 expanded unique
   device/IP pairs before exclusions. Exceeding limits rejects the preview;
   there is no silently accepted partial batch.
@@ -105,7 +112,7 @@ so colour is not the only cue. A green Ready badge is not execution success.
   it is not submitted while over the limit. Without JavaScript, the server
   still validates the full input and displays bounded validation errors in
   the form with the pasted source retained. Nothing is partially parsed.
-- The URL-encoded form body is capped at 3 MiB + 16 KiB before decoding, including
+- The URL-encoded form body is capped at 48 MiB + 16 KiB before decoding, including
   chunked requests. Multipart/file uploads are unsupported. Unexpected/repeated
   scalar fields and excessive field counts are rejected. The larger encoded
   limit allows worst-case percent-encoded UTF-8 and bounded metadata overhead.

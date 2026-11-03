@@ -59,7 +59,7 @@ def test_shared_rust_python_snapshot_vectors():
         assert len(result) == {7: 0, 16: 1, 17: 2, 19: 0}[op]
 
 
-@pytest.mark.parametrize("count,interface", [(0, "management"), (7307, "management"),
+@pytest.mark.parametrize("count,interface", [(0, "management"), (7307, "management"), (95081, "outside_907"),
     (MAX_SNAPSHOT_ENTRIES, "management"), (MAX_SNAPSHOT_ENTRIES, "a" * 64)])
 def test_complete_large_streams_split_entries_and_preserve_every_pair(count, interface):
     frames = wire(count, interface=interface)
@@ -139,12 +139,12 @@ def serve(tmp_path, handler):
 def test_actual_seqpacket_transport_collects_a_large_snapshot(tmp_path):
     def handler(connection):
         assert connection.recv(100) == bytes.fromhex("070007")
-        for frame in wire(7307):
+        for frame in wire(95081):
             assert connection.send(frame) == len(frame)
         assert connection.recv(100) == b""
     path, pool, worker = serve(tmp_path, handler)
     try:
-        assert len(UnixAgentClient(path, 5, large_snapshots=True).list_shuns(7)) == 7307
+        assert len(UnixAgentClient(path, 5, large_snapshots=True).list_shuns(7)) == 95081
         worker.result(timeout=5)
     finally:
         pool.shutdown(wait=True)

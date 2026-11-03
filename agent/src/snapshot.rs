@@ -6,9 +6,9 @@ use std::time::Instant;
 
 pub(super) const VERSION: u8 = 2;
 pub(super) const CHUNK_BYTES: usize = 32768;
-pub(super) const MAX_BYTES: usize = 2 * 1024 * 1024;
-pub(super) const MAX_ENTRIES: usize = 20000;
-pub(super) const MAX_OUTPUT_BYTES: usize = 4 * 1024 * 1024;
+pub(super) const MAX_BYTES: usize = 16 * 1024 * 1024;
+pub(super) const MAX_ENTRIES: usize = 200000;
+pub(super) const MAX_OUTPUT_BYTES: usize = 32 * 1024 * 1024;
 
 pub(super) fn encode(
     entries: BTreeSet<ObservedShun>,
@@ -153,9 +153,13 @@ mod tests {
 
     #[test]
     fn full_populations_remain_in_bounded_packets() -> Result<()> {
-        for (count, name) in [(7307, "management".to_owned()), (20000, "a".repeat(64))] {
+        for (count, name) in [
+            (7307, "management".to_owned()),
+            (95081, "outside_907".to_owned()),
+            (MAX_ENTRIES as u32, "a".repeat(64)),
+        ] {
             let frames = encode(entries(count, &name), 7, 0)?;
-            assert!(frames.len() <= 66);
+            assert!(frames.len() <= MAX_BYTES.div_ceil(CHUNK_BYTES) + 2);
             assert!(frames.iter().all(|frame| frame.len() <= CHUNK_BYTES + 7));
             assert_eq!(&frames[0][5..9], &count.to_be_bytes());
             let payload: Vec<u8> = frames[1..frames.len() - 1]
@@ -198,7 +202,7 @@ mod tests {
             None,
             SockFlag::SOCK_CLOEXEC,
         )?;
-        let frames = encode(entries(20000, "management"), 7, 0)?;
+        let frames = encode(entries(95081, "management"), 7, 0)?;
         let expected = frames.clone();
         let worker = std::thread::spawn(move || -> Result<()> {
             cycle::set_ipc_timeout(&receiver, Duration::from_secs(3))?;

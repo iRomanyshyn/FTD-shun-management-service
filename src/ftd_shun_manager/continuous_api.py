@@ -197,9 +197,9 @@ class ContinuousApiRuntime:
         finally:
             self._started = False
 
-    def status(self):
+    def status(self, *, queue_status=None):
         self.managed_metadata()  # Drift is unavailable state, never a legacy/empty fallback.
-        return {**self.dispatcher.refresh_status(),
+        return {**self.dispatcher.refresh_status(queue_status=queue_status),
                 'runtime_mode': 'continuous-managed' if self.managed_execution else 'continuous-observation',
                 'bulk_execution_enabled': self.managed_execution,
                 'manual_mutations_available': False, 'managed_workflows_available': False,

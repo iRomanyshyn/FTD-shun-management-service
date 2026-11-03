@@ -7,8 +7,8 @@ from struct import unpack
 from .agent_protocol import ObservedShun, _decode_shun_entries
 
 SNAPSHOT_CHUNK_BYTES = 32768
-MAX_SNAPSHOT_BYTES = 2 * 1024 * 1024
-MAX_SNAPSHOT_ENTRIES = 20000
+MAX_SNAPSHOT_BYTES = 16 * 1024 * 1024
+MAX_SNAPSHOT_ENTRIES = 200000
 SNAPSHOT_TRANSFER_SECONDS = 10
 
 

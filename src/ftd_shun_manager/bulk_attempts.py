@@ -74,7 +74,10 @@ def for_job(db, job_id):
 
 def reserved(db, key):
     _state(db)
-    return db.execute('SELECT 1 FROM managed_bulk_attempts WHERE id=? OR job_id=?', (key, key)).fetchone() is not None
+    from .device_recovery import present as recovery_present
+
+    return (db.execute('SELECT 1 FROM managed_bulk_attempts WHERE id=? OR job_id=?', (key, key)).fetchone() is not None
+            or (recovery_present(db) and db.execute('SELECT 1 FROM managed_bulk_device_recovery WHERE id=?', (key,)).fetchone() is not None))
 
 
 def validate_held_jobs(db):

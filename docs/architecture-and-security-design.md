@@ -1,5 +1,110 @@
 # FTD Shun Management Service
 
+## Large pasted Cisco shun exports — 2026-11-02
+
+### Offline recovery of a fully verified held epoch — 2026-11-02
+
+A narrow trusted-host recovery may release an ATTENTION fence after API/Web and
+the privileged agent are stopped and all old RPC execution is quiescent. This is
+an operator-attested offline prerequisite, not proof inferred from lease expiry,
+an absent IP, a process crash or the read-only session lookup. Every mutation
+claim in the exact original owner/epoch must retain matching VERIFIED/NOOP job,
+terminal audit and (for system ADD) attempt evidence. Missing evidence, pending
+or uncertain work, failed attempts and transitional cleanup refuse recovery.
+
+An explicit checked-backup transaction validates the exact existing profile and
+original roots, compares a short-lived whole-database review digest, installs a
+compatible optional recovery ledger/guards and records the original ATTENTION
+row plus terminal claim evidence with a real maintenance actor. Only that exact
+ledger-bound ATTENTION-to-IDLE transition is allowed, retaining its epoch; the
+next claim increments it. The receipt and original results are immutable, no
+job is retried/relabelled, and desired policy/protection are unchanged. Discovery
+and pre-send eligibility require evidence strictly newer than the recovery.
+Startup/GET never initialize this ledger or perform recovery. Old code refuses
+the new exact profile; do not bypass schema validation to roll it back.
+
+This exception supersedes the earlier absolute prohibition on releasing *any*
+old ATTENTION only for fully evidenced offline cases. Automatic/unknown-operation
+recovery remains separate. The current desk-lab permission covers validated use
+for the retained epoch 942 after real service drain/agent exit, preserving the
+32,425-pair original import rather than reimporting it as new authority.
+
+### Late local claim expiry — 2026-11-02
+
+A complete claim transaction can cross the fresh-evidence/delegation deadline
+while validating a large original import. If the claim has not returned to the
+executor, roll back its RUNNING transition, attempt and audit together and report
+a typed local `ClaimNotSubmitted`. Stop selecting mutations in that session and
+obtain its actual END/final read and strict settlement before normal live-epoch
+release. Earlier verified operations remain verified; rejected work is not sent,
+retried or relabelled successful. Later discovery needs fresh evidence and all
+current policy/protection/backoff checks before admitting a distinct attempt.
+
+This classification is local, not a wire response or generic exception recovery.
+It does not cover expired executor ownership, arbitrary SQL/processing errors,
+an attempted/unknown RPC, unsuccessful END or old ATTENTION. Existing holds stay
+intact. Keep the 120-second evidence limit, full root verification, cutoff and
+session/command bounds; expiry must not be hidden by extending authority.
+
+The operator reaffirmed permission on 2026-11-02 for controlled shun and dataset
+experiments on the same desk FPR1010. Announce scope, preserve useful failure
+evidence and use fresh labelled requests with verified cleanup, without asking
+again for every fixture. Core security, truthful outcomes and explicit scope for
+destructive replacement still apply; no production authority is implied.
+
+### Import execution usability and bounded local work — 2026-11-02
+
+An import is the user-visible task; its rolling one-address internal delegations
+are not separate user tasks. Queue displays whole-root initial-application
+progress with separate verified/no-op/adopted/unchanged/stopped/attention outcomes,
+including targets not materialized into the bounded queue. Current presence is
+not proof of service creation. Keep captured uncertain/retired/superseded evidence
+distinct; a finished initial import is not permanent proof of current presence.
+Provide owner/Administrator access from its progress card to the existing
+whole-import cancellation review. No automatic cancellation, bypass of confirmation
+or removal of already-applied/adopted blocks is implied.
+
+Move blocking local SQLite reconciliation/discovery/claim/settlement outside the
+API event loop, awaiting each operation before the next and draining dispatched
+local work before task cancellation releases any lease. Publish detached status
+without waiting on a discovery lock held during database work. One complete
+read-transaction profile validation can serve all queue display rows. Within a
+caller-owned IMMEDIATE admission transaction, factor repeated current-authority
+checks around its validated state and repeat full validation at the transaction
+boundary. Never cache authority across transactions or remove whole-root integrity
+verification at admission/claim. Agent semantics and bounds remain unchanged:
+up to 16 sequential verified mutations in one SSH session, not one SSH login per
+address, with initial/final reads and interactive checkpoints. Throughput is not
+improved by blindly pasting CLI or dropping per-address verification.
+
+The import-input increment accepts up to 100,000 exact IPv4 addresses, 100,000
+parsed rows and 100,000 source lines in at most 16 MiB UTF-8. This supersedes the
+older 10,000-address/1 MiB/20,000-line input bounds, not execution capacity: the
+complete selected-device product must still fit 100,000 pairs (95,081 addresses
+therefore fit one device, not two). Overflows reject the complete draft; never
+truncate or silently select the first batch. Legacy 1,000-pair admission remains
+unchanged. Preserve bounded 100-row reports, explicit confirmation, protection,
+ownership, frozen scope, retirement reserve and rolling dispatch.
+
+Recognize a complete Cisco `shun (interface) source destination sport dport proto`
+export row as structured input. Validate both literal IPv4 fields and numeric
+ranges, extract only the source, and explicitly report that original interface,
+destination and traffic qualifiers are not imported. Selected configured devices
+and their semantic ADD profiles remain authoritative. A malformed export row
+must not fall back to extraction of another address. Pasted text is data, never
+CLI, and saving/reviewing a draft never admits device work. Prepared diagnostic
+headers have a separate 32 MiB bound; raw pasted text/comments are not persisted.
+This is input support, not 100,000-address FTD capacity/load acceptance or authority
+to apply the operator's pasted list without confirmation.
+
+Matching large-snapshot API/agent implementations now bound a complete read at
+200,000 entries, 16 MiB typed data (512 chunks) and 32 MiB full CLI output, with
+the existing packet grammar, sequence/digest/completeness checks and deadlines.
+The extra observation headroom accommodates unmanaged entries too. Legacy packet,
+login/target/write output, operation/session time, write count and worker/lease
+bounds are unchanged. Deploy API/agent together; an old decoder must reject an
+oversized snapshot, not truncate it. Large real-device throughput remains unproven.
+
 Current stage (2026-10-30): unreleased, internal, lab-only development on the
 operator's desk FPR1010. The latest
 [development-stage amendment](#pre-release-laboratory-policy--2026-10-30)

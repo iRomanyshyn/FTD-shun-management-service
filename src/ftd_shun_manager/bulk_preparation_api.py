@@ -60,7 +60,7 @@ class PreparationInput(PreparationOwner):
     @classmethod
     def utf8_size(cls, value):
         if len(value.encode('utf-8')) > MAX_TEXT_BYTES:
-            raise ValueError('Paste at most 1 MiB of UTF-8 text.')
+            raise ValueError(f'Paste at most {MAX_TEXT_BYTES // (1024 * 1024)} MiB of UTF-8 text.')
         return value
 
     @field_validator('device_ids')

@@ -353,8 +353,8 @@ def test_parser_deduplicates_and_rejects_oversized_scope_without_truncation():
     text = "\n".join(f"198.18.{i // 256}.{i % 256}" for i in range(501))
     with pytest.raises(ValueError, match="1000"):
         parse_standing_list(text, [1, 2])
-    with pytest.raises(ValueError, match="1 MiB"):
-        parse_standing_list("ї" * 524289, [1])
+    with pytest.raises(ValueError, match="16 MiB"):
+        parse_standing_list("ї" * (16 * 1024 * 1024 // 2 + 1), [1])
 
 
 def test_pure_review_cache_and_receipt_reject_wrong_session_expiry_or_extra_fields(lab):

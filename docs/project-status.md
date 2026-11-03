@@ -15,6 +15,168 @@ priority. See [the planned constraints](working-version-plan.md#deferred-ip-cont
 
 ## Current increment
 
+**Verified held-epoch recovery (2026-11-02).** A new trusted-host offline tool can
+recover only a fully evidenced 1–16-claim VERIFIED/NOOP ATTENTION epoch after
+API/Web/agent stop. It uses a whole-DB five-minute review, checked private backup,
+atomic optional profile/immutable original-fence receipt and a fresh-read barrier.
+No job/authority/protection is changed, no unknown command is retried, and startup
+never creates the ledger or recovers. Old code refuses the new profile.
+See [the recovery procedure](manual/verified-epoch-recovery.md).
+
+Twenty-three disposable tests and 127 focused lease/dispatch/recovery checks pass;
+full suite: **2970 passed in 517.44s**, compileall/Ruff/diff pass. Rehearsal on a
+new private copy and built API composition pass without lifecycle/RPC.
+
+**Original lab recovery completed `2026-11-02T19:36:55.272Z`.** API/Web/agent all
+actually exited 0 before maintenance. Checked private backup:
+`verified-recovery-20261102/before-recovery.db`. Epoch 942 and its three VERIFIED
+claims remain in the immutable receipt; original authority, protection and jobs
+are unchanged. API `553abe73cab2...` is deployed; Web `161fef4f92f0...` and agent
+`6620e6618a0d...` are unchanged images. Both were restarted for the offline window.
+The pre-ledger API is saved as `lab-pre-verified-recovery-20261102`; old code must
+not be started against the upgraded profile.
+
+**Resolved external outage:** the configured FPR previously did not accept TCP/22 from
+either the agent namespace or the Docker host (separate 5-second credential-free
+probes both time out). New epochs release on exact pre-command opening failure,
+with normal capped backoff and no new ATTENTION/unknown results. A bounded
+six-minute read-only observation saw seven settled retry epochs, status responses
+0.530–0.856s and unchanged **80/32,425** processed. No fresh read or device write
+was obtained, so real import throughput/continued ADD is **not** accepted yet.
+Original 86 VERIFIED / 52 CANCELLED jobs, 32,426 enabled targets and three Protected
+IPs were retained; integrity `ok`. Web health 200/anonymous 401 passed.
+
+**Automatic reconnect and continued import confirmed.** The operator confirmed
+the disconnection was caused by their other lab work and restored access. Without
+another restart, recovery decision, refresh hint or import confirmation, the
+running service obtained fresh successful reads and resumed original standing
+work. A bounded read-only active-write sample advanced **127 → 151 / 32,425**:
+24 new VERIFIED results in **260.25s (5.53/minute)**, four settled epochs during
+the sample, no new ATTENTION/unknown jobs, integrity `ok`. Complete epochs
+964–966 each verified seven operations in one SSH session; 963/967 were partial
+sample boundaries. Status took 0.530–2.160s during actual writes; no fetch timeout
+occurred in the sample. Connection retry streak returned to zero.
+
+This validates automatic recovery from a **pre-command connectivity outage**,
+not replay/recovery of an unknown in-flight mutation or completion of the whole
+large import. Existing images/configuration/authority/protection stayed unchanged;
+the original task remains running. **Throughput is still inadequate for a large
+list**: prioritize profiling and reducing per-operation/between-session overhead
+while keeping verification, cancellation and interactive priority. Input capacity
+of 100,000 is not real large-import performance acceptance.
+
+### Previous local-expiry checkpoint
+
+**Local claim expiry and lab authorization (2026-11-02).** The operator reaffirmed
+controlled shun/dataset experiments on the known desk FPR1010 without per-fixture
+approval. Scope announcement, useful failure evidence and verified cleanup remain.
+
+A claim crossing its evidence/delegation deadline now rolls back as the exact
+local `ClaimNotSubmitted`, before any job reaches the agent. The worker stops
+selecting mutations and obtains actual END/final-read settlement for its previous
+verified operations, rather than abandoning that otherwise healthy session.
+No deadline extension, skipped root check, false success or unknown-write retry.
+Expired leases, generic local errors, failed END and existing ATTENTION still hold.
+Focused claim/worker/recovery/drain regressions: **121 passed**. Full Python suite:
+**2947 passed in 521.60s**; compileall/Ruff/diff pass. Built-image configured
+composition validates without starting a lifecycle or RPC. Deployed only API
+`2fb926892ab3...` after exit-0 drain, retaining
+`ftd-shun-api:lab-pre-claim-expiry-20261102`. Web/agent images and start times are
+unchanged. Post-start comparison with the private archive confirms exact unchanged
+fences, protection, targets, manifests/members, attempts and jobs; integrity `ok`.
+Status responds in 0.608s while held; CA-verified edge redirect 302 passes.
+This is prevention validation, not resumed import or measured write throughput.
+
+Retained timing is consistent with crossing the 120-second evidence boundary:
+the last executed group's snapshot began `18:16:26.020Z`, its final VERIFIED job
+completed `18:18:24.304Z`, and the prior runtime reported late claim expiry.
+That historical message combines several guards, so it alone does not prove which
+guard fired. The regression reproduces evidence expiry specifically. The original
+32,425-pair import remains held at epoch 942; a new private, non-overwriting
+SQLite backup `managed-v2.pre-claim-expiry-20261102.db` retains integrity `ok`,
+86 VERIFIED / 52 CANCELLED jobs and that exact ATTENTION fence. No user task,
+authority, protected setting or device entry has been deleted or replayed.
+
+### Previous import-usability checkpoint
+
+**Whole-import execution usability (2026-11-02).** Queue now projects complete
+original import tasks, including unmaterialized members, instead of presenting
+every internal one-address bulk delegation as a request progress bar. Outcomes
+remain separate from processed counts; observations are explicitly not creation
+proof. Recent finished tasks collapse. The task card provides owner/Admin access
+to the existing CSRF-bound whole-import cancellation review, never automatic
+cancellation/removal. Pending task work remains visible when its rolling queue is
+temporarily empty.
+
+Blocking local per-device SQL reconciliation/discovery/claim/settlement now runs
+outside the API loop with sequential await/drain. Discovery publishes detached
+status without waiting on its admission lock. Queue status does one complete
+bulk-profile validation per read snapshot instead of one per displayed job.
+Same-transaction eligibility checks factor redundant full scans while repeating
+validation before commit; no cross-transaction authority cache or removed root/
+claim/settlement guard. Agent is unchanged: up to 16 verified operations per SSH
+session, not one login per IP. A transport hiccup gets a readable retry notice,
+not raw browser NetworkError text.
+
+Initial read-only lab diagnosis saw an operator-confirmed 32,425-pair task,
+2.759s status and 0.804s complete root verification; the latter still applies
+at admission/claim. No live task was cancelled/replaced by this work. Nine new
+focused checks, 301 existing dispatch/recovery checks and 112 queue/cancellation/
+attempt checks pass. Full Python suite: **2943 passed in 522.21s**; final combined
+browser/Node run: **73 passed**. A query-only new-image check on the actual
+32,425-pair task produced its complete card in **0.221s** with zero one-address
+request bars; this is queue projection timing, not device write throughput.
+
+**Live limitation found while the old runtime continued importing:** device 1
+entered retained ATTENTION at epoch 942 after
+`Restoration lease or delegation expired during claim.` Its last complete read
+was `2026-11-02T18:17:56Z`; retained jobs have 86 VERIFIED / 52 CANCELLED and no
+RUNNING/UNVERIFIED at the diagnostic snapshot. Preserve this fence, authority and
+receipts. The usability update does not clear old holds or recover uncertainty;
+API/Web restart must not be presented as resuming that import. Agent is unchanged.
+
+Deployed API `fe364708324f...` / Web `161fef4f92f0...` after API exit 0, retaining
+`ftd-shun-{api,web}:lab-pre-import-tasks-20261102`. Agent `6620e6618a0d...` keeps
+its original start time. Post-rollout status took **0.549s** while held and reports
+80/32,425 processed, 32,345 outstanding, zero internal-request bars and explicit
+device error. This is not active-write throughput acceptance. Exact held-fence
+and Protected-IP fingerprints, 86 VERIFIED / 52 CANCELLED jobs and 32,428 retained
+targets / 32,426 enabled targets are unchanged; integrity `ok`. Web health 200,
+anonymous 401, new asset, private networking and trusted-TLS auth redirect 302 pass.
+No live cancellation/reimport/device command/hold release was performed.
+
+### Previous large-input checkpoint
+
+**Large Cisco export import (2026-11-02).** Operator raised input capacity to
+100,000 IPv4 addresses. Paste limits are 16 MiB UTF-8 / 100,000 lines/parsed rows;
+the complete selected-device product remains capped at 100,000 pairs. Structured
+`show shun` rows validate their full layout but extract only the source IP, never
+the destination `0.0.0.0` or original interface/traffic qualifiers. Malformed rows
+do not fall back to token guessing. The main form has the actual byte counter,
+input remains editable without truncation, and size/line/pair errors are specific.
+Prepared diagnostics retain a separate 32 MiB header bound and 100-row pagination.
+
+Matching typed large-snapshot API/agent limits are 200,000 entries / 16 MiB data /
+32 MiB full CLI output. Framing, digest/completeness checks, fixed commands,
+write count, target-output and time budgets are unchanged. No DDL, new authority,
+queue expansion, authentication, secret or network changes. API/agent must be
+deployed together. Synthetic 95,081-line BFF/API preparation, explicit confirmed
+storage with protected exclusion, restart/pruning and no device work pass;
+full suite passes **2934 Python tests (521.52s)**, followed by **142 focused tests**
+on the final parser/transport changes. **82 Rust tests**, locked release/fmt/strict
+all-target Clippy, **67 browser/Node checks**, compileall/Ruff/diff and all
+35 packaged templates pass. Built-image parsing and agent configuration-only
+preflight pass. Deployed API `94cc9f70d6e5...`, Web `c52b571aa546...` and agent
+`6620e6618a0d...`, preserving `ftd-shun-{api,web,agent}:lab-pre-large-import-20261102`.
+API-first drain and old agent exit 0 preceded replacement; a complete lab read
+finished `2026-11-02T17:48:16Z` with ready/no error/IDLE, six VERIFIED jobs, one
+enabled operator rule, unchanged three protected settings and integrity `ok`.
+Health 200/anonymous 401, new asset and verified-TLS Authelia redirect 302 pass.
+No real blocklist has been submitted or real large-table throughput accepted. See [Imports](manual/imports.md)
+and [Large snapshots](manual/large-snapshots.md).
+
+### Previous refresh/status checkpoint
+
 **Requested-refresh/status usability (2026-11-02).** Pending refresh now shows its
 own eligibility/wait/read state instead of the unrelated periodic remainder;
 header and device-row timing agree. Idle timing returns to the recalculated

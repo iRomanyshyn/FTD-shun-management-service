@@ -35,9 +35,74 @@ Older manuals still describe their implemented gates and historical experiments;
 their per-step approval language does not override this policy or the latest
 [architecture amendment](../architecture-and-security-design.md#pre-release-laboratory-policy--2026-10-30).
 
+On 2026-11-02 the operator reaffirmed permission to experiment with shuns and
+the product dataset on that same desk lab. Do not repeat fixture approval solely
+because old experimental runbooks requested it. Announce scope, preserve useful
+failure evidence and verify actual results/cleanup. This does not authorize
+unknown/production targets, fake verification or silent destructive replacement.
+
+Late local claim expiry regressions run with:
+
+```bash
+python3 -m pytest -q tests/test_claim_expiry_settlement.py tests/test_bulk_dispatch.py tests/test_parallel_synchronizer.py tests/test_unsubmitted_recovery.py tests/test_local_work_responsiveness.py
+```
+
+These checks reproduce a claim crossing its evidence deadline after an earlier
+verified operation, prove no rejected-job RPC or committed RUNNING audit, require
+actual session settlement and fresh later admission, and retain lost-lease/generic
+failure holds. They are not authorization to clear historical ATTENTION.
+
 For documentation-only changes, validate links and `git diff --check`; do not run
 unrelated full code/browser/agent suites. Code, protocol and deployment changes
 still get the applicable regression checks below and in `AGENTS.md`.
+
+## Import execution responsiveness and whole-task progress
+
+For the narrow optional held-epoch recovery profile:
+
+```bash
+python3 -m pytest -q tests/test_device_recovery.py tests/test_device_leases.py tests/test_bulk_dispatch.py tests/test_claim_expiry_settlement.py
+```
+
+Disposable evidence checks cover realistic audit timestamp ordering, read-only
+inspection, full state-bound review, checked backup, atomic optional schema/audit
+rollback, preserved original jobs/policy, exact epoch/receipt guards, stale-key
+replay without new release, fresh-read barriers, and refusal of failed/unknown/
+missing/inconsistent evidence or another owner. Follow the separate
+[offline procedure](verified-epoch-recovery.md); never reset a fence directly.
+
+```bash
+python3 -m pytest -q tests/test_import_progress.py tests/test_local_work_responsiveness.py tests/test_bulk_discovery.py tests/test_bulk_dispatch.py tests/test_parallel_synchronizer.py tests/test_continuous_dispatch.py tests/test_continuous_api.py tests/test_bulk_cancellation_surface.py
+node --test tests/browser/status-presentation.cjs tests/browser/freshness.cjs
+```
+
+Synthetic checks cover unmaterialized members, retained verified/no-op outcomes
+after queue pruning, uncertainty, whole-task cancellation leaving applied blocks,
+one validation per queue read snapshot, responsive status during blocked local
+work, detached lock-free discovery reporting and repeated-cancellation drain.
+A traced semantic agent demonstrates sixteen verified operations per shared
+session instead of a login per IP. Chromium covers task-level totals, escaping,
+review-only cancellation forms/CSRF/owner gating, focus retention and compact
+completed cards across mobile/desktop layouts. These tests do not cancel an
+operator's live import or establish FTD throughput.
+
+## Large Cisco export import checks
+
+```bash
+python3 -m pytest -q tests/test_large_cisco_imports.py tests/test_import_preview.py tests/test_bulk_intent.py tests/test_bulk_preparation_web.py tests/test_bulk_preparation_api.py tests/test_large_snapshots.py
+cargo test --locked --manifest-path agent/Cargo.toml
+node --test tests/browser/status-presentation.cjs tests/browser/freshness.cjs
+```
+
+Disposable BFF/API/SQLite checks cover the reported 95,081-line Cisco export,
+source-only extraction (never the destination 0.0.0.0), malformed qualifier
+refusal, exact protected exclusions and confirmation count, retained policy and
+restart/pruning without device work. Expanded observation tests cover 200,000
+entries/long interfaces, digest/framing bounds and 95,081-entry real local UDS
+transfer. Overflow refuses the entire selected-device product; legacy admission
+limits and deadlines remain unchanged. Browser checks use the actual size-counter
+asset on the main Imports form, with large source retention and no auto-submit.
+No real blocklist, lab authority or FTD load test accompanies these checks.
 
 ## Refresh/status frontend checks
 

@@ -6,10 +6,10 @@ from ipaddress import IPv4Address, IPv6Address
 
 from .store import Store
 
-MAX_TEXT_BYTES = 1024 * 1024
+MAX_TEXT_BYTES = 16 * 1024 * 1024
 MAX_FORM_BYTES = 3 * MAX_TEXT_BYTES + 16 * 1024
-MAX_LINES = 20000
-MAX_ROWS = 10000
+MAX_LINES = 100000
+MAX_ROWS = 100000
 MAX_DEVICES = 64
 MAX_PAIRS = 100000
 PAGE_SIZE = 100
@@ -18,6 +18,30 @@ _DOTTED = re.compile(r"[0-9]\.[0-9]")
 _LABEL = re.compile(r"[A-Za-z_][A-Za-z0-9_-]*=(.+)")
 _WRAPPERS = {"(": ")", "[": "]", "{": "}", '"': '"', "'": "'"}
 _TIME = re.compile(r"(?:\d{4}-\d{2}-\d{2}[Tt])?\d{1,2}:\d{2}:\d{2}(?:\.\d+)?(?:[Zz]|[+-]\d{2}:?\d{2})?")
+_CISCO_START = re.compile(r"shun\s+\(")
+_CISCO_ROW = re.compile(
+    r"shun\s+\([A-Za-z0-9_.:/-]{1,128}\)\s+(\S+)\s+(\S+)\s+"
+    r"([0-9]{1,5})\s+([0-9]{1,5})\s+([0-9]{1,3})"
+)
+
+
+def _cisco_row(content: str) -> list[dict] | None:
+    """Recognize export data, not CLI; malformed rows never fall back to tokens."""
+    if not _CISCO_START.match(content):
+        return None
+    match = _CISCO_ROW.fullmatch(content)
+    if match:
+        try:
+            source, destination = IPv4Address(match[1]), IPv4Address(match[2])
+            valid = (str(source) == match[1] and str(destination) == match[2]
+                     and int(match[3]) <= 65535 and int(match[4]) <= 65535 and int(match[5]) <= 255)
+        except ValueError:
+            valid = False
+        if valid:
+            return [{"ip": str(source), "status": "Ready", "reason":
+                "Cisco shun export: source IPv4 only; original interface, destination, ports and protocol are not imported."}]
+    return [{"ip": None, "status": "Invalid", "reason":
+        "Malformed Cisco shun export row; no address was extracted. Expected shun (interface) source destination source-port destination-port protocol."}]
 
 
 def _token(value: str) -> dict | None:
@@ -60,9 +84,26 @@ def _token(value: str) -> dict | None:
             "reason": reason or "Not an exact IPv4 token; no substring was extracted", "decorated": decorated}
 
 
+def _line_entries(content: str) -> list[dict]:
+    cisco = _cisco_row(content)
+    if cisco is not None:
+        return cisco
+    tokens = re.split(r"[\s,;]+", content)
+    parsed = [_token(token) for token in tokens if token]
+    candidates = [token for token in parsed if token is not None]
+    address_only = len(candidates) == len(parsed) and not any(token["decorated"] for token in candidates)
+    if re.search(r"(?:[0-9]{1,3}\.){3}[0-9]{1,3}\s*[-–/:]\s*[0-9]", content):
+        return [{"ip": None, "status": "Unsupported", "reason": "Range, CIDR or address-with-port syntax is unsupported; no substring was extracted."}]
+    if len(candidates) > 1 and not address_only:
+        return [{"ip": None, "status": "Ambiguous", "reason": "Multiple address-like tokens in free text; split into explicit address-only lines."}]
+    if not candidates:
+        return [{"ip": None, "status": "Invalid", "reason": "No exact IPv4 address found."}]
+    return candidates
+
+
 def parse_blocklist(text: str) -> dict:
     if len(text.encode("utf-8")) > MAX_TEXT_BYTES:
-        raise ValueError("Paste at most 1 MiB of UTF-8 text. Nothing was parsed; shorten the input and try again.")
+        raise ValueError(f"Paste at most {MAX_TEXT_BYTES // (1024 * 1024)} MiB of UTF-8 text. Nothing was parsed; shorten the input and try again.")
     lines = text.splitlines()
     if len(lines) > MAX_LINES:
         raise ValueError(f"Paste at most {MAX_LINES:,} lines.")
@@ -75,20 +116,9 @@ def parse_blocklist(text: str) -> dict:
             ignored += 1
             continue
         content, _, comment = stripped.partition("#")
-        tokens = re.split(r"[\s,;]+", content.strip())
-        parsed = [_token(token) for token in tokens if token]
-        candidates = [token for token in parsed if token is not None]
-        address_only = len(candidates) == len(parsed) and not any(token["decorated"] for token in candidates)
+        content = content.strip()
         base = {"line": number, "source_lines": [number], "excerpt": original[:200], "comment": comment.strip()[:200]}
-        if re.search(r"(?:[0-9]{1,3}\.){3}[0-9]{1,3}\s*[-–/:]\s*[0-9]", content):
-            entries = [{"ip": None, "status": "Unsupported", "reason": "Range, CIDR or address-with-port syntax is unsupported; no substring was extracted."}]
-        elif len(candidates) > 1 and not address_only:
-            entries = [{"ip": None, "status": "Ambiguous", "reason": "Multiple address-like tokens in free text; split into explicit address-only lines."}]
-        elif not candidates:
-            entries = [{"ip": None, "status": "Invalid", "reason": "No exact IPv4 address found."}]
-        else:
-            entries = candidates
-        for entry in entries:
+        for entry in _line_entries(content):
             if len(rows) >= MAX_ROWS:
                 raise ValueError(f"Preview is limited to {MAX_ROWS:,} rows; split the input into smaller batches.")
             row = {**base, "source_lines": [number], **{key: entry[key] for key in ("ip", "status", "reason")}}

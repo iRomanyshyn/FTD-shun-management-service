@@ -106,11 +106,11 @@ def test_missing_duplicate_or_non_numerically_sorted_cells_never_become_a_prefix
 
 def test_limits_stop_before_an_unbounded_or_oversized_stream_is_materialized():
     def excessive_addresses():
-        for number in range(10001):
+        for number in range(100001):
             yield 1, IPv4Address(0xC6120000 + number), "PROPOSE_ADD"
         raise AssertionError("The reader should have refused the extra address")
 
-    with pytest.raises(ValueError, match="10000"):
+    with pytest.raises(ValueError, match="100000"):
         build(excessive_addresses(), (1,))
     with pytest.raises(ValueError, match="100000"):
         build(chain(maximum_rows(), [ROWS[0]]), tuple(range(1, 11)))

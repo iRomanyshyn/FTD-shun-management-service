@@ -7979,6 +7979,304 @@ writes are used for this UI validation. Rollback is Web-image-only; API/agent
 do not need restart. Web restart clears ephemeral confirmation forms, not saved
 rules, drafts, receipts or queue work.
 
+## 2026-11-02 — Large pasted Cisco exports and 100,000-address imports
+
+Operator reported refusal of a 95,081-line list in Cisco `show shun` format and
+explicitly selected raising import capacity to 100,000 IPs. Two independent bugs/
+limits were involved: generic free text classified source plus destination as
+ambiguous, and the old 1 MiB/20,000-line/10,000-row bounds rejected the source
+before parsing. Added an exact structured export path with full literal-address/
+port/protocol validation, source-only extraction and explicit non-cloning of
+original interface/destination/traffic qualifiers. Malformed rows never fall back
+to a different address or raw CLI. Existing plain lists/comments remain supported.
+
+Coordinated parser, strict input models, source diagnostics/line references, bulk
+manifest and BFF/report limits at 16 MiB UTF-8 / 100,000 lines/rows/unique addresses.
+Retained the 100,000-pair complete-product bound, existing 200,000 retained target
+capacity/retirement reserve and bounded rolling dispatch; 95,081 IPs fit one
+device, not two. Reports stay 100 rows/page with a separately bounded 32 MiB
+diagnostic header. Main Imports now uses the production byte counter with native
+CRLF accounting. Specific validation errors preserve the editable input instead
+of replacing all problems with one generic message. Large parsing runs outside
+the BFF event loop. Raw paste/comments are still not persisted.
+
+Found the older 20,000-entry observation cap would prevent reading an applied
+large list. Matching API/agent now cap complete snapshots at 200,000 entries,
+16 MiB typed data / 512 chunks and 32 MiB full CLI output. Fixed binary framing,
+complete digest/strict decoding, target/login/write output caps, absolute stream/
+operation/session deadlines and command/write budgets remain unchanged. No DDL,
+credential, authentication, trust, network or new execution authority is involved.
+
+Synthetic checks include the exact reported 95,081-line shape through real BFF/
+private API/SQLite draft, first/last report, explicit count/recurring confirmation,
+protected exclusion, retained policy and restart/pruning. No shared jobs/FTD work
+are admitted by that suspended storage fixture. A two-device oversized product
+is refused before draft POST. Other cases cover malformed Cisco fields, no zero-
+destination target, 100,000 duplicate line references, overflow and extended
+Python/Rust snapshot populations. Final full Python run: **2934 passed in 521.52s**;
+after the small parser extraction/error-response robustness follow-up, **142
+focused tests pass in 72.61s**. **82 Rust tests** (including a 95,081-entry real
+local SeqPacket transfer), locked release/fmt and strict all-target Clippy pass.
+**67 browser/Node checks pass**, including 95,081 rows retained in the actual
+main workspace, live byte counter, no auto-submit and mobile layout. An initial
+browser run exposed an obsolete aria-describedby assertion and Chromium's costly
+layout of a single eight-million-character Unicode line; the assertion now
+includes the new counter, and only that pathological byte-guard fixture hides
+its textarea to avoid unrelated font layout. The real multiline long-list and
+server byte-bound tests remain intact. Compileall/Ruff/diff/JS syntax pass.
+The built networkless Python image parses all 95,081 sources and compiles all
+35 templates without lab mounts; agent `--check-config` passes without SSH.
+
+Preserved old API/Web/agent images under fresh
+`ftd-shun-{api,web,agent}:lab-pre-large-import-20261102` tags. Used all three lab
+Compose files. API drained with exit 0; a read-only storage-only one-off showed
+IDLE, six VERIFIED jobs, no active/unknown work and integrity `ok`. Old agent
+exited 0 promptly. Started new agent before matching API/Web: API
+`94cc9f70d6e5...`, Web `c52b571aa546...`, agent `6620e6618a0d...`.
+Post-start complete small FPR read finished `2026-11-02T17:48:16Z`: ready, no
+error, IDLE, six VERIFIED jobs, the operator's one enabled rule and unchanged
+three protected settings/fingerprint. Private networks remain unchanged; Web
+health 200/anonymous 401, deployed new counter and CA-verified HTTPS Authelia
+redirect 302 pass. No configuration/secrets/schema reset or user list submission.
+API restart resumes ordinary existing maintenance; no development test jobs or
+live ADD/REMOVE/refresh-hint requests were created by this increment.
+
+Code-only rollback needs the saved matching images after API-first drain;
+older code can refuse newly saved large descriptors/reports or large device
+snapshots. Retain evidence/authority; do not restore an old DB or truncate data
+to fit it. Web restart clears ephemeral confirmation forms, not retained drafts,
+receipts or rules. The operator's real list is not imported by development
+checks, and synthetic capacity support does not establish real FPR1010 large-
+table/paging/deadline throughput or production acceptance.
+
+## 2026-11-02 — Whole-import progress and nonblocking local execution
+
+Operator reported transient browser NetworkError/lag, sixteen one-address progress
+cards, slow import execution and no whole-task cancellation from Queue. Read-only
+diagnosis found a 32,425-pair operator-confirmed import with live queued work;
+status took 2.759s and full immutable root verification took 0.804s. The SSH code
+already reused a bounded session for up to sixteen sequential verified mutations;
+it did not open one SSH login per address. Device/state/authority was not altered
+or a live import cancelled to obtain that diagnosis.
+
+Queue status previously repeated the entire retained bulk-profile validation for
+each displayed job. It now validates once inside the same read-only transaction,
+then reads per-job metadata and complete task-level initial application counts.
+The new bounded projection includes unmaterialized addresses and retained attempt
+results, separates verified/no-op/adopted/unchanged/observed/pending/stopped/
+superseded/failed/unverified/missing-evidence states and never grants authority.
+Old completed jobs can be pruned without erasing the original attempt outcome.
+Internal bulk delegations no longer appear as individual user-request bars;
+original evidence/queue detail remains. Finished import cards collapse.
+
+Cards link through a real CSRF POST to the existing owner/Administrator whole-
+import cancellation review. Actual cancellation still needs frozen count/consent,
+keeps applied/adopted blocks, drains running work and retains uncertainty. No
+development check invokes cancellation on the operator's task. Labels are escaped
+and only exact UUIDs form navigation paths; focus/mobile layouts are preserved.
+Pending import work keeps the Queue trigger active even between queue portions.
+
+Per-device local reconciliation/discovery/claim/settlement now uses awaited worker
+threads, with shielded drain before cancellation returns. Scheduling callbacks
+remain on the owning loop. Detached status avoids acquiring a discovery lock
+held across slow SQL. Repeated eligibility tests share already validated state
+only inside their owning transaction, with full revalidation before portion
+commit. No cross-transaction cache, removed root/claim guard, new authority,
+blind CLI batch or skipped per-address verification is introduced. The existing
+16-operation/session and all command/time/lease/protection/cutoff limits remain.
+Private status obtains its heavy queue snapshot outside the loop and then projects
+controller state on-loop. Browser transport failures retain data and use a clear
+retry message instead of raw NetworkError text.
+
+Nine new focused progress/responsiveness/drain/shared-session tests pass, as do
+301 dispatch/recovery checks and 112 queue/attempt/cancellation regressions.
+Full Python suite: **2943 passed in 522.21s**. Query-only execution of the new
+image's queue projection against the live data took **0.221s**, reported the
+32,425-pair task with 80 processed / 32,345 outstanding and no internal request
+bars, and compiled all 35 packaged templates. This is not a matched end-to-end
+API latency comparison or measured write throughput. Final combined browser/Node
+run passes **73 checks** in 156.95s, including held-device attention, readable
+network/body-read errors, task totals, review-only cancellation, focus, escaping
+and compact recent results on desktop/mobile. Compileall/Ruff/diff/JS syntax pass.
+No agent, wire, DDL,
+credential, gate, network or authentication change. Full original manifest checks
+still cost work per admission/claim; real large-list throughput is not established
+by synthetic traces, and no speculative ETA or blind replay is supplied.
+
+While the unchanged old runtime continued the operator's import during testing,
+it hit `Restoration lease or delegation expired during claim.` Device 1 retained
+ATTENTION in epoch 942 (last complete read `2026-11-02T18:17:56Z`); its in-memory
+cycle reported three completed steps before failure. The retained diagnostic
+snapshot had 86 VERIFIED and 52 CANCELLED jobs, no RUNNING/UNVERIFIED. Original
+attempts, authority, jobs and hold are not cleared/relabelled/replayed. Recent
+snapshot admission groups were smaller than sixteen and included cancelled
+delegations, so the synthetic max-sixteen trace is explicitly not a claim that
+every real lab session achieved sixteen. This existing stale-claim/hold recovery
+limitation requires separate verified recovery, not a lease reset during rollout.
+The updated UI flags device errors alongside outstanding task progress. Agent
+remains running unchanged; no direct refresh/SSH or cancellation was requested.
+
+Preserved previous API/Web as `ftd-shun-{api,web}:lab-pre-import-tasks-20261102`.
+Old API stopped with exit 0. Read-only post-drain inspection captured the exact
+ATTENTION fence fingerprint, protected configuration, 86 VERIFIED / 52 CANCELLED
+jobs and 32,428 retained / 32,426 enabled targets. Deployed only API
+`fe364708324f...` and Web `161fef4f92f0...` with all three lab Compose files;
+agent `6620e6618a0d...` and its `2026-11-02T17:47:59Z` start are unchanged.
+The new API status responds in 0.549s, reports the held device honestly and shows
+the complete 32,425-pair task at 80 processed / 32,345 outstanding, with zero
+one-address request bars. The exact original fence and protected fingerprints,
+job/target counts and integrity `ok` remain unchanged. This held/no-write state is
+not evidence of improved real write throughput. Web health 200/anonymous 401,
+new asset, network-none API/Web and CA-verified HTTPS Authelia redirect 302 pass.
+No new import, cancellation, direct device command, schema/credential change or
+hold release. Code-only rollback uses the saved API/Web images after drain,
+never an old DB restore or erased evidence. The still-held operator import needs
+a separately correct recovery path; the update does not claim it resumed.
+
+## 2026-11-02 — Lab permission reaffirmation and late pre-send claim settlement
+
+Operator explicitly reaffirmed permission to experiment with shuns and the product
+dataset on the same desk FPR1010. Recorded it in AGENTS, architecture and the
+development manual: no repeated fixture approval, announce scope, retain useful
+failure evidence, use fresh labelled authority and verify actual cleanup. This
+does not broaden production/secret/trust scope or permit fabricated verification.
+
+Read-only inspection of the original held import retained epoch 942. Its last
+executed group used evidence starting `18:16:26.020Z`; the last VERIFIED job
+finished `18:18:24.304Z`, just before the 120-second boundary. The original combined
+"lease or delegation" exception does not independently identify its exact failed
+guard, but the timeline is consistent with evidence expiry during expensive claim
+validation. Reproduced that boundary in disposable worker/SQLite tests.
+
+Created a new mode-0600 SQLite backup
+`managed-v2.pre-claim-expiry-20261102.db` in the private state volume with exclusive
+creation and SQLite backup, not a WAL-unsafe main-file copy or overwrite.
+Integrity `ok`, 86 VERIFIED / 52 CANCELLED jobs, original ATTENTION epoch 942.
+No test command, task cancellation, root replacement or dataset reset was sent.
+
+The claim boundary now distinguishes exact late eligibility expiry before return
+from lost executor ownership. Its transaction rolls back RUNNING/attempt/audit
+together as local `ClaimNotSubmitted`. The executor stops selecting mutations,
+logs `queue.claim.not_submitted` and still obtains actual END/final snapshot and
+strict settlement for earlier verified work. No rejected job is sent, marked
+successful or retried within that session. Later discovery uses fresh evidence,
+current standing authority and existing backoff/cutoff/protection checks. Generic
+local errors, expired leases, unknown RPCs and failed terminal settlement do not
+gain this classification. No schema, wire, agent, deadline or security gate change.
+
+Focused regression run: **121 passed in 13.41s**, including complete claim rollback,
+one prior VERIFIED result with no rejected-job RPC/audit, real worker END before
+IDLE, later distinct admission and preserved holds for generic errors/lost leases.
+Compileall/Ruff/diff pass. Full Python suite: **2947 passed in 521.60s**. The built
+API image validates configured `continuous-managed` composition (64 routes)
+without starting another lifecycle, RPC or startup migration. No agent/frontend
+implementation changed in this increment, so no unrelated Rust/browser rerun.
+
+Retained old API under `ftd-shun-api:lab-pre-claim-expiry-20261102`. Used all three
+lab Compose files, stopped old API with exit 0 and replaced only API with
+`2fb926892ab3...` (started `2026-11-02T19:04:18Z`). Web `161fef4f92f0...` and agent
+`6620e6618a0d...` keep their previous images/start times and network modes.
+Before and after rollout, read-only whole-table fingerprints match the new private
+archive for device fences, protected settings, managed targets, manifests/members,
+attempts and shared jobs. Retained 86 VERIFIED / 52 CANCELLED, exact ATTENTION
+epoch 942 and integrity `ok`. Post-start private status takes 0.608s while held
+and reports the actual device error; CA-verified HTTPS still redirects to Authelia
+with 302. This fix prevents a new stranded session and does not recover historical
+ATTENTION or establish active-write throughput. No shun ADD/REMOVE, refresh hint,
+policy grant, root cancellation, schema/secret/network change or dataset reset was
+performed. Rollback is API-only after drain with the saved image, not an old DB
+restore or erased evidence. Historical import recovery remains separate work.
+
+## 2026-11-02 — Offline recovery of the fully verified held import epoch
+
+Implemented a narrow exception for the original lab import's held epoch, not
+unknown-operation replay. The trusted-host `ftd-shun-device-recovery` inspector is
+read-only; recovery requires real API/Web/agent stop, a five-minute whole-DB
+review and a checked exclusive private backup. It verifies original roots,
+1–16 exact claim/result/attempt bindings and realistic timestamp ordering, refusing
+missing/failed/unknown/pending work, transitional cleanup and other owned devices.
+One transaction installs the optional exact recovery profile, retains the original
+ATTENTION fence and verified claim digests in an immutable receipt with a real
+maintenance actor, and permits only that same-epoch IDLE transition. Audit failure
+rolls back DDL/receipt/fence together. Jobs, standing policy and protection do not
+change; old keys cannot release later epochs or gain mutation authority. Later
+bulk evidence must be strictly newer than recovery. Startup never initializes or
+recovers. Older images fail exact-profile validation rather than ignoring it.
+
+23 disposable checks pass, including later audit ticks, unknown/failed and
+missing-evidence refusal, stale review, rollback, backup, key/epoch guards and
+freshness. The focused lease/dispatch/local-claim run passes 127 tests. The built
+inspector validates the real epoch 942's three VERIFIED claims. A new private
+rehearsal copy (`verified-recovery-rehearsal-20261102/working.db`, with its own
+checked pre-recovery backup) recovers to IDLE epoch 942 with integrity `ok`.
+Full table fingerprints confirm unchanged original jobs, requests, attempts,
+targets, roots/members and protection; built API composition of the recovered
+copy succeeds without lifecycle/RPC. The active original DB is unchanged at this
+checkpoint; full regression and actual offline lab recovery follow below.
+
+Full suite passed **2970 tests in 517.44s**; compileall/Ruff/diff pass. Preserved
+pre-ledger API as `ftd-shun-api:lab-pre-verified-recovery-20261102`. Automatic
+permission-review service timed out on several checks before execution; successful
+retries/approved Compose diagnostics then confirmed actual API/Web exit 0 and
+agent graceful exit 0. This was not SIGKILL, claimed quiescence from expiry or
+removal of retained evidence.
+
+Applied the rehearsed original-device recovery at `2026-11-02T19:36:55.272Z` with
+fresh key and actor `maintenance:lab-verified-recovery-20261102`. The new private
+checked backup is `verified-recovery-20261102/before-recovery.db`. Receipt retains
+ATTENTION epoch 942 and its three VERIFIED claims. Exact table comparisons prove
+unchanged original jobs, requests, attempts, targets, roots/members and protection;
+integrity `ok`, jobs 86 VERIFIED / 52 CANCELLED, no RUNNING/unknown jobs.
+Started unchanged agent `6620e6618a0d...` before compatible new API
+`553abe73cab2...` and unchanged Web `161fef4f92f0...`, using all three overlays.
+No credential/pin/authentication/network configuration or new standing consent.
+Web health 200/anonymous 401 pass. Older API images cannot read the new optional
+profile; rollback must not drop its ledger/guards or restore stale authority.
+
+Post-start acceptance exposed an external availability blocker, not new verified
+progress: agent opening reports `SSH connection or host-key verification timed
+out`. Separate disposable read-only, capability-free TCP/banner probes, without
+credentials/CLI/listeners/secret mounts or network configuration changes, both
+timed out in 5 seconds from the existing agent namespace and Docker host.
+The bounded six-minute read-only monitor ended without its 24-new-ADD target:
+seven successor epochs released on exact pre-command failure, no new ATTENTION or
+unknown results, status 0.530–0.856s and unchanged 80/32,425 processed. No complete
+fresh read or ADD/REMOVE was obtained; do not call this throughput/write acceptance.
+Final read-only comparison retains authority/protection/jobs exactly and the old
+hold in its receipt, with 32,426 enabled targets, three protected settings and
+integrity `ok`. Requested operator device/VPN/routing check. API/Web/agent remain
+running with normal capped retry backoff, ready to continue original consent after
+reachability returns; no reimport/reset is needed.
+
+## 2026-11-02 — Automatic reconnect and continued original import after lab outage
+
+Operator confirmed the earlier SSH/TCP outage was caused by their unrelated lab
+work and reported restored access. Performed only read-only API/SQLite observation;
+no new import, queue admission, refresh hint, recovery, service restart, image,
+schema, credential or network change. The same running runtime automatically
+returned to fresh complete reads, zero connection retry streak and verified
+execution under the original standing consent. First observation was already
+123/32,425 processed, up from the outage's 80.
+
+Bounded active-write sample: **127 to 151/32,425**, **24 new VERIFIED in 260.25s
+(5.53/minute)** and four completed epochs during observation. Full sampled epochs
+964, 965 and 966 each verified seven operations in the same SSH session; 963 and
+967 contribute partial boundary counts of two and one. No new ATTENTION or
+UNVERIFIED/read-reconciled jobs, no device error and integrity `ok`. Status samples
+were 0.530–2.160s under actual writes without a fetch timeout. Retained job timings
+showed typical operation durations about 5–6s, including transport and local result
+processing; this is not a measured SQL-versus-Cisco time split. One original
+offline-recovery audit remains; no second recovery was needed for connectivity.
+
+This accepts automatic **pre-command** failure/backoff/reconnect with continued
+existing work, not unknown in-flight mutation replay, complete 32,425-address
+execution, multi-device behavior or production capacity. The original task is left
+running. Throughput remains a material large-import limitation; recorded phase
+profiling and measured optimization as the next delivery priority. Updated current
+status/agent context to remove the resolved connectivity blocker. Documentation
+validation uses diff/link checks; no implementation change or unrelated full
+Python/Rust/browser suite rerun in this observation-only increment.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

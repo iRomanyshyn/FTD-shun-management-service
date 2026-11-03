@@ -240,7 +240,7 @@ class ContinuousDispatcher:
         self.request_refresh()
         return self.refresh_status()
 
-    def refresh_status(self):
+    def refresh_status(self, *, queue_status=None):
         """Read-only browser projection, without selecting this runtime in the API.
 
         Deadlines are wall-clock projections of monotonic scheduling, not evidence.
@@ -317,7 +317,7 @@ class ContinuousDispatcher:
             'last_retention_purge': sampled['maintenance']['last_retention_purge'],
             'history_retention_error': sampled['maintenance']['retention_error'],
             'import_execution_enabled': self.runner.configuration['bulk_dispatch_enabled'],
-            'queue': self.runner.queue.status(addition_device_ids=self.runner.configuration['addition_device_ids'],
+            'queue': queue_status if queue_status is not None else self.runner.queue.status(addition_device_ids=self.runner.configuration['addition_device_ids'],
                                             bulk_dispatch_enabled=self.runner.configuration['bulk_dispatch_enabled'])
                      if self.runner.enabled else {'revision': 0, 'counts': {}, 'items': []},
         }

@@ -10,6 +10,13 @@ Prioritize a usable end-to-end product over compatibility tooling for disposable
 development state. This section and the matching architecture amendment supersede
 older per-experiment lab approval and mandatory dev-migration planning below.
 
+Operator reaffirmation, 2026-11-02: this is still the same test FPR1010. Controlled
+experiments with its shuns and this product's lab dataset are authorized without
+another per-fixture approval. Announce the selected scope, retain useful failure
+evidence before changing data, use fresh labelled authority and verify cleanup.
+This is not production authorization or permission to bypass executable guards,
+invent successful results, alter credentials/trust or silently erase the dataset.
+
 - Ordinary in-scope development, validated lab deployments, explicit fresh-profile
   initialization and bounded semantic ADD/REMOVE/restore tests on this known lab
   may proceed without another approval for every fixture or feature switch.
@@ -76,6 +83,25 @@ zero RUNNING/non-IDLE state. That historical shutdown limitation is fixed by the
 2026-11-02 increment below.
 See docs/manual/opening-recovery.md before changing this boundary or rolling back.
 
+Late pre-send claim eligibility expiry now has a separate local rollback-only
+classification. The worker stops selecting mutations and obtains real END/final
+read settlement for its existing session. No rejected job is sent or marked
+successful. Lost/expired leases, generic local errors, unknown RPCs and existing
+ATTENTION still retain their fences. The old lab epoch 942 is not released by
+this prevention fix; its complete dataset has a separate private SQLite backup
+`managed-v2.pre-claim-expiry-20261102.db` with integrity `ok`.
+
+The subsequent narrow offline recovery design supersedes the absolute no-release
+rule only for fully evidenced VERIFIED/NOOP claims after actual API/Web and agent
+stop. Its optional compatible profile retains the exact original ATTENTION row
+and claim evidence in an immutable ledger, checks a short-lived whole-DB review
+and private backup, and permits only its receipt-bound same-epoch IDLE transition.
+No unknown/missing/failed job is replayed or relabelled, old keys cannot release
+later epochs, and later bulk evidence must be newer than recovery. Startup/GET
+never create this ledger or recover. Follow docs/manual/verified-epoch-recovery.md;
+this is the designed recovery path for the original lab import, not permission
+to drop guards or reset its epoch. Old images refuse the new exact profile.
+
 The agent now handles SIGTERM/SIGINT with listener closure and joined worker
 drain, retaining original session bounds/settlement and all uncertainty. The
 180-second Compose agent grace does not replace explicit API-first drain.
@@ -115,6 +141,49 @@ old held epochs/crashes or unknown mutations. Follow
 docs/manual/session-completion-lookup.md.
 
 ## Source of truth
+
+The 2026-11-02 import-capacity update accepts source-only Cisco shun exports and
+100,000 input IPv4s/lines/rows in 16 MiB UTF-8, retaining the 100,000 device/IP
+pair total. Matching API/agent complete snapshots support 200,000 entries /
+16 MiB typed data / 32 MiB full CLI output, without relaxing time/write bounds.
+The lab runs the matched API/Web/agent update; rollback tags are
+`ftd-shun-{api,web,agent}:lab-pre-large-import-20261102`. At that rollout no real
+bulk list had been applied; synthetic 95,081-row storage is not live load acceptance.
+Existing operator authority/jobs/protection remain unchanged. Follow current
+project status and docs/manual/imports.md / docs/manual/large-snapshots.md.
+
+Later on 2026-11-02 the operator confirmed a 32,425-pair lab import. The old
+runtime hit `Restoration lease or delegation expired during claim.` At that
+checkpoint device 1 was held in ATTENTION epoch 942; do not reset/reimport to bypass
+the original evidence or the explicit compatible recovery procedure.
+The new API/Web task-progress/nonblocking-local-work update preserves its exact
+fence, authority, 86 VERIFIED / 52 CANCELLED jobs and protected policy. It displays
+80/32,425 processed with 32,345 outstanding; the import has NOT resumed. Rollback
+API/Web tags are `ftd-shun-{api,web}:lab-pre-import-tasks-20261102`; agent unchanged.
+No live cancellation or new authority was submitted by development checks.
+See current project status/development log for validation and the retained limit.
+
+That original epoch was explicitly recovered at `2026-11-02T19:36:55.272Z` after
+verified API/Web/agent exit 0, using the tested backup/review-bound offline tool.
+The optional `managed_bulk_device_recovery` profile is now installed. Its immutable
+receipt retains the exact original ATTENTION row and three VERIFIED claims; no
+job, root authority or protection was changed/replayed. New API image is
+`553abe73cab2...`; Web/agent images are unchanged. The private checked backup is
+`verified-recovery-20261102/before-recovery.db`; rehearsal files are separate.
+Old pre-ledger API images refuse this schema, so do not force a source downgrade.
+At first, FPR TCP/22 timed out from both agent and Docker-host namespaces. Those
+pre-command failures released safely with normal backoff and no new unknown jobs.
+The operator then confirmed this was their other lab work and restored access.
+The same running services automatically obtained fresh reads and continued the
+original import without restart/recovery/hint/new consent. An active-write sample
+advanced 127 to 151/32,425: 24 new VERIFIED in 260.25s, four settled epochs,
+no new ATTENTION/unknown jobs, integrity `ok`. Complete sampled epochs verified
+seven operations per shared SSH session; status latency was 0.530–2.160s.
+This is pre-command outage/reconnect acceptance, not unknown-write recovery or
+whole-list/load acceptance. Original task remains running on the same images and
+profile. Next priority is measured large-import throughput (currently 5.53/minute),
+not another hold reset or reimport. Keep all three lab overlays and original
+authority/protection/verification/cancellation/priority behavior.
 
 Read these documents before making a material change:
 

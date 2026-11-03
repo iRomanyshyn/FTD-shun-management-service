@@ -32,7 +32,8 @@ still does not confirm standing authority or execute device work.
 ## Frozen scope and reporting
 
 Preparation accepts the existing bounded parser's exact IPv4/free-text/comment
-formats: at most 1 MiB UTF-8, 20,000 lines and 10,000 parsed rows. Select explicitly
+formats and source-only structured Cisco exports: at most 16 MiB UTF-8, 100,000
+lines and 100,000 parsed rows (2026-11-02). Select explicitly
 1–10 distinct enabled device IDs; at most 100,000 unique device/IP rows are stored.
 Duplicates are counted once in that product. Invalid/unsupported/ambiguous input
 is retained as line-number/status/generated-reason diagnostics, never guessed or
@@ -60,7 +61,7 @@ mandatory admission work; a proposed ADD is not a ready executable command.
 
 Original pasted source, comments, excerpts and arbitrary text surrounding addresses
 are not stored. Plain-text label/reason are retained intentionally (100/500
-characters; never put secrets there). Header storage is capped at 2 MiB. Future
+characters; never put secrets there). Header storage is capped at 32 MiB. Future
 HTML must escape these fields. No credential, connection route or host-key material
 is stored in the preparation. Captured roles are history, never current authority.
 

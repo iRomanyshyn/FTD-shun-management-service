@@ -42,8 +42,10 @@ trusted-header and secure HttpOnly CSRF boundaries remain.
 
 Paste exact IPv4 tokens with supported surrounding text/comments, select one to
 ten enabled devices and optionally supply 100/500-character label/reason. Metadata
-is retained intentionally; never put secrets there. Bounds are 1 MiB UTF-8,
-20000 lines and 10000 parsed rows, at most 100000 device/IP pairs. Invalid,
+is retained intentionally; never put secrets there. Bounds are 16 MiB UTF-8,
+100000 lines and 100000 parsed rows, at most 100000 device/IP pairs. Cisco
+`shun (interface) source destination sport dport proto` rows extract only the
+validated source IP; other fields are not applied. Invalid,
 duplicate, unsupported, ambiguous and protected inputs remain visibly reported.
 Raw source/comments are not stored in the journal.
 

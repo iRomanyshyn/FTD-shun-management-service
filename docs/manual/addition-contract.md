@@ -151,7 +151,8 @@ for the current operation/verification and uses the same session and reserve.
 
 The cycle tracks entry count from each complete full read and its own verified
 changes. After an absent preflight, ADD fails before writing when that count
-already reaches 20,000; an existing target can still return no-op. This cannot
+already reaches 200,000 (matching expanded snapshot bounds); an existing target
+can still return no-op. This cannot
 exclude external administrators racing new entries. An oversized/failed final
 snapshot still fails closed without replaying/undoing an earlier verified add.
 At most one ADD command is issued for a step. Any step failure aborts the session;

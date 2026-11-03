@@ -23,7 +23,7 @@ MAX_DEVICES = 10
 MAX_PAIRS = 100000
 MAX_PLANS = 16
 MAX_OWNER_PLANS = 4
-MAX_HEADER_BYTES = 2 * 1024 * 1024
+MAX_HEADER_BYTES = 32 * 1024 * 1024
 LIFETIME = timedelta(minutes=10)
 _CLASSES = ("PROPOSE_ADD", "PROPOSE_ADOPT", "ALREADY_MANAGED", "EXCLUDED_PROTECTED")
 
@@ -233,7 +233,7 @@ class ImportPreparations:
                 "line_report": [{key: row[key] for key in ("line", "ip", "status", "source_lines", "reason")} for row in parsed["rows"]]}
             header_json = _json(header)
             if len(header_json.encode("utf-8")) > MAX_HEADER_BYTES:
-                raise PreparationCapacity("Prepared report exceeds its 2 MiB storage bound.")
+                raise PreparationCapacity("Prepared report exceeds its 32 MiB storage bound.")
             digest = hashlib.sha256()
             _feed(digest, header)
             for member in members:

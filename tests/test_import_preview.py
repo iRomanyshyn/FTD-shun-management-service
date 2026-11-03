@@ -70,6 +70,59 @@ def test_free_text_with_multiple_candidates_is_ambiguous(source):
     assert "203.0.113.20" not in parsed["ips"]
 
 
+@pytest.mark.parametrize("source", [
+    "shun (outside_907) 71.56.122.92 0.0.0.0 0 0 0",
+    "  shun\t(management) 71.56.122.92 203.0.113.1 65535 443 255 # comment 192.0.2.9",
+])
+def test_cisco_export_extracts_only_source_not_destination_or_interface(source):
+    parsed = parse_blocklist(source)
+    assert parsed['ips'] == ['71.56.122.92']
+    assert parsed['rows'][0]['status'] == 'Ready'
+    assert 'not imported' in parsed['rows'][0]['reason']
+
+
+@pytest.mark.parametrize("source", [
+    "shun (outside_907) 555.555.555.555 0.0.0.0 0 0 0",
+    "shun (outside_907) 71.056.122.92 0.0.0.0 0 0 0",
+    "shun (outside_907) 71.56.122.92 555.555.555.555 0 0 0",
+    "shun (outside_907) 71.56.122.92 0.0.0.0 65536 0 0",
+    "shun (outside_907) 71.56.122.92 0.0.0.0 0 65536 0",
+    "shun (outside_907) 71.56.122.92 0.0.0.0 0 0 256",
+    "shun (outside_907) 71.56.122.92 0.0.0.0 -1 0 0",
+    "shun (outside_907) 71.56.122.92 0.0.0.0 0 0",
+    "shun (outside_907) 71.56.122.92 0.0.0.0 0 0 0 192.0.2.1",
+    "shun (outside_907) 71.56.122.92 0.0.0.0 0 0 0; no shun 192.0.2.1",
+    "shun (outside_907) 71.56.122.92/24 0.0.0.0 0 0 0",
+    "shun (outside_907) ::ffff:71.56.122.92 0.0.0.0 0 0 0",
+    "shun (outside_907 71.56.122.92 0.0.0.0 0 0 0",
+])
+def test_malformed_cisco_exports_never_fall_back_to_another_address(source):
+    parsed = parse_blocklist(source)
+    assert parsed['ips'] == []
+    assert parsed['rows'][0]['status'] == 'Invalid'
+    assert 'no address was extracted' in parsed['rows'][0]['reason']
+
+
+def test_cisco_export_95081_rows_no_truncation_or_zero_destination():
+    count = 95081
+    source = '\r\n'.join(f'shun (outside_907) {IPv4Address(0xC6120000 + i)} 0.0.0.0 0 0 0' for i in range(count))
+    assert len(source.encode()) > 1024 * 1024
+    parsed = parse_blocklist(source)
+    assert len(parsed['ips']) == len(parsed['rows']) == count
+    assert parsed['ips'][-1] == str(IPv4Address(0xC6120000 + count - 1))
+    assert parsed['rows'][-1]['line'] == count
+    assert '0.0.0.0' not in parsed['ips']
+
+
+def test_large_duplicate_exports_keep_every_original_line_reference():
+    source = 'shun (outside_907) 198.51.100.1 0.0.0.0 0 0 0\n' * MAX_LINES
+    parsed = parse_blocklist(source)
+    assert parsed['ips'] == ['198.51.100.1']
+    assert len(parsed['rows']) == MAX_LINES
+    assert parsed['rows'][0]['source_lines'] == list(range(1, MAX_LINES + 1))
+    assert parsed['rows'][-1]['status'] == 'Duplicate'
+
+
 def test_parser_limits_and_bounded_excerpt_comments():
     for text in ["x" * (MAX_TEXT_BYTES + 1), "ї" * (MAX_TEXT_BYTES // 2 + 1),
                  "\n" * (MAX_LINES + 1), "198.51.100.10 " * (MAX_ROWS + 1)]:
@@ -127,7 +180,7 @@ def test_preview_validation_limits_and_no_stale_policy_cache(fixture):
     many = [IPv4Address(0xC0000200 + index) for index in range(MAX_ROWS)]
     with pytest.raises(ValueError, match="100,000"):
         classify_targets(store, many, list(range(1, 12)))
-    with pytest.raises(ValueError, match="10,000"):
+    with pytest.raises(ValueError, match="100,000"):
         classify_targets(store, [*many, IPv4Address("198.51.100.99")], [1])
     policy.change("edit", ip, policy.revision(), "fixture", "Fixture", (), enabled=False)
     assert classify_targets(store, [ip], [1])["addresses"][0]["protected"] is False
@@ -205,9 +258,9 @@ def test_bff_preview_auth_csrf_escaping_raw_text_is_not_forwarded(fixture, monke
                 captured.clear()
                 rejected = await client.post("/imports", data={**data, "text": oversized})
                 assert rejected.status_code == 413 and "text/html" in rejected.headers["content-type"]
-                assert "Paste at most 1 MiB" in rejected.text and oversized in rejected.text
+                assert "Paste at most 16 MiB" in rejected.text and oversized in rejected.text
                 assert not any(r.method == "POST" for r in captured), "Oversize text must not be classified or queued"
-            for invalid_page in ["0", "101", "9999", "invalid", "１"]:
+            for invalid_page in ["0", "1001", "9999", "invalid", "１"]:
                 rejected = await client.post("/imports", data={**data, "page": invalid_page})
                 assert rejected.status_code == 422 and "Select a preview page" in rejected.text
             long_source = "\r\n".join(f"shun {IPv4Address(0xC6120000 + index)}" for index in range(7307))
@@ -247,13 +300,13 @@ def test_maximum_batch_is_classified_whole_and_paginated_without_loss(fixture):
     source = "\n".join(f"shun {IPv4Address(0xC6120000 + index)}" for index in range(MAX_ROWS))
     before = store.list_events()
     parsed = parse_blocklist(source)
-    classified = classify_targets(store, [IPv4Address(ip) for ip in parsed["ips"]], [1, 2])
+    classified = classify_targets(store, [IPv4Address(ip) for ip in parsed["ips"]], [1])
     result = summarize_preview(parsed, classified)
-    assert result["candidate_pairs"] == 2 * MAX_ROWS and result["counts"] == {"Ready": MAX_ROWS}
-    pages = [paginate_preview(result, index) for index in range(1, 101)]
+    assert result["candidate_pairs"] == MAX_ROWS and result["counts"] == {"Ready": MAX_ROWS}
+    pages = [paginate_preview(result, index) for index in range(1, MAX_ROWS // 100 + 1)]
     assert all(len(page["page_rows"]) == 100 for page in pages)
     assert [row["ip"] for page in pages for row in page["page_rows"]] == parsed["ips"]
-    assert pages[-1]["first_row"] == 9901 and pages[-1]["last_row"] == MAX_ROWS
+    assert pages[-1]["first_row"] == MAX_ROWS - 99 and pages[-1]["last_row"] == MAX_ROWS
     assert store.list_events() == before and policy.queue.status()["counts"] == {}
 
 

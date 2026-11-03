@@ -13,7 +13,7 @@ const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const future = (seconds) => new Date(Date.now() + seconds * 1000).toISOString();
 const renderScript = `
 import json, sys
-from ftd_shun_manager.import_preview import paginate_preview, parse_blocklist, summarize_preview
+from ftd_shun_manager.import_preview import MAX_TEXT_BYTES, paginate_preview, parse_blocklist, summarize_preview
 from ftd_shun_manager.import_review import ImportReviews
 from ftd_shun_manager.managed_review import ManagedRemovalReviews
 from ftd_shun_manager.managed_intent import canonical_managed_fleet_scope
@@ -208,7 +208,7 @@ print(templates.get_template(p["template"]).render(identity=Identity("test", "Te
     bulk_policy_local_concurrent=p["refresh"].get("fixture_bulk_policy_local_concurrent",False),
     admission_available=p["refresh"].get("managed_policy_admission_enabled", False),
     page=1, pages=2, page_targets=review.targets[:100] if p["template"] == "managed-batch-review.html" else [],
-    confirm_count="", acknowledged=False, import_text_limit=1048576,
+    confirm_count="", acknowledged=False, import_text_limit=MAX_TEXT_BYTES,
     managed=p.get("managed"), handoffs=p.get("handoffs"), fleet_cleanup=p.get("fleet_cleanup"),
     csrf_token="fixture-token", shuns=[shun], refresh=p["refresh"], search_query=p["query"],
     search_results=None, trusted_policy_ips=enabled_ips, disabled_policy_ips=disabled_ips, recent_events=p.get("history", {}).get("events", [event]),
@@ -1092,7 +1092,8 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
         assert.equal(await page.evaluate("document.querySelector('.import-steps [aria-current=step]').textContent.trim()"), "1 Paste addresses");
         assert.equal(await page.evaluate("/version.?2|\\bv2\\b|legacy/i.test(document.querySelector('main').innerText)"), false);
         assert.equal(await page.evaluate("document.querySelector('#bulk-draft-form button').textContent"), "Save and review addresses");
-        assert.equal(await page.evaluate("document.querySelector('#bulk-source').getAttribute('aria-describedby')"), "bulk-source-help");
+        assert.equal(await page.evaluate("document.querySelector('#bulk-source').getAttribute('aria-describedby')"), "bulk-paste-size bulk-source-help");
+        assert.ok(await page.evaluate("document.querySelector('#bulk-paste-size').textContent.includes((16*1048576).toLocaleString())"));
         assert.equal(await page.evaluate("document.querySelector('#bulk-draft-form').checkValidity()"), false);
         await page.evaluate("document.querySelector('#bulk-source').value='shun 198.51.100.250 # draft only';document.querySelector('input[name=device_ids][value=\"1\"]').checked=true;document.querySelector('#bulk-label').value='Keep my label';document.querySelector('#bulk-source').focus()");
         const reads = pageReads;
@@ -1111,6 +1112,13 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
           assert.equal(await page.evaluate("document.documentElement.scrollWidth<=window.innerWidth"), true);
           assert.equal(await page.evaluate("document.querySelector('#bulk-draft-form button').getBoundingClientRect().top>=document.querySelector('.import-device-selection').getBoundingClientRect().bottom"), true);
         }
+        await page.evaluate(`(() => { const input=document.querySelector('#bulk-source');
+          input.value=Array.from({length:95081},(_,i)=>'shun (outside_907) '+[198,18+(i>>16),(i>>8)&255,i&255].join('.')+' 0.0.0.0 0 0 0').join(String.fromCharCode(10));
+          input.dispatchEvent(new Event('input',{bubbles:true})); })()`);
+        assert.equal(await page.evaluate("document.querySelector('#bulk-source').value.split('\\n').length"), 95081);
+        assert.equal(await page.evaluate("document.querySelector('#bulk-source').validity.valid"), true);
+        assert.ok(await page.evaluate("document.querySelector('#bulk-paste-size').textContent.includes('Input is not truncated')"));
+        assert.ok(await page.evaluate("document.querySelector('#bulk-source').value.endsWith('198.19.115.104 0.0.0.0 0 0 0')"));
         assert.equal(postCount, hints);
         assert.equal(executionCount, executions);
       } finally { await page.close(); }
@@ -1396,6 +1404,56 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
         assert.equal(await page.evaluate("document.querySelectorAll('[data-operation-queue] tr').length"), 0);
         assert.equal(await page.evaluate("document.querySelector('#queue-results-details').open"), true);
         assert.equal(await page.evaluate("document.querySelectorAll('[data-queue-completed] tr').length"), 20);
+      } finally { await page.close(); }
+    });
+    await t.test("whole-import progress includes unqueued addresses and offers only a frozen cancellation review", async () => {
+      status = initial();
+      const key = '12345678-1234-4234-8234-123456789abc';
+      const task = { id: key, label: '<b>Large import</b>', actor_subject: 'test', actor_display_name: 'Test Operator',
+        total: 32425, processed: 5, outstanding: 32420, attention: 0, active: true,
+        counts: { verified: 5, queued: 16, pending: 32404 }, cancelled: false, cancellation_available: true };
+      status.queue = { revision: 1, counts: { QUEUED: 16 }, items: [], progress: { requests: [], total_requests: 0 },
+        imports: { tasks: [task], active_tasks: 1, total_tasks: 1, limit: 20, read_only: true } };
+      const hints = postCount, executions = executionCount;
+      const page = await connectPage(debugOrigin, origin);
+      try {
+        await page.until("document.querySelectorAll('[data-import-id]').length===1");
+        assert.equal(await page.evaluate("document.querySelector('[data-request-progress-section]').hidden"), true);
+        assert.equal(await page.evaluate("document.querySelector('[data-import-progress] progress').max"), 32425);
+        assert.equal(await page.evaluate("document.querySelector('[data-import-progress] progress').value"), 5);
+        assert.equal(await page.evaluate("document.querySelectorAll('[data-import-progress] b').length"), 0);
+        assert.ok(await page.evaluate("document.querySelector('[data-import-progress]').textContent.includes('<b>Large import</b>')"));
+        assert.ok(await page.evaluate("document.querySelector('[data-import-progress] form').action.endsWith('/12345678-1234-4234-8234-123456789abc/cancellation-review')"));
+        assert.equal(await page.evaluate("document.querySelector('[data-import-progress] form').method"), 'post');
+        assert.equal(await page.evaluate("document.querySelector('[data-import-progress] [name=csrf]').value"), 'fixture-token');
+        assert.equal(await page.evaluate("document.querySelectorAll('[data-import-progress] [name=actor]').length"), 0);
+        await page.evaluate("document.querySelector('#queue-menu').open=true; document.querySelector('[data-import-progress] button').focus()");
+        task.processed = 1024; task.outstanding = 31401; task.attention = 2;
+        task.counts = { verified: 1022, unverified: 2, pending: 31401 };
+        status.queue.revision++; status.status_revision++;
+        await wake(page);
+        await page.until("document.querySelector('[data-import-progress] progress').value===1024");
+        assert.ok(await page.evaluate("document.activeElement.textContent.includes('Cancel remaining import')"));
+        assert.equal(await page.evaluate("document.querySelector('[data-import-id]').dataset.warning"), 'true');
+        for (const width of [1100, 768, 360]) {
+          await page.call('Emulation.setDeviceMetricsOverride', { width, height: 900, deviceScaleFactor: 1, mobile: width === 360 });
+          assert.equal(await page.evaluate('document.documentElement.scrollWidth<=window.innerWidth'), true);
+        }
+        // A nonowner cannot use this task card as cancellation authority.
+        await page.evaluate("document.querySelector('[data-refresh-controller]').dataset.subject='someone-else'");
+        task.processed++; status.status_revision++; status.queue.revision++;
+        await wake(page);
+        await page.until("document.querySelectorAll('[data-import-progress] form').length===0");
+        task.cancelled = true; task.cancellation_available = false; task.active = false;
+        task.attention = 0; task.outstanding = 0; task.processed = task.total;
+        task.counts = { verified: 1022, stopped: 31403 };
+        status.queue.counts = {}; status.queue.revision++; status.status_revision++;
+        await wake(page);
+        await page.until("document.querySelector('[data-import-progress] details')!==null");
+        assert.equal(await page.evaluate("document.querySelector('[data-import-progress] details').open"), false);
+        assert.ok(await page.evaluate("document.querySelector('[data-import-progress]').textContent.includes('already applied/adopted blocks remain')"));
+        assert.equal(postCount, hints);
+        assert.equal(executionCount, executions);
       } finally { await page.close(); }
     });
     await t.test("request progress counts real jobs, keeps uncertain outcomes distinct, and clears on completion", async () => {
@@ -2244,7 +2302,7 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
         assert.equal(pageReads, reads);
         assert.equal(await page.evaluate("document.querySelector('#blocklist-text').value"), "198.51.100.10 # Office");
         assert.equal(await page.evaluate("document.querySelector('#blocklist-text').hasAttribute('maxlength')"), false);
-        assert.ok(await page.evaluate("document.querySelector('#paste-size').textContent.includes((1048576).toLocaleString())"));
+        assert.ok(await page.evaluate("document.querySelector('#paste-size').textContent.includes((16*1048576).toLocaleString())"));
         assert.equal(postCount, hints);
         assert.equal(executionCount, executions);
       } finally { await page.close(); }
@@ -2325,11 +2383,13 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
         assert.equal(await page.evaluate("document.querySelectorAll('[data-preview-state]').length"), 7);
         assert.ok(await page.evaluate("document.querySelector('.preview-table').textContent.includes('198.18.28.138')"));
         assert.equal(previewPosts, parses + 3);
-        await page.evaluate(`(() => { const input=document.querySelector('#blocklist-text'); input.value='ї'.repeat(524289);
+        // Avoid Chromium laying out one pathological 8-million-character line;
+        // this assertion exercises the production byte guard, not text shaping.
+        await page.evaluate(`(() => { const input=document.querySelector('#blocklist-text'); input.style.display='none'; input.value='ї'.repeat(16*1048576/2+1);
           input.dispatchEvent(new Event('input',{bubbles:true})); document.querySelector('.import-form').requestSubmit(); })()`);
         assert.equal(await page.evaluate("document.querySelector('#blocklist-text').validity.customError"), true);
         assert.ok(await page.evaluate("document.querySelector('#paste-size').textContent.includes('Over limit')"));
-        assert.equal(await page.evaluate("document.querySelector('#blocklist-text').value.length"), 524289);
+        assert.equal(await page.evaluate("document.querySelector('#blocklist-text').value.length"), 16*1048576/2+1);
         assert.equal(previewPosts, parses + 3, "Oversize Unicode paste is blocked without discarding its source");
         assert.equal(postCount, hints);
         assert.equal(executionCount, executions);

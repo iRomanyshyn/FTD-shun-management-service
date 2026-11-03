@@ -34,6 +34,13 @@ changing original request actor, roles or standing authority.
 
 ## Expiry is not permission to steal
 
+The later [verified-epoch offline recovery](verified-epoch-recovery.md) is a narrow
+exception to the original no-release profile below. With API/Web/agent actually
+stopped and all claims fully evidenced VERIFIED/NOOP, explicit maintenance can
+install the compatible optional ledger and retain the original ATTENTION row in
+an immutable receipt before its exact IDLE transition. Unknown/missing/failed
+work is not covered, startup never recovers, and the next epoch needs fresh reads.
+
 A claim encountering an expired device lease does not grant a replacement. It
 atomically records that device's RUNNING jobs as UNVERIFIED through the shared
 result/cancellation journal and captures the original lease as ATTENTION. Other

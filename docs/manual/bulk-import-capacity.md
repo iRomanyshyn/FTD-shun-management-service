@@ -3,7 +3,8 @@
 ## Current delivery boundary
 
 `bulk_intent.py` defines a pure **version-2 proposed-import binding** for up to
-10,000 distinct IPv4 addresses on ten explicitly selected devices / 100,000 pairs.
+100,000 distinct IPv4 addresses with up to ten explicitly selected devices and a
+100,000-pair complete-product limit (100,000 on one device or 10,000 on ten).
 It is a capacity foundation, not an expanded live registry, a migration, standing
 authority or executable import. The existing 1000-key/accepted-pair limit,
 10000-request/attempt bounds and retirement reserve remain unchanged.
@@ -50,7 +51,9 @@ digest. Accepted count excludes protected pairs. Excluded-only input can have a
 summary, but cannot produce a standing proposal.
 
 Verification consumes the full stream once, keeping only the distinct address
-set (maximum 10000), counts and hash. Strict ordering prevents duplicate cells;
+set (maximum 100000 after the 2026-11-02 input increment), counts and hash. The
+complete selection still has a 100000-pair bound; it is not 100000 IPs times ten
+devices. Strict ordering prevents duplicate cells;
 pair count equal to address count × selected-device count proves the complete
 product. Overflow refuses the whole stream, never an accepted prefix. A missing
 row/device, replacement address or swapped classification fails the original

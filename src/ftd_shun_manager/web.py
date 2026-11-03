@@ -48,6 +48,7 @@ PROJECT_ROOT = Path(os.environ.get("FTD_SHUN_ASSET_ROOT", Path(__file__).resolve
 templates = Jinja2Templates(directory=str(PROJECT_ROOT / "templates"))
 templates.env.globals["new_operation_key"] = lambda: str(uuid4())
 templates.env.globals["import_text_limit"] = MAX_TEXT_BYTES
+templates.env.globals["import_text_mib"] = MAX_TEXT_BYTES // (1024 * 1024)
 templates.env.globals["product_version"] = __version__
 
 

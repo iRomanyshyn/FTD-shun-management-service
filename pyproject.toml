@@ -26,6 +26,7 @@ ftd-shun-managed-maintenance = "ftd_shun_manager.managed_maintenance:main"
 ftd-shun-incident-maintenance = "ftd_shun_manager.incident_acknowledgements:main"
 ftd-shun-migration-inspection = "ftd_shun_manager.migration_inspection:main"
 ftd-shun-dev-init = "ftd_shun_manager.dev_init:main"
+ftd-shun-device-recovery = "ftd_shun_manager.device_recovery:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/ftd_shun_manager"]

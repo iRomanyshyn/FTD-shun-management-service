@@ -24,7 +24,7 @@ from ftd_shun_manager.bulk_policy import BulkUnavailable, _state
 from ftd_shun_manager.bulk_work import BulkWorkPlans
 from ftd_shun_manager.managed_restoration import CompleteSnapshot
 from ftd_shun_manager.managed_safety import ManagedStateUnavailable
-from ftd_shun_manager.operation_queue import QueueConflict, QueueFull, stamp
+from ftd_shun_manager.operation_queue import ClaimNotSubmitted, QueueConflict, QueueFull, stamp
 from ftd_shun_manager.protected_policy import ProtectedPolicy
 
 journal = journal_fixture
@@ -344,19 +344,21 @@ def test_late_admission_expiry_rolls_back_every_member(bulk, dispatch, monkeypat
     assert dump(dispatch.store) == before
 
 
-def test_late_claim_expiry_rolls_back_running_transition(bulk, dispatch, journal, monkeypatch):
+@pytest.mark.parametrize('seconds', [121, 136])
+def test_late_claim_expiry_rolls_back_running_transition(bulk, dispatch, journal, monkeypatch, seconds):
     _, snapshot, candidates = setup(bulk, dispatch)
     result = admit(dispatch, snapshot, candidates)
     original = dispatch.queue._event
 
     def slow(*args, **kwargs):
         result = original(*args, **kwargs)
-        bulk[1][0] += timedelta(seconds=121)
+        bulk[1][0] += timedelta(seconds=seconds)
         return result
 
     monkeypatch.setattr(dispatch.queue, '_event', slow)
     before = dump(dispatch.store)
-    with pytest.raises(QueueConflict): claim(dispatch)
+    with pytest.raises(QueueConflict) as error: claim(dispatch)
+    assert isinstance(error.value, ClaimNotSubmitted) is (seconds == 121)
     assert dump(dispatch.store) == before
     assert attempt(journal, result['attempts'][0]['operation_id'])['state'] == 'QUEUED'
 

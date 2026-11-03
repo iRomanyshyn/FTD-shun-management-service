@@ -70,15 +70,22 @@
   const queuePresentation = (status, submitting = false, localError = "") => {
     const counts = status.queue?.counts || {};
     const running = count(counts.RUNNING), queued = count(counts.QUEUED);
-    const attention = count(counts.FAILED) + count(counts.UNVERIFIED);
+    const imports = status.queue?.imports;
+    const importWaiting = (imports?.tasks || []).some((task) => count(task.outstanding));
+    const deviceError = Boolean((running || queued || importWaiting)
+      && Object.values(status.devices || {}).some((device) => device.state === 'error' || device.last_error));
+    const attention = Math.max(count(counts.FAILED) + count(counts.UNVERIFIED),
+      (imports?.tasks || []).reduce((sum, task) => sum + count(task.attention), 0));
     const paused = status.queue?.mutations_suspended === true;
-    const problem = Boolean(attention || paused || localError || status.managed_removal_worker_error || status.managed_restoration_error);
+    const problem = Boolean(attention || deviceError || paused || localError || status.managed_removal_worker_error || status.managed_restoration_error);
     const total = running + queued;
-    return { activity: running ? "busy" : paused ? "paused" : queued || submitting ? "waiting" : "idle",
+    return { activity: running ? "busy" : paused ? "paused" : queued || submitting || importWaiting ? "waiting" : "idle",
       attention: problem,
-      badge: [total ? compactCount(total) : submitting ? "…" : paused ? "Paused" : "",
+      badge: [total ? compactCount(total) : submitting || importWaiting ? "…" : paused ? "Paused" : "",
         attention ? `!${compactCount(attention)}` : problem ? "!" : ""].filter(Boolean).join(" · "),
       description: `Queue: ${running} running; ${queued} queued; ${attention} need attention.`
+        + (importWaiting ? ' An import has addresses waiting for rolling dispatch.' : '')
+        + (deviceError ? ' Some device work needs attention; open Status. Healthy devices can continue.' : '')
         + (paused ? " Device mutations are paused; monitoring continues." : "")
         + (submitting ? " Submitting operation; acceptance is not verified success." : "")
         + (localError ? ` ${localError}` : "")
@@ -87,8 +94,12 @@
   };
   // The same pure projection is tested with Node without starting a DOM, timer,
   // network request or device workflow. The browser keeps the normal controller.
+  const failureText = (error) => error instanceof TypeError || ['AbortError', 'TimeoutError', 'NetworkError'].includes(error?.name)
+    ? 'Connection interrupted or service busy. Keeping last data and retrying automatically.'
+    : error?.message || 'Refresh is temporarily unavailable. Retrying automatically.';
+
   if (typeof module !== "undefined" && module.exports && typeof document === "undefined") {
-    module.exports = { refreshPresentation, queuePresentation };
+    module.exports = { refreshPresentation, queuePresentation, failureText };
     return;
   }
   const parseStatus = (value) => {
@@ -152,6 +163,84 @@
       card.append(title, progress, label, outcomes);
       list.append(card);
     });
+  };
+
+  const renderImportProgress = (panel, queue, devices) => {
+    const section = panel.querySelector('[data-import-progress-section]');
+    const list = panel.querySelector('[data-import-progress]');
+    if (!section || !list) return;
+    const metadata = queue.imports;
+    const deviceError = Object.values(devices || {}).some((device) => device.state === 'error' || device.last_error);
+    const tasks = (metadata?.tasks || []).slice(0, 20);
+    section.hidden = !tasks.length;
+    const signature = stableSignature({ metadata, deviceError });
+    if (list.dataset.signature === signature) return;
+    list.dataset.signature = signature;
+    const focused = document.activeElement?.closest('[data-import-id]')?.dataset.importId;
+    const expanded = new Set([...list.querySelectorAll('details[open]')].map((details) => details.id));
+    list.replaceChildren();
+    const names = { verified: 'verified additions', noop: 'verified already present', adopted: 'adopted',
+      unchanged: 'already managed', present: 'observed present (not service-created proof)',
+      pending: 'waiting for dispatch', queued: 'queued', running: 'running', failed: 'failed',
+      unverified: 'unverified', unknown: 'missing evidence', stopped: 'stopped', superseded: 'superseded' };
+    tasks.forEach((task) => {
+      if (!/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/.test(task.id)) return;
+      const card = document.createElement('div');
+      card.className = 'request-progress';
+      card.dataset.importId = task.id;
+      card.dataset.warning = String(Boolean(task.attention || task.active && deviceError));
+      const title = document.createElement('p');
+      title.id = `import-progress-${task.id}`;
+      title.textContent = `${task.label || `Import ${task.id.slice(0, 8)}`} · ${task.actor_display_name || task.actor_subject}`;
+      const progress = document.createElement('progress');
+      progress.setAttribute('aria-labelledby', title.id);
+      const known = Number.isSafeInteger(task.total) && task.total > 0 && Number.isSafeInteger(task.processed)
+        && task.processed >= 0 && task.processed <= task.total && Number.isSafeInteger(task.outstanding) && task.outstanding >= 0;
+      const label = document.createElement('p');
+      label.textContent = known ? `${task.processed.toLocaleString()} / ${task.total.toLocaleString()} addresses processed `
+        + `(${Math.floor(100 * task.processed / task.total)}%). ${task.outstanding.toLocaleString()} remaining.` : 'Progress unavailable.';
+      if (known) { progress.max = task.total; progress.value = task.processed; }
+      const outcomes = document.createElement('p');
+      outcomes.className = 'preview-help';
+      outcomes.textContent = Object.entries(names).filter(([key]) => task.counts?.[key])
+        .map(([key, name]) => `${task.counts[key].toLocaleString()} ${name}`).join(' · ');
+      card.append(title, progress, label, outcomes);
+      if (task.active && deviceError) {
+        const warning = document.createElement('p');
+        warning.textContent = 'Some device work needs attention. Open Status for the reason; waiting addresses are not completed.';
+        card.append(warning);
+      }
+      if (task.cancelled) {
+        const note = document.createElement('p');
+        note.textContent = 'Uncompleted work cancelled; already applied/adopted blocks remain. Running work finishes safely.';
+        card.append(note);
+      } else if (task.cancellation_available && panel.dataset.operator === 'true'
+          && (task.actor_subject === panel.dataset.subject || panel.dataset.administrator === 'true')) {
+        const form = document.createElement('form');
+        form.method = 'post';
+        form.action = `/managed-imports/v2/${task.id}/cancellation-review`;
+        const csrf = document.createElement('input');
+        csrf.type = 'hidden'; csrf.name = 'csrf';
+        csrf.value = panel.querySelector('.request-refresh-form [name=csrf]').value;
+        const button = document.createElement('button');
+        button.type = 'submit'; button.textContent = 'Cancel remaining import…';
+        form.append(csrf, button);
+        const note = document.createElement('p');
+        note.className = 'preview-help';
+        note.textContent = 'Opens a whole-import confirmation. Already applied blocks are not removed.';
+        card.append(form, note);
+      }
+      if (task.active) list.append(card);
+      else {
+        const details = document.createElement('details');
+        details.id = `completed-import-${task.id}`;
+        details.open = expanded.has(details.id);
+        const summary = document.createElement('summary');
+        summary.textContent = `${task.label || `Import ${task.id.slice(0, 8)}`} — initial import finished`;
+        details.append(summary, card); list.append(details);
+      }
+    });
+    if (focused) list.querySelector(`[data-import-id="${focused}"] button`)?.focus({ preventScroll: true });
   };
 
   // Retain editable values and focus only for the same form action and field.
@@ -355,6 +444,7 @@
     const renderQueue = () => {
       if (!queueRows) return;
       const queue = status.queue || { counts: {}, items: [] };
+      renderImportProgress(panel, queue, status.devices);
       renderRequestProgress(panel, queue);
       const progress = panel.querySelector("[data-cycle-progress]");
       if (progress) {
@@ -406,7 +496,9 @@
         ? ` Next eligible cycle: ${formatTime(queue.next_eligible_at)}.` : "";
       panel.querySelector("[data-queue-summary]").textContent =
         activeTotal ? `${counts.RUNNING || 0} running; ${counts.QUEUED || 0} queued. `
-          + `Showing ${activeItems.length} of ${activeTotal} active operations.${next}` : "Queue is empty.";
+          + `Showing ${activeItems.length} of ${activeTotal} active operations.${next}`
+          : queue.imports?.tasks?.some((task) => count(task.outstanding))
+            ? 'Import work is waiting for rolling dispatch. See whole-import progress below.' : "Queue is empty.";
       const activeTable = panel.querySelector("[data-queue-active-table]");
       if (activeTable) activeTable.hidden = !activeItems.length;
       const attentionRows = panel.querySelector("[data-queue-attention]");
@@ -488,10 +580,13 @@
     };
 
     const fetchChecked = async (url, options, contentType) => {
-      const response = await fetch(url, {
+      let response;
+      try { response = await fetch(url, {
         ...options, credentials: "same-origin", cache: "no-store", redirect: "error",
         signal: AbortSignal.timeout(15000),
-      });
+      }); } catch (error) {
+        throw new Error(failureText(error));
+      }
       if (!response.ok || !response.headers.get("content-type")?.includes(contentType)) {
         let detail;
         if (!response.ok && response.headers.get("content-type")?.includes("application/json")) {
@@ -587,7 +682,7 @@
         failures = 0;
       } catch (error) {
         failures += 1;
-        errorMessage = error.message || "Refresh is temporarily unavailable. Retrying automatically.";
+        errorMessage = failureText(error);
       } finally {
         busy = false;
         render();

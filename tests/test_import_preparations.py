@@ -297,8 +297,8 @@ def test_page_bounds_cannot_request_unbounded_or_silently_clamped_scope(journal,
 
 
 def test_paste_limits_and_timezone_validation_are_not_bypassed(journal):
-    with pytest.raises(ValueError, match="1 MiB"):
-        prepare(journal, text="ї" * 524289)
+    with pytest.raises(ValueError, match="16 MiB"):
+        prepare(journal, text="ї" * (16 * 1024 * 1024 // 2 + 1))
     journal[1][0] = datetime(2026, 10, 21, 12)  # Deliberately naive synthetic clock.
     with pytest.raises(ValueError, match="UTC"):
         prepare(journal)

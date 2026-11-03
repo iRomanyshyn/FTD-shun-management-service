@@ -10,7 +10,8 @@ initialization prerequisites and typed execution guards remain unchanged.
 
 `BulkPolicies` is a development component that atomically persists an actual
 version-2 policy grant, exact classified membership and audit. It supports up to
-10000 addresses on ten explicit devices / 100000 pairs per import. It is not
+100000 addresses with up to ten explicit devices / 100000 pairs per import
+(100000 on one device or 10000 on ten, updated 2026-11-02). It is not
 merely a saved preview. It does **not** execute commands, enqueue jobs, resume
 restoration or expose HTTP/Web admission. The current lab still uses the previous
 legacy profile; no production deployment is involved.

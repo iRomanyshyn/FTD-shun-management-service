@@ -9,6 +9,16 @@ status/demand to the BFF. No HTTP request selects the runtime or enables authori
 
 ## Independent scheduling
 
+If expensive claim validation crosses a snapshot/delegation deadline before
+returning a job, the exact local `ClaimNotSubmitted` rolls back that claim and
+ends mutation selection for this session. `queue.claim.not_submitted` is an
+operational diagnostic, not an unknown write or successful job. The worker still
+requests the real END/final snapshot and strict settlement for earlier operations.
+Only normal live-epoch release then makes the next session available. Subsequent
+admission requires new fresh evidence and existing authority/backoff checks.
+Generic errors, expired leases, failed END and attempted/unknown RPCs retain their
+original holds. This prevention path never releases an old ATTENTION lease.
+
 `ContinuousDispatcher.start` validates exact existing storage, the complete fixed
 device scope and declared matching agent capacity before launching work. It never
 migrates/initializes optional storage, resumes policy, changes gates or adopts old
@@ -85,6 +95,29 @@ aggregation/countdown/render support is described below; runtime selection remai
 separate.
 
 ## Browser projection contract
+
+The 2026-11-02 import-execution usability increment moves blocking per-device
+local reconciliation, discovery, queue claim and settlement to awaited worker
+threads. Work stays sequential within the same device/session; dispatched local
+operations drain before cancellation can return. Snapshot scheduling callbacks
+run back on the owning loop. Detached discovery status never acquires the lock
+held over an admission transaction. No background thread starts another executor.
+
+Queue display validates the complete existing bulk profile once per consistent
+read transaction, not once per displayed job. Private status assembles its heavy
+queue snapshot off-loop, then projects controller-owned state on the main loop.
+Discovery factors repeated eligibility checks around its validated IMMEDIATE
+transaction state; portion admission repeats full validation before commit.
+There is no cross-transaction authority cache. Full original-root verification
+at admission/claim and all current-authority/protection/freshness checks remain.
+
+`queue.imports` is a bounded read-only whole-import projection (20 cards, recent
+finished imports collapsed). It counts original accepted members, retained
+attempt outcomes and separately labelled observations. It is not a grant,
+execution receipt, cancellation or queue expansion. Internal per-address bulk
+delegations are excluded from ordinary request progress, not erased from queue
+details/evidence. Owner/Admin cancellation still uses the existing reviewed
+CSRF-protected whole-root surface. See [Imports](imports.md).
 
 `refresh_status()` is a read-only projection separate from internal `status()`.
 It supplies the established instance/data/status/completion revision envelope with

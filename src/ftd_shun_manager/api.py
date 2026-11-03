@@ -11,6 +11,7 @@ import uvicorn
 from fastapi import FastAPI, HTTPException, Query, Request, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, field_validator
+from starlette.concurrency import run_in_threadpool
 
 from .agent_client import (
     AgentClient,
@@ -25,7 +26,7 @@ from .bulk_preparation_api import register_bulk_preparation_api
 from .config import Settings
 from .import_cancellations import ImportCancellations
 from .import_preparations import ImportPreparations, PreparationCapacity, PreparationUnavailable
-from .import_preview import MAX_DEVICES, MAX_ROWS, classify_targets
+from .import_preview import MAX_DEVICES, MAX_ROWS, MAX_TEXT_BYTES, classify_targets
 from .inventory import load_devices
 from .managed_fleet_removals import ManagedFleetRemovals
 from .managed_fleet_state import ManagedFleetState
@@ -114,7 +115,7 @@ class ManagedBatchSelectionRequest(ManagedSelectionRequest):
 class PreparedImportInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
     actor: ManagedControlActor
-    text: str = Field(max_length=1048576)
+    text: str = Field(max_length=MAX_TEXT_BYTES)
     device_ids: list[Annotated[int, Field(strict=True, ge=1, le=65535)]] = Field(min_length=1, max_length=10)
     label: str = Field(default="", max_length=100)
     reason: str = Field(default="", max_length=500)
@@ -486,13 +487,20 @@ def create_app(
 
     @app.get("/api/v1/status")
     async def service_status() -> dict[str, object]:
-        policy_state = policy.snapshot()
+        policy_state = await run_in_threadpool(policy.snapshot)
         try:
-            managed_metadata = continuous.managed_metadata() if continuous else managed.metadata()
+            managed_metadata = await run_in_threadpool(continuous.managed_metadata if continuous else managed.metadata)
         except (sqlite3.DatabaseError, ManagedConflict, ManagedCapacity, ValueError, TypeError, KeyError):
             # A malformed optional registry must not stop ordinary fleet monitoring.
             managed_metadata = {"managed_policy_available": False, "managed_policy_initialized": None,
                                 "managed_policy_revision": None}
+        if continuous:
+            config = continuous.dispatcher.runner.configuration
+            queue_status = await run_in_threadpool(synchronizer.queue.status,
+                addition_device_ids=config['addition_device_ids'], bulk_dispatch_enabled=config['bulk_dispatch_enabled'])
+            runtime_status = synchronizer.status(queue_status=queue_status)
+        else:
+            runtime_status = synchronizer.status()
         return {
             "status": "ready",
             "agent_mode": settings.agent_mode,
@@ -500,7 +508,7 @@ def create_app(
             "import_admission_enabled": settings.import_admission_enabled,
             "managed_policy_admission_enabled": settings.managed_policy_admission_enabled,
             "managed_removal_admission_enabled": settings.managed_removal_admission_enabled,
-            **synchronizer.status(),
+            **runtime_status,
             **managed_metadata,
             "policy_revision": policy_state["revision"],
             "trusted_auto_remove_ips": [entry for entry in policy_state["entries"] if entry["enabled"]],
