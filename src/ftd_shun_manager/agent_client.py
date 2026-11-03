@@ -7,7 +7,6 @@ from uuid import UUID
 
 from .agent_protocol import (
     MAX_AGENT_RESPONSE_BYTES,
-    MAX_PENDING_ADDITIONS,
     SESSION_LOOKUP,
     AdditionResult,
     CycleOperation,
@@ -25,6 +24,7 @@ from .agent_protocol import (
     encode_cycle_request,
     encode_request,
     encode_session_request,
+    max_pending_additions,
 )
 from .snapshot_protocol import SNAPSHOT_TRANSFER_SECONDS, SnapshotDecoder
 
@@ -152,7 +152,7 @@ class UnixAgentClient(AgentClient):
             self.addition_device_ids is None or device_id in self.addition_device_ids
         )
         return UnixAgentCycle(self.socket_path, self.timeout_seconds, device_id,
-                              version=4 if addition_cycle and self.batch_additions else 3 if addition_cycle else 2 if self.large_snapshots else 1,
+                              version=5 if addition_cycle and self.batch_additions else 3 if addition_cycle else 2 if self.large_snapshots else 1,
                               settled_cycles=self.settled_cycles, recoverable_cycles=self.recoverable_cycles,
                               session_id=session_id)
 
@@ -165,7 +165,7 @@ class UnixAgentClient(AgentClient):
         if not self.tracked_cycles:
             raise AgentUnavailable('Tracked session capability is disabled.')
         addition_cycle = self.additions_enabled and (self.addition_device_ids is None or device_id in self.addition_device_ids)
-        version = 4 if addition_cycle and self.batch_additions else 3 if addition_cycle else 2 if self.large_snapshots else 1
+        version = 5 if addition_cycle and self.batch_additions else 3 if addition_cycle else 2 if self.large_snapshots else 1
         session_id = _session_id(lease_owner)
         request = encode_session_request(SESSION_LOOKUP, version, device_id, session_id)
         try:
@@ -242,9 +242,10 @@ def _receive_cycle_response(connection, deadline, operation, sequence, version, 
     return decode_cycle_response(packet, operation, sequence, version=version, target=target)
 
 
-def _receive_addition_batch(connection, deadline, sequence, pending):
-    additions = decode_addition_batch(_receive_before(connection, deadline), sequence, pending)
-    snapshot = _receive_snapshot(connection, CycleOperation.VERIFY_ADDS, sequence, deadline, version=4)
+def _receive_addition_batch(connection, deadline, sequence, pending, *, version, operation):
+    additions = decode_addition_batch(_receive_before(connection, deadline), sequence, pending,
+                                      version=version, operation=operation)
+    snapshot = _receive_snapshot(connection, operation, sequence, deadline, version=version)
     # A proof header alone, truncated stream, or scope-conflicting complete
     # observation must never become a successful creation result.
     wanted = {ip for ip, _ in additions}
@@ -268,7 +269,7 @@ class UnixAgentCycle:
             raise ValueError('Recoverable opening requires explicit strict settlement.')
         if session_id is not None and not recoverable_cycles:
             raise ValueError('Bound session identity requires recoverable strict cycles.')
-        if version == 4 and session_id is None:
+        if version in (4, 5) and session_id is None:
             raise ValueError('Batch cycles require a tracked session identity.')
         operation = (CycleOperation.BEGIN_TRACKED if session_id is not None else
                      CycleOperation.BEGIN_RECOVERABLE if recoverable_cycles else
@@ -312,8 +313,9 @@ class UnixAgentCycle:
                 raise AgentUnavailable("agent cycle send was incomplete")
             result = (
                 _receive_addition_batch(self.connection, deadline, self.sequence,
-                                       tuple(item.ip for item in self.pending_additions))
-                if operation == CycleOperation.VERIFY_ADDS else
+                                       tuple(item.ip for item in self.pending_additions),
+                                       version=self.version, operation=operation)
+                if operation in (CycleOperation.VERIFY_ADDS, CycleOperation.VERIFY_END) else
                 _receive_snapshot(self.connection, operation, self.sequence, deadline, version=self.version,
                                   read_failure=read_failure)
                 if self.version >= 2 and operation not in {CycleOperation.REMOVE, CycleOperation.ADD, CycleOperation.STAGE_ADD} else
@@ -341,7 +343,7 @@ class UnixAgentCycle:
         return self._exchange(CycleOperation.ADD, ip=ip)
 
     def stage_addition(self, ip: IPv4Address) -> PendingAddition | AdditionResult | None:
-        if (self.version != 4 or len(self.pending_additions) >= MAX_PENDING_ADDITIONS
+        if (self.version not in (4, 5) or len(self.pending_additions) >= max_pending_additions(self.version)
                 or any(item.ip == ip for item in self.pending_additions)):
             raise ValueError('Invalid batch version, capacity or duplicate pending target.')
         result = self._exchange(CycleOperation.STAGE_ADD, ip=ip)
@@ -350,11 +352,29 @@ class UnixAgentCycle:
         return result
 
     def verify_additions(self) -> VerifiedAdditionBatch:
-        if self.version != 4 or not self.pending_additions:
-            raise ValueError('A nonempty v4 pending group is required.')
+        if self.version not in (4, 5) or not self.pending_additions:
+            raise ValueError('A nonempty grouped cycle is required.')
         result = self._exchange(CycleOperation.VERIFY_ADDS)
         self.pending_additions.clear()  # Only after proof AND the complete observation.
         return result
+
+    def finish_additions(self) -> VerifiedAdditionBatch:
+        """One final full read proves pending ADDs and settles this session."""
+        if self.version != 5 or not self.pending_additions:
+            raise ValueError('Combined verification/end requires a nonempty v5 group.')
+        try:
+            deadline = monotonic() + self.timeout_seconds
+            result = self._exchange(CycleOperation.VERIFY_END, _deadline=deadline)
+            decode_cycle_settlement(
+                _receive_before(self.connection, min(deadline, monotonic() + 5)),
+                self.sequence - 1, version=self.version, begin=self.begin_operation)
+            self.settled = True
+            self.pending_additions.clear()
+            return result
+        except (OSError, ValueError, AgentUnavailable) as error:
+            raise AgentUnavailable('Final addition verification/settlement unavailable; no retry attempted.') from error
+        finally:
+            self.abort()
 
     def _require_verified_additions(self):
         if self.pending_additions:

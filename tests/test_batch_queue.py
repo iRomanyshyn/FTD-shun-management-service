@@ -149,7 +149,6 @@ def test_acknowledged_same_epoch_group_can_claim_but_ordinary_queue_stays_serial
     queue, ordinary = group
     jobs = [acknowledge(queue, n) for n in range(1, 9)]
     assert claim(ordinary) is None
-    with pytest.raises(PendingBatchMustFlush): claim(queue)
     with queue.store._connection() as db:
         assert db.execute("SELECT COUNT(*) FROM operation_jobs WHERE state='RUNNING'").fetchone()[0] == 8
         assert db.execute("SELECT COUNT(*) FROM managed_bulk_attempts WHERE state='VERIFIED'").fetchone()[0] == 0
@@ -163,6 +162,18 @@ def test_acknowledged_same_epoch_group_can_claim_but_ordinary_queue_stays_serial
         events = db.execute("SELECT details_json FROM shun_events WHERE event_type='SHUN_OPERATION_VERIFIED'").fetchall()
         assert all(json.loads(row[0])['verification_sequence'] == 9 for row in events)
     assert claim(queue) is not None
+
+
+def test_sixteen_acknowledgements_fill_the_live_group_capacity(bulk, leases):
+    grant(bulk, (1,), count=20)
+    token, ordinary = acquire(leases)
+    assert discover(bulk, ordinary) == 16
+    queue = BatchDeviceOperationQueue(leases.store, token)
+    jobs = [acknowledge(queue, n) for n in range(1, 17)]
+    with queue.store._connection() as db, pytest.raises(PendingBatchMustFlush):
+        queue._claim_running_scope(db, token.device_id, token.owner, 'ADD')
+    queue.finish_verified_group(token.owner, result(jobs), 17)
+    assert queue.pending == [] and queue.settled == 16
 
 
 def test_unacknowledged_claim_cannot_gain_parallelism(group):

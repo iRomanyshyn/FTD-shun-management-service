@@ -217,7 +217,8 @@ def test_frozen_member_pages_preserve_count_and_refuse_rebase(composition, bulk,
             before = dump(composition[1])
             result = await client.post(WEB + '/cancellation-review/page', data=fields | {'page': '2'})
             assert result.status_code == 200 and 'value="102"' in result.text and fields['review'] in result.text
-            assert result.text.count('STOPPED_UNSENT</td>') == 2 and dump(composition[1]) == before
+            assert result.text.count('<span class="status-label">STOPPED_UNSENT</span>') == 2
+            assert dump(composition[1]) == before
             assert not any(path == API + 'cancel' for _, path, _ in calls)
     asyncio.run(scenario())
 
@@ -336,7 +337,8 @@ def test_maximum_private_cancellation_and_late_status_page(ten_device_compositio
             _, fields = await review(client, key)
             assert fields['accepted_count'] == '100000'
             last = await client.post(WEB + '/cancellation-review/page', data=fields | {'page': '1000'})
-            assert last.status_code == 200 and last.text.count('STOPPED_UNSENT</td>') == 100
+            assert last.status_code == 200
+            assert last.text.count('<span class="status-label">STOPPED_UNSENT</span>') == 100
             result = await client.post(WEB + '/cancel', data=fields)
             assert result.status_code == 200, result.text[:400]
             status = await client.get(f'{WEB}/cancellations/{key}?page=1000')

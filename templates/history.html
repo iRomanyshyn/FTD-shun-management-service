@@ -21,7 +21,7 @@
 </nav>
 {% if recent_events %}
 <div class="table-scroll"><table><thead><tr><th>Time</th><th>Event</th><th>IP address</th><th>Device</th><th>Actor</th></tr></thead><tbody>
-{% for event in recent_events %}<tr data-event-id="{{ event.id }}"><td><time class="local-timestamp" datetime="{{ event.timestamp }}">{{ event.timestamp }}</time></td><td>{{ event.event_type }}</td><td>{% if event.ip %}<a href="/shuns/{{ event.ip }}">{{ event.ip }}</a>{% else %}—{% endif %}</td><td>{{ event.device_hostname or "—" }}</td><td>{{ event.actor_display_name or event.actor_subject or "System" }}</td></tr>{% endfor %}
+{% for event in recent_events %}<tr data-event-id="{{ event.id }}"><td><time class="local-timestamp" datetime="{{ event.timestamp }}">{{ event.timestamp }}</time></td><td><span class="status-label">{{ event.event_type }}</span></td><td>{% if event.ip %}<a href="/shuns/{{ event.ip }}">{{ event.ip }}</a>{% else %}—{% endif %}</td><td>{{ event.device_hostname or "—" }}</td><td>{{ event.actor_display_name or event.actor_subject or "System" }}</td></tr>{% endfor %}
 </tbody></table></div>
 {% else %}<p>No audit events are retained yet.</p>{% endif %}
 {% endif %}

@@ -58,6 +58,22 @@ still get the applicable regression checks below and in `AGENTS.md`.
 
 ## Import execution responsiveness and whole-task progress
 
+Agent-side CLI diagnostics regressions use:
+
+```bash
+cargo test --locked --manifest-path agent/Cargo.toml
+cargo fmt --manifest-path agent/Cargo.toml -- --check
+cargo clippy --locked --all-targets --manifest-path agent/Cargo.toml -- -D warnings
+cargo build --release --locked --manifest-path agent/Cargo.toml
+```
+
+Disposable timers cover fixed labels, unchanged result/error propagation, outer
+timeout/drop, unpolled futures, fresh-session reset, argument/output redaction and
+normal command-envelope return followed by rejected semantic acknowledgement.
+Existing wire, timeout-after-write, pending-group, settlement and shutdown tests
+remain mandatory. Counts/timings are never execution or safe-retry evidence.
+See [command phases](continuous-dispatch.md#agent-side-command-phases).
+
 For transaction-boundary cancellation validation and bounded session diagnostics:
 
 ```bash
@@ -79,6 +95,13 @@ For exact root-decoding equivalence:
 ```bash
 python3 -m pytest -q tests/test_assigned_intent_uuid.py tests/test_member_digest.py tests/test_bulk_policy.py
 ```
+
+For allocation-only root/manifest changes additionally run
+`tests/test_root_assignments.py` and `tests/test_bulk_intent.py`. Compare binary
+records to an independent literal encoder, source dictionaries to the frozen
+encoder, future-field fallback and exact assigned identity/generation/root
+bindings even when original source/digests are untouched. Preserve existing
+corruption/freshness/claim-expiry tests; a query-only timing is not execution proof.
 
 Compare canonical UUID checks to the previous UUID roundtrip across all bit
 patterns/format variants, and source bytes to a frozen pre-refactor member
@@ -144,6 +167,14 @@ asset on the main Imports form, with large source retention and no auto-submit.
 No real blocklist, lab authority or FTD load test accompanies these checks.
 
 ## Refresh/status frontend checks
+
+Short statuses use `.status-label` for plain text or the existing state/preview/
+protection badges. Keep each label atomic (`white-space: nowrap`), not its entire
+cell: explanations, reasons and actor text still wrap. Place wide tables in
+`.table-scroll`; standalone long cleanup badges scroll within their paragraph.
+Apply the same label class in initial templates and dynamic renderers. Chromium
+stress checks cover narrow cells, desktop/mobile, both themes, actual device/queue
+rows and independently wrapping descriptions without page-wide overflow.
 
 ```bash
 node --test tests/browser/status-presentation.cjs tests/browser/freshness.cjs

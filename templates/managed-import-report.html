@@ -2,7 +2,7 @@
 {% block content %}
 <h1>{{ 'Saved import preparation' if mode == 'preparation' else 'Historical import receipt' }}</h1>
 {% if mode == 'preparation' %}
-<p>State: <strong>{{ report.state }}</strong>. Expires <time class="local-timestamp" datetime="{{ report.expires_at }}">{{ report.expires_at }}</time>. No policy or device command is authorized by opening this page.</p>
+<p>State: <strong class="status-label">{{ report.state }}</strong>. Expires <time class="local-timestamp" datetime="{{ report.expires_at }}">{{ report.expires_at }}</time>. No policy or device command is authorized by opening this page.</p>
 {% else %}
 <p class="policy-warning">Policy was confirmed for {{ report.result.accepted_pairs }} pairs. This historical receipt is not verified device creation, current execution progress or proof that policy remains enabled.</p>
 <p>Confirmed <time class="local-timestamp" datetime="{{ report.confirmed_at }}">{{ report.confirmed_at }}</time> by {{ report.result.confirmation_actor.display_name }} ({{ report.result.confirmation_actor.subject }}).</p>

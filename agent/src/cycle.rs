@@ -27,11 +27,12 @@ enum Step {
     Add(Ipv4Addr),
     StageAdd(Ipv4Addr),
     VerifyAdds,
+    VerifyEnd,
     End,
 }
 
 pub(super) fn max_sequence(version: u8) -> u8 {
-    if version == batch_addition::VERSION {
+    if batch_addition::supported(version) {
         batch_addition::MAX_SEQUENCE
     } else {
         18
@@ -65,8 +66,8 @@ fn after_cleanup(
     if !matches!(
         begin,
         BEGIN | BEGIN_SETTLED | BEGIN_RECOVERABLE | sessions::BEGIN
-    ) || !matches!(version, 1..=4)
-        || (version == batch_addition::VERSION && begin != sessions::BEGIN)
+    ) || !matches!(version, 1..=5)
+        || (batch_addition::supported(version) && begin != sessions::BEGIN)
         || !(1..=max_sequence(version)).contains(&sequence)
     {
         bail!("invalid local settlement binding");
@@ -88,8 +89,8 @@ pub(super) fn finish_result(
     mutation_steps: u8,
 ) -> Result<Option<[u8; 4]>> {
     if matches!(begin, BEGIN_RECOVERABLE | sessions::BEGIN)
-        && matches!(version, 1..=4)
-        && (version != batch_addition::VERSION || begin == sessions::BEGIN)
+        && matches!(version, 1..=5)
+        && (!batch_addition::supported(version) || begin == sessions::BEGIN)
         && result.is_err()
         && cleanup.is_ok()
         && mutation_steps == 0
@@ -122,10 +123,13 @@ fn decode_step(packet: &[u8], expected: u8, version: u8) -> Result<Step> {
         (ADD, 7) if version == addition::VERSION => Ok(Step::Add(Ipv4Addr::new(
             packet[3], packet[4], packet[5], packet[6],
         ))),
-        (batch_addition::STAGE, 7) if version == batch_addition::VERSION => Ok(Step::StageAdd(
+        (batch_addition::STAGE, 7) if batch_addition::supported(version) => Ok(Step::StageAdd(
             Ipv4Addr::new(packet[3], packet[4], packet[5], packet[6]),
         )),
-        (batch_addition::VERIFY, 3) if version == batch_addition::VERSION => Ok(Step::VerifyAdds),
+        (batch_addition::VERIFY, 3) if batch_addition::supported(version) => Ok(Step::VerifyAdds),
+        (batch_addition::VERIFY_END, 3) if version == batch_addition::SHARED_END_VERSION => {
+            Ok(Step::VerifyEnd)
+        }
         _ => bail!("invalid cycle opcode or length"),
     }
 }
@@ -230,6 +234,14 @@ impl<C: Console> Cycle<C> {
         MAX_DURATION.saturating_sub(self.started.elapsed())
     }
 
+    fn stage_timeout(&self) -> Duration {
+        if self.version == batch_addition::SHARED_END_VERSION {
+            self.timeout.min(FTD_INTERACTION_TIMEOUT * 2)
+        } else {
+            self.timeout
+        }
+    }
+
     async fn snapshot(&mut self, opcode: u8, sequence: u8) -> Result<Vec<Vec<u8>>> {
         if self.commands >= MAX_COMMANDS {
             bail!("cycle snapshot command budget exhausted");
@@ -251,7 +263,7 @@ impl<C: Console> Cycle<C> {
     async fn execute(&mut self, packet: &[u8]) -> Result<(Vec<Vec<u8>>, bool)> {
         let step = decode_step(packet, self.sequence, self.version)?;
         if !self.pending_additions.is_empty()
-            && !matches!(step, Step::StageAdd(_) | Step::VerifyAdds)
+            && !matches!(step, Step::StageAdd(_) | Step::VerifyAdds | Step::VerifyEnd)
         {
             bail!("pending additions require explicit group verification before other operations");
         }
@@ -352,10 +364,10 @@ impl<C: Console> Cycle<C> {
                     bail!("addition is already awaiting group verification");
                 }
                 self.additions += 1;
-                // Preserve the original reserve: a bounded step plus END. The
-                // four CLI slots cover preflight, ADD, group verification, END.
-                if self.pending_additions.len() >= batch_addition::MAX_PENDING
-                    || self.remaining() < self.timeout + FTD_INTERACTION_TIMEOUT
+                // V5 bounds staging to two prompt interactions and combines
+                // final verification/END. V4 retains its original reserve.
+                if self.pending_additions.len() >= batch_addition::capacity(self.version)
+                    || self.remaining() < self.stage_timeout() + FTD_INTERACTION_TIMEOUT
                     || self.commands + 4 > MAX_COMMANDS
                 {
                     return Ok((
@@ -382,11 +394,19 @@ impl<C: Console> Cycle<C> {
                     false,
                 ))
             }
-            Step::VerifyAdds => {
+            Step::VerifyAdds | Step::VerifyEnd => {
+                let final_group = step == Step::VerifyEnd;
+                let opcode = if final_group {
+                    batch_addition::VERIFY_END
+                } else {
+                    batch_addition::VERIFY
+                };
                 let profile = self
                     .addition_profile
                     .context("device has no addition profile")?;
-                if self.pending_additions.is_empty() || self.commands + 2 > MAX_COMMANDS {
+                if self.pending_additions.is_empty()
+                    || self.commands + if final_group { 1 } else { 2 } > MAX_COMMANDS
+                {
                     bail!("invalid pending verification or insufficient verification/END budget");
                 }
                 self.commands += 1;
@@ -398,11 +418,13 @@ impl<C: Console> Cycle<C> {
                     &self.pending_additions,
                     profile,
                     seq,
+                    self.version,
+                    opcode,
                 )];
                 let count = entries.len();
                 frames.extend(snapshot::encode_versioned(
                     entries,
-                    batch_addition::VERIFY,
+                    opcode,
                     seq,
                     self.version,
                 )?);
@@ -410,7 +432,7 @@ impl<C: Console> Cycle<C> {
                 // Lost IPC afterwards still produces no client success or retry.
                 self.observed_entries = count;
                 self.pending_additions.clear();
-                Ok((frames, false))
+                Ok((frames, final_group))
             }
         }
     }
@@ -422,6 +444,23 @@ pub(super) fn set_ipc_timeout(connection: &OwnedFd, duration: Duration) -> Resul
     let value = TimeVal::new(duration.as_secs() as i64, duration.subsec_micros().into());
     setsockopt(connection, ReceiveTimeout, &value)?;
     setsockopt(connection, SendTimeout, &value)?;
+    Ok(())
+}
+
+fn set_cycle_ipc_timeout(connection: &OwnedFd, duration: Duration, version: u8) -> Result<()> {
+    set_ipc_timeout(connection, duration)?;
+    if version == batch_addition::SHARED_END_VERSION {
+        // Durable group settlement can exceed the legacy idle wait. Transfer
+        // limits and the absolute session deadline do not grow with this wait.
+        let duration = duration
+            .max(Duration::from_millis(1))
+            .min(Duration::from_secs(30));
+        setsockopt(
+            connection,
+            ReceiveTimeout,
+            &TimeVal::new(duration.as_secs() as i64, duration.subsec_micros().into()),
+        )?;
+    }
     Ok(())
 }
 
@@ -439,7 +478,7 @@ pub(super) fn handle(
     if version >= snapshot::VERSION && !agent.large_snapshots_enabled {
         bail!("large snapshots are disabled pending laboratory validation");
     }
-    if version == batch_addition::VERSION && !agent.batch_additions_enabled {
+    if batch_addition::supported(version) && !agent.batch_additions_enabled {
         bail!("batch additions are disabled pending worker integration and validation");
     }
     let device = agent
@@ -447,7 +486,7 @@ pub(super) fn handle(
         .get(&device_id)
         .filter(|device| device.enabled)
         .context("unknown or disabled cycle device")?;
-    if matches!(version, addition::VERSION | batch_addition::VERSION) {
+    if version == addition::VERSION || batch_addition::supported(version) {
         if !agent.additions_enabled {
             bail!("additions are disabled pending laboratory validation");
         }
@@ -457,12 +496,22 @@ pub(super) fn handle(
             .validate(&device.allowed_interfaces)?;
     }
     let step_timeout = agent.operation_timeout.min(MAX_STEP_DURATION);
+    let session_id = if packet[0] == sessions::BEGIN {
+        Some(format!(
+            "{:032x}",
+            u128::from_be_bytes(sessions::decode(packet, sessions::BEGIN)?.id)
+        ))
+    } else {
+        None
+    };
     // No Cycle/Console command executor exists until this future succeeds.
     // timeout drops the opening future before a failure record can escape.
+    let opening_started = Instant::now();
     let opened = runtime
         .block_on(timeout(step_timeout, agent.connect_device(device_id)))
         .context("SSH session opening timed out")
         .and_then(|result| result);
+    let opening_ms = opening_started.elapsed().as_millis();
     let mut session = match opened {
         Ok(session) => session,
         Err(error) if matches!(packet[0], BEGIN_RECOVERABLE | sessions::BEGIN) => {
@@ -471,6 +520,7 @@ pub(super) fn handle(
                 serde_json::json!({
                     "event":"agent.cycle.open_failed", "device_id":device_id,
                     "protocol_version":version, "commands":0,
+                    "session_id":session_id, "opening_ms":opening_ms,
                     "elapsed_ms":started.elapsed().as_millis(), "reason":error.to_string(),
                 })
             );
@@ -494,7 +544,7 @@ pub(super) fn handle(
         removals: 0,
         additions: 0,
         pending_additions: Vec::new(),
-        addition_profile: if matches!(version, addition::VERSION | batch_addition::VERSION) {
+        addition_profile: if version == addition::VERSION || batch_addition::supported(version) {
             device.addition_profile
         } else {
             None
@@ -518,7 +568,7 @@ pub(super) fn handle(
             if cycle.remaining().is_zero() {
                 bail!("cycle session deadline exceeded");
             }
-            set_ipc_timeout(connection, cycle.remaining())?;
+            set_cycle_ipc_timeout(connection, cycle.remaining(), version)?;
             let mut packet = [0u8; MAX_REQUEST_BYTES];
             let size = recv(connection.as_raw_fd(), &mut packet, MsgFlags::MSG_TRUNC)?;
             if size == 0 || size > packet.len() {
@@ -530,15 +580,22 @@ pub(super) fn handle(
             ) {
                 failed_read = Some((packet[0], packet[2]));
             }
-            let deadline = Instant::now() + cycle.remaining().min(step_timeout);
+            let operation_timeout = if version == batch_addition::SHARED_END_VERSION
+                && packet[0] == batch_addition::STAGE
+            {
+                cycle.stage_timeout()
+            } else {
+                step_timeout
+            };
+            let deadline = Instant::now() + cycle.remaining().min(operation_timeout);
             let execution = runtime
                 .block_on(timeout(
-                    cycle.remaining().min(step_timeout),
+                    cycle.remaining().min(operation_timeout),
                     cycle.execute(&packet[..size]),
                 ))
                 .context("cycle step timed out")
                 .and_then(|result| result);
-            if matches!(version, addition::VERSION | batch_addition::VERSION)
+            if (version == addition::VERSION || batch_addition::supported(version))
                 && size == 7
                 && matches!(packet[0], ADD | batch_addition::STAGE)
             {
@@ -603,6 +660,9 @@ pub(super) fn handle(
         serde_json::json!({
             "event": if result.is_ok() && !read_failed_settled { "agent.cycle.completed" } else { "agent.cycle.failed" },
             "protocol_version": version,
+            "session_id": session_id,
+            "opening_ms": opening_ms,
+            "cli_phases": cycle.console.timing.report(),
             "device_id": device_id, "commands": cycle.commands, "removal_steps": cycle.removals,
             "elapsed_ms": started.elapsed().as_millis(),
             "addition_steps": cycle.additions,

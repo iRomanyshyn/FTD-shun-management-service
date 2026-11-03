@@ -118,7 +118,9 @@ def _member_and_ip(row):
     return {"device_id": row["device_id"], "ip": str(address),
             "classification": row["classification"], "observed_at": row["observed_at"],
             "managed_enabled": bool(row["managed_enabled"]),
-            **{key: row[key] for key in ("previous_intent_id", "previous_generation", "previous_authorization_request_id")}}, address
+            "previous_intent_id": row["previous_intent_id"],
+            "previous_generation": row["previous_generation"],
+            "previous_authorization_request_id": row["previous_authorization_request_id"]}, address
 
 
 def _state(row, current):

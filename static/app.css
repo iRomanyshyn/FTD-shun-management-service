@@ -20,6 +20,9 @@ form { display: inline; } li form { margin-left: .75rem; }
 table { border-collapse: collapse; width: 100%; }
 th, td { border-bottom: 1px solid #8886; text-align: left; padding: .7rem .6rem; vertical-align: top; overflow-wrap: anywhere; }
 .table-scroll { overflow-x: auto; }
+/* Keep atomic status labels readable; explanations and other cell text wrap. */
+.status-label { display: inline-block; white-space: nowrap; overflow-wrap: normal; }
+.current-state, .historical-state, .state-badge, .protected-ip-badge, .preview-state-badge { white-space: nowrap; overflow-wrap: normal; }
 .import-actions { display: flex; flex-wrap: wrap; gap: .75rem; margin: 1rem 0; }
 .import-actions form { margin: 0; }
 [hidden], tr[hidden] { display: none !important; }
@@ -71,6 +74,7 @@ th, td { border-bottom: 1px solid #8886; text-align: left; padding: .7rem .6rem;
 @media (prefers-reduced-motion: reduce) { .utility-menu .utility-icon { animation: none !important; } }
 .utility-panel { position: absolute; right: 0; top: calc(100% + .5rem); width: min(48rem, 100%); max-height: min(70vh, 42rem); overflow: auto; background: Canvas; color: CanvasText; border: 1px solid #8888; border-radius: .5rem; box-shadow: 0 .75rem 2rem #0003; z-index: 10; padding: 1.25rem; }
 .utility-panel h2 { margin-top: 0; } .utility-panel p { font-size: .9rem; } .utility-panel table { font-size: .85rem; }
+.cleanup-record > p:has(.cleanup-state) { overflow-x: auto; }
 .device-stale td:first-child { border-left: .25rem solid #d97706; }
 .request-refresh-form { display: block; margin: 1rem 0; }
 [data-refresh-message], [data-refresh-warning], [data-queue-warning] { font-size: .9rem; margin: .6rem 0; }
@@ -171,7 +175,6 @@ th, td { border-bottom: 1px solid #8886; text-align: left; padding: .7rem .6rem;
 #managed-removal-preparation select { max-width: 100%; min-width: 0; font: inherit; }
 #managed-removal-preparation input { width: min(22rem, 100%); }
 #confirm-managed-ip { width: 14rem; }
-.cleanup-state { white-space: normal; }
 .managed-behavior-help { margin-block: 1rem 1.5rem; max-width: 75ch; }
 .managed-behavior-help dt { font-weight: 600; margin-top: .8rem; }
 .managed-behavior-help dd { margin: .25rem 0 .8rem; }

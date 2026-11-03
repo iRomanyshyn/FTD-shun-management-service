@@ -15,6 +15,154 @@ priority. See [the planned constraints](working-version-plan.md#deferred-ip-cont
 
 ## Current increment
 
+**Larger groups and shared terminal snapshot (2026-11-03, tested; not deployed).**
+The matching grouped API/agent selects tracked v5 with up to 16 pending addresses,
+retaining v4's eight-address low-level contract. VERIFY_END returns exact group
+proof plus a full bound snapshot and actual terminal settlement; the final read
+now updates observations without an immediately redundant END read. V5 staging
+is explicitly capped at 30s with a corresponding shorter admission reserve.
+V5 receive-only local-processing wait is 30s, capped by remaining session time;
+send/transfer stay 10s and v4's idle wait remains ten. Whole sessions remain
+120s / 16 mutation attempts / 64 commands, and keep current
+preflight, root, lease, protection, cancellation and priority checks. No schema,
+new authority, credential/trust/network or public API change. Synthetic checks
+cover full groups, old-version compatibility and lost/invalid terminal evidence.
+357 focused Python tests and 99 Rust checks pass; locked release, fmt, Clippy,
+compileall/Ruff/diff pass. Full regression: 3150 pass, two stale unknown-version
+expectations corrected to version 6 and both pass on rerun; not a second clean
+full run. Candidate API `ddae8a1863d2...` / agent `d972adf099df...` are built;
+non-executing preflight results are recorded in the development log.
+
+**Runtime blocker found before replacement:** the old runtime entered ATTENTION
+epoch 2060, retaining one UNVERIFIED ADD after an agent EAGAIN idle receive
+failure. An adjacent SQLite lock and local group settlement preceded it; timings
+are diagnostic, not proof that the next ADD was never submitted. API stop exited
+0 but the stopped DB was not IDLE. Aborted rollout; restarted exact old API
+`124fad2d64df...` in its existing container, leaving old agent/Web unchanged.
+17:37:25Z: original task 7,545 verified / one unverified, 24,879 outstanding;
+integrity ok, all nine authority/protection/inventory/recovery hashes unchanged,
+status 0.853s, Web 200/anonymous 401. Its `processed=7546` includes that one
+unverified result and is not 7,546 verified addresses. A new private consistent
+archive `managed-v2.pre-shared-final-hold-20261103.db` has integrity ok. The
+compatible prior image pair is retained as `lab-pre-shared-final-20261103`.
+No agent replacement, fence reset, reimport, request renewal or unknown replay.
+Next resolve this exact retained case with a tested recovery contract; the
+verified-only old recovery cannot release an epoch containing an unknown ADD.
+No v5 live speedup/large-list acceptance is claimed.
+
+Automatic restoration after later disappearance of a VERIFIED managed block is
+unchanged. Cross-session first confirmation and retry of an ACKed but absent
+first verification are not yet implemented: they need separate retained known-
+absence/settlement evidence, not replay of an unknown write. Larger/longer sessions
+and removal of per-target preflight are not part of this increment.
+
+**Lower-allocation literal verification (2026-11-03, deployed).** Per-member
+assigned-field checks avoid temporary tuples/generators, canonical source fields
+avoid intermediate dict merging, and binary manifest scans reuse only bounded
+device/class formatting bytes. Every original row/check/byte still participates
+before every claim; no result/authority cache or changed input/digest/schema/
+protocol/gate/deadline/verification boundary. Future-field/general JSON fallback
+is retained. **163 focused Python tests pass**, including independent byte vectors,
+scalar assignment corruption and all source/root checks.
+
+Query-only comparison on the actual 32,425-member root: eight alternating pairs
+after warmup in one SQLite snapshot, identical complete receipt/summary; median
+**0.54397 -> 0.46669s (~14% lower)**. This is root verification wall time, not live import
+throughput. A separate disposable 32K complete-claim profile confirmed one full
+root check and eight complete profile validations per claim; none is removed by
+this change. **3143 full Python tests pass in 511.13s**; compileall/Ruff/diff pass.
+Final API image `124fad2d64df...` is built and configured non-executing preflight
+passes. Prior compatible API retained as
+`ftd-shun-api:lab-pre-literal-allocation-20261103`. Old API exited 0; stopped DB
+IDLE epoch 2002, zero RUNNING/unknown work, integrity `ok` and nine original
+authority/protection/inventory/recovery hashes unchanged. API-only update is
+ready; initial task sample 7,063/32,425. Web/agent images and containers/config
+are unchanged; Web health 200/anonymous 401.
+
+Retained audit proves epochs **2004–2006 VERIFIED 10/10/9** with one exact
+pre-write deferral each: **29 in 212.758s (8.18/minute)** including gaps. Startup
+epoch 2003 separately verified five; all first four visits **34 in 258.344s
+(7.90/minute)**. Larger batches are occasional, not a new configured bound.
+Compared with the preceding small 7.93/minute write sample this is a modest
+observed gain, not a controlled throughput benchmark or whole-list acceptance.
+Full-session local claims take 13.610/13.468/12.485s for 11/11/10 attempted claims;
+do not compare raw totals without accounting for different batch sizes.
+
+Final 16:27:58Z: **7,092/32,425**, ready, no device error/FAILED/UNVERIFIED/
+ATTENTION, integrity `ok` and nine unchanged hashes; normal epoch 2007 active,
+not globally idle. Status 0.713s, same Web/agent containers. Next profile remaining
+equivalent SQL/full-profile cost, retaining every root and validation boundary.
+Private connection-local page-cache tuning showed little gain; no service cache/
+memory change was deployed. Large-list execution remains too slow for acceptance.
+
+**Agent CLI phase diagnostics (2026-11-03, deployed).** Agent cycle logs now
+separate opening time and fixed `full_read` / `target_read` / `add` / `remove`
+command durations/counts. Returned errors and cancelled futures are distinct;
+normal envelope return is not semantic success or safe-replay evidence. Existing
+tracked owner IDs provide diagnostic correlation without arguments/raw output.
+No extra CLI, changed deadline/order/verification, wire/profile/schema/gate,
+API/Web code, credentials/trust/network or authority change. **96 Rust checks**
+(86 unit / 10 integration), locked release build, fmt and all-target Clippy pass;
+**133 Python wire/session compatibility checks** pass. Two pre-existing test-only
+unwrap/expect calls were replaced with checked fixture errors. No dependency
+change. Built agent `08e5251f765c...` passes non-executing `--check-config`;
+old compatible agent retained as `ftd-shun-agent:lab-pre-cli-timing-20261103`.
+Agent-only rollout followed API exit 0 / IDLE epoch 1962 / no RUNNING or unknown
+work, integrity `ok` and nine unchanged authority/protection/inventory/recovery
+hashes. Old agent then exited 0 with joined shutdown before replacement. API
+restarted on the same image/container; Web did not restart. Original task, config,
+credentials/trust/network and authority were retained, not recreated/renewed.
+
+Actual owner audit binds the new timing records to epochs 1964/1965: **9/9 VERIFIED**,
+22 actual CLI commands each (9 target reads, 9 ADDs, 4 complete reads), no command
+errors/cancellations and no pending verification at END. One exact no-command
+deferral each is not counted as success. Opening **3.536–4.309s**; target reads
+**14.711–14.937s**; ADDs **14.177–14.989s**; complete reads **8.706–9.338s**.
+Paired API local work **25.046–25.356s**, including **13.016–13.248s** claiming jobs.
+These are wall times, not isolated FTD CPU or permission to omit preflight.
+
+Full two-write-epoch range: **18 in 136.248s (7.93/minute)**, still too slow for
+large-list acceptance and not a claimed speedup from instrumentation. The initial
+epoch 1963 additionally verified one address: all first three epochs **19 in
+162.063s (7.03/minute)**. It was not a read-only startup, unlike the previous rollout.
+At 15:45:08Z: **6,768/32,425**, ready, no device error/FAILED/UNVERIFIED/ATTENTION,
+integrity `ok`, unchanged nine hashes. Active epoch 1967 is ordinary work, not
+global idleness. Status 0.819s; Web health 200/anonymous 401. Next profile remaining
+local claim/validation work while retaining all original-root/current checks.
+
+**Productive session continuation and atomic status labels (2026-11-03, deployed).**
+Successful settled visits with current-epoch terminal progress no longer wait five
+seconds solely because the next command was deferred before sending. Empty/error/
+held visits retain cooldown/backoff; new sessions still recheck all admission and
+priority rules. Worker progress resets on bind; no new session capacity or replay.
+Plain device/queue/managed/review/history statuses now share nonwrapping labels,
+alongside existing colored badges. Explanations still wrap; wide tables/cleanup
+labels scroll locally rather than widening the page. No schema/configuration,
+authority, protocol, agent or device-profile changes.
+
+Validation: **120 initial focused** and **77 final focused** Python checks pass;
+the complete run had **3126 passed / 2 failures** from old literal HTML cell
+assertions. Those assertions now count atomic status spans; both pass in the
+final focused set and a separate `--lf` rerun (**2 passed**). No product failure
+remains from that run. Final Node/Chromium checks: **75 passed**, including narrow
+cells, wrapped descriptions and no page overflow in desktop/mobile light/dark.
+Compileall/Ruff/diff and built-image configured non-executing preflight pass.
+API/Web images `72d6ba21997c...` / `f00749a88b58...` are deployed after actual
+API exit 0, IDLE epoch 1923, zero RUNNING/unknown jobs, integrity `ok` and unchanged
+nine authority/protection/inventory/recovery fingerprints. Compatible rollback:
+`ftd-shun-{api,web}:lab-pre-productive-continuation-20261103`. Agent/configuration
+are unchanged. API ready, Web health 200/anonymous 401; startup epoch 1924 is
+read-only, not counted as successful mutation throughput. Original task continues.
+Retained audit proves epochs **1925/1926: 9/9 VERIFIED**, with one exact pre-write
+deferral each, **18 in 135.529s (7.97/minute)**. The inter-session gap is now
+**0.355s**, versus earlier 5.174/5.184s; no skipped settlement/admission check.
+This small live sample confirms removal of the artificial pause, not whole-list/
+100,000-address capacity or a controlled overall performance benchmark.
+At 15:01:14Z: **6,446/32,425**, ready, device error null, no FAILED/UNVERIFIED/
+ATTENTION, integrity `ok` and unchanged nine fingerprints. Normal epoch 1927 was
+active; do not infer global idleness. Status sample 0.781s; served CSS/JS hashes
+match tested assets. Original task and agent container continue unchanged.
+
 **Exact original-root decoding (2026-11-03, deployed).** Per-member assigned
 UUID checking now uses the equivalent canonical text predicate without allocating
 and formatting UUID objects. Source JSON and binary pair-manifest construction
@@ -47,12 +195,10 @@ Bounded status at 14:32:18Z: ready, **6,251/32,425**, no device error/FAILED/
 UNVERIFIED/ATTENTION, integrity `ok` and unchanged nine fingerprints. Web health
 200/anonymous 401; status samples 0.806–1.160s. Original import continues.
 
-Next targeted work: review the coordinator's five-second delay after a successful
-budget-deferred session that actually made verified/NOOP progress; retain
-zero-progress/error retry backoff, exact settlement and uncertainty fences.
-Observed write-session gaps were 5.174/5.184s. This follow-up is not implemented.
-Then measure bounded fixed CLI-phase aggregates (target preflight/ADD/full read),
-without raw commands, arguments or treating timings as success proof. Whole-list/
+The productive-session continuation change above addresses the previously
+observed 5.174/5.184s gaps, with a measured 0.355s live replacement boundary.
+Fixed CLI phase aggregates are now implemented/measured above. Next target is
+remaining local claim/validation overhead. Whole-list/
 load/production acceptance remains pending; do not remove guards for speed.
 
 **Equivalent profile SQL and scoped result handoff (2026-11-03, deployed).**

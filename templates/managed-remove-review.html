@@ -12,8 +12,8 @@
 <div class="table-scroll"><table aria-label="Frozen fleet removal scope"><thead><tr><th>Device</th><th>Local observation</th><th>Desired policy</th><th>Intent / generation</th></tr></thead><tbody>
 {% for target in review.targets %}<tr>
 <td>{{ target.hostname }} ({{ target.device_id }})<br><span class="state-badge {{ 'policy-enabled' if target.device_enabled else 'policy-disabled' }}">{{ 'Device enabled' if target.device_enabled else 'Device disabled — blocks cleanup' }}</span></td>
-<td>{{ 'Observed present' if target.observed_present else 'Not currently observed — retained scope' }}</td>
-<td>{{ 'Maintain presence — would retire' if target.maintenance_enabled else 'Not maintained — cleanup only' }}</td>
+<td><span class="status-label">{{ 'Observed present' if target.observed_present else 'Not currently observed' }}</span>{% if not target.observed_present %} — retained scope{% endif %}</td>
+<td><span class="status-label">{{ 'Maintain presence' if target.maintenance_enabled else 'Not maintained' }}</span> — {{ 'would retire' if target.maintenance_enabled else 'cleanup only' }}</td>
 <td>{% if target.intent_id %}<code>{{ target.intent_id }}</code> / {{ target.generation }}{% else %}No managed intent; no adoption{% endif %}</td>
 </tr>{% endfor %}
 </tbody></table></div>

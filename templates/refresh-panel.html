@@ -17,7 +17,7 @@
 <p data-refresh-message role="status" aria-live="polite"></p>
 <table class="device-status"><thead><tr><th>Device</th><th>State</th><th>Last confirmed</th><th>Details</th></tr></thead><tbody data-device-status>
 {% for device_id, device in refresh.devices.items() %}
-<tr><td>{{ device.hostname or device_id }}</td><td>{{ device.state or 'pending' }}</td><td>{{ device.last_successful_refresh or 'Not yet available' }}</td><td>{{ device.last_error or '—' }}</td></tr>
+<tr><td>{{ device.hostname or device_id }}</td><td><span class="status-label">{{ device.state or 'pending' }}</span></td><td>{{ device.last_successful_refresh or 'Not yet available' }}</td><td>{{ device.last_error or '—' }}</td></tr>
 {% endfor %}
 </tbody></table>
 </div></details>

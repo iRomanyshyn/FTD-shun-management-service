@@ -44,7 +44,99 @@ invent successful results, alter credentials/trust or silently erase the dataset
 
 ## Current laboratory runtime — updated 2026-11-03
 
-Latest API-only increment `e00a76582543...` removes repeated assigned UUID/IP
+Latest checkpoint: the proposed shared-final v5 increment is **not deployed**.
+During validation the old API/agent independently entered ATTENTION epoch 2060:
+one ADD `db174cf8-3496-53d8-aa78-1096bc39b251` is UNVERIFIED. Agent diagnostics
+show eight preceding ADDs/group read and an EAGAIN idle receive failure, with an
+adjacent API SQLite-lock error. Logs are not proof that the ninth ADD was never
+submitted; do not relabel/replay it, release the epoch or reuse the old epoch-942
+verified-only recovery receipt. API drain exited 0, but stopped DB was ATTENTION,
+not IDLE, so agent replacement and the new rollout were aborted. The exact old
+API container `9c58b6329751` / image `124fad2d64df...` was restarted; agent
+`6c844c0e08d1` / `08e5251f765c...` and Web `a22c285d6e96` are unchanged.
+At 17:37:25Z: 7,545 verified / one unverified original-task member, 24,879
+outstanding; integrity ok, nine original fingerprints unchanged, Web 200/401.
+A new private consistent archive `managed-v2.pre-shared-final-hold-20261103.db`
+has integrity ok. Keep that evidence and original task/authority/protection.
+
+Candidate API `ddae8a1863d2...` / agent `d972adf099df...` implement v5 up to 16
+pending ADDs and one shared final verification/snapshot/settlement, retaining
+120s/16-mutation/64-command bounds and all current checks. V5 stage max is 30s;
+receive-only local-processing wait is 30s capped by remaining session time, while
+send/transfer stays 10s and v4 retains its exact old contract. 357 focused Python
+checks and 99 Rust checks pass; full regression had 3150 pass plus two stale
+version-expectation failures corrected and successfully rerun. See status/log;
+do not claim a second clean full run or live throughput acceptance. Compatible
+old pair retained as `ftd-shun-{api,agent}:lab-pre-shared-final-20261103`.
+Do not invoke ordinary `up` against these candidate tags until the held case is
+resolved under an explicit tested compatible recovery contract. No new migration,
+authority, fixture, credential/trust/network change or task was submitted.
+
+Latest API-only increment is `124fad2d64df...`: direct assigned-field equality
+and canonical source construction avoid temporary containers; per-call manifest
+encoding reuses only bounded literal device/class bytes. Every original member,
+byte and profile/root/current eligibility check remains; no authority/result
+cache, changed digest/input, schema, protocol, gate, deadline or verification.
+3143 full Python tests and 163 focused checks pass; compileall/Ruff/diff and
+built-image configured non-executing preflight pass. Same-snapshot query-only
+32,425-member root median 0.54397 -> 0.46669s, not execution throughput.
+Old API exited 0, stopped DB IDLE epoch 2002 with zero RUNNING/unknown work,
+integrity ok and nine original authority/protection/inventory/recovery hashes
+unchanged. Compatible rollback: `ftd-shun-api:lab-pre-literal-allocation-20261103`.
+Web `f00749a88b58...` / agent `08e5251f765c...` and their containers are unchanged.
+New API `9c58b6329751` is ready; Web health 200/anonymous 401. Retained audit
+proves startup epoch 2003 VERIFIED five addresses, then 2004–2006 VERIFIED
+10/10/9: 29 in 212.758s including gaps (8.18/minute); all four visits 34 in
+258.344s (7.90/minute). This is a small sample, not a stable capacity/production
+claim; batch size remains dynamic. At 16:27:58Z original task 7,092/32,425,
+no device error/FAILED/UNVERIFIED/ATTENTION, integrity ok and nine hashes unchanged;
+normal epoch 2007 active, not globally idle. Next profile equivalent SQL/full-
+profile cost without dropping validation boundaries. A private larger SQLite
+page-cache trial gave little gain; service memory/cache settings are unchanged.
+Keep original task/authority/protection/recovery; no reset/reimport/consent renewal.
+
+Current agent-only increment `08e5251f765c...` adds fixed CLI phase counters/timing
+and opening time to existing cycle diagnostics; no changed commands, wire,
+limits, semantic verification, authority, gates, configuration or dependencies.
+Returned command envelopes/timing never prove successful writes or safe replay.
+API/Web images remain `72d6ba21997c...` / `f00749a88b58...`. API drained exit 0,
+IDLE epoch 1962 with no RUNNING/unknown work, integrity ok and nine hashes unchanged;
+old agent then drained exit 0 before replacement. Agent rollback:
+`ftd-shun-agent:lab-pre-cli-timing-20261103`. Same API restarted, Web unchanged.
+96 Rust tests, locked release/fmt/all-target Clippy and 133 Python wire/session
+checks pass. Diagnostic session IDs correlate with actual owner-bound audit.
+Epoch 1963 verified one address; 1964/1965 verified nine each in 136.248s including
+their gap (7.93/minute, not a speedup). Per full session: 9 target reads + 9 ADDs
+cost 28.888–29.926s; four full reads 8.706–9.338s; opening 3.536–4.309s. API
+local work still costs 25.046–25.356s, including 13.016–13.248s claiming work.
+Next profile remaining local claim/validation overhead without skipping original
+root/current eligibility checks or changing deadlines. At 15:45:08Z original
+task 6,768/32,425, ready, no error/FAILED/UNVERIFIED/ATTENTION, integrity ok and
+nine fingerprints unchanged. Normal epoch 1967 active; not globally idle. Web
+health 200/anonymous 401. Do not reset/reimport or renew authority for throughput.
+
+Previous API/Web increment is `72d6ba21997c...` / `f00749a88b58...`. Short list
+statuses stay on one line, while explanations wrap and wide content scrolls
+locally. Successful current-epoch productive settled sessions no longer impose
+the empty-defer five-second cooldown; zero-progress/error backoff and all fresh
+lease/session/admission/priority/uncertainty checks remain. Bind clears stale
+progress. Agent `cbb6492d90a6...`, configuration and original authority are unchanged.
+API drained exit 0 / IDLE epoch 1923, zero RUNNING/unknown jobs, integrity ok and
+nine original fingerprints unchanged. Compatible rollback tags:
+`ftd-shun-{api,web}:lab-pre-productive-continuation-20261103`. Startup epoch 1924
+was settled read-only. Write epochs 1925/1926 verified 9/9 in 135.529s including
+their 0.355s gap (7.97/minute, small sample, not whole-list acceptance). Prior
+measured gaps were 5.174/5.184s. At 15:01:14Z: 6,446/32,425, ready, no device
+error/FAILED/UNVERIFIED/ATTENTION, integrity ok and nine hashes unchanged. Normal
+epoch 1927 was active, not globally idle. Web health 200/anonymous 401; tested
+asset hashes match deployed HTTP assets. Agent container is still `bbc1607fb1da`.
+Validation: 120 initial / 77 final focused Python, 75 browser checks; full run
+3126 passed plus two obsolete HTML assertions corrected and passing separately
+(including a final two-test rerun). Next measure per-CLI phases and remaining
+execution overhead; keep the original task, authority and recovery evidence.
+See status/log for precise scope and limits.
+
+Previous API-only increment `e00a76582543...` removes repeated assigned UUID/IP
 object conversion during complete original-root verification. Every member and
 source byte is still checked per claim; canonical acceptance, stored digests and
 all authority/profile/protocol/time/write guards are unchanged. No result cache.
@@ -56,9 +148,8 @@ jobs, integrity ok and nine original hashes unchanged. Compatible API rollback:
 Startup epoch 1898 was settled read-only. Write epochs 1899–1901 verified 9/9/9
 in 216.366s including gaps (7.49/minute), no overall throughput gain established.
 Bounded status at 14:32:18Z: 6,251/32,425, ready, no unknown/error/ATTENTION,
-integrity ok and original hashes unchanged. Next review the five-second budget-
-defer cooldown after successful progress (not zero-progress/error backoff), then
-measure fixed per-CLI phase aggregates; neither follow-up is implemented yet.
+integrity ok and original hashes unchanged. Its five-second budget-defer follow-up
+is implemented above; fixed per-CLI phase aggregates remain the next measurement.
 
 Previous API-only increment `cb8c07f85ede...` uses equivalent profile SQL and an
 exact same-transaction result handoff only in device-scoped claims/results.

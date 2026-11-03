@@ -1,11 +1,15 @@
 # Agent Cycle Protocol v1
 
 The separate default-off [grouped ADD integration](batch-additions.md) defines
-tracked cycle v4 and an explicit configured managed worker. It does not change
+tracked cycles v4/v5 and an explicit configured managed worker. V5 uses up to
+16 pending ADDs and combines the last verification with session completion;
+v4 retains its original limits. It does not change
 the v1/v2/v3 contracts below. Consult current status for actual lab selection.
 
-Current integration: the clean managed lab uses v3 with strict settlement; the
-new configured client selects [recoverable opening BEGIN `17`](opening-recovery.md).
+Historical integration checkpoint: the initial clean managed lab used v3 with
+strict settlement and [recoverable opening BEGIN `17`](opening-recovery.md).
+Current grouped selection/held-runtime limits are in project status and the
+grouped-additions manual, not this legacy checkpoint.
 This legacy v1/BEGIN `10` specification and its default-safe gates remain unchanged.
 Older no-live-selection notes below describe the initial isolated increment.
 

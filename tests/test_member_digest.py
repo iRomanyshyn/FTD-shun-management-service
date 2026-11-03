@@ -44,6 +44,8 @@ class Bytes:
     {'observed_at': '\"ip\":\"\" \\ \n café 🦊'},
     {'previous_intent_id': 'one'}, {'previous_generation': 1},
     {'previous_authorization_request_id': 'two'},
+    {'managed_enabled': None}, {'managed_enabled': ''}, {'managed_enabled': False},
+    {'managed_enabled': True}, {'managed_enabled': 'yes'},
 ])
 def test_each_encoded_byte_matches_original_canonical_feed(changes):
     expected, actual = Bytes(), Bytes()

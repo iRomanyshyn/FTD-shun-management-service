@@ -58,6 +58,7 @@ class _DeviceWorker(Synchronizer):
         self._managed_restoration_error = None
         self._cycle_cutoff = self.queue.cutoff()
         self._cycle_outcome = 'running'
+        self._device_cycle = {}  # Never expose progress from a previous visit.
         self._timing = SessionTiming()
 
     def _collection_devices(self):
@@ -78,7 +79,8 @@ class _DeviceWorker(Synchronizer):
         if session is not None and getattr(function, '__self__', None) is session:
             for name, label in (('snapshot', 'snapshot'), ('finish', 'finish'),
                                 ('add_shun', 'add'), ('remove_shun', 'remove'),
-                                ('stage_addition', 'stage_add'), ('verify_additions', 'verify_adds')):
+                                ('stage_addition', 'stage_add'), ('verify_additions', 'verify_adds'),
+                                ('finish_additions', 'verify_end')):
                 if function == getattr(session, name, None):
                     phase = label
                     break
@@ -159,6 +161,14 @@ class _DeviceWorker(Synchronizer):
         self.session_settled = getattr(cycle, 'settled', False) is True
         return snapshot
 
+    async def _finish_addition_session(self, cycle):
+        result = await self._agent_call(cycle.finish_additions)
+        if getattr(cycle, 'settled', False) is not True:
+            self.rpc_failed = True
+            raise AgentUnavailable('Final addition group lacks actual terminal settlement; device fence retained.')
+        self.session_settled = True
+        return result
+
     def _discover_snapshot(self, *args):
         if not self._stop_mutations:
             super()._discover_snapshot(*args)
@@ -174,7 +184,7 @@ class _DeviceWorker(Synchronizer):
         return completed
 
     async def _session_mutations(self, device_id, cycle, snapshot):
-        if getattr(cycle, 'version', None) == 4:
+        if getattr(cycle, 'version', None) == 5:
             from .batch_session import BatchSession
 
             return await BatchSession(self, device_id, cycle, snapshot).run()

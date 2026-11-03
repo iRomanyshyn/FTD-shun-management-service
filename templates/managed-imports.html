@@ -17,7 +17,7 @@
 <h2>Saved preparations</h2>
 <p>Recover here after a lost preparation reply. Opening a preparation never confirms it.</p>
 <div class="table-scroll"><table><thead><tr><th>Label / created</th><th>Scope</th><th>State</th><th>Actions</th></tr></thead><tbody>
-{% for plan in drafts.plans %}<tr><td>{{ plan.label or 'Unlabelled preparation' }}<br><time class="local-timestamp" datetime="{{ plan.created_at }}">{{ plan.created_at }}</time></td><td>{{ plan.target_count }} proposed pairs</td><td>{{ plan.state }}</td><td>
+{% for plan in drafts.plans %}<tr><td>{{ plan.label or 'Unlabelled preparation' }}<br><time class="local-timestamp" datetime="{{ plan.created_at }}">{{ plan.created_at }}</time></td><td>{{ plan.target_count }} proposed pairs</td><td><span class="status-label">{{ plan.state }}</span></td><td>
 <form method="post" action="/managed-imports/preparation"><input type="hidden" name="csrf" value="{{ csrf_token }}"><input type="hidden" name="preparation_id" value="{{ plan.plan_id }}"><button>Open preparation</button></form>
 {% if plan.confirmed_operation_id %}<form method="post" action="/managed-imports/report"><input type="hidden" name="csrf" value="{{ csrf_token }}"><input type="hidden" name="operation_id" value="{{ plan.confirmed_operation_id }}"><button>Open saved receipt</button></form>{% endif %}
 </td></tr>{% else %}<tr><td colspan="4">{{ 'No saved preparations.' if drafts.initialized else 'Preparation state unavailable until explicitly initialized.' }}</td></tr>{% endfor %}

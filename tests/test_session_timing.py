@@ -61,7 +61,7 @@ def test_agent_duration_excludes_local_lease_renewal_even_on_failure(monkeypatch
     assert report['local_phases_seconds'] == {'renew': 2}
 
 
-@pytest.mark.parametrize('phase', ['snapshot', 'finish', 'add_shun', 'remove_shun'])
+@pytest.mark.parametrize('phase', ['snapshot', 'finish', 'add_shun', 'remove_shun', 'finish_additions'])
 def test_phase_labels_use_bound_session_methods_not_arbitrary_function_names(monkeypatch, phase):
     async def base_call(self, function, *args):
         return 'done'
@@ -73,6 +73,7 @@ def test_phase_labels_use_bound_session_methods_not_arbitrary_function_names(mon
         def finish(self): pass
         def add_shun(self): pass
         def remove_shun(self): pass
+        def finish_additions(self): pass
 
     worker = object.__new__(_DeviceWorker)
     worker._timing = SessionTiming()
@@ -80,7 +81,7 @@ def test_phase_labels_use_bound_session_methods_not_arbitrary_function_names(mon
     worker.device_id, worker._rpc_calls, worker._read_session = 1, 1, Session()
     worker.clock = lambda: 0
     assert asyncio.run(worker._agent_call(getattr(worker._read_session, phase))) == 'done'
-    label = {'add_shun': 'add', 'remove_shun': 'remove'}.get(phase, phase)
+    label = {'add_shun': 'add', 'remove_shun': 'remove', 'finish_additions': 'verify_end'}.get(phase, phase)
     report = worker._timing.report()
     assert report['agent_phase_calls'] == {label: 1}
     # Same method name on another object cannot masquerade as the current session.

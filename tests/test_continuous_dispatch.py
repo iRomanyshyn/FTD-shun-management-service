@@ -17,7 +17,7 @@ from test_parallel_synchronizer import journal as journal_fixture
 from test_parallel_synchronizer import leases as leases_fixture
 from test_parallel_synchronizer import waits as waits_fixture
 
-from ftd_shun_manager.agent_protocol import ObservedShun
+from ftd_shun_manager.agent_protocol import AdditionResult, ObservedShun
 from ftd_shun_manager.bulk_policy import BulkUnavailable
 from ftd_shun_manager.continuous_dispatch import ContinuousDispatcher, ReadDemand
 from ftd_shun_manager.device_leases import DeviceOperationQueue
@@ -779,6 +779,85 @@ def test_exact_deferral_has_short_backoff_without_a_busy_loop(bulk, continuous):
     asyncio.run(scenario())
     with service.runner.store._connection() as db:
         assert {row[0] for row in db.execute('SELECT state FROM managed_bulk_attempts')} == {'VERIFIED'}
+
+
+@pytest.mark.parametrize('already_present', [False, True])
+def test_productive_settled_deferral_dispatches_fresh_session_without_cooldown(
+        bulk, continuous, monkeypatch, already_present):
+    service, agent, clock = continuous
+    grant(bulk, devices=(1,), count=3)
+    opening = agent.open_cycle
+    mutation_sessions = []
+
+    def open_cycle(device):
+        session = opening(device)
+        addition = session.add_shun
+        calls = 0
+
+        def add(ip):
+            nonlocal calls
+            calls += 1
+            mutation_sessions.append(session)
+            # First execution visit: one VERIFIED/NOOP, then exact pre-write
+            # deferral. The replacement must start without advancing the clock.
+            agent.defer = len(set(map(id, mutation_sessions))) == 1 and calls == 2
+            try:
+                if already_present and not agent.defer:
+                    agent.entries[device].append(ObservedShun(ip, 'management'))
+                    return AdditionResult(False, None)
+                return addition(ip)
+            finally:
+                agent.defer = False
+        session.add_shun = add
+        return session
+
+    monkeypatch.setattr(agent, 'open_cycle', open_cycle)
+
+    async def scenario():
+        await service.start()
+        try:
+            await until(lambda: len(mutation_sessions) >= 4 and not service._active)
+            assert clock[0] == 1000.0
+            assert len(set(map(id, mutation_sessions))) == 2
+            assert not service.runner._results['1'].get('error')
+        finally:
+            await service.stop()
+    asyncio.run(scenario())
+    with service.runner.store._connection() as db:
+        outcomes = [row[0] for row in db.execute('SELECT state FROM managed_bulk_attempts')]
+        assert len(outcomes) == 3
+        assert set(outcomes) == ({'NOOP'} if already_present else {'VERIFIED'})
+    assert service.runner.leases.status()['devices'][0]['state'] == 'IDLE'
+
+
+@pytest.mark.parametrize('state,settled,epoch,action,completed,delay', [
+    ('success', True, 7, 'completed', 2, 0),
+    ('success', True, 7, 'completed', 0, 5),
+    ('success', True, 7, 'completed', True, 5),
+    ('success', True, 7, 'completed', '2', 5),
+    ('success', False, 7, 'completed', 2, 5),
+    ('success', True, 6, 'completed', 2, 5),
+    ('success', True, 7, 'failed', 2, 5),
+    ('held', True, 7, 'completed', 2, 5),
+    ('retrying', True, 7, 'completed', 2, 5),
+])
+def test_completion_cooldown_requires_current_settled_terminal_progress(
+        continuous, state, settled, epoch, action, completed, delay):
+    from types import SimpleNamespace
+
+    service, _agent, clock = continuous
+    service.runner._workers[1] = SimpleNamespace(
+        session_settled=settled, queue=SimpleNamespace(token=SimpleNamespace(epoch=7)),
+        _device_cycle={'budget_deferred': True, 'completed': completed, 'limit': 16, 'action': action})
+    service.runner._results['1'] = {'state': state, 'epoch': epoch}
+
+    async def scenario():
+        task = asyncio.create_task(asyncio.sleep(0))
+        await task
+        service._active[1] = task
+        service._completed()
+    asyncio.run(scenario())
+    assert service._retry_after[1] == clock[0] + delay
 
 
 def test_pause_allows_reads_but_not_add_then_work_hint_gets_fresh_evidence(bulk, continuous):

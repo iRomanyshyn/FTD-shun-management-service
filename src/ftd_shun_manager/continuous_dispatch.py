@@ -385,8 +385,17 @@ class ContinuousDispatcher:
             result = self.runner._results.get(str(device), {})
             worker = self.runner._workers.get(device)
             phase = worker._device_cycle if worker is not None else {}
-            deferred = phase.get('budget_deferred') and phase.get('completed', 0) < phase.get('limit', 16)
-            delay = DEFER_SECONDS if result.get('state') != 'success' or deferred else 0
+            deferred = phase.get('budget_deferred')
+            # Only terminal progress in this fully settled visit avoids the
+            # empty-defer cooldown. A replacement still needs a fresh lease,
+            # session, snapshot and all normal claim/priority checks.
+            completed = phase.get('completed', 0)
+            productive = (result.get('state') == 'success' and worker is not None
+                          and getattr(worker, 'session_settled', False) is True
+                          and worker.queue.token.epoch == result.get('epoch')
+                          and phase.get('action') == 'completed'
+                          and type(completed) is int and completed > 0)
+            delay = DEFER_SECONDS if result.get('state') != 'success' or (deferred and not productive) else 0
             if result.get('state') == 'retrying':
                 # Bounded local retries; never reuse a submitted RPC or lease.
                 count = self._connection_failures.get(device, 0) + 1

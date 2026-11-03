@@ -515,14 +515,18 @@ class BulkPolicies:
                     address = source_members.feed(member)
                     kind = member['classification']
                     if kind == 'ALREADY_MANAGED':
-                        expected = tuple(member[name] for name in ('previous_intent_id','previous_generation','previous_authorization_request_id'))
+                        valid = (member['intent_id'] == member['previous_intent_id']
+                                 and member['generation'] == member['previous_generation']
+                                 and member['authorization_request_id'] == member['previous_authorization_request_id'])
                     elif kind == 'EXCLUDED_PROTECTED':
-                        expected = (None, None, None)
+                        valid = (member['intent_id'] is None and member['generation'] is None
+                                 and member['authorization_request_id'] is None)
                     else:
-                        expected = (member['intent_id'], (member['previous_generation'] or 0) + 1, key)
                         if not _assigned_intent_valid(member['intent_id']):
                             raise BulkUnavailable('Invalid assigned intent identity.')
-                    if tuple(member[name] for name in ('intent_id','generation','authorization_request_id')) != expected:
+                        valid = (member['generation'] == (member['previous_generation'] or 0) + 1
+                                 and member['authorization_request_id'] == key)
+                    if not valid:
                         raise BulkUnavailable('Assigned bulk authority does not match its original classification.')
                     yield member['device_id'], address, kind
 

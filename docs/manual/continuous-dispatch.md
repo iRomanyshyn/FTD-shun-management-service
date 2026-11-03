@@ -21,6 +21,41 @@ original holds. This prevention path never releases an old ATTENTION lease.
 
 ## Execution timing diagnostics
 
+### Agent-side command phases
+
+The agent's existing `agent.cycle.completed` / `agent.cycle.failed` JSON records
+now include `opening_ms`, `session_id` and `cli_phases`. These are diagnostics,
+not the post-handler/guard/worker-IDLE terminal receipt. Read them through the
+agent's Compose logs, using all three current lab overlays.
+
+`opening_ms` measures agent credential lookup/read plus SSH connect, authentication,
+PTY/shell setup and initial prompt; it excludes the initial `show shun`.
+`session_id` is the existing tracked owner UUID's 32 lowercase hexadecimal digits
+(remove the UUID hyphens when comparing retained lease audit). Legacy cycles use
+null. An opening failure includes opening time/ID but has no CLI phase report.
+
+`cli_phases` has exactly four fixed keys: `full_read`, `target_read`, `add`, `remove`.
+Each records `calls`, `returned`, `errors`, `cancelled`, and aggregate `seconds`
+(rounded to milliseconds). Timers start only on polling an actual command future;
+an outer timeout/drop records cancellation. Count command send, prompt wait and
+shell echo/envelope decoding. Exclude subsequent shun/ACK semantic parsing,
+encoding/transferring frames, API/database/queue work and disconnect. Initial,
+group-verification, priority and final complete reads share `full_read`.
+
+`returned` is **not a successful shun**: an otherwise normal command envelope can
+still fail the strict ADD acknowledgement or shun parser. Likewise error/cancelled
+counts never establish before-send safety or permit replay. Existing outcomes and
+terminal settlement/uncertainty rules are unchanged. Timings include runtime/network
+delays, not isolated FTD CPU time. They reset per session, retain no arguments/IPs/
+output/credentials, and introduce no polling, extra CLI command, gate or dependency.
+
+Agent-only code rollout/rollback needs no database restoration or API/Web rebuild.
+Keep a compatible agent image; drain API first, check exit 0/IDLE/no unknown work,
+stop agent, replace it, then restart the same API. Preserve the original import,
+authority/protection and all three overlays. Follow [Graceful Agent Shutdown](agent-shutdown.md).
+
+### API-side awaited work
+
 The 2026-11-03 API emits one `device.session.timing` JSON event after each bound
 device visit (including failures), correlated by device ID and epoch. Inspect it
 with the normal Compose API logs and all current lab overlays. No diagnostic
@@ -99,6 +134,14 @@ operation-ID/descriptor validation are unchanged. This API-only optimization
 needs no schema/gate/configuration or agent/Web change. Use a clean API drain
 and retain the compatible prior API image for rollback. Query-only root timing
 is not successful device execution or large-list acceptance.
+
+Further allocation reductions preserve that exact scan. Assigned field equality
+uses direct comparisons instead of temporary tuples/generators, source dictionaries
+avoid an intermediate merge, and manifest encoding reuses at most ten device
+prefixes/four class bytes within the call. Every row still passes exact type,
+ordering, uniqueness, capacity and complete-product validation and contributes
+its original seven bytes. No profile/root check, result cache, new digest format
+or relaxed input is involved. The same API-only drain/rollback procedure applies.
 
 ## Session scheduling
 
@@ -289,9 +332,15 @@ zero mutation steps/claims. Its `agent_read_failed` retry uses the same capped
 backoff and fresh-epoch requirements below. It does not recover missing proof,
 old held leases or unknown ADD/REMOVE; opening status `03` stays opening-only.
 
-Exact pre-write deferral, failed rounds and lease contention use a five-second
-rescheduling delay to avoid a hot loop. A normally exhausted 16-mutation batch is
-not such an error and continues without that artificial delay. Submitted RPC failure
+Exact pre-write deferral without terminal progress, failed rounds and lease
+contention use a five-second rescheduling delay to avoid a hot loop. A productive
+successful visit skips that delay only after actual terminal VERIFIED/NOOP progress,
+completed worker phase, strict session settlement and normal live-epoch release.
+The current result epoch must match the worker's bound lease; stale counters and
+staging acknowledgements cannot qualify. Progress is reset on every bind. A new
+visit still needs a fresh lease, session, complete observation and every original
+authority/time/protection/priority check; no session bound is extended. Normally
+exhausted 16-mutation batches also continue without the artificial delay. Submitted RPC failure
 retains the device lease; expiry records immutable ATTENTION/UNVERIFIED through the
 existing path. Retrying lease acquisition is not reconnect/replay authority. Healthy
 devices continue while held work/demand remains visible. No uncertainty latch,

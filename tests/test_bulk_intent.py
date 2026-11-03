@@ -6,6 +6,7 @@ import tracemalloc
 from dataclasses import FrozenInstanceError, replace
 from ipaddress import IPv4Address
 from itertools import chain
+from random import Random
 
 import pytest
 
@@ -58,6 +59,26 @@ def test_fixed_binary_and_descriptor_golden_vectors_are_versioned():
     assert json.loads(canonical)["label"] == "Lab" and "targets" not in json.loads(canonical)
     with pytest.raises(FrozenInstanceError):
         summary.pair_count = 3
+
+
+def test_reused_binary_frames_match_independent_literal_records_across_boundary_devices():
+    rng = Random(727)
+    numbers = sorted({0, 255, 256, 2**32 - 1, *(rng.getrandbits(32) for _ in range(400))})
+    devices = (1, 257, 65535)
+    expected = hashlib.sha256(DOMAIN)
+    rows, counts = [], [0] * 4
+    for device in devices:
+        for index, number in enumerate(numbers):
+            ip, kind = IPv4Address(number), CLASSES[(index + device) % 4]
+            rows.append((device, ip, kind))
+            # Frozen original record expression, independent of new framing maps.
+            code = CLASSES.index(kind)
+            expected.update(device.to_bytes(2, 'big') + ip.packed + bytes([code + 1]))
+            counts[code] += 1
+    summary = summarize_manifest(iter(rows), devices)
+    assert summary.digest == expected.hexdigest()
+    assert summary.classification_counts == tuple(counts)
+    assert summary.address_count == len(numbers) and summary.pair_count == len(rows)
 
 
 def test_maximum_stream_is_complete_bounded_in_memory_and_has_a_small_descriptor():

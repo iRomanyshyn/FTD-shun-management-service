@@ -57,9 +57,9 @@ def test_addition_frames_cannot_enter_legacy_agent_protocol(version):
 
 def test_unknown_version_is_rejected_not_negotiated_or_downgraded():
     with pytest.raises(ValueError, match="invalid cycle version"):
-        encode_cycle_request(CycleOperation.BEGIN, 0, device_id=1, version=5)
+        encode_cycle_request(CycleOperation.BEGIN, 0, device_id=1, version=6)
     with pytest.raises(ValueError, match="invalid cycle version"):
-        decode_cycle_response(bytes.fromhex("0005140100"), CycleOperation.ADD, 1, version=5)
+        decode_cycle_response(bytes.fromhex("0006140100"), CycleOperation.ADD, 1, version=6)
 
 
 def test_shared_v3_addition_and_snapshot_wire_vectors():

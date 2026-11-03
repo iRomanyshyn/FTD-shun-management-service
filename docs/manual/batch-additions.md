@@ -11,7 +11,46 @@ verified 25 addresses in 207.066s. This is only 7.24/minute, not large-list
 acceptance. Examples remain false. See current status for image IDs, rollback
 tags, integrity checks and remaining local claim overhead.
 
-## Execution contract
+## Current execution contract (v5)
+
+This is the implemented candidate contract, not current lab activation. The
+2026-11-03 replacement was aborted after the old runtime entered ATTENTION epoch
+2060 with one unknown ADD. Old API/agent/Web remain running; see current status.
+Resolve retained uncertainty before normal replacement; no reset/reimport.
+
+The matching configured grouped API/agent now selects tracked cycle v5. Up to
+**16** acknowledged addresses share a complete verification read. The final group
+uses `VERIFY_END` (`1c 05 seq`): the exact ordered group receipt, complete typed
+snapshot and real post-handler terminal settlement replace a separate VERIFY
+and END read. The receipt has the same layout as v4, with version `05` and opcode
+`1c`; every snapshot frame binds that version/opcode/sequence too. Success requires
+all three components. Missing settlement retains pending evidence and the fence;
+there is no fallback, inferred success or replay.
+
+The one final observation both confirms additions and updates the visible list.
+Commit proven per-target results before publishing that observation. Interactive
+refresh/removal still verifies a partial group between semantic commands. Stop,
+pause, cancellation and pre-write deferral also finish the actual pending scope.
+No queued address beyond the original frozen cutoff gains permission.
+
+The 16-mutation, 64-command and 120-second whole-session limits are unchanged.
+V5 caps an individual stage to 30 seconds (two bounded prompt interactions),
+reserving that step plus the final 15-second prompt interaction before writing.
+V5 allows a 30-second receive-only local-processing wait, capped by the remaining
+session deadline; v4 stays at ten. Send/transfer and other operation/cleanup
+limits remain unchanged. This recovers
+some unused session time; 16 is a maximum, not a promised actual group size.
+Per-target preflight and current root/lease/protection checks remain. One session
+is already shared across its addresses; there is not a new SSH login per address.
+
+A previously verified managed block that disappears on a later complete refresh
+is restored by existing desired-state reconciliation. First confirmation deferred
+across sessions, or automatic retry of an ACKed but missing first verification,
+is still pending a durable known-absence/settlement contract. Missing/invalid
+first verification currently retains uncertainty. Never reinterpret a lost write
+reply or generic later presence as original creation proof.
+
+## Historical v4 transport contract (still supported by the low-level agent/client)
 
 The grouped worker stages at most eight ADDs on one device's existing SSH
 session. Each stage reads that exact target immediately before writing, branches
@@ -91,6 +130,12 @@ outlives the current executor lease and loses the live pending evidence. A
 generic later observation must never turn an unknown ADD into success.
 
 ## Deployment and rollback
+
+V5 requires a matching API/agent pair; older agents reject it before any device
+write. Do not fall back to v4 after an uncertain operation. Drain API, check
+IDLE/no RUNNING or unknown work, then drain agent before replacing both. Compatible
+pre-v5 images may be restored together at that same clean boundary with the
+existing grouped flag unchanged. No schema or retained authority changes occur.
 
 No database/schema/data/credentials/trust/network changes are needed. Validate
 the queue integration, drain API before agent replacement, retain compatible

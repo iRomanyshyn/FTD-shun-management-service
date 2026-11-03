@@ -548,6 +548,50 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
     const debugOrigin = websocket.replace(/^ws:/, "http:").split("/devtools/")[0];
     const wake = (page) => page.evaluate("document.dispatchEvent(new Event('visibilitychange'))");
 
+    await t.test("status labels stay on one line while explanations wrap and tables scroll on mobile", async () => {
+      status = initial();
+      status.devices['1'].state = 'pending';
+      status.queue = { revision: 1, counts: { QUEUED: 1, UNVERIFIED: 1, VERIFIED: 1 }, items:
+        ['QUEUED', 'UNVERIFIED', 'VERIFIED'].map((state, i) => ({ id: `nowrap-${i}`, action: 'ADD',
+          device_id: 1, hostname: 'Synthetic FTD', ip: `198.51.100.${i+1}`, state, requested_at: future(0),
+          execution_enabled: false, requests: [], reason: 'An explanation that can wrap independently of its short status label.' })) };
+      const page = await connectPage(debugOrigin, `${origin}/protected-ips`);
+      try {
+        await page.until("document.querySelector('[data-device-status] .status-label')?.textContent==='Not yet confirmed'");
+        assert.deepEqual(await page.evaluate(`Array.from(document.querySelectorAll('.operation-queue .status-label'), e => e.textContent)`),
+          ['Held', 'UNVERIFIED', 'VERIFIED']);
+        assert.ok(await page.evaluate("document.querySelector('[data-operation-queue]').textContent.includes('Held — ADD execution disabled')"));
+        await page.evaluate(`(() => {
+          const host = document.createElement('section'); host.id = 'nowrap-fixture';
+          host.innerHTML = '<div class="table-scroll" style="width:9rem;max-width:100%"><table><tbody>'
+            + ['status-label', 'state-badge', 'protected-ip-badge', 'preview-state-badge', 'current-state', 'historical-state', 'state-badge cleanup-state']
+              .map(cls => '<tr><td><span class="' + cls + '">Not currently observed</span></td><td>Description with multiple words that should wrap normally.</td></tr>').join('')
+            + '</tbody></table></div><div class="cleanup-record"><p><span class="state-badge cleanup-state">Queue history incomplete — outcome unknown</span></p></div>';
+          document.querySelector('main').append(host);
+        })()`);
+        for (const width of [1280, 375]) {
+          await page.call('Emulation.setDeviceMetricsOverride', { width, height: 800, deviceScaleFactor: 1, mobile: width === 375 });
+          for (const theme of ['light', 'dark']) {
+            await page.call('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: theme }] });
+            const result = await page.evaluate(`(() => {
+              const labels = [...document.querySelectorAll('#nowrap-fixture span, .operation-queue .status-label, [data-device-status] .status-label')];
+              const oneLine = labels.every(label => {
+                const range = document.createRange(); range.selectNodeContents(label);
+                return getComputedStyle(label).whiteSpace === 'nowrap'
+                  && new Set([...range.getClientRects()].map(r => Math.round(r.top))).size === 1;
+              });
+              const cell = document.querySelector('#nowrap-fixture td:nth-child(2)');
+              const table = document.querySelector('#nowrap-fixture .table-scroll');
+              return { oneLine, explanationWraps: cell.clientHeight > parseFloat(getComputedStyle(cell).lineHeight) * 2,
+                tableScrolls: table.scrollWidth > table.clientWidth,
+                bodyFits: document.documentElement.scrollWidth <= innerWidth };
+            })()`);
+            assert.deepEqual(result, { oneLine: true, explanationWraps: true, tableScrolls: true, bodyFits: true }, `${width}px ${theme}`);
+          }
+        }
+      } finally { await page.close(); status = initial(); }
+    });
+
     await t.test("one click; slow status; partial updates preserve fields and open status menu", async () => {
       const page = await connectPage(debugOrigin, `${origin}/?q=198.51.100`);
       try {

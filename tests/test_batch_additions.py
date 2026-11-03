@@ -14,7 +14,6 @@ import pytest
 from ftd_shun_manager import agent_client
 from ftd_shun_manager.agent_client import AgentUnavailable, UnixAgentClient, UnixAgentCycle
 from ftd_shun_manager.agent_protocol import (
-    MAX_PENDING_ADDITIONS,
     AdditionResult,
     CycleOperation,
     ObservedShun,
@@ -25,6 +24,7 @@ from ftd_shun_manager.agent_protocol import (
     decode_cycle_settlement,
     encode_cycle_request,
     encode_session_request,
+    max_pending_additions,
 )
 
 VECTORS = json.loads((Path(__file__).parent / 'fixtures/batch-addition-v4.json').read_text())
@@ -33,8 +33,8 @@ ID = UUID(int=1).bytes
 OWNER = 'e92ad135-07a0-43d9-ac93-f685674069b4'
 
 
-def frames(opcode, seq, entries=()):
-    prefix = bytes([0, 4, opcode, seq])
+def frames(opcode, seq, entries=(), *, version=4):
+    prefix = bytes([0, version, opcode, seq])
     data = b''.join(ip.packed + bytes([len(name)]) + name.encode('ascii') for ip, name in entries)
     chunks = [data[index:index + 32768] for index in range(0, len(data), 32768)]
     return [prefix + b'\0' + pack('>IIH', len(entries), len(data), len(chunks)),
@@ -42,7 +42,7 @@ def frames(opcode, seq, entries=()):
             prefix + b'\2' + hashlib.sha256(data).digest()]
 
 
-def serve(tmp_path, handler):
+def serve(tmp_path, handler, *, version=4):
     path = str(tmp_path / 'batch.sock')
     listener = socket(AF_UNIX, SOCK_SEQPACKET)
     listener.bind(path)
@@ -55,8 +55,9 @@ def serve(tmp_path, handler):
             connection, _ = listener.accept()
             with connection:
                 connection.settimeout(4)
-                assert connection.recv(100).hex() == VECTORS['begin']
-                for frame in frames(0x18, 0): connection.send(frame)
+                expected = bytes.fromhex(VECTORS['begin'])
+                assert connection.recv(100) == expected[:1] + bytes([version]) + expected[2:]
+                for frame in frames(0x18, 0, version=version): connection.send(frame)
                 handler(connection)
 
     return path, pool, pool.submit(run)
@@ -119,7 +120,7 @@ def test_gate_is_explicit_default_off_and_eligible_devices_only(monkeypatch):
     assert not client.batch_additions
     assert client.open_tracked_cycle(7, OWNER) == 3
     client = UnixAgentClient('/unused', batch_additions=True, **args)
-    assert client.open_tracked_cycle(7, OWNER) == 4
+    assert client.open_tracked_cycle(7, OWNER) == 5
     assert client.open_tracked_cycle(8, OWNER) == 2
     for fields in ({'batch_additions': True}, {'batch_additions': 'true'},
                    args | {'tracked_cycles': False, 'batch_additions': True}):
@@ -205,7 +206,7 @@ def test_eight_pending_requests_share_one_verification_and_capacity_is_local(tmp
     try:
         current = cycle(path)
         for ip in targets: assert isinstance(current.stage_addition(ip), PendingAddition)
-        assert len(current.pending_additions) == MAX_PENDING_ADDITIONS
+        assert len(current.pending_additions) == max_pending_additions(4)
         with pytest.raises(ValueError): current.stage_addition(IP)
         assert len(current.verify_additions().additions) == 8
         current.abort()
@@ -288,3 +289,67 @@ def test_receipt_order_is_not_a_set_and_pending_is_not_proof_without_request_bin
     with pytest.raises(ValueError): decode_addition_batch(packet, 2, (second, IP))
     with pytest.raises(ValueError):
         decode_cycle_response(bytes.fromhex(VECTORS['pending']), CycleOperation.STAGE_ADD, 1, version=4)
+
+
+@pytest.mark.parametrize('fault', [None, 'receipt', 'digest', 'missing', 'scope', 'terminal', 'terminal_sequence'])
+def test_v5_final_observation_requires_group_stream_and_actual_settlement(tmp_path, fault):
+    vectors = json.loads((Path(__file__).parent / 'fixtures/batch-addition-v5.json').read_text())
+    assert encode_session_request(0x18, 5, 7, ID).hex() == vectors['begin']
+    assert encode_cycle_request(CycleOperation.VERIFY_END, 2, version=5).hex() == vectors['final']
+    for version in (1, 2, 3, 4):
+        with pytest.raises(ValueError): encode_cycle_request(CycleOperation.VERIFY_END, 2, version=version)
+
+    def handler(connection):
+        assert connection.recv(100).hex() == vectors['stage']
+        connection.send(bytes.fromhex(vectors['pending']))
+        assert connection.recv(100).hex() == vectors['final']
+        connection.send(bytes.fromhex(vectors['receipt']))
+        if fault == 'receipt': return
+        entries = () if fault == 'missing' else ((IP, 'outside' if fault == 'scope' else 'management'),)
+        response = frames(0x1c, 2, entries, version=5)
+        if fault == 'digest': response[-1] = response[-1][:-1] + bytes([response[-1][-1] ^ 1])
+        for frame in response: connection.send(frame)
+        if fault == 'terminal': return
+        if fault not in ('digest', 'missing', 'scope'):
+            connection.send(bytes.fromhex(vectors['settled']) if fault != 'terminal_sequence' else b'\0\5\x18\3')
+        assert connection.recv(100) == b''  # Never an additional END or mutation retry.
+
+    path, pool, server = serve(tmp_path, handler, version=5)
+    try:
+        current = UnixAgentCycle(path, 4, 7, version=5, settled_cycles=True, recoverable_cycles=True, session_id=ID)
+        assert current.stage_addition(IP) == PendingAddition(IP, 1)
+        if fault:
+            with pytest.raises(AgentUnavailable): current.finish_additions()
+            assert not current.settled and current.pending_additions == [PendingAddition(IP, 1)]
+        else:
+            result = current.finish_additions()
+            assert result == VerifiedAdditionBatch(((IP, AdditionResult(True, 'management')),),
+                                                   (ObservedShun(IP, 'management'),))
+            assert current.settled and not current.pending_additions
+        assert current.closed
+        server.result(timeout=4)
+    finally: pool.shutdown(wait=True)
+
+
+def test_v5_sixteen_pending_writes_share_one_final_observation(tmp_path):
+    targets = tuple(IPv4Address(f'198.51.100.{n}') for n in range(1, 17))
+
+    def handler(connection):
+        for seq, ip in enumerate(targets, 1):
+            assert connection.recv(100) == bytes([0x1a, 5, seq]) + ip.packed
+            connection.send(bytes([5, 5, 0x1a, seq]))
+        assert connection.recv(100) == bytes([0x1c, 5, 17])
+        connection.send(bytes([0, 5, 0x1c, 17, 16]) + b''.join(ip.packed + b'\x0amanagement' for ip in targets))
+        for frame in frames(0x1c, 17, tuple((ip, 'management') for ip in targets), version=5): connection.send(frame)
+        connection.send(bytes([0, 5, 0x18, 17]))
+        assert connection.recv(100) == b''
+
+    path, pool, server = serve(tmp_path, handler, version=5)
+    try:
+        current = UnixAgentCycle(path, 4, 7, version=5, settled_cycles=True, recoverable_cycles=True, session_id=ID)
+        for ip in targets: assert isinstance(current.stage_addition(ip), PendingAddition)
+        with pytest.raises(ValueError): current.stage_addition(IP)
+        assert len(current.finish_additions().additions) == 16
+        assert current.settled and current.closed
+        server.result(timeout=4)
+    finally: pool.shutdown(wait=True)

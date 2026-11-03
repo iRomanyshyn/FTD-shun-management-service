@@ -3,10 +3,24 @@
 use super::*;
 
 pub(super) const VERSION: u8 = 4;
+pub(super) const SHARED_END_VERSION: u8 = 5;
 pub(super) const STAGE: u8 = 0x1a;
 pub(super) const VERIFY: u8 = 0x1b;
-pub(super) const MAX_PENDING: usize = 8;
+pub(super) const VERIFY_END: u8 = 0x1c;
+pub(super) const MAX_PENDING: usize = 16;
 pub(super) const MAX_SEQUENCE: u8 = 34;
+
+pub(super) fn supported(version: u8) -> bool {
+    matches!(version, VERSION | SHARED_END_VERSION)
+}
+
+pub(super) fn capacity(version: u8) -> usize {
+    if version == SHARED_END_VERSION {
+        MAX_PENDING
+    } else {
+        8
+    }
+}
 
 pub(super) fn verify(
     output: &str,
@@ -49,8 +63,14 @@ pub(super) fn verify(
     Ok(entries)
 }
 
-pub(super) fn receipt(targets: &[Ipv4Addr], profile: addition::Profile, sequence: u8) -> Vec<u8> {
-    let mut packet = vec![0, VERSION, VERIFY, sequence, targets.len() as u8];
+pub(super) fn receipt(
+    targets: &[Ipv4Addr],
+    profile: addition::Profile,
+    sequence: u8,
+    version: u8,
+    opcode: u8,
+) -> Vec<u8> {
+    let mut packet = vec![0, version, opcode, sequence, targets.len() as u8];
     for target in targets {
         packet.extend(target.octets());
         packet.push(profile.interface().len() as u8);

@@ -80,6 +80,116 @@ fn fixture() -> Cycle<Fake> {
     }
 }
 
+#[test]
+fn v5_local_processing_wait_never_extends_transfer_or_session_bounds() -> Result<()> {
+    use nix::sys::socket::{getsockopt, socketpair};
+    let (_client, server) = socketpair(
+        AddressFamily::Unix,
+        SockType::SeqPacket,
+        None,
+        SockFlag::SOCK_CLOEXEC,
+    )?;
+    for (version, remaining, expected) in [(4, 90, 10), (5, 90, 30), (5, 7, 7)] {
+        set_cycle_ipc_timeout(&server, Duration::from_secs(remaining), version)?;
+        assert_eq!(
+            getsockopt(&server, ReceiveTimeout)?,
+            TimeVal::new(expected, 0)
+        );
+        assert_eq!(
+            getsockopt(&server, SendTimeout)?,
+            TimeVal::new(remaining.min(10) as i64, 0)
+        );
+    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn sixteen_v5_additions_share_terminal_full_read_without_extra_end() -> Result<()> {
+    let mut cycle = fixture();
+    cycle.version = 5;
+    for seq in 1..=16 {
+        let mut packet = stage(seq, seq);
+        packet[1] = 5;
+        assert_eq!(
+            cycle.execute(&packet).await?.0,
+            vec![vec![5, 5, batch_addition::STAGE, seq]]
+        );
+    }
+    let (frames, done) = cycle.execute(&[batch_addition::VERIFY_END, 5, 17]).await?;
+    assert!(done);
+    assert_eq!(&frames[0][..5], &[0, 5, batch_addition::VERIFY_END, 17, 16]);
+    assert!(cycle.pending_additions.is_empty());
+    assert_eq!(cycle.commands, 34); // initial + 16 preflights + 16 ADDs + final verification
+    assert_eq!(
+        cycle
+            .console
+            .calls
+            .iter()
+            .filter(|call| **call == "verify_group")
+            .count(),
+        1
+    );
+    assert!(!cycle.console.calls.contains(&"snapshot"));
+    assert_eq!(
+        after_cleanup(sessions::BEGIN, 5, 17, Ok(()))?,
+        Some([0, 5, sessions::BEGIN, 17])
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn v5_shared_vectors_reserve_a_shorter_bounded_stage_and_retain_failed_evidence() -> Result<()>
+{
+    let vectors: serde_json::Value =
+        serde_json::from_str(include_str!("../../tests/fixtures/batch-addition-v5.json"))?;
+    assert_eq!(decode_begin(&unhex(&vectors["begin"])?)?, (7, 5));
+    assert!(decode_step(&[batch_addition::VERIFY_END, 4, 2], 2, 4).is_err());
+    assert!(decode_step(&[batch_addition::VERIFY_END, 5, 2, 0], 2, 5).is_err());
+    for failure in [false, true] {
+        let mut cycle = fixture();
+        cycle.version = 5;
+        cycle.started = Instant::now() - Duration::from_secs(70);
+        assert_eq!(cycle.stage_timeout(), Duration::from_secs(30));
+        assert_eq!(
+            cycle.execute(&unhex(&vectors["stage"])?).await?.0,
+            vec![unhex(&vectors["pending"])?]
+        );
+        cycle.console.fail_verification = failure;
+        let outcome = cycle.execute(&unhex(&vectors["final"])?).await;
+        if failure {
+            assert!(outcome.is_err());
+            assert_eq!(cycle.pending_additions, vec![target(251)]);
+        } else {
+            let (frames, done) = outcome?;
+            assert!(done);
+            assert_eq!(frames[0], unhex(&vectors["receipt"])?);
+            assert_eq!(
+                after_cleanup(sessions::BEGIN, 5, 2, Ok(()))?,
+                Some([0, 5, sessions::BEGIN, 2])
+            );
+            assert!(
+                after_cleanup(
+                    sessions::BEGIN,
+                    5,
+                    2,
+                    Err(anyhow::anyhow!("failed disconnect"))
+                )
+                .is_err()
+            );
+        }
+    }
+    let mut cycle = fixture();
+    cycle.version = 5;
+    assert!(
+        cycle
+            .execute(&[batch_addition::VERIFY_END, 5, 1])
+            .await
+            .is_err()
+    );
+    assert!(cycle.console.calls.is_empty());
+    Ok(())
+}
+
 fn target(n: u8) -> Ipv4Addr {
     Ipv4Addr::new(198, 51, 100, n)
 }
@@ -123,7 +233,11 @@ async fn shared_wire_vectors_prove_pending_is_not_terminal_success() -> Result<(
     assert!(cycle.execute(&unhex(&vectors["end"])?).await?.1);
     assert_eq!(
         after_cleanup(sessions::BEGIN, 4, 3, Ok(()))?,
-        Some(unhex(&vectors["settled"])?.try_into().unwrap())
+        Some(
+            unhex(&vectors["settled"])?
+                .try_into()
+                .map_err(|_| anyhow::anyhow!("invalid settled fixture length"))?
+        )
     );
     assert_eq!(cycle.commands, 5); // initial + preflight + ADD + group + END
     Ok(())
@@ -294,7 +408,8 @@ fn batch_mode_is_rejected_before_inventory_lookup_or_ssh_when_gated() -> Result<
         runtime.handle(),
         &unhex(&vectors["begin"])?,
     )
-    .expect_err("disabled batch mode");
+    .err()
+    .context("disabled batch mode was unexpectedly accepted")?;
     assert!(error.to_string().contains("batch additions are disabled"));
     assert!(
         finish_result(

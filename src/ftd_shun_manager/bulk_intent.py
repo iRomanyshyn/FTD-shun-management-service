@@ -84,6 +84,10 @@ def summarize_manifest(rows, device_ids):
     detecting overflow is consumed, never truncated into an accepted prefix.
     """
     devices = _devices(device_ids)
+    # Per-call framing only, never membership/authority results. Every row is
+    # still validated and contributes the same seven bytes to the checksum.
+    device_frames = {device: device.to_bytes(2, "big") for device in devices}
+    class_frames = {kind: (index, bytes([index + 1])) for index, kind in enumerate(CLASSES)}
     checksum, counts, addresses = hashlib.sha256(DOMAIN), [0] * len(CLASSES), set()
     previous, total = None, 0
     for row in rows:
@@ -93,16 +97,17 @@ def summarize_manifest(rows, device_ids):
                 or type(row[1]) is not IPv4Address or type(row[2]) is not str or row[2] not in CLASSES):
             raise ValueError("Manifest rows require an explicit device, literal IPv4 and known classification.")
         device, ip, kind = row
-        key = device, int(ip)
+        numeric_ip = int(ip)
+        key = device, numeric_ip
         if previous is not None and key <= previous:
             raise ValueError("Manifest pairs must be unique and in numerical device/IP order.")
         previous = key
-        addresses.add(int(ip))
+        addresses.add(numeric_ip)
         if len(addresses) > MAX_ADDRESSES:
             raise ValueError(f"Manifest exceeds {MAX_ADDRESSES} distinct IPv4 addresses.")
-        code = CLASSES.index(kind)
+        code, class_frame = class_frames[kind]
         counts[code] += 1
-        checksum.update(device.to_bytes(2, "big") + ip.packed + bytes([code + 1]))
+        checksum.update(device_frames[device] + ip.packed + class_frame)
         total += 1
     # Unique pairs are a subset of the declared devices x observed addresses.
     # Equality proves every cell exists, without storing that entire product.
@@ -188,7 +193,8 @@ def decode_bulk_descriptor(canonical, expected_digest):
 def verify_bulk_intent(canonical, rows, expected_digest):
     """Verify the entire binding using a separately retained original digest.
 
-    Construction/inspection only, not a full scan per dispatched job or a grant.
+    The execution path also uses this full scan before each managed claim.
+    Verification alone is not a grant, current eligibility or execution proof.
     """
     value = decode_bulk_descriptor(canonical, expected_digest)
     manifest = value["manifest"]

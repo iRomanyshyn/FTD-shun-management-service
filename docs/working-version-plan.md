@@ -3,6 +3,38 @@
 Agreed with the operator: 2026-10-20.
 Status: approved target behavior and delivery plan; not a deployment procedure.
 
+Current batching follow-up, 2026-11-03: tracked v5 increases pending capacity to
+16 and combines final group verification, visible snapshot refresh and terminal
+session completion in one full read. The 120-second / 16-mutation bounds remain;
+v5 staging has a shorter explicit 30-second bound and corresponding reserve.
+Root/protection/preflight/lease checks and priority/cancellation remain. See current
+status for tests and rollout, not a presumed throughput gain. Next design durable
+known-absence outcomes so an acknowledged but unobserved first ADD can be retried
+under current managed intent after actual settlement, separately from unknown
+writes. Existing verified-managed disappearance restoration remains available.
+Do not claim cross-session first-confirmation/retry is implemented yet.
+
+Next delivery slice for the requested import-completion model:
+
+1. Retain acknowledged-but-unconfirmed additions durably, bound to the original
+   attempt/group, current managed authority and actual completed agent session.
+   Display sent/awaiting verification separately from verified progress.
+2. Use one causally later complete refresh to classify those exact addresses as
+   present or confirmed absent; publish that same snapshot, never an extra
+   per-address post-read. Partial/stale/failed reads classify nothing.
+3. Retry only confirmed-absent, safely settled attempts with a fresh job under
+   still-current managed consent, protection, cancellation and capped backoff.
+   Retain previous attempt evidence. Lost ACK/session proof is uncertainty, not
+   the same retryable condition; no automatic replay of unknown writes.
+4. Increase useful session capacity under an explicit matched profile, with
+   intermediate shared full reads renewing freshness and command-boundary
+   interactive priority. Measure real throughput, rather than only raising caps.
+
+This slice changes durable execution/result contracts and must be implemented
+with corresponding schema/profile, queue and recovery tests. It is the next
+product optimization, not a requirement for a legacy-dev database converter or
+permission to recreate the original running import.
+
 Grouped-verification increment, 2026-11-03: the operator requested batch ADDs
 followed by a shared complete read. The gated tracked-v4 agent/client foundation
 implements pending acknowledgements and an explicit verification of at most eight
@@ -12,15 +44,22 @@ cancellation/drain, with an explicit matching managed-only setting. Consult curr
 status for actual rollout/acceptance; defaults remain off. Do not substitute generic later
 baseline presence for verified creation. See [Grouped Additions](manual/batch-additions.md).
 
-Next execution-performance target, 2026-11-03: exact root decoding is now cheaper
-without skipped members/cached authority, but the actual import remains around
-7.5 addresses/minute. Review the fixed five-second scheduler delay following a
-healthy budget-deferred session with real terminal progress; preserve no-progress/
-failure backoff, fresh session/lease admission and every uncertainty hold.
-Observed gaps alone are not permission to bypass the existing checks. This
-follow-up is not implemented yet. Also add bounded per-session fixed CLI-phase
-duration/count aggregates to distinguish target preflight, ADD and complete-read
-cost, without arguments/raw output or using diagnostics as execution proof.
+Execution-performance follow-up, 2026-11-03: exact root decoding is cheaper
+without skipped members/cached authority, but measured import throughput remained
+around 7.5 addresses/minute. The coordinator now skips its five-second empty-defer
+delay only after successful current-epoch terminal progress and strict settlement;
+no-progress/failure backoff, fresh session/lease admission and uncertainty holds
+remain. Consult current status for bounded rollout measurements; this is not
+whole-list acceptance. Fixed agent CLI-phase duration/count aggregates are now
+implemented to distinguish target preflight, ADD and complete-read cost, without
+arguments/raw output or using diagnostics as execution proof. See current status
+for validation, lab rollout and measurements before selecting the next optimization.
+Measured full sessions still spend about 25s in local work, including 13s claiming
+nine jobs. A disposable full-claim profile confirms one full original-root scan
+and eight full profile validations. Literal allocation reductions are implemented;
+see current status for validation/rollout and actual effects before selecting
+further equivalent SQL improvements. No original-root/current authority/protection/
+uncertainty check may be skipped. CLI command wall times are not FTD CPU.
 Do not make another input-capacity increase or remove verification to claim speed.
 
 Latest execution checkpoint, 2026-11-03: exact per-call source framing reduces

@@ -8828,6 +8828,277 @@ latency yet, pipeline blindly, raise bounds or drop verification to claim speed.
 Whole-list/load/live failure/priority/multi-device/production acceptance remains
 pending. Keep the original task, grants, recovery evidence and protected policy.
 
+## 2026-11-03 — Productive continuation and nonwrapping list statuses
+
+The coordinator now distinguishes successful settled terminal progress from an
+empty pre-write deferral. Only the current result epoch, completed worker phase,
+actual settlement and positive integer terminal count avoid the five-second
+empty-defer delay. Bind resets old progress. Failure/held/zero-progress cooldown,
+opening/read capped retries, normal release and all next-visit fresh admission/
+priority/authority checks remain; no budgets, gates, protocol or schema changes.
+
+Plain statuses in dynamic device/queue rows and managed/import/review/history
+lists now use one atomic label style, alongside existing colored badges. Reasons,
+notes and timestamps remain independent wrapping text. Wide tables and standalone
+cleanup labels scroll locally; no clipped or ellipsized status text is introduced.
+Synthetic Chromium checks use real assets in light/dark desktop/mobile layouts.
+No new fixture/import/cancellation, protection, standing authority, credentials,
+trust or networks are changed. Existing original lab import remains the workload.
+
+Validation: 120 initial focused and 77 final focused Python checks pass. Full
+Python run: 3126 passed, two old `STOPPED_UNSENT</td>` count assertions failed
+after adding the status span (526.53s). Updated both assertions to the actual
+atomic label; both passed in the final 77-check run and a separate `--lf` rerun
+(2 passed, 56.67s). No runtime logic was weakened to satisfy them. Final real
+Chromium/Node run: 75 passed; compileall/Ruff/diff pass. API/Web images
+`72d6ba21997c...` / `f00749a88b58...` are built; configured preflight reports
+execution/migration false. Exact prior running images are retained as
+`ftd-shun-{api,web}:lab-pre-productive-continuation-20261103`.
+
+Old API container `5a6711f0717f` exited 0 after drain; stopped DB was IDLE epoch
+1923, zero RUNNING/unknown jobs, integrity `ok`, with all nine original authority/
+protection/inventory/recovery fingerprints unchanged. Replaced API/Web only using
+all three lab overlays. Actual new images match the built IDs; agent image remains
+`cbb6492d90a6...` and did not restart. Startup epoch 1924 is a read-only visit,
+not mutation progress. API ready / sampled status 0.890s, Web health 200/anonymous
+401, initial task 6,428/32,425. No new import, renewed grant or test fixture.
+Retained original claim/terminal/release audit proves:
+
+- epoch 1925: 14:58:22.953Z–14:59:30.259Z, 67.306s, 9 VERIFIED;
+- epoch 1926: 14:59:30.614Z–15:00:38.482Z, 67.868s, 9 VERIFIED;
+- both had one exact before-write DEFER, each with nine ACKs, not counted as
+  additional successes. Range 135.529s, 18 VERIFIED = 7.97/minute, startup read
+  excluded explicitly. Gap **0.355s** versus the earlier 5.174/5.184s gaps.
+
+This confirms removal of the productive-session pause, not overall large-list
+capacity or a controlled performance benchmark. Epoch 1925 timing still shows
+42.542s agent / 24.608s local work; remaining CLI/session overhead needs separate
+measurement. Bounds, per-IP verification, authority and recovery were unchanged.
+
+Final bounded check at 15:01:14Z: API ready, 6,446/32,425 original pairs processed,
+device error null, no FAILED/UNVERIFIED/ATTENTION, integrity `ok`, all nine original
+fingerprints unchanged. Ordinary epoch 1927 was active (not globally idle).
+Sampled status 0.781s; Web health 200/anonymous 401. HTTP CSS/JS SHA-256 matches
+the tested source assets. Actual API/Web containers `3bc17872eb05` / `a22c285d6e96`
+are running; agent remains original container `bbc1607fb1da`. No fixture to clean
+up, new request/task, schema, configuration, authority, credentials/trust/network
+or protection change. Continue the original import; do not reset it for speed.
+
+## 2026-11-03 — Fixed CLI phase diagnostics without execution changes
+
+Added session-local fixed `full_read` / `target_read` / `add` / `remove` timing
+aggregates to the existing agent cycle log, plus opening time and the existing
+tracked owner ID as bounded lowercase hex. No input-derived phase name, command,
+IP, credential, output or error content enters these aggregates. Timed scopes
+cover command send, prompt wait and shell envelope parsing; later semantic ACK/
+shun parsing remains outside. Normal return is deliberately named `returned`,
+never verification/success. Outer timeout/drop counts cancellation without
+reclassifying a possible write; unpolled futures are not attempts. No extra CLI,
+wait, deadline, wire/profile/schema/gate, authority, queue or verification change.
+
+All-target Clippy additionally found two existing test-only denied unwrap/expect
+calls in the batch fixtures. Replaced them with checked errors preserving the
+original assertions and fixture checks, not lint allowances.
+
+Validation: 96 Rust checks (86 unit / 10 integration) pass, including original
+settlement, grouped wire/unknown-outcome and real signal drain cases. Locked
+release build, fmt/all-target Clippy, Ruff/diff and 133 focused Python fixed-wire/
+session checks pass. No Python/UI code or dependency changes in this increment;
+unrelated full Python/browser runs were not repeated. Docker agent build is
+`08e5251f765c...`; non-executing `--check-config` passes (an initial unsupported
+`--check` invocation correctly returned usage without starting execution).
+Exact old compatible agent retained as `ftd-shun-agent:lab-pre-cli-timing-20261103`.
+
+Pre-rollout at 15:38:43Z: original task 6,739/32,425, API ready, integrity `ok`,
+ordinary epoch 1961 active. API container `3bc17872eb05` drained exit 0; stopped DB
+at 15:39:51Z was IDLE epoch 1962, zero RUNNING/unknown work, integrity `ok` and
+nine original authority/protection/inventory/recovery hashes unchanged. Old agent
+`bbc1607fb1da` then exited 0 with requested/draining/completed shutdown events.
+Started new agent, confirmed listener ready, then restarted the same API. All
+three overlays retained. Agent is now `6c844c0e08d1` / image `08e5251f765c...`;
+API/Web images remain `72d6ba21997c...` / `f00749a88b58...`, Web container unchanged.
+
+Retained claim/terminal/release audit proves initial epoch 1963 VERIFIED one
+address in 25.453s (not a read-only startup), then 1964/1965 VERIFIED nine each in
+67.862/68.018s. Normal write range 136.248s, 18 VERIFIED = 7.93/minute; including
+all three first epochs, 162.063s / 19 VERIFIED = 7.03/minute. This is a diagnostic
+rollout, not a measured speedup. One pre-write deferral per full visit is not a
+successful mutation or an extra CLI command.
+
+Canonical diagnostic IDs match the actual original lease owners. For the two
+full visits, all 22 command envelopes returned, zero errors/cancellations, zero
+pending at END: 9 target reads + 9 ADDs + 4 full reads, matching command count.
+Opening 3.536/4.309s, target reads 14.937/14.711s, ADD 14.989/14.177s, full reads
+8.706/9.338s. API local aggregate 25.356/25.046s, including claim 13.248/13.016s.
+No login-per-address: each such batch used one shared settled SSH session. These
+are command/runtime/network wall times, not isolated FTD CPU. Remaining local
+claim work is the next profiling target, without skipping authority/root checks.
+
+Final bounded check 15:45:08Z: original task 6,768/32,425, API ready, device error
+null, no FAILED/UNVERIFIED/ATTENTION, integrity `ok` and nine original fingerprints
+unchanged. Normal epoch 1967 active, not globally idle. Status 0.819s; Web health
+200/anonymous 401. No new import/task, renewed consent, fixture/cleanup, schema,
+configuration, protection, credentials/trust/network or outcome reclassification.
+Failure timing tests are synthetic; no live outage/unknown-write experiment.
+
+## 2026-11-03 — Lower-allocation original member verification
+
+Profiled a real claim on disposable synthetic 32,425-member storage, without any
+RPC/live DB access. cProfile found one complete root scan and eight complete
+profile validations per claim; do not mistake profiler wall time for device
+throughput. A separate query-only live snapshot confirmed the row construction/
+source/binary encoding cost. No claim or mutation ran against the live dataset.
+
+Removed temporary assigned-field equality tuples/generators and intermediate
+source dictionary merging; common JSON framing retains exact fields and general/
+future-field fallback. Binary manifest scans now reuse only the at-most-ten
+literal device prefixes/four class bytes and one numeric IPv4 conversion per row.
+Every source/member byte, classification/assignment, type/order/unique/capacity/
+product check still participates per original root scan, before every claim.
+No root/profile/result cache, validation boundary removal, schema, digest format,
+gate/configuration, protocol/dependency, authority, time or verification change.
+
+163 focused Python checks pass, including independent frozen source and binary
+record expressions, all classification assignments, invalid assigned fields with
+unchanged source/digests and existing claim/root tests. Compileall/Ruff/diff pass.
+Actual 32,425-member root comparison: eight alternating pairs after warmup in one
+query-only snapshot, identical complete receipts/summaries; median 0.543971 ->
+0.466692s (14.2% less). This is only complete-root verification timing, not live
+throughput. Full suite, API-only build/rollout and live measurements are pending.
+Keep the original import/protection/standing authority and current agent/Web.
+
+A separate connection-local, query-only page-cache experiment did not show a
+useful gain: complete-profile medians 0.06322s at the default ~2 MiB, 0.06275s
+at 8 MiB and 0.06092s at 16 MiB in one snapshot. Service cache/memory settings
+were not changed. Corrected the old manifest verifier docstring: it now is used
+before managed claims; a successful scan alone still grants no execution.
+
+Full Python: 3143 passed in 511.13s; compileall/Ruff/diff pass. Final API image
+`124fad2d64df...` includes the docstring correction and passes configured
+non-executing preflight. Compatible prior API retained as
+`ftd-shun-api:lab-pre-literal-allocation-20261103`. Pre-rollout status at 16:21:12Z:
+7,049/32,425, ready, integrity `ok`, normal epoch 2001 active. API drain/rollout
+and bounded execution measurements are in progress. No Web/agent restart planned.
+
+Old API container `3bc17872eb05` exited 0; stopped DB at 16:23:16Z was IDLE
+epoch 2002, zero RUNNING/unknown work, integrity `ok` and nine original authority/
+protection/inventory/recovery hashes unchanged. API-only replacement uses all
+three lab overlays and the actual final image `124fad2d64df...`. Web/agent images
+and containers did not change. New API ready / initial status 0.802s, task
+7,063/32,425; Web health 200/anonymous 401. No new task, authority, migration,
+feature/configuration, credential/trust/network or protection change. Bounded
+real execution/timing measurements follow.
+
+Original owner/epoch-bound claim/terminal/release audit proves:
+
+- epoch 2003: 16:23:28.418Z–16:24:13.649Z, five VERIFIED in 45.231s; startup was
+  productive, not a read-only visit;
+- epoch 2004: 16:24:14.004Z–16:25:25.664Z, ten VERIFIED in 71.660s;
+- epoch 2005: 16:25:26.031Z–16:26:37.821Z, ten VERIFIED in 71.790s;
+- epoch 2006: 16:26:38.175Z–16:27:46.762Z, nine VERIFIED in 68.587s.
+
+Each full visit had one exact pre-write DEFER, not a successful extra address.
+Full range 212.758s / 29 VERIFIED = 8.18/minute, including gaps; all four visits
+258.344s / 34 VERIFIED = 7.90/minute. This includes the third full visit with nine
+rather than selecting only the two ten-address batches. The preceding small
+normal-write sample was 7.93/minute. This is a modest observed gain, not a
+controlled benchmark, fixed batch-size promise or large-list acceptance.
+
+API claim durations for 2004/2005/2006 were 13.610/13.468/12.485s with 11/11/10
+attempts; normalized per attempt about 1.22–1.25s versus the earlier 1.30–1.32s.
+Local totals 26.700/26.560/24.875s include different successful batch sizes;
+agent totals 44.808/45.078/43.551s. Normal command latency still dominates.
+The two ten-address agent cycles each had exactly 24 CLI commands (ten target
+reads, ten ADDs, four complete reads), zero errors/cancellations/pending at END.
+No limits, prompts, verification, root/profile boundaries or authority changed.
+
+Final bounded check at 16:27:58Z: original task 7,092/32,425, ready, device error
+null, no FAILED/UNVERIFIED/ATTENTION, integrity `ok` and nine original fingerprints
+unchanged. Normal epoch 2007 active, not global idleness. Status 0.713s; Web
+health 200/anonymous 401. API container `9c58b6329751`; Web `a22c285d6e96` and
+agent `6c844c0e08d1` unchanged. Next profile equivalent SQL/full-profile cost;
+do not drop checks, renew authority, clear evidence or recreate the original task.
+
+### 2026-11-03 — Larger import groups with a shared terminal observation
+
+The operator requested larger batches, reuse of refresh snapshots for confirmation,
+more import work per SSH session and fresh ADD after confirmed absence. Reviewed
+the architecture before implementation. New tracked v5 retains exact v4 support,
+allows 16 pending addresses and uses VERIFY_END to bind one final whole-table read
+to every pending result and actual post-handler terminal settlement. The API
+persists proven results before publishing that same snapshot. V5 staging is capped
+at 30s; its reserve is that step plus the final 15s interaction, while sessions
+remain bounded by 120s / 16 attempts / 64 commands. Priority flush, cancellation,
+root/protection/preflight and uncertainty boundaries remain. No schema, authority,
+credential/trust/network or Web change. No new task/import was submitted.
+
+Initial focused Python checks: 70 pass, including v4 compatibility, 16 pending
+claims and final-stream/settlement failures. Rust: 88 unit plus 10 integration
+checks pass with actual local sockets; all-target Clippy passes. An initial
+sandboxed Rust run hit EPERM on sockets, not semantic failures; rerun outside the
+restricted socket sandbox passed. Full Python/build/preflight/rollout and actual
+throughput measurement are pending; do not infer a speedup from synthetic tests.
+
+Desired-state restoration of a previously verified block remains implemented.
+Cross-session first confirmation and retry after ACK plus confirmed first absence
+are explicitly not implemented here; that needs a separate durable result and
+settlement contract. Lost writes remain held, never blindly repeated.
+
+Final focused Python set: 357 pass, including real socket framing, old v4 limits,
+16-member scope, lost/false terminal settlement, partial local result persistence,
+priority/cancellation and retained read/opening recovery. Full regression run:
+3150 pass, two stale tests still treating version 5 as unknown fail; those exact
+expectations were corrected to version 6 and both pass with `pytest --lf`.
+This is a full run plus targeted corrections, not a second clean full run.
+Compileall/Ruff/diff, Rust fmt/all-target Clippy and locked release pass.
+
+Built matching API `ddae8a1863d2...` and agent `75d48be22122...`; both configured
+non-executing preflights pass. Retained exact prior images under
+`ftd-shun-{api,agent}:lab-pre-shared-final-20261103`. At 17:24:34Z the original
+task was 7,528/32,425, ready, integrity ok, ordinary LEASED epoch 2059;
+baseline authority/protection/inventory/recovery fingerprints retained privately.
+API-first drain and matched rollout are now in progress. No Web update planned.
+
+Deployment attempt aborted before agent replacement. Old API stopped exit 0,
+but the stopped DB at 17:33:08Z retained ATTENTION epoch 2060, one UNVERIFIED
+ADD and no RUNNING jobs. All nine original hashes were unchanged, integrity ok.
+The unknown job is `db174cf8-3496-53d8-aa78-1096bc39b251`, claimed at
+17:26:23.366Z and terminal unknown at 17:26:24.529Z; ATTENTION audit followed
+17:27:45.664Z, before the deployment stop. Agent's original v4 session diagnostics
+show eight ADDs, eight preflights and two full reads, pending zero, then EAGAIN.
+API logs additionally retain `maintenance.expiry.failed: database is locked`.
+This suggests the ten-second idle receive wait expired during local work after
+group verification. Logs/timing do not prove non-submission of the next claimed
+ADD; do not convert its unknown result to NOOP/VERIFIED or replay it.
+
+Restored the exact old API container/image with `compose start`, not new `up`.
+Agent/Web were not stopped/replaced, settings/authority/uncertainty unchanged.
+A new exclusive private SQLite backup
+`managed-v2.pre-shared-final-hold-20261103.db` has integrity ok. The verified-only
+epoch-942 recovery design does not cover this unknown claim. Keep the original
+task and evidence; no fence reset, reimport, new consent or device write was
+submitted by this development turn. Original admitted work ran on the old code.
+
+The candidate v5 agent now separately allows 30s waiting for the next local
+request, capped by the absolute remaining session time; send/transfer stays 10s,
+v4 stays 10s, CLI bounds unchanged. Real socket-option tests verify all three
+limits. Final Rust: 89 unit + 10 integration pass, fmt/Clippy/locked release pass.
+Rebuilt candidate agent `d972adf099df...` replaces only the unused candidate tag,
+not the running agent. Candidate API remains `ddae8a1863d2...`. No v5 live speedup
+can be measured while the original device epoch is held.
+
+17:37:25Z after restoring old API: ready HTTP service, original task 7,545
+verified / one unverified / 24,879 outstanding. `processed=7546` includes the
+unverified item, not an extra success. Integrity ok, nine hashes unchanged;
+ATTENTION epoch 2060 / one UNVERIFIED / zero RUNNING retained. Status 0.853s,
+Web health 200 / anonymous 401. Next implement/review an explicit compatible
+resolution contract for this retained case; do not apply verified-only recovery
+to unknown work or turn diagnostic absence of log lines into execution proof.
+
+Final unused candidate agent `d972adf099df...` also passes configured
+non-executing `--check-config`; final Ruff/diff checks pass. It remains built
+only, not deployed. The old running pair and held epoch are unchanged.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

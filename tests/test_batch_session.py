@@ -38,6 +38,7 @@ class Agent(TracedAgent):
         self.on_stage = None
         self.fail_stage = self.defer_stage = None
         self.fail_group = False
+        self.fail_settlement = None
         self.verifications = []
         self.lookup = []
 
@@ -50,7 +51,7 @@ class Agent(TracedAgent):
 
     def open_cycle(self, device):
         session = super().open_cycle(device)
-        session.version, session.sequence = 4, 1
+        session.version, session.sequence = 5, 1
         pending = []
         count = 0
 
@@ -95,6 +96,15 @@ class Agent(TracedAgent):
         session.snapshot = guarded(session.snapshot)
         session.remove_shun = guarded(session.remove_shun)
         session.finish = guarded(session.finish)
+        def finish_additions():
+            result = verify()
+            if self.fail_settlement == 'missing':
+                raise AgentUnavailable('Synthetic lost final settlement after complete group read')
+            if self.fail_settlement == 'false':
+                return result
+            session.finish()
+            return result
+        session.finish_additions = finish_additions
         return session
 
 
@@ -121,10 +131,10 @@ def states(runner):
         return dict(db.execute('SELECT state,COUNT(*) FROM operation_jobs GROUP BY state'))
 
 
-def test_twelve_writes_use_two_group_reads_and_publish_after_provenance(runtime):
+def test_twelve_writes_share_one_terminal_group_read_and_publish_after_provenance(runtime):
     runner, agent = runtime
     asyncio.run(visit(runner))
-    assert [len(group) for group in agent.verifications] == [8, 4]
+    assert [len(group) for group in agent.verifications] == [12]
     assert states(runner) == {'VERIFIED': 12}
     assert runner._workers[1]._device_cycle['completed'] == 12
     assert runner._results['1']['state'] == 'success'
@@ -205,13 +215,15 @@ def test_pending_stage_updates_status_without_forcing_data_reload_until_verifica
     assert runner._workers[1]._data_revision > data_revisions[-1]
 
 
-@pytest.mark.parametrize('failure', ['stage', 'group', 'local'])
+@pytest.mark.parametrize('failure', ['stage', 'group', 'local', 'settlement', 'unsettled'])
 def test_failure_retains_every_unconfirmed_member_and_earlier_verified_results(runtime, monkeypatch, failure):
     from ftd_shun_manager.device_leases import DeviceOperationQueue
 
     runner, agent = runtime
     if failure == 'stage': agent.fail_stage = 3
     elif failure == 'group': agent.fail_group = True
+    elif failure in ('settlement', 'unsettled'):
+        agent.fail_settlement = 'missing' if failure == 'settlement' else 'false'
     else:
         original = DeviceOperationQueue.finish_addition
         seen = [0]
@@ -225,11 +237,13 @@ def test_failure_retains_every_unconfirmed_member_and_earlier_verified_results(r
     asyncio.run(visit(runner))
     counts = states(runner)
     expected = {'stage': {'QUEUED': 9, 'UNVERIFIED': 3},
-                'group': {'QUEUED': 4, 'UNVERIFIED': 8},
-                'local': {'QUEUED': 4, 'UNVERIFIED': 7, 'VERIFIED': 1}}
+                'group': {'UNVERIFIED': 12},
+                'local': {'UNVERIFIED': 11, 'VERIFIED': 1},
+                'settlement': {'UNVERIFIED': 12}, 'unsettled': {'UNVERIFIED': 12}}
     assert counts == expected[failure]
-    assert runner._workers[1].rpc_failed and not runner._workers[1].session_settled
+    assert runner._workers[1].rpc_failed
+    assert runner._workers[1].session_settled is (failure == 'local')
     with runner.store._connection() as db:
         assert db.execute('SELECT state FROM managed_bulk_device_executors WHERE device_id=1').fetchone()[0] != 'IDLE'
-    assert len(agent.writes) == (3 if failure == 'stage' else 8)
+    assert len(agent.writes) == (3 if failure == 'stage' else 12)
     assert not agent.active

@@ -6,6 +6,7 @@
 
 mod addition;
 mod batch_addition;
+mod cli_timing;
 mod credentials;
 mod cycle;
 mod dispatch;
@@ -292,6 +293,7 @@ struct SshSession {
     handle: client::Handle<HostKeyVerifier>,
     channel: Channel<client::Msg>,
     large_snapshots: bool,
+    timing: cli_timing::CliTiming,
 }
 
 enum CiscoOperation {
@@ -299,6 +301,17 @@ enum CiscoOperation {
     ShowShun(Ipv4Addr),
     RemoveShun { target: Ipv4Addr, interface: String },
     AddShun(Ipv4Addr),
+}
+
+impl CiscoOperation {
+    fn timing_phase(&self) -> cli_timing::Phase {
+        match self {
+            Self::ListShuns => cli_timing::Phase::FullRead,
+            Self::ShowShun(_) => cli_timing::Phase::TargetRead,
+            Self::AddShun(_) => cli_timing::Phase::Add,
+            Self::RemoveShun { .. } => cli_timing::Phase::Remove,
+        }
+    }
 }
 
 impl SshSession {
@@ -355,6 +368,7 @@ impl SshSession {
             handle,
             channel,
             large_snapshots: false,
+            timing: cli_timing::CliTiming::default(),
         })
     }
 
@@ -387,6 +401,7 @@ impl SshSession {
     }
 
     async fn run(&mut self, operation: CiscoOperation) -> Result<String> {
+        let phase = operation.timing_phase();
         let output_limit = if self.large_snapshots && matches!(operation, CiscoOperation::ListShuns)
         {
             snapshot::MAX_OUTPUT_BYTES
@@ -401,17 +416,21 @@ impl SshSession {
                 format!("{REMOVE_SHUN_PREFIX}{target} interface {interface}")
             }
         };
-        self.channel
-            .data_bytes(format!("{command}\n"))
+        self.timing
+            .measure(phase, async {
+                self.channel
+                    .data_bytes(format!("{command}\n"))
+                    .await
+                    .context("could not send fixed Cisco command to FTD shell")?;
+                let output = timeout(
+                    FTD_INTERACTION_TIMEOUT,
+                    read_until_ftd_prompt_bounded(&mut self.channel, output_limit),
+                )
+                .await
+                .context("FTD command prompt timed out")??;
+                parse_shell_command_output(&output, &command)
+            })
             .await
-            .context("could not send fixed Cisco command to FTD shell")?;
-        let output = timeout(
-            FTD_INTERACTION_TIMEOUT,
-            read_until_ftd_prompt_bounded(&mut self.channel, output_limit),
-        )
-        .await
-        .context("FTD command prompt timed out")??;
-        parse_shell_command_output(&output, &command)
     }
 
     async fn close(self) {
@@ -1156,6 +1175,44 @@ async fn main() -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn typed_cli_timing_is_argument_free_and_not_semantic_verification() -> Result<()> {
+        let mut timing = cli_timing::CliTiming::default();
+        let target = Ipv4Addr::new(198, 51, 100, 251);
+        for operation in [
+            CiscoOperation::ListShuns,
+            CiscoOperation::ShowShun(target),
+            CiscoOperation::RemoveShun {
+                target,
+                interface: "synthetic-interface".to_owned(),
+            },
+        ] {
+            timing
+                .measure(operation.timing_phase(), async { Ok(()) })
+                .await?;
+        }
+        let output = timing
+            .measure(CiscoOperation::AddShun(target).timing_phase(), async {
+                Ok("unexpected CLI output")
+            })
+            .await?;
+        assert!(
+            addition::acknowledgement(output, target, addition::Profile::Fpr1010Management)
+                .is_err()
+        );
+        let report = timing.report();
+        for phase in ["full_read", "target_read", "add", "remove"] {
+            assert_eq!(report[phase]["calls"], 1);
+            assert_eq!(report[phase]["returned"], 1);
+            assert_eq!(report[phase]["errors"], 0);
+        }
+        let serialized = report.to_string();
+        assert!(!serialized.contains("198.51"));
+        assert!(!serialized.contains("synthetic-interface"));
+        assert!(!serialized.contains(output));
+        Ok(())
+    }
 
     fn synthetic_dispatch_agent() -> Result<Agent> {
         let key = PublicKey::from_openssh(

@@ -9,7 +9,7 @@ class SessionTiming:
                              'finish_addition', 'finish_removal', '_publish_snapshot',
                              '_discover_snapshot', 'cancel_obsolete_policy', 'acknowledge_addition',
                              'finish_verified_group', 'fail_pending_group'})
-    AGENT_PHASES = frozenset({'open', 'snapshot', 'finish', 'add', 'remove', 'stage_add', 'verify_adds'})
+    AGENT_PHASES = frozenset({'open', 'snapshot', 'finish', 'add', 'remove', 'stage_add', 'verify_adds', 'verify_end'})
 
     def __init__(self):
         self.started = monotonic()

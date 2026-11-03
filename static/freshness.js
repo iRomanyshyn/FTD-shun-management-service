@@ -429,12 +429,18 @@
           ? [`${deviceView.timingLabel}: ${deviceView.timing}.`,
             device.retry_in_seconds > 0 ? `Retry eligibility: ${duration(device.retry_in_seconds)}; not a successful refresh.` : ""]
             .filter(Boolean).join(" ") : "";
-        [device.hostname, state + (device.stale && device.state === "refreshing" ? " — previous data stale" : ""),
-          formatTime(device.last_successful_refresh), [device.last_error, timing].filter(Boolean).join(" ") || "—"].forEach((text) => {
+        [device.hostname, state,
+          formatTime(device.last_successful_refresh), [device.last_error, timing].filter(Boolean).join(" ") || "—"].forEach((text, index) => {
           const cell = document.createElement("td");
-          cell.textContent = text;
+          const label = index === 1 ? document.createElement("span") : cell;
+          if (index === 1) {
+            label.className = "status-label";
+            cell.append(label);
+          }
+          label.textContent = text;
           row.append(cell);
         });
+        if (device.stale && device.state === "refreshing") row.children[1].append(" — previous data stale");
         row.classList.toggle("device-stale", Boolean(device.stale));
         deviceRows.append(row);
       });
@@ -535,16 +541,24 @@
         const requests = item.requests || [];
         [ `${item.hostname} / ${item.ip}`,
           item.action === "ADD" && item.state === "QUEUED" && item.execution_enabled !== true
-            ? "Held — ADD execution disabled for this device" : item.state,
+            ? "Held" : item.state,
           requests.map((request) => `${request.actor_display_name} (${request.source}`
             + `${activeStates.has(item.state) && request.state !== "ACTIVE" ? `, ${request.state}` : ""})`).join(", "),
           item.reason || (item.completed_at ? `Completed: ${formatTime(item.completed_at)}`
             : item.started_at ? `Started: ${formatTime(item.started_at)}` : `Queued: ${formatTime(item.requested_at)}`),
-        ].forEach((value) => {
+        ].forEach((value, index) => {
           const cell = document.createElement("td");
-          cell.textContent = value;
+          const label = index === 1 ? document.createElement("span") : cell;
+          if (index === 1) {
+            label.className = "status-label";
+            cell.append(label);
+          }
+          label.textContent = value;
           row.append(cell);
         });
+        if (item.action === "ADD" && item.state === "QUEUED" && item.execution_enabled !== true) {
+          row.children[1].append(" — ADD execution disabled for this device");
+        }
         const targetLink = document.createElement("a");
         targetLink.href = `/shuns/${encodeURIComponent(item.ip)}`;
         targetLink.textContent = `${item.action === "ADD" ? "Add · " : ""}${item.hostname} / ${item.ip}`;

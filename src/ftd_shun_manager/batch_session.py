@@ -7,9 +7,9 @@ from ipaddress import IPv4Address
 from .agent_client import AgentUnavailable
 from .agent_protocol import (
     MAX_CYCLE_REMOVALS,
-    MAX_PENDING_ADDITIONS,
     AdditionResult,
     PendingAddition,
+    max_pending_additions,
 )
 from .batch_queue import BatchDeviceOperationQueue, PendingBatchMustFlush
 from .operation_queue import ClaimNotSubmitted
@@ -17,9 +17,9 @@ from .operation_queue import ClaimNotSubmitted
 
 class BatchSession:
     def __init__(self, worker, device_id, cycle, snapshot):
-        if (not worker.batch_additions_enabled or cycle.version != 4
+        if (not worker.batch_additions_enabled or cycle.version != 5
                 or not isinstance(worker.queue, BatchDeviceOperationQueue)):
-            raise ValueError('Grouped execution requires the explicit matching fenced v4 worker.')
+            raise ValueError('Grouped execution requires the explicit matching fenced v5 worker.')
         self.worker, self.device, self.cycle = worker, device_id, cycle
         self.queue, self.snapshot = worker.queue, snapshot
 
@@ -29,7 +29,7 @@ class BatchSession:
         await w._publish_complete_snapshot(self.device, snapshot)
         await w._local_call(w._discover_snapshot, self.device, snapshot, started, completed)
 
-    async def flush(self):
+    async def flush(self, *, final=False):
         if not self.queue.pending:
             return
         w = self.worker
@@ -37,7 +37,8 @@ class BatchSession:
                                pending_verification=len(self.queue.pending))
         w._status_revision += 1
         started = self.queue._now()
-        result = await w._agent_call(self.cycle.verify_additions)
+        result = (await w._finish_addition_session(self.cycle) if final else
+                  await w._agent_call(self.cycle.verify_additions))
         completed = self.queue._now()
         before = self.queue.settled
         try:
@@ -163,19 +164,25 @@ class BatchSession:
                 if job['action'] == 'ADD':
                     if not await self.stage(job, target):
                         break
-                    if len(self.queue.pending) >= MAX_PENDING_ADDITIONS:
+                    if (len(self.queue.pending) >= max_pending_additions(self.cycle.version)
+                            and attempts < MAX_CYCLE_REMOVALS):
                         await self.flush()
                 elif not await self.remove(job, target):
                     break
-            await self.flush()  # Also on stop, pause, claim expiry and pre-write defer.
+            # Stop/pause/defer/expiry all share one final verification observation
+            # and actual terminal settlement, rather than VERIFY then another END.
+            final_group = bool(self.queue.pending)
+            if final_group:
+                await self.flush(final=True)
             w._device_cycle.update(action='final_snapshot', ip=None)
             if attempts >= MAX_CYCLE_REMOVALS and w._has_pending(self.device):
                 w._device_cycle['budget_deferred'] = True
             w._status_revision += 1
-            started = self.queue._now()
-            snapshot = await w._finish_session(self.cycle)
-            completed = self.queue._now()
-            await self.publish(snapshot, started, completed)
+            if not final_group:
+                started = self.queue._now()
+                snapshot = await w._finish_session(self.cycle)
+                completed = self.queue._now()
+                await self.publish(snapshot, started, completed)
             w._priority_pending = False
             w._device_cycle.update(action='completed', priority_state='satisfied')
             return w._mutations_blocked

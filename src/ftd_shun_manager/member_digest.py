@@ -27,8 +27,8 @@ class MemberDigest:
         common = (value.keys() == self._FIELDS and type(device) is int and 1 <= device <= 65535
                   and value['classification'] == 'PROPOSE_ADD'
                   and value['managed_enabled'] is False and value['observed_at'] is None
-                  and all(value[key] is None for key in ('previous_intent_id', 'previous_generation',
-                                                        'previous_authorization_request_id')))
+                  and value['previous_intent_id'] is None and value['previous_generation'] is None
+                  and value['previous_authorization_request_id'] is None)
         template = self._templates.get(device) if common else None
         if common and template is None and len(self._templates) < 10:
             # The IP is already a canonical IPv4 literal, which needs no JSON

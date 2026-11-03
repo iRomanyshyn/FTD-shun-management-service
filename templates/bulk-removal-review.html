@@ -14,8 +14,8 @@
 <div class="table-scroll"><table aria-label="Frozen removal scope"><thead><tr><th>Device / IP</th><th>Local observation</th><th>Desired policy</th><th>Original authority</th></tr></thead><tbody>
 {% for target in scope.targets %}<tr>
 <td>{{ target.hostname }} ({{ target.device_id }})<br>{{ scope.ip }}<br><span class="state-badge {{ 'policy-enabled' if target.device_enabled else 'policy-disabled' }}">{{ 'Device enabled' if target.device_enabled else 'Device disabled — blocks removal' }}</span></td>
-<td>{{ 'Observed present' if target.observed_present else 'Not currently observed — retained scope' }}</td>
-<td>{{ 'Auto-restore on — will turn off' if target.maintenance_enabled else 'Auto-restore off — remove block only' }}</td>
+<td><span class="status-label">{{ 'Observed present' if target.observed_present else 'Not currently observed' }}</span>{% if not target.observed_present %} — retained scope{% endif %}</td>
+<td><span class="status-label">{{ 'Auto-restore on' if target.maintenance_enabled else 'Auto-restore off' }}</span> — {{ 'will turn off' if target.maintenance_enabled else 'remove block only' }}</td>
 <td>{% if target.intent_id %}<code>{{ target.intent_id }}</code><br>Generation {{ target.generation }} · target revision {{ target.target_revision }}{% else %}No managed intent; no adoption{% endif %}</td>
 </tr>{% endfor %}</tbody></table></div>
 <dl class="import-review-metadata">

@@ -26,9 +26,9 @@ pub(super) fn encode_versioned(
 ) -> Result<Vec<Vec<u8>>> {
     if !matches!(
         version,
-        VERSION | addition::VERSION | batch_addition::VERSION
+        VERSION | addition::VERSION | batch_addition::VERSION | batch_addition::SHARED_END_VERSION
     ) || (opcode == 7 && version != VERSION)
-        || (version == batch_addition::VERSION
+        || (batch_addition::supported(version)
             && matches!(
                 opcode,
                 0x10 | cycle::BEGIN_SETTLED | cycle::BEGIN_RECOVERABLE
@@ -42,15 +42,19 @@ pub(super) fn encode_versioned(
                 | cycle::BEGIN_RECOVERABLE
                 | sessions::BEGIN
                 | batch_addition::VERIFY
+                | batch_addition::VERIFY_END
         )
         || entries.len() > MAX_ENTRIES
         || (matches!(
             opcode,
             7 | 0x10 | cycle::BEGIN_SETTLED | cycle::BEGIN_RECOVERABLE | sessions::BEGIN
         ) && sequence != 0)
-        || (opcode == batch_addition::VERIFY && version != batch_addition::VERSION)
-        || (matches!(opcode, 0x11 | 0x13 | batch_addition::VERIFY)
-            && !(1..=cycle::max_sequence(version)).contains(&sequence))
+        || (opcode == batch_addition::VERIFY && !batch_addition::supported(version))
+        || (opcode == batch_addition::VERIFY_END && version != batch_addition::SHARED_END_VERSION)
+        || (matches!(
+            opcode,
+            0x11 | 0x13 | batch_addition::VERIFY | batch_addition::VERIFY_END
+        ) && !(1..=cycle::max_sequence(version)).contains(&sequence))
     {
         bail!("invalid large snapshot operation or entry count");
     }

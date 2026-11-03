@@ -2,6 +2,44 @@
 
 ## Bounded grouped ADD verification — 2026-11-03
 
+### Literal verification without temporary per-member containers
+
+Complete root verification still decodes, validates and hashes every original
+member before each claim. Compare assigned identity/generation/authorization
+fields directly instead of allocating equality tuples/generators. Canonical
+source dictionaries contain the same explicit fields; general JSON fallback and
+future-field rejection from the common template path remain. Within each binary
+manifest scan, reuse only the at-most-ten literal device prefixes and four class
+bytes. Each row still receives exact type/order/uniqueness/capacity/product checks
+and contributes the same seven bytes. No root/profile/member/authority result is
+cached or reused across calls. Stored digests, accepted inputs, schema, protocol,
+claim/verification boundaries, deadlines and uncertainty rules are unchanged.
+
+### Bounded agent CLI phase diagnostics
+
+Each SSH session retains four fixed aggregate counters/durations: complete-table
+read, target-specific read, ADD and REMOVE. Time command send, prompt wait and
+shell-envelope decoding, including returned errors and outer-future cancellation;
+do not retain arguments, output or error text in these aggregates. Emitted cycle
+diagnostics also separate credential/SSH/shell opening from the initial read and
+identify tracked sessions by the existing 16-byte owner ID in canonical hex.
+`returned` means only that the command envelope returned normally, not successful
+semantic parsing/acknowledgement, verification, creation, settlement or replay
+permission. A cancelled command can have an unknown remote outcome. Existing
+strict parsers/receipts and original uncertainty fences remain authoritative.
+No wire/schema/gate, deadline, command ordering or verification change is implied.
+
+### Productive settled-session scheduling
+
+A successful visit with current-epoch terminal queue progress and completed worker
+phase, actual session settlement and normal lease release may immediately yield
+to the next eligible visit instead of imposing the empty-defer five-second delay.
+Staged acknowledgements, stale visit counters, failed/held or unsettled work do
+not qualify. Reset progress on bind. Zero-progress deferral, lease contention and
+existing capped opening/read retry backoff remain. Every replacement still gets
+a fresh lease/session/complete read and all normal admission, original-root,
+priority, time and protection checks. No increased budget, replay or authority.
+
 ### Exact root decoding without repeated object conversion
 
 Every original member/source byte still participates in full root verification
@@ -5995,3 +6033,33 @@ messages. Visible pending demand may use one-second local metadata polling under
 the existing serialized/timeout/backoff loop; polling never submits device hints.
 Frozen forms, revisions, identity/CSRF, backend timing, dispatch, held evidence and
 unknown-write recovery remain unchanged. No new API, protocol, setting or schema.
+
+### Larger import groups and a shared terminal observation — 2026-11-03
+
+The operator requests larger import batches and reuse of complete observations.
+Introduce tracked cycle v5, selected only by the matching grouped API/agent:
+at most 16 pending ADDs (v4 remains eight), with unchanged 16 mutation attempts,
+64 commands and 120-second whole-session deadline. V5 STAGE has a 30-second
+maximum (two 15-second prompt interactions); reserve that bounded step plus
+one 15-second complete verification read before accepting another write.
+All current root/lease/protection/consent checks and per-target preflight remain.
+V5 permits up to 30 seconds waiting for the next local request after durable
+group processing; v4 retains ten. Cap receive waiting by the remaining absolute
+session deadline. Send/transfer timeouts remain ten seconds; this is not a
+longer CLI timeout, a renewable session or proof that unknown work is retryable.
+
+V5 VERIFY_END (`1c 05 seq`) verifies the exact nonempty pending group with one
+complete full-table read, returns an opcode/sequence-bound group receipt and
+snapshot, and closes the session through the existing post-handler settlement.
+It replaces VERIFY_ADDS followed immediately by END, not verification itself.
+Persist each proven result before publishing that same observation. Require
+actual terminal settlement before releasing the device lease. No success is
+inferred from ACK, a partial stream, timeout or later unrelated observation.
+Priority refresh/removal still flushes pending work between commands. V4 and
+ordinary END semantics remain unchanged; unsupported versions fail before writes.
+
+Desired managed policy continues restoring a previously verified block after a
+later complete observation proves disappearance. Deferring first confirmation
+across sessions, and retrying an ACKed but missing first verification, need a
+separate durable known-absence/settlement contract; they are not implemented by
+this increment. Never replay an unknown ADD or erase its fence to finish a list.
