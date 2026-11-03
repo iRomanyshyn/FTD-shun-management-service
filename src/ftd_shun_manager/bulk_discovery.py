@@ -106,8 +106,16 @@ class BulkDiscovery:
                 old_epoch, cursor = self._cursors.get(snapshot.device_id, (None, b''))
                 if epoch != old_epoch:
                     cursor = b''
-                rows = db.execute('''SELECT * FROM managed_shun_targets WHERE device_id=? AND enabled=1
-                    AND ip>? ORDER BY ip LIMIT ?''', (snapshot.device_id, cursor, CHECK_LIMIT - self.checked + 1)).fetchall()
+                # Stored presence is already an unconditional authority exclusion.
+                # Skip it before the bounded Python scan, so a restart does not
+                # spend hours walking an applied prefix while the queue is empty.
+                # This is never absence proof: snapshot membership/current guards
+                # below remain authoritative, including when observations lag.
+                rows = db.execute('''SELECT t.* FROM managed_shun_targets t
+                    WHERE t.device_id=? AND t.enabled=1 AND t.ip>?
+                    AND NOT EXISTS (SELECT 1 FROM shun_state s
+                        WHERE s.device_id=t.device_id AND s.ip=t.ip AND s.active=1)
+                    ORDER BY t.ip LIMIT ?''', (snapshot.device_id, cursor, CHECK_LIMIT - self.checked + 1)).fetchall()
                 candidates = []
                 for row in rows[:CHECK_LIMIT - self.checked]:
                     if len(candidates) >= room:

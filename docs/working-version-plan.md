@@ -3,6 +3,26 @@
 Agreed with the operator: 2026-10-20.
 Status: approved target behavior and delivery plan; not a deployment procedure.
 
+Grouped-verification increment, 2026-11-03: the operator requested batch ADDs
+followed by a shared complete read. The gated tracked-v4 agent/client foundation
+implements pending acknowledgements and an explicit verification of at most eight
+targets, keeping per-target preflight and all existing mutation/session bounds.
+Queue integration/priority flush/persistent pending evidence and live acceptance
+come next; configured execution still uses v3. Do not substitute generic later
+baseline presence for verified creation. See [Grouped Additions](manual/batch-additions.md).
+
+Latest execution checkpoint, 2026-11-03: exact per-call source framing reduces
+full-root verification locally without changing its bytes/checks. Actual restart
+acceptance exposed and fixed observed-prefix starvation: indexed same-device
+presence exclusion now precedes the bounded candidate scan, retaining snapshot/
+authority/uncertainty/quota/cutoff rules. Original import automatically resumed
+without a hint or new consent; 23 VERIFIED in 207.95s, no unknown/hold. This remains
+only ~6.64/minute, with semantic ADD/verification around five seconds per target.
+Next prioritize a reviewed compatible bounded execution/batch improvement with
+truthful per-target results, cancellation/interactive priority and retained
+uncertainty. No whole-list/load/production acceptance is implied. See current
+status/log for final image, compatible rollback and preserved original state.
+
 Execution-performance increment, 2026-11-03: transaction-boundary obsolete-work
 validation removes repeated per-candidate profile scans without dropping current
 eligibility/root checks. Bounded per-session diagnostics separate local phases

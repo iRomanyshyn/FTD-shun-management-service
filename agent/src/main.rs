@@ -5,6 +5,7 @@
 //! can cross the Web/API-to-agent boundary.
 
 mod addition;
+mod batch_addition;
 mod credentials;
 mod cycle;
 mod dispatch;
@@ -61,6 +62,7 @@ struct Agent {
     cycles_enabled: bool,
     large_snapshots_enabled: bool,
     additions_enabled: bool,
+    batch_additions_enabled: bool,
     max_concurrent_devices: usize,
 }
 
@@ -190,6 +192,15 @@ impl Agent {
         if additions_enabled && (!cycles_enabled || !large_snapshots_enabled) {
             bail!("additions require both session cycles and large snapshots");
         }
+        let batch_additions_enabled =
+            match env::var("FTD_SHUN_AGENT_BATCH_ADDITIONS_ENABLED").as_deref() {
+                Ok("true") => true,
+                Ok("false") | Err(env::VarError::NotPresent) => false,
+                _ => bail!("FTD_SHUN_AGENT_BATCH_ADDITIONS_ENABLED must be true or false"),
+            };
+        if batch_additions_enabled && !additions_enabled {
+            bail!("batch additions require explicitly enabled additions");
+        }
         for device in devices.values() {
             if let Some(profile) = device.addition_profile {
                 profile.validate(&device.allowed_interfaces)?;
@@ -207,6 +218,7 @@ impl Agent {
                 cycles_enabled,
                 large_snapshots_enabled,
                 additions_enabled,
+                batch_additions_enabled,
                 max_concurrent_devices,
             },
             socket_file,
@@ -1176,6 +1188,7 @@ mod tests {
             cycles_enabled: false,
             large_snapshots_enabled: false,
             additions_enabled: false,
+            batch_additions_enabled: false,
             max_concurrent_devices: 2,
         })
     }

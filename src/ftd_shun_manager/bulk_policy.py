@@ -16,10 +16,11 @@ from pathlib import Path
 from uuid import UUID, uuid4
 
 from .bulk_intent import decode_bulk_descriptor, verify_bulk_intent
-from .import_preparations import ImportPreparations, _feed, _member, _stamp
+from .import_preparations import ImportPreparations, _feed, _stamp
 from .managed_intent import canonical_managed_change
 from .managed_safety import ManagedStateUnavailable
 from .managed_shuns import ManagedCapacity, ManagedConflict, ManagedShuns, _require_operator
+from .member_digest import MemberDigest
 from .safety import mutations_suspended
 from .schema import execute_schema, schema_connection
 from .store import Store
@@ -488,12 +489,13 @@ class BulkPolicies:
         header = json.loads(row['header_json'])
         source = hashlib.sha256()
         _feed(source, header)
+        source_members = MemberDigest(source)
 
         def records():
             cursor = db.execute('SELECT * FROM managed_bulk_members WHERE request_id=? ORDER BY device_id,ip', (key,))
             while chunk := cursor.fetchmany(100):
                 for member in chunk:
-                    _feed(source, _member(member))
+                    source_members.feed(member)
                     kind = member['classification']
                     if kind == 'ALREADY_MANAGED':
                         expected = tuple(member[name] for name in ('previous_intent_id','previous_generation','previous_authorization_request_id'))

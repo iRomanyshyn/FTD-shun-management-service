@@ -4,7 +4,7 @@ import hashlib
 import hmac
 from struct import unpack
 
-from .agent_protocol import ObservedShun, _decode_shun_entries
+from .agent_protocol import ObservedShun, _decode_shun_entries, max_cycle_sequence
 
 SNAPSHOT_CHUNK_BYTES = 32768
 MAX_SNAPSHOT_BYTES = 16 * 1024 * 1024
@@ -14,10 +14,12 @@ SNAPSHOT_TRANSFER_SECONDS = 10
 
 class SnapshotDecoder:
     def __init__(self, manifest: bytes, opcode: int, sequence: int, *, version: int = 2):
-        if (version not in (2, 3) or (opcode == 7 and version != 2)
-                or opcode not in (7, 0x10, 0x11, 0x13, 0x16, 0x17, 0x18)
+        if (version not in (2, 3, 4) or (opcode == 7 and version != 2)
+                or opcode not in (7, 0x10, 0x11, 0x13, 0x16, 0x17, 0x18, 0x1b)
+                or (opcode == 0x1b and version != 4)
+                or (version == 4 and opcode in (0x10, 0x16, 0x17))
                 or (opcode in (7, 0x10, 0x16, 0x17, 0x18) and sequence != 0)
-                or (opcode in (0x11, 0x13) and not 1 <= sequence <= 18)):
+                or (opcode in (0x11, 0x13, 0x1b) and not 1 <= sequence <= max_cycle_sequence(version))):
             raise ValueError("invalid snapshot request binding")
         if len(manifest) != 15 or manifest[:5] != bytes([0, version, opcode, sequence, 0]):
             raise ValueError("invalid snapshot manifest")

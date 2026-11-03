@@ -161,3 +161,39 @@ fn bounded_agent_concurrency_is_preflight_only_and_does_not_enable_other_gates()
     assert!(String::from_utf8_lossy(&output.stderr).contains("additions require both"));
     Ok(())
 }
+
+#[test]
+fn batch_gate_is_literal_default_off_and_requires_existing_capabilities() -> Result<()> {
+    let fixture = Fixture::new()?;
+    for value in ["", "yes", "1", "TRUE", "true "] {
+        let output = fixture.run(
+            fixture
+                .command()
+                .env("FTD_SHUN_AGENT_BATCH_ADDITIONS_ENABLED", value),
+        )?;
+        assert!(!output.status.success());
+        assert!(
+            String::from_utf8_lossy(&output.stderr)
+                .contains("BATCH_ADDITIONS_ENABLED must be true or false")
+        );
+    }
+    let output = fixture.run(
+        fixture
+            .command()
+            .env("FTD_SHUN_AGENT_BATCH_ADDITIONS_ENABLED", "true"),
+    )?;
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("batch additions require"));
+    for value in ["false", "true"] {
+        let output = fixture.run(
+            fixture
+                .command()
+                .env("FTD_SHUN_AGENT_BATCH_ADDITIONS_ENABLED", value)
+                .env("FTD_SHUN_AGENT_CYCLES_ENABLED", "true")
+                .env("FTD_SHUN_LARGE_SNAPSHOTS_ENABLED", "true")
+                .env("FTD_SHUN_AGENT_ADDITIONS_ENABLED", "true"),
+        )?;
+        assert!(output.status.success());
+    }
+    Ok(())
+}

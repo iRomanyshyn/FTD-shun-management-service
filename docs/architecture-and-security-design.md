@@ -1,6 +1,77 @@
 # FTD Shun Management Service
 
+## Bounded grouped ADD verification — 2026-11-03
+
+The operator-approved next execution target replaces each ADD's individual
+post-read with one complete `show shun` for at most eight acknowledged additions
+in the same bounded SSH session. Preserve a fresh target-specific preflight and
+strict profile acknowledgement for each ADD. Existing presence remains NOOP,
+never proof of service creation. This is not CLI pipelining or arbitrary commands.
+
+A separate default-off cycle v4 uses tracked BEGIN and typed STAGE_ADD /
+VERIFY_ADDS operations. A staging acknowledgement means **pending verification**,
+not successful creation. The agent retains the ordered pending set; a full strict
+observation must contain each target exactly once, with its expected interface
+and source-only qualifiers, before it emits the group receipt and complete typed
+snapshot. The client requires both, with exact scope/order/binding and snapshot
+digest. Missing/malformed evidence or lost transport never permits success/replay.
+
+Pending additions prohibit ordinary reads, removals and END until the group is
+verified; the future queue integration must flush before servicing interactive
+refresh/removal, at capacity, stop, pre-write deferral and session completion.
+Commands remain individually sequential. Existing limits of 16 mutation attempts,
+64 CLI commands, 120-second session and prompt/operation/IPC bounds remain;
+v4 allows up to 34 sequence steps solely for explicit verification checkpoints.
+No extra mutation capacity, authority renewal or deadline extension is implied.
+
+Before activation, the queue must durably retain every staged job as RUNNING,
+bind multiple pending claims to the same live owner/epoch and group, and record
+their acknowledgements without creation provenance. Persist verified per-target
+results before publishing their shared snapshot, preserving earlier results if
+later local work fails. Crash/unknown writes keep existing uncertainty fences.
+Do not wait for a five-minute baseline outside the current session: that needs a
+separate durable delayed-verification design. Generic periodic presence alone
+cannot verify an old uncertain write or establish service creation.
+
+Current increment implements only the gated agent/client protocol foundation;
+the configured API/worker still selects v3. No schema or deployment change,
+bulk speedup, live v4 validation or release acceptance is claimed yet.
+
 ## Import execution profiling — 2026-11-03
+
+### Restart-safe bounded candidate selection
+
+Before the 64-row Python eligibility budget, indexed SQLite selection excludes
+targets with an active stored observation on that exact device/IP. Such targets
+are already unconditionally ineligible under the existing authority check; this
+is only an exclusion, never absence evidence or consent. Complete fresh snapshot
+membership, current policy/protection, original root, backoff and uncertainty
+checks still run for every returned candidate. The normal complete-snapshot
+publisher reconciles confirmed disappearances before discovery; discovery alone
+never clears observations. Presence on another device cannot exclude this pair.
+
+This prevents an already-applied prefix from consuming every bounded scan after
+restart and then leaving a nonfinished import idle until baseline. No persisted
+cursor/authority cache, new command, TTL/cutoff extension or quota increase is
+introduced. At most 64 returned candidates are checked and at most 16 admitted;
+SQL may skip already-observed rows using the existing indexed observation data.
+Sampled discovery counters describe these checked candidates, not all SQL-skipped
+observations. The frozen ADD cutoff and verified-result requirements are unchanged.
+
+### Exact source encoding reuse
+
+Full-root verification still streams and validates every original member at each
+admission/claim. A per-verification encoder may reuse at most ten JSON framing
+templates for the common unobserved `PROPOSE_ADD` shape with no predecessors and
+maintenance previously disabled. Every row's literal IPv4 is decoded and its full
+original length-prefixed canonical JSON is hashed. Other shapes use the original
+general UTF-8/escaping encoder. These templates are encoding constants, not cached
+membership, authorization, digests, summaries or validation results; they never
+survive the verification call. Source bytes/digests, manifest format, root binding,
+UUID/classification/order/product checks, receipts and current eligibility stay
+unchanged. No schema, protocol, permission or migration follows from this optimization.
+
+### Transaction checks and diagnostic phases
 
 The obsolete bulk-delegation sweep validates the entire recognized profile at
 entry and exit of its caller-owned write transaction, not separately for every
@@ -17,6 +88,12 @@ CLI output, addresses or credentials. Measurements include failures/drain and ar
 diagnostics only: agent time includes IPC/semantic verification, not isolated SSH
 command time. Timings/counts never prove command submission, success, freshness,
 settlement or permission to retry/release. Existing typed evidence remains required.
+Fixed agent phase aggregates additionally distinguish open (including the initial
+snapshot), priority snapshot, ADD, REMOVE and finish (including final snapshot/
+settlement). Labels bind actual methods of the current session, not arbitrary
+function names. Durations/counts include failures and pre-write deferrals; neither
+an ADD call nor elapsed time proves that a write was sent or succeeded. Pure SSH
+login and individual CLI-command times are not separately measured here.
 
 ## Large pasted Cisco shun exports — 2026-11-02
 

@@ -3,6 +3,7 @@
 import asyncio
 import json
 from concurrent.futures import ThreadPoolExecutor
+from ipaddress import IPv4Address
 from threading import Event
 from time import monotonic
 from types import SimpleNamespace
@@ -17,6 +18,7 @@ from test_continuous_dispatch import journal as journal_fixture
 from test_continuous_dispatch import leases as leases_fixture
 from test_continuous_dispatch import waits as waits_fixture
 
+from ftd_shun_manager.agent_protocol import ObservedShun
 from ftd_shun_manager.bulk_discovery import BulkDiscovery
 from ftd_shun_manager.parallel_synchronizer import _DeviceWorker
 
@@ -144,3 +146,22 @@ def test_one_ssh_session_processes_a_verified_chunk_not_one_login_per_address(co
     assert timings and len({(row['device_id'], row['epoch']) for row in timings}) == len(timings)
     assert any('claim_next_mutation' in row['local_phases_seconds'] for row in timings)
     assert all(row['local_calls'] > 0 and row['agent_calls'] > 0 for row in timings)
+
+
+def test_startup_with_large_present_prefix_continues_missing_import_without_refresh_hint(continuous, bulk):
+    service, agent, _ = continuous
+    grant(bulk, devices=(1,), count=100)
+    present = [ObservedShun(IPv4Address(f'198.51.100.{i}'), 'management') for i in range(1, 81)]
+    agent.entries[1] = present.copy()
+
+    async def scenario():
+        await service.start()
+        try:
+            async with asyncio.timeout(15):
+                while sum(kind == 'add' for kind, device, _ in agent.trace if device == 1) < 20:
+                    await asyncio.sleep(0.01)
+        finally:
+            await service.stop()
+    asyncio.run(scenario())
+    written = [ip for kind, device, ip in agent.trace if kind == 'add' and device == 1]
+    assert len(written) == 20 and not set(written).intersection(entry.ip for entry in present)

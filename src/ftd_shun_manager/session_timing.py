@@ -8,6 +8,7 @@ class SessionTiming:
     LOCAL_PHASES = frozenset({'renew', 'claim_next_mutation', 'claim_addition', 'claim_removal',
                              'finish_addition', 'finish_removal', '_publish_snapshot',
                              '_discover_snapshot', 'cancel_obsolete_policy'})
+    AGENT_PHASES = frozenset({'open', 'snapshot', 'finish', 'add', 'remove'})
 
     def __init__(self):
         self.started = monotonic()
@@ -16,6 +17,8 @@ class SessionTiming:
         self.rpc_seconds = 0.0
         self.rpc_calls = 0
         self.phases = {}
+        self.agent_phases = {}
+        self.agent_phase_calls = {}
 
     def local(self, function, seconds):
         name = getattr(function, '__name__', '')
@@ -24,12 +27,18 @@ class SessionTiming:
         self.local_seconds += seconds
         self.local_calls += 1
 
-    def rpc(self, seconds):
-        self.rpc_seconds += max(0.0, seconds)
+    def rpc(self, seconds, phase='other'):
+        phase = phase if phase in self.AGENT_PHASES else 'other'
+        seconds = max(0.0, seconds)
+        self.rpc_seconds += seconds
         self.rpc_calls += 1
+        self.agent_phases[phase] = self.agent_phases.get(phase, 0.0) + seconds
+        self.agent_phase_calls[phase] = self.agent_phase_calls.get(phase, 0) + 1
 
     def report(self):
         return {'elapsed_seconds': round(monotonic() - self.started, 3),
                 'local_seconds': round(self.local_seconds, 3), 'local_calls': self.local_calls,
                 'agent_seconds': round(self.rpc_seconds, 3), 'agent_calls': self.rpc_calls,
-                'local_phases_seconds': {key: round(value, 3) for key, value in self.phases.items()}}
+                'local_phases_seconds': {key: round(value, 3) for key, value in self.phases.items()},
+                'agent_phases_seconds': {key: round(value, 3) for key, value in self.agent_phases.items()},
+                'agent_phase_calls': dict(self.agent_phase_calls)}

@@ -1,5 +1,16 @@
 # Large-Import Format and Capacity Transition
 
+Current implementation checkpoint, 2026-11-03: the configured managed lab executes
+the original 32,425-pair task on the explicit v2 profile; historical foundation-only
+boundaries below do not describe current activation. See [Project Status](../project-status.md).
+Complete root verification at admission/claim remains required. Its source hash
+may reuse up to ten common-row JSON framing templates within one verification,
+but every member contributes the exact same length-prefixed UTF-8 bytes, including
+its literal IPv4. Noncommon rows retain general canonical encoding/escaping.
+This does not change the descriptor or seven-byte binary manifest formats, retain
+authority across transactions, remove checks, initialize storage or alter receipts.
+Byte-for-byte compatibility and paired read-only full-root tests cover the change.
+
 ## Current delivery boundary
 
 `bulk_intent.py` defines a pure **version-2 proposed-import binding** for up to

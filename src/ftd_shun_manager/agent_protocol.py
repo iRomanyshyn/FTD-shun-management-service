@@ -10,6 +10,7 @@ from ipaddress import IPv4Address
 MAX_AGENT_RESPONSE_BYTES = 64 * 1024
 CYCLE_VERSION = 1
 MAX_CYCLE_REMOVALS = 16
+MAX_PENDING_ADDITIONS = 8
 _SUCCESS = 0x00
 
 
@@ -25,6 +26,22 @@ class AdditionResult:
 
     created: bool
     interface: str | None = None
+
+
+@dataclass(frozen=True)
+class PendingAddition:
+    """Strict write acknowledgement only. Never creation or success evidence."""
+
+    ip: IPv4Address
+    sequence: int
+
+
+@dataclass(frozen=True)
+class VerifiedAdditionBatch:
+    """Exact ordered pending scope plus its completely received observation."""
+
+    additions: tuple[tuple[IPv4Address, AdditionResult], ...]
+    snapshot: tuple[ObservedShun, ...]
 
 
 class Operation(IntEnum):
@@ -46,14 +63,20 @@ class CycleOperation(IntEnum):
     BEGIN_SETTLED = 0x16
     BEGIN_RECOVERABLE = 0x17
     BEGIN_TRACKED = 0x18
+    STAGE_ADD = 0x1a
+    VERIFY_ADDS = 0x1b
 
 
 SESSION_LOOKUP = 0x19
 
 
+def max_cycle_sequence(version: int) -> int:
+    return 34 if version == 4 else MAX_CYCLE_REMOVALS + 2
+
+
 def encode_session_request(operation: int, version: int, device_id: int, session_id: bytes):
     if (type(operation) is not int or operation not in (0x18, SESSION_LOOKUP)
-            or type(version) is not int or version not in (1, 2, 3)
+            or type(version) is not int or version not in (1, 2, 3, 4)
             or type(device_id) is not int or not 1 <= device_id <= 65535
             or type(session_id) is not bytes or len(session_id) != 16 or not any(session_id)):
         raise ValueError('Invalid exact session binding.')
@@ -70,43 +93,60 @@ def decode_session_lookup(packet: bytes, version: int, device_id: int, session_i
 def encode_cycle_request(operation: CycleOperation, sequence: int, *,
                          device_id: int | None = None, ip: IPv4Address | None = None,
                          version: int = CYCLE_VERSION) -> bytes:
-    if version not in (1, 2, 3):
+    if type(version) is not int or version not in (1, 2, 3, 4):
         raise ValueError("invalid cycle version")
     operation = CycleOperation(operation)
     if operation == CycleOperation.ADD and version != 3:
         raise ValueError("ADD requires cycle version 3")
+    if operation in {CycleOperation.STAGE_ADD, CycleOperation.VERIFY_ADDS} and version != 4:
+        raise ValueError("Batch additions require cycle version 4")
     if operation in {CycleOperation.BEGIN, CycleOperation.BEGIN_SETTLED, CycleOperation.BEGIN_RECOVERABLE}:
+        if version == 4:
+            raise ValueError("Batch cycles require tracked BEGIN")
         if sequence != 0 or device_id is None or not 1 <= device_id <= 65535 or ip is not None:
             raise ValueError("invalid cycle begin fields")
         return bytes([operation, version]) + device_id.to_bytes(2, "big")
-    if not 1 <= sequence <= MAX_CYCLE_REMOVALS + 2 or device_id is not None:
+    if operation == CycleOperation.BEGIN_TRACKED:
+        raise ValueError("Tracked BEGIN requires an exact session identity")
+    if type(sequence) is not int or not 1 <= sequence <= max_cycle_sequence(version) or device_id is not None:
         raise ValueError("invalid cycle sequence or device")
-    if (operation in {CycleOperation.REMOVE, CycleOperation.ADD}) != (ip is not None):
+    if (operation in {CycleOperation.REMOVE, CycleOperation.ADD, CycleOperation.STAGE_ADD}) != (ip is not None):
         raise ValueError("invalid cycle target")
     if ip is not None and not isinstance(ip, IPv4Address):
         raise ValueError("cycle target must be an IPv4 address")
     return bytes([operation, version, sequence]) + (ip.packed if ip else b"")
 
 
-def decode_cycle_response(packet: bytes, operation: CycleOperation, sequence: int, *, version: int = CYCLE_VERSION):
-    if version not in (1, 2, 3):
+def decode_cycle_response(packet: bytes, operation: CycleOperation, sequence: int, *,
+                          version: int = CYCLE_VERSION, target: IPv4Address | None = None):
+    if type(version) is not int or version not in (1, 2, 3, 4):
         raise ValueError("invalid cycle version")
     operation = CycleOperation(operation)
     if operation == CycleOperation.ADD and version != 3:
         raise ValueError("ADD requires cycle version 3")
+    if operation in {CycleOperation.STAGE_ADD, CycleOperation.VERIFY_ADDS} and version != 4:
+        raise ValueError("Batch additions require cycle version 4")
     begin = operation in {CycleOperation.BEGIN, CycleOperation.BEGIN_SETTLED, CycleOperation.BEGIN_RECOVERABLE, CycleOperation.BEGIN_TRACKED}
     if (begin and sequence != 0) or (
-        not begin and not 1 <= sequence <= MAX_CYCLE_REMOVALS + 2
+        not begin and not 1 <= sequence <= max_cycle_sequence(version)
     ):
         raise ValueError("invalid cycle response sequence")
     if len(packet) > MAX_AGENT_RESPONSE_BYTES or len(packet) < 4:
         raise ValueError("invalid cycle response size")
     if packet[1:4] != bytes([version, operation, sequence]):
         raise ValueError("cycle response version, operation, or sequence mismatch")
-    if operation in {CycleOperation.REMOVE, CycleOperation.ADD, CycleOperation.SNAPSHOT} and packet == bytes(
+    if operation in {CycleOperation.REMOVE, CycleOperation.ADD, CycleOperation.STAGE_ADD, CycleOperation.SNAPSHOT} and packet == bytes(
         [2, version, operation, sequence]
     ):
         return None  # Explicit deferral, never an observed snapshot or successful write.
+    if operation == CycleOperation.STAGE_ADD:
+        if packet == bytes([0, version, operation, sequence, 0]):
+            return AdditionResult(False)
+        # The client binds status 05 to its own request IP; a success-shaped
+        # packet or interface field is forbidden at the staging boundary.
+        if packet == bytes([5, version, operation, sequence]) and type(target) is IPv4Address:
+            return PendingAddition(target, sequence)
+        raise ValueError("invalid pending addition acknowledgement")
     if operation == CycleOperation.ADD:
         if packet == bytes([0, version, operation, sequence, 0]):
             return AdditionResult(False)
@@ -132,16 +172,18 @@ def decode_cycle_response(packet: bytes, operation: CycleOperation, sequence: in
 
 def decode_cycle_settlement(packet: bytes, sequence: int, *, version: int, begin=CycleOperation.BEGIN_SETTLED):
     """Local completed-handler receipt, never mutation/recovery authority."""
-    if (type(version) is not int or version not in (1, 2, 3)
+    if (type(version) is not int or version not in (1, 2, 3, 4)
+            or (version == 4 and begin != CycleOperation.BEGIN_TRACKED)
             or begin not in (CycleOperation.BEGIN_SETTLED, CycleOperation.BEGIN_RECOVERABLE, CycleOperation.BEGIN_TRACKED)
-            or type(sequence) is not int or not 1 <= sequence <= MAX_CYCLE_REMOVALS + 2
+            or type(sequence) is not int or not 1 <= sequence <= max_cycle_sequence(version)
             or packet != bytes([0, version, begin, sequence])):
         raise ValueError('Missing or invalid exact cycle settlement receipt.')
 
 
 def decode_cycle_open_failure(packet: bytes, *, version: int, begin=CycleOperation.BEGIN_RECOVERABLE):
     """Exact terminal proof that opening ended before any Cisco command."""
-    if (type(version) is not int or version not in (1, 2, 3)
+    if (type(version) is not int or version not in (1, 2, 3, 4)
+            or (version == 4 and begin != CycleOperation.BEGIN_TRACKED)
             or begin not in (CycleOperation.BEGIN_RECOVERABLE, CycleOperation.BEGIN_TRACKED)
             or packet != bytes([3, version, begin, 0])):
         raise ValueError('Missing or invalid exact cycle opening-failure receipt.')
@@ -149,13 +191,41 @@ def decode_cycle_open_failure(packet: bytes, *, version: int, begin=CycleOperati
 
 def decode_cycle_read_failure(packet: bytes, operation: CycleOperation, sequence: int, *, version: int):
     """Terminal failed-read proof, never a snapshot or mutation success."""
-    if (type(version) is not int or version not in (1, 2, 3)
+    if (type(version) is not int or version not in (1, 2, 3, 4)
+            or (version == 4 and operation == CycleOperation.BEGIN_RECOVERABLE)
             or type(sequence) is not int
             or not ((operation in (CycleOperation.BEGIN_RECOVERABLE, CycleOperation.BEGIN_TRACKED) and sequence == 0)
                     or (operation in (CycleOperation.SNAPSHOT, CycleOperation.END)
-                        and 1 <= sequence <= MAX_CYCLE_REMOVALS + 2))
+                        and 1 <= sequence <= max_cycle_sequence(version)))
             or packet != bytes([4, version, operation, sequence])):
         raise ValueError('Missing or invalid exact cycle read-failure receipt.')
+
+
+def decode_addition_batch(packet: bytes, sequence: int, pending: tuple[IPv4Address, ...]):
+    """Decode only the proof header; a complete matching snapshot is also required."""
+    if (type(sequence) is not int or not 1 <= sequence <= max_cycle_sequence(4)
+            or not 1 <= len(pending) <= MAX_PENDING_ADDITIONS or len(set(pending)) != len(pending)
+            or any(type(ip) is not IPv4Address for ip in pending)
+            or packet[:5] != bytes([0, 4, CycleOperation.VERIFY_ADDS, sequence, len(pending)])):
+        raise ValueError("invalid pending addition receipt binding")
+    offset = 5
+    results = []
+    for ip in pending:
+        if len(packet) < offset + 5 or packet[offset:offset + 4] != ip.packed:
+            raise ValueError("addition receipt target/order mismatch")
+        size = packet[offset + 4]
+        offset += 5
+        try:
+            interface = packet[offset:offset + size].decode('ascii')
+        except UnicodeDecodeError as error:
+            raise ValueError("addition receipt interface must be ASCII") from error
+        if size != len(interface) or not _valid_interface(interface):
+            raise ValueError("invalid addition receipt scope")
+        results.append((ip, AdditionResult(True, interface)))
+        offset += size
+    if offset != len(packet):
+        raise ValueError("trailing or truncated addition receipt")
+    return tuple(results)
 
 
 _IP_OPERATIONS = {Operation.GET_SHUN, Operation.REMOVE_SHUN}

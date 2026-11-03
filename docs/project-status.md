@@ -15,6 +15,94 @@ priority. See [the planned constraints](working-version-plan.md#deferred-ip-cont
 
 ## Current increment
 
+**Grouped ADD protocol foundation (2026-11-03, not deployed).** The operator
+requested batched additions and shared verification. A separate default-off
+tracked cycle v4 now stages at most eight acknowledged additions, with a fresh
+per-IP preflight and strict ACK, then verifies them through one complete
+`show shun`. Pending acknowledgements are explicitly not success. The agent
+checks every target's exact expected source-only scope and emits an ordered
+receipt plus complete typed snapshot; Python requires both before exposing
+`VerifiedAdditionBatch`. Missing/ambiguous/partial evidence aborts without retry.
+
+The existing 16 mutation / 64 command / 120-second session and prompt/step/IPC
+bounds remain. Up to 34 v4 steps accommodate verification checkpoints, not more
+writes. Reads/removals/END reject unresolved pending additions. V1/v2/v3 semantics
+and configured v3 execution remain unchanged. No schema, runtime configuration,
+authority, credential, trust or network change; current import is not accelerated
+by this foundation alone. Queue integration must retain exact live-epoch pending
+claims/audits, flush for interactive priority/stop/defer, persist each verified
+result before publishing the shared snapshot and retain uncertainty after failure.
+Waiting for the five-minute baseline across sessions is deliberately not enabled.
+See [Grouped Additions](manual/batch-additions.md).
+
+Validation: **3031 full Python tests passed in 527.95s**, plus **288 final-source
+focused protocol/recovery checks**, including four supplementary tests added
+after full-suite collection. **92 Rust tests** (82 unit + 10 integration), locked
+release build, Clippy, fmt, compileall, Ruff and diff checks pass. The first
+sandboxed Rust run hit socketpair EPERM; the normal authorized local-socket rerun
+passed. Synthetic eight-address execution uses eight preflights/eight ADDs and
+one shared verification, not eight individual post-reads; this is command-count
+evidence, not a measured live speedup.
+Read-only lab status still shows the original task progressing: **5,456/32,425**,
+device error `null`, API `ready`. No new task, hint, write fixture, restart or
+deployment was submitted during this increment; existing runtime continues.
+
+**Exact root hashing, agent phases and restart continuation (2026-11-03).** Root
+verification now reuses bounded common-row JSON framing, not validation results
+or membership. Every original source byte/member is still hashed and all existing
+checks run; no format/schema/authority change. Pure 32,425-row source encoding
+median: 0.2468 → 0.1113s, identical hashes. Paired query-only complete verification
+of the actual 32,425-pair root: **0.7949 → 0.6246s**, identical root/receipt/summary
+(three pairs, same SQLite snapshot, no executor/RPC).
+
+Session timing adds fixed bound-method phase totals/counts for open+initial read,
+snapshot, ADD, REMOVE and final read/settlement. Failed/deferred calls remain
+diagnostic attempts, not success. Focused suite: **129 passed**; full suite:
+**2998 passed in 513.58s**. Compileall/Ruff/diff and built-image non-executing
+configured check pass. API `4a328de7b593...` deployed after exit-0/IDLE epoch 1734
+drain; original protected/policy/root/recovery fingerprints match. Web/agent stayed
+unchanged. Epoch 1735 verified three operations; diagnostics measured open+initial
+read 6.677s, ADD calls 15.663s/three, final read/settlement 1.796s.
+
+**Restart-prefix bug exposed during acceptance.** The original selector spent
+all 64 checks on already-observed targets after losing its advisory cursor at
+restart. The rolling queue emptied with 5,042/32,425 processed, no hold/error, and
+then waited for baseline; the 240-second monitor truthfully missed its target.
+This is not resumed-throughput acceptance. A fix now filters same-device active
+observations in indexed SQL before the bounded candidate scan. These pairs are
+already unconditionally ineligible, not new absence evidence. Fresh snapshot,
+root/current authority/protection/backoff/uncertainty, cutoff and quotas remain.
+Cross-device presence and stale observation/confirmed disappearance regressions,
+plus actual continuous startup with 80 present/20 missing targets and no hint,
+pass: **169 focused tests**. Full regression: **3003 passed in 500.80s**, with
+**170 final-source focused checks** including future source-field fallback.
+Final image `01a5c191d81d...` passes configured checks; final guarded full-root
+benchmark is 0.8063 → 0.6487s with identical output.
+
+**Final API `01a5c191d81d...` deployed**, after actual exit-0 drain/IDLE epoch
+1737 and zero running/unknown work. Compatible prior image is retained as
+`ftd-shun-api:lab-pre-observed-prefilter-20261103`; rollback loses the selection
+fix, not data compatibility. Web/agent containers/images remain unchanged.
+Startup epoch 1738 completed its mandatory read, admitted the bounded queue and
+settled; original work then continued **without a refresh hint/new confirmation**.
+Read-only sample: **5,042 → 5,065 / 32,425**, **23 VERIFIED in 207.95s
+(6.64/minute)**, three completed mutation epochs (1739–1741: 7/8/8 VERIFIED,
+each with one separately audited pre-write deferral), zero unknown/error/ATTENTION.
+Status **0.624–1.841s**, integrity `ok`. Exact protection/standing-target/request/
+manifest/member/recovery fingerprints match. Web health 200/anonymous 401 pass.
+
+The original task remains running. This accepts restart continuation over a large
+observed prefix, not completion of the whole list or production/load capacity.
+Measured ADD/verification remains about five seconds per written target; next
+priority is a reviewed bounded execution/batch improvement preserving per-target
+outcomes, interactive priority and uncertainty, not more limit/TTL/root bypasses.
+
+Read-only refill inspection found no zero-VERIFIED session among 17 recent
+releases (first window boundary is partial). Thirty-six queued cancellations in a
+separate 20-minute observation retain the combined expiry/revocation reason; this
+does not independently prove their exact cause. No evidence justifies changing
+cutoff/TTL, renewing authority or replaying jobs. Scheduling is unchanged.
+
 **Import hot-path profiling (2026-11-03).** The original 32,425-pair lab task
 continued overnight: first read-only observation this increment showed 4,213
 VERIFIED members, no device error or unknown jobs. Read-only cProfile on one

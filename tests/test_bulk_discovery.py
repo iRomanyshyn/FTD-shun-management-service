@@ -93,6 +93,46 @@ def test_large_present_prefix_does_not_starve_later_missing_targets(bulk, dispat
         assert db.execute('SELECT MIN(ip) FROM operation_jobs').fetchone()[0] == candidates[64].ip.packed
 
 
+@pytest.mark.parametrize('observed_device', [1, 2])
+def test_reconciled_present_prefix_is_filtered_before_budget_only_on_its_device(bulk, dispatch, observed_device):
+    _, snapshot, candidates = setup(bulk, dispatch, count=100)
+    present = frozenset(c.ip for c in candidates[:80]) if observed_device == 1 else frozenset()
+    dispatch.store.reconcile_snapshot(observed_device, [(c.ip, 'management') for c in candidates[:80]])
+    discovery = controller(dispatch)  # A restart has no previous keyset hint.
+    assert discovery.discover(replace(snapshot, present_ips=present), OWNER) == 16
+    assert discovery.status()['checked_this_cycle'] == 16
+    with dispatch.store._connection() as db:
+        expected = candidates[80 if observed_device == 1 else 0].ip.packed
+        assert db.execute('SELECT MIN(ip) FROM operation_jobs').fetchone()[0] == expected
+
+
+def test_stored_presence_is_exclusion_only_and_discovery_does_not_clear_it(bulk, dispatch):
+    _, snapshot, candidates = setup(bulk, dispatch, count=100)
+    dispatch.store.reconcile_snapshot(1, [(c.ip, 'management') for c in candidates[:80]])
+    discovery = controller(dispatch)
+    # Deliberately not reconciled: snapshot absence must not erase stored presence
+    # through this optimization or authorize work excluded by current guards.
+    assert discovery.discover(snapshot, OWNER) == 16
+    assert len(dispatch.store.list_active_shuns()) == 80
+    with dispatch.store._connection() as db:
+        assert db.execute('SELECT MIN(ip) FROM operation_jobs').fetchone()[0] == candidates[80].ip.packed
+
+
+def test_confirmed_disappearance_reenters_selection_without_reset_or_new_authority(bulk, dispatch):
+    root, snapshot, candidates = setup(bulk, dispatch, count=100)
+    dispatch.store.reconcile_snapshot(1, [(c.ip, 'management') for c in candidates])
+    discovery = controller(dispatch)
+    assert discovery.discover(replace(snapshot, present_ips=frozenset(c.ip for c in candidates)), OWNER) == 0
+    assert discovery.status()['checked_this_cycle'] == 0
+    dispatch.store.reconcile_snapshot(1, [(c.ip, 'management') for c in candidates[1:]])
+    discovery.begin_cycle()
+    new_snapshot = replace(fresh(bulk, snapshot), present_ips=frozenset(c.ip for c in candidates[1:]))
+    assert discovery.discover(new_snapshot, OWNER) == 1
+    with dispatch.store._connection() as db:
+        attempt = db.execute('SELECT * FROM managed_bulk_attempts').fetchone()
+        assert attempt['ip'] == candidates[0].ip.packed and attempt['authorization_request_id'] == root
+
+
 def test_restart_rescans_without_duplicate_or_lost_standing_authority(bulk, dispatch):
     _, snapshot, _ = setup(bulk, dispatch, count=30)
     discovery = controller(dispatch)

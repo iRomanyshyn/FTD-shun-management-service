@@ -34,6 +34,11 @@ endpoint, device command, feature switch or schema upgrade is needed.
 - `agent_seconds` / `agent_calls`: agent-call wall time/attempts, excluding their
   local lease-renewal time. Includes IPC, SSH/CLI and semantic verification; it is
   not a per-Cisco-command measurement or proof a call reached the agent.
+- `agent_phases_seconds` / `agent_phase_calls`: fixed method-bound `open`,
+  `snapshot`, `add`, `remove`, `finish` and `other` aggregates. `open` includes SSH
+  opening and the first complete snapshot; `finish` includes final observation
+  and terminal settlement. This does not separately time pure login or each CLI
+  command. Failed/deferred ADD calls are counted too, never treated as verified.
 - `settled`: the existing session receipt flag, not success inferred from duration.
 
 Totals need not sum to elapsed time: coordinator work outside these wrappers is
@@ -51,6 +56,13 @@ before replacement; retain the prior profile-compatible API image for rollback.
 Web/agent, inventory, credentials, protection and admitted import authority need
 not change. Compare actual same-workload throughput after deployment; these local
 optimizations do not establish 100,000-address device capacity.
+
+Full original-root verification now reuses at most ten common source-JSON framing
+templates within each verification call. It still decodes/hashes every literal
+member and verifies the same source/manifest/descriptor/receipt and authority.
+Unusual shapes retain the original encoder; this is not a root-validation cache
+or new format. Existing retained digests and profile-compatible rollback images
+remain valid. No migration, initialization or new user consent is needed.
 
 ## Session scheduling
 
@@ -76,6 +88,17 @@ existing verification/command/time limits. Per-device unfinished work stays at
 most the 16-job refill window; global queue/journal bounds remain transactional.
 Newly discovered ADD waits for a subsequent fresh session, which can start as soon
 as work is available. Verified outcome is not inferred from scheduling/progress.
+
+After a complete snapshot is reconciled, candidate selection excludes stored
+active observations on the same device/IP before its 64-row Python check budget.
+These pairs would already fail current eligibility. This avoids an applied prefix
+using the whole scan after restart and leaving a large import idle until baseline.
+Presence elsewhere cannot exclude this device; stale stored presence can only
+exclude work, never authorize an ADD. The normal publisher reconciles confirmed
+disappearances before discovery. Fresh snapshot membership and every current
+authority/root/protection/backoff/uncertainty check remain, as do cutoff, quotas
+and original evidence. Sampled counters no longer count SQL-skipped observations.
+No persisted cursor, migration, replay, forced refresh or TTL extension is needed.
 
 Ready devices are ordered by due manual demand, pending REMOVE, due baseline,
 then background work. Within the same class a dispatch sequence rotates devices,

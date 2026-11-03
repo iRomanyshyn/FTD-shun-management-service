@@ -25,7 +25,17 @@ enum Step {
     Snapshot,
     Remove(Ipv4Addr),
     Add(Ipv4Addr),
+    StageAdd(Ipv4Addr),
+    VerifyAdds,
     End,
+}
+
+pub(super) fn max_sequence(version: u8) -> u8 {
+    if version == batch_addition::VERSION {
+        batch_addition::MAX_SEQUENCE
+    } else {
+        18
+    }
 }
 
 pub(super) fn decode_begin(packet: &[u8]) -> Result<(u16, u8)> {
@@ -55,8 +65,9 @@ fn after_cleanup(
     if !matches!(
         begin,
         BEGIN | BEGIN_SETTLED | BEGIN_RECOVERABLE | sessions::BEGIN
-    ) || !matches!(version, 1..=3)
-        || !(1..=18).contains(&sequence)
+    ) || !matches!(version, 1..=4)
+        || (version == batch_addition::VERSION && begin != sessions::BEGIN)
+        || !(1..=max_sequence(version)).contains(&sequence)
     {
         bail!("invalid local settlement binding");
     }
@@ -77,13 +88,15 @@ pub(super) fn finish_result(
     mutation_steps: u8,
 ) -> Result<Option<[u8; 4]>> {
     if matches!(begin, BEGIN_RECOVERABLE | sessions::BEGIN)
-        && matches!(version, 1..=3)
+        && matches!(version, 1..=4)
+        && (version != batch_addition::VERSION || begin == sessions::BEGIN)
         && result.is_err()
         && cleanup.is_ok()
         && mutation_steps == 0
         && let Some((opcode, sequence)) = failed_read
         && ((opcode == begin && sequence == 0)
-            || (matches!(opcode, SNAPSHOT | END) && (1..=18).contains(&sequence)))
+            || (matches!(opcode, SNAPSHOT | END)
+                && (1..=max_sequence(version)).contains(&sequence)))
     {
         // Not emitted here: ConnectionCompletion still waits for the
         // console/resource drop, guard release and worker-IDLE boundary.
@@ -93,7 +106,11 @@ pub(super) fn finish_result(
 }
 
 fn decode_step(packet: &[u8], expected: u8, version: u8) -> Result<Step> {
-    if packet.len() < 3 || packet[1] != version || packet[2] != expected {
+    if packet.len() < 3
+        || packet[1] != version
+        || packet[2] != expected
+        || !(1..=max_sequence(version)).contains(&expected)
+    {
         bail!("invalid cycle version or sequence");
     }
     match (packet[0], packet.len()) {
@@ -105,6 +122,10 @@ fn decode_step(packet: &[u8], expected: u8, version: u8) -> Result<Step> {
         (ADD, 7) if version == addition::VERSION => Ok(Step::Add(Ipv4Addr::new(
             packet[3], packet[4], packet[5], packet[6],
         ))),
+        (batch_addition::STAGE, 7) if version == batch_addition::VERSION => Ok(Step::StageAdd(
+            Ipv4Addr::new(packet[3], packet[4], packet[5], packet[6]),
+        )),
+        (batch_addition::VERIFY, 3) if version == batch_addition::VERSION => Ok(Step::VerifyAdds),
         _ => bail!("invalid cycle opcode or length"),
     }
 }
@@ -130,6 +151,14 @@ trait Console {
         _: addition::Profile,
     ) -> Result<()> {
         bail!("console addition verification is unavailable")
+    }
+    async fn verify_adds(
+        &mut self,
+        _: &[Ipv4Addr],
+        _: &BTreeSet<String>,
+        _: addition::Profile,
+    ) -> Result<BTreeSet<ObservedShun>> {
+        bail!("console batch verification is unavailable")
     }
 }
 
@@ -165,6 +194,19 @@ impl Console for SshSession {
     ) -> Result<()> {
         addition::verify_creation(&self.show_shun(ip).await?, ip, allowed, profile)
     }
+    async fn verify_adds(
+        &mut self,
+        targets: &[Ipv4Addr],
+        allowed: &BTreeSet<String>,
+        profile: addition::Profile,
+    ) -> Result<BTreeSet<ObservedShun>> {
+        batch_addition::verify(
+            &self.run(CiscoOperation::ListShuns).await?,
+            targets,
+            allowed,
+            profile,
+        )
+    }
 }
 
 struct Cycle<C> {
@@ -175,6 +217,7 @@ struct Cycle<C> {
     commands: usize,
     removals: u8,
     additions: u8,
+    pending_additions: Vec<Ipv4Addr>,
     addition_profile: Option<addition::Profile>,
     observed_entries: usize,
     priority_used: bool,
@@ -207,6 +250,11 @@ impl<C: Console> Cycle<C> {
 
     async fn execute(&mut self, packet: &[u8]) -> Result<(Vec<Vec<u8>>, bool)> {
         let step = decode_step(packet, self.sequence, self.version)?;
+        if !self.pending_additions.is_empty()
+            && !matches!(step, Step::StageAdd(_) | Step::VerifyAdds)
+        {
+            bail!("pending additions require explicit group verification before other operations");
+        }
         let seq = self.sequence;
         self.sequence += 1;
         match step {
@@ -292,6 +340,78 @@ impl<C: Console> Cycle<C> {
                 response.extend(name);
                 Ok((vec![response], false))
             }
+            Step::StageAdd(ip) => {
+                let profile = self
+                    .addition_profile
+                    .context("device has no addition profile")?;
+                profile.validate(&self.allowed)?;
+                if self.removals + self.additions >= MAX_REMOVALS {
+                    bail!("cycle combined mutation count exceeded");
+                }
+                if self.pending_additions.contains(&ip) {
+                    bail!("addition is already awaiting group verification");
+                }
+                self.additions += 1;
+                // Preserve the original reserve: a bounded step plus END. The
+                // four CLI slots cover preflight, ADD, group verification, END.
+                if self.pending_additions.len() >= batch_addition::MAX_PENDING
+                    || self.remaining() < self.timeout + FTD_INTERACTION_TIMEOUT
+                    || self.commands + 4 > MAX_COMMANDS
+                {
+                    return Ok((
+                        vec![vec![2, self.version, batch_addition::STAGE, seq]],
+                        false,
+                    ));
+                }
+                self.commands += 1;
+                if self.console.addition_present(ip, &self.allowed).await? {
+                    return Ok((
+                        vec![vec![0, self.version, batch_addition::STAGE, seq, 0]],
+                        false,
+                    ));
+                }
+                if self.observed_entries + self.pending_additions.len() >= snapshot::MAX_ENTRIES {
+                    bail!("addition would exceed the complete snapshot entry budget");
+                }
+                self.commands += 1;
+                self.console.add(ip, profile).await?;
+                self.pending_additions.push(ip);
+                // Status 05 is deliberately NOT a successful AdditionResult.
+                Ok((
+                    vec![vec![5, self.version, batch_addition::STAGE, seq]],
+                    false,
+                ))
+            }
+            Step::VerifyAdds => {
+                let profile = self
+                    .addition_profile
+                    .context("device has no addition profile")?;
+                if self.pending_additions.is_empty() || self.commands + 2 > MAX_COMMANDS {
+                    bail!("invalid pending verification or insufficient verification/END budget");
+                }
+                self.commands += 1;
+                let entries = self
+                    .console
+                    .verify_adds(&self.pending_additions, &self.allowed, profile)
+                    .await?;
+                let mut frames = vec![batch_addition::receipt(
+                    &self.pending_additions,
+                    profile,
+                    seq,
+                )];
+                let count = entries.len();
+                frames.extend(snapshot::encode_versioned(
+                    entries,
+                    batch_addition::VERIFY,
+                    seq,
+                    self.version,
+                )?);
+                // Only completed verification may discard the pending scope.
+                // Lost IPC afterwards still produces no client success or retry.
+                self.observed_entries = count;
+                self.pending_additions.clear();
+                Ok((frames, false))
+            }
         }
     }
 }
@@ -319,12 +439,15 @@ pub(super) fn handle(
     if version >= snapshot::VERSION && !agent.large_snapshots_enabled {
         bail!("large snapshots are disabled pending laboratory validation");
     }
+    if version == batch_addition::VERSION && !agent.batch_additions_enabled {
+        bail!("batch additions are disabled pending worker integration and validation");
+    }
     let device = agent
         .devices
         .get(&device_id)
         .filter(|device| device.enabled)
         .context("unknown or disabled cycle device")?;
-    if version == addition::VERSION {
+    if matches!(version, addition::VERSION | batch_addition::VERSION) {
         if !agent.additions_enabled {
             bail!("additions are disabled pending laboratory validation");
         }
@@ -370,7 +493,8 @@ pub(super) fn handle(
         commands: 0,
         removals: 0,
         additions: 0,
-        addition_profile: if version == addition::VERSION {
+        pending_additions: Vec::new(),
+        addition_profile: if matches!(version, addition::VERSION | batch_addition::VERSION) {
             device.addition_profile
         } else {
             None
@@ -414,9 +538,13 @@ pub(super) fn handle(
                 ))
                 .context("cycle step timed out")
                 .and_then(|result| result);
-            if version == addition::VERSION && size == 7 && packet[0] == ADD {
+            if matches!(version, addition::VERSION | batch_addition::VERSION)
+                && size == 7
+                && matches!(packet[0], ADD | batch_addition::STAGE)
+            {
                 let event = match &execution {
                     Ok((frames, _)) if frames[0][0] == 2 => "agent.add_shun.deferred",
+                    Ok((frames, _)) if frames[0][0] == 5 => "agent.add_shun.awaiting_verification",
                     Ok((frames, _)) if frames[0][4] == 0 => "agent.add_shun.noop",
                     Ok(_) => "agent.add_shun.verified",
                     Err(_) => "agent.add_shun.failed",
@@ -478,6 +606,7 @@ pub(super) fn handle(
             "device_id": device_id, "commands": cycle.commands, "removal_steps": cycle.removals,
             "elapsed_ms": started.elapsed().as_millis(),
             "addition_steps": cycle.additions,
+            "pending_additions": cycle.pending_additions.len(),
             "mutation_steps": cycle.removals + cycle.additions,
             "reason": reason,
             "read_failure_settled": read_failed_settled,
@@ -485,6 +614,10 @@ pub(super) fn handle(
     );
     result
 }
+
+#[cfg(test)]
+#[path = "batch_cycle_tests.rs"]
+mod batch_tests;
 
 #[cfg(test)]
 mod tests {
@@ -891,6 +1024,7 @@ mod tests {
             commands: 1,
             removals: 0,
             additions: 0,
+            pending_additions: Vec::new(),
             addition_profile: None,
             observed_entries: 0,
             priority_used: false,
@@ -1120,6 +1254,7 @@ mod tests {
             cycles_enabled: true,
             large_snapshots_enabled: true,
             additions_enabled: false,
+            batch_additions_enabled: false,
             max_concurrent_devices: 1,
         };
         let (_sender, receiver) = socketpair(
@@ -1218,6 +1353,7 @@ mod tests {
             cycles_enabled: false,
             large_snapshots_enabled: false,
             additions_enabled: false,
+            batch_additions_enabled: false,
             max_concurrent_devices: 1,
         };
         let (sender, receiver) = socketpair(

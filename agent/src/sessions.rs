@@ -20,7 +20,7 @@ pub(super) fn decode(packet: &[u8], operation: u8) -> Result<Key> {
     if !matches!(operation, BEGIN | LOOKUP)
         || packet.len() != 20
         || packet[0] != operation
-        || !matches!(packet[1], 1..=3)
+        || !matches!(packet[1], 1..=4)
     {
         bail!("invalid bound session packet");
     }

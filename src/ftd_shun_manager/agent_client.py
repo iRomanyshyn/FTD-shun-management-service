@@ -7,11 +7,15 @@ from uuid import UUID
 
 from .agent_protocol import (
     MAX_AGENT_RESPONSE_BYTES,
+    MAX_PENDING_ADDITIONS,
     SESSION_LOOKUP,
     AdditionResult,
     CycleOperation,
     ObservedShun,
     Operation,
+    PendingAddition,
+    VerifiedAdditionBatch,
+    decode_addition_batch,
     decode_cycle_open_failure,
     decode_cycle_read_failure,
     decode_cycle_response,
@@ -78,7 +82,8 @@ class DisabledAgentClient(AgentClient):
 class UnixAgentClient(AgentClient):
     def __init__(self, socket_path: str, timeout_seconds: int = 125, *, large_snapshots: bool = False,
                  additions_enabled: bool = False, addition_device_ids: frozenset[int] | None = None,
-                 settled_cycles: bool = False, recoverable_cycles: bool = False, tracked_cycles: bool = False) -> None:
+                 settled_cycles: bool = False, recoverable_cycles: bool = False, tracked_cycles: bool = False,
+                 batch_additions: bool = False) -> None:
         if type(settled_cycles) is not bool:
             raise ValueError('Settled cycle capability must be boolean.')
         if type(recoverable_cycles) is not bool or (recoverable_cycles and not settled_cycles):
@@ -87,6 +92,8 @@ class UnixAgentClient(AgentClient):
             raise ValueError('Tracked cycles require explicit recoverable strict cycles.')
         if additions_enabled and not large_snapshots:
             raise ValueError("addition cycles require large snapshots")
+        if type(batch_additions) is not bool or (batch_additions and not (additions_enabled and tracked_cycles)):
+            raise ValueError('Batch additions require explicit tracked addition cycles.')
         self.socket_path = socket_path
         self.timeout_seconds = timeout_seconds
         self.large_snapshots = large_snapshots
@@ -97,6 +104,7 @@ class UnixAgentClient(AgentClient):
         self.settled_cycles = settled_cycles
         self.recoverable_cycles = recoverable_cycles
         self.tracked_cycles = tracked_cycles
+        self.batch_additions = batch_additions
 
     def remove_shun(self, device_id: int, ip: IPv4Address) -> None:
         request = encode_request(Operation.REMOVE_SHUN, device_id, ip)
@@ -144,7 +152,7 @@ class UnixAgentClient(AgentClient):
             self.addition_device_ids is None or device_id in self.addition_device_ids
         )
         return UnixAgentCycle(self.socket_path, self.timeout_seconds, device_id,
-                              version=3 if addition_cycle else 2 if self.large_snapshots else 1,
+                              version=4 if addition_cycle and self.batch_additions else 3 if addition_cycle else 2 if self.large_snapshots else 1,
                               settled_cycles=self.settled_cycles, recoverable_cycles=self.recoverable_cycles,
                               session_id=session_id)
 
@@ -156,7 +164,8 @@ class UnixAgentClient(AgentClient):
     def read_only_session_completed(self, device_id: int, lease_owner: str) -> bool:
         if not self.tracked_cycles:
             raise AgentUnavailable('Tracked session capability is disabled.')
-        version = 3 if self.additions_enabled and (self.addition_device_ids is None or device_id in self.addition_device_ids) else 2 if self.large_snapshots else 1
+        addition_cycle = self.additions_enabled and (self.addition_device_ids is None or device_id in self.addition_device_ids)
+        version = 4 if addition_cycle and self.batch_additions else 3 if addition_cycle else 2 if self.large_snapshots else 1
         session_id = _session_id(lease_owner)
         request = encode_session_request(SESSION_LOOKUP, version, device_id, session_id)
         try:
@@ -226,11 +235,26 @@ def _check_read_failure(packet, operation, sequence, version, enabled):
         raise AgentCycleReadFailed('FTD read failed; agent confirmed read-only session cleanup and completion.')
 
 
-def _receive_cycle_response(connection, deadline, operation, sequence, version, *, read_failure=False):
+def _receive_cycle_response(connection, deadline, operation, sequence, version, *, read_failure=False, target=None):
     packet = _receive_before(connection, deadline)
     _check_open_failure(packet, operation, sequence, version)
     _check_read_failure(packet, operation, sequence, version, read_failure)
-    return decode_cycle_response(packet, operation, sequence, version=version)
+    return decode_cycle_response(packet, operation, sequence, version=version, target=target)
+
+
+def _receive_addition_batch(connection, deadline, sequence, pending):
+    additions = decode_addition_batch(_receive_before(connection, deadline), sequence, pending)
+    snapshot = _receive_snapshot(connection, CycleOperation.VERIFY_ADDS, sequence, deadline, version=4)
+    # A proof header alone, truncated stream, or scope-conflicting complete
+    # observation must never become a successful creation result.
+    wanted = {ip for ip, _ in additions}
+    observed = {}
+    for entry in snapshot:
+        if entry.ip in wanted:
+            observed.setdefault(entry.ip, []).append(entry.interface)
+    if any(observed.get(ip) != [result.interface] for ip, result in additions):
+        raise ValueError('Batch receipt and complete snapshot scopes disagree.')
+    return VerifiedAdditionBatch(additions, tuple(snapshot))
 
 
 class UnixAgentCycle:
@@ -244,6 +268,8 @@ class UnixAgentCycle:
             raise ValueError('Recoverable opening requires explicit strict settlement.')
         if session_id is not None and not recoverable_cycles:
             raise ValueError('Bound session identity requires recoverable strict cycles.')
+        if version == 4 and session_id is None:
+            raise ValueError('Batch cycles require a tracked session identity.')
         operation = (CycleOperation.BEGIN_TRACKED if session_id is not None else
                      CycleOperation.BEGIN_RECOVERABLE if recoverable_cycles else
                      CycleOperation.BEGIN_SETTLED if settled_cycles else CycleOperation.BEGIN)
@@ -263,6 +289,7 @@ class UnixAgentCycle:
         self.recoverable_cycles = recoverable_cycles
         self.mutation_attempted = False
         self.session_id = session_id
+        self.pending_additions: list[PendingAddition] = []
         try:
             self.initial_snapshot = self._exchange(operation, device_id=device_id)
         except BaseException:
@@ -278,17 +305,20 @@ class UnixAgentCycle:
             request = (encode_session_request(int(operation), self.version, fields['device_id'], self.session_id)
                        if operation == CycleOperation.BEGIN_TRACKED else
                        encode_cycle_request(operation, self.sequence, version=self.version, **fields))
-            if operation in (CycleOperation.ADD, CycleOperation.REMOVE):
+            if operation in (CycleOperation.ADD, CycleOperation.REMOVE, CycleOperation.STAGE_ADD):
                 self.mutation_attempted = True  # Before even a short/failed send.
             read_failure = self.recoverable_cycles and not self.mutation_attempted
             if self.connection.send(request) != len(request):
                 raise AgentUnavailable("agent cycle send was incomplete")
             result = (
+                _receive_addition_batch(self.connection, deadline, self.sequence,
+                                       tuple(item.ip for item in self.pending_additions))
+                if operation == CycleOperation.VERIFY_ADDS else
                 _receive_snapshot(self.connection, operation, self.sequence, deadline, version=self.version,
                                   read_failure=read_failure)
-                if self.version >= 2 and operation not in {CycleOperation.REMOVE, CycleOperation.ADD} else
+                if self.version >= 2 and operation not in {CycleOperation.REMOVE, CycleOperation.ADD, CycleOperation.STAGE_ADD} else
                 _receive_cycle_response(self.connection, deadline, operation, self.sequence, self.version,
-                                        read_failure=read_failure)
+                                        read_failure=read_failure, target=fields.get('ip'))
             )
             self.sequence += 1
             return result
@@ -300,16 +330,39 @@ class UnixAgentCycle:
             raise AgentUnavailable("agent cycle step failed; no retry was attempted") from error
 
     def snapshot(self) -> list[ObservedShun] | None:
+        self._require_verified_additions()
         return self._exchange(CycleOperation.SNAPSHOT)
 
     def remove_shun(self, ip: IPv4Address) -> bool | None:
+        self._require_verified_additions()
         return self._exchange(CycleOperation.REMOVE, ip=ip)
 
     def add_shun(self, ip: IPv4Address) -> AdditionResult | None:
         return self._exchange(CycleOperation.ADD, ip=ip)
 
+    def stage_addition(self, ip: IPv4Address) -> PendingAddition | AdditionResult | None:
+        if (self.version != 4 or len(self.pending_additions) >= MAX_PENDING_ADDITIONS
+                or any(item.ip == ip for item in self.pending_additions)):
+            raise ValueError('Invalid batch version, capacity or duplicate pending target.')
+        result = self._exchange(CycleOperation.STAGE_ADD, ip=ip)
+        if isinstance(result, PendingAddition):
+            self.pending_additions.append(result)
+        return result
+
+    def verify_additions(self) -> VerifiedAdditionBatch:
+        if self.version != 4 or not self.pending_additions:
+            raise ValueError('A nonempty v4 pending group is required.')
+        result = self._exchange(CycleOperation.VERIFY_ADDS)
+        self.pending_additions.clear()  # Only after proof AND the complete observation.
+        return result
+
+    def _require_verified_additions(self):
+        if self.pending_additions:
+            raise AgentUnavailable('Pending additions require explicit batch verification first.')
+
     def finish(self) -> list[ObservedShun]:
         try:
+            self._require_verified_additions()
             deadline = monotonic() + self.timeout_seconds
             snapshot = self._exchange(CycleOperation.END, _deadline=deadline)
             if self.settled_cycles:

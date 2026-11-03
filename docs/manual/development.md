@@ -61,13 +61,18 @@ still get the applicable regression checks below and in `AGENTS.md`.
 For transaction-boundary cancellation validation and bounded session diagnostics:
 
 ```bash
-python3 -m pytest -q tests/test_session_timing.py tests/test_bulk_dispatch.py tests/test_local_work_responsiveness.py tests/test_claim_expiry_settlement.py
+python3 -m pytest -q tests/test_member_digest.py tests/test_session_timing.py tests/test_bulk_policy.py tests/test_bulk_dispatch.py tests/test_local_work_responsiveness.py tests/test_claim_expiry_settlement.py
 ```
 
 These checks retain per-member authority/time checks, between-transaction
 revocation, atomic final-validation rollback, shared SSH sessions and cancellation
 drain. Timing checks exclude local renewal from agent time and bound/redact labels;
 timing is never result evidence. See [runtime diagnostics](continuous-dispatch.md#execution-timing-diagnostics).
+Encoding regressions compare every canonical byte (including Unicode/escaping,
+predecessors, observed/managed states and template overflow), retained full-root
+verification and deterministic mixed streams. Framing reuse is not cached proof.
+Agent-phase tests bind current session methods rather than arbitrary names and
+retain failure/renewal timing semantics. These tests do not submit live device work.
 
 For the narrow optional held-epoch recovery profile:
 

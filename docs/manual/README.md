@@ -88,6 +88,7 @@ not a runbook or permission to change gates, initialize schemas or run new fixtu
 | [Version-2 Private Ordered API](ordered-removal-api.md) | Independently gated fixed device/fleet reservation, read-only original-scope/current-job status and owner/Admin revocation; separate Web consent, no live activation. |
 | [Version-2 Ordered Web Controls](ordered-removal-web.md) | Separate frozen ordered consent, durable local-status permalink and CSRF/typed-IP waiting revocation; independent default-off capabilities, no live activation. |
 | [Large Snapshots](large-snapshots.md) | Default-off versioned multi-frame reads, complete-snapshot checks, console/transfer budgets and lab rollout/rollback. |
+| [Grouped Additions](batch-additions.md) | Gated v4 pending acknowledgements and grouped verification foundation; queue integration/activation still pending. |
 | [FTD Laboratory Validation](ftd-lab-validation.md) | Controlled agent, snapshot, and parser-fixture validation. |
 | [Addition Readiness](addition-lab-validation.md) | Current snapshot-capacity blocker and staged Basic-account, one-address direct-CLI validation before ADD design. |
 | [Addition Contract](addition-contract.md) | Default-off agent/transport cycle v3, explicit creation profile, exact ADD verification, shared budgets and remaining admission/lab gates; no executable import. |

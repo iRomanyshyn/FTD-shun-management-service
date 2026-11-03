@@ -70,6 +70,13 @@ class _DeviceWorker(Synchronizer):
         reading = opening or (session is not None and not args
                               and getattr(function, '__self__', None) is session
                               and function in (session.snapshot, session.finish))
+        phase = 'open' if opening else 'other'
+        if session is not None and getattr(function, '__self__', None) is session:
+            for name, label in (('snapshot', 'snapshot'), ('finish', 'finish'),
+                                ('add_shun', 'add'), ('remove_shun', 'remove')):
+                if function == getattr(session, name, None):
+                    phase = label
+                    break
         self._rpc_calls += 1
         started, local_before = monotonic(), self._timing.local_seconds
         try:
@@ -100,7 +107,7 @@ class _DeviceWorker(Synchronizer):
         finally:
             # Base RPC first renews its lease via _local_call. Do not count
             # that database time twice or describe it as device/SSH latency.
-            self._timing.rpc(monotonic() - started - (self._timing.local_seconds - local_before))
+            self._timing.rpc(monotonic() - started - (self._timing.local_seconds - local_before), phase)
 
     def _publish_snapshot(self, device_id, snapshot):
         super()._publish_snapshot(device_id, snapshot)

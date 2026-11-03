@@ -8338,6 +8338,168 @@ roughly six/minute remains too slow for large lists. Next isolate agent phases
 and reduce avoidable session/refill overhead, retaining outcomes/priority and
 never renewing expired delegation or replaying uncertain work.
 
+## 2026-11-03 — Exact source hashing reuse and bound agent-phase diagnostics
+
+Continued the original lab import with no new authority or direct Cisco commands;
+initial observation was 4,955/32,425 processed, no device error/unknown jobs.
+Implemented at most ten per-verification framing templates for unobserved
+PROPOSE_ADD members without predecessors. Every literal IP is still decoded and
+all original length-prefixed source bytes are hashed. Other shapes use the same
+general UTF-8 encoder. Full root/source/manifest/descriptor/receipt/current-policy
+checks remain; no cached digest, membership, validation result or cross-transaction
+authority. No schema/protocol/format/TTL/queue/credential/network change.
+
+Pure 32,425-row paired source encoding: median 0.2468s original versus 0.1113s
+framing, identical hashes. Built candidate API `4a328de7b593...` passes configured
+`--check` without lifecycle/RPC/migration. A separate query-only non-serving process
+compared complete original versus optimized verification of the actual 32,425-pair
+root on one consistent database snapshot: medians **0.7949s / 0.6246s**, identical
+root row, receipt and summary (three pairs). The serving API was not patched or
+restarted for this benchmark. These local timings do not establish device speed.
+
+Added fixed `agent_phases_seconds`/`agent_phase_calls` to the existing one-event/
+session diagnostics: actual method-bound open+initial read, snapshot, ADD, REMOVE
+and finish+final read/settlement. Other methods collapse into `other`; no argument
+or CLI logging. Failed/deferred calls count as attempts only; renewal remains
+excluded. Pure SSH-login/per-CLI-command timing is not provided by these wrappers.
+
+Read-only queue inspection saw 17 completed releases in a 20-minute window, none
+without a VERIFIED mutation; the first epoch overlaps the window boundary.
+A separate 20-minute query saw 36 cancellations with combined expiry/revocation
+reason, which does not prove expiry alone. No cutoff/refill/TTL/claim semantics
+were changed on that evidence. Original tasks/receipts/protection remain retained.
+
+Initial focused validation: **129 passed**, including exact byte vectors, mixed
+streams, template bound/fallback, malformed IPs, retained root checks, worker
+drain and method-bound diagnostic labels. Compileall/Ruff/diff pass. Full-suite
+validation: **2998 passed in 513.58s**. API-only deployment/phase measurement are
+pending below.
+
+## 2026-11-03 — Restart-prefix starvation found and bounded selection correction
+
+Deployed tested API `4a328de7b593...` after actual exit-0 drain/IDLE epoch 1734,
+zero running/unknown jobs and unchanged original protection/standing-authority/
+root/recovery fingerprints. Retained `ftd-shun-api:lab-pre-root-framing-20261103`.
+Web/agent containers/images stayed unchanged. First epoch 1735 verified three
+operations and settled: agent phases open+initial read **6.677s**, three ADD calls
+**15.663s**, finish/final read **1.796s**; local **11.128s**, elapsed **35.361s**.
+Those ADD calls matched the three new VERIFIED jobs, but diagnostic counts alone
+are still not operation evidence or a pure per-CLI-command measurement.
+
+The read-only monitor then exposed an existing unchanged selector weakness after
+restart: discovery checked 64 already-present prefix members, admitted zero and
+exhausted its scan budget. The queue became empty at **5,042/32,425**, IDLE with no
+error/uncertainty, so the controller waited for baseline despite unfinished work.
+The 240-second sample ended with one additional observed VERIFIED since its
+baseline/one settled epoch, not its 16-target acceptance goal. Do not report it
+as throughput acceptance. No force-refresh loop, new consent or replay was used.
+
+Added an indexed same-device/IP active-observation exclusion before the bounded
+Python candidate scan. It only removes pairs already unconditionally excluded by
+current authority; fresh snapshot membership and every original root/policy/
+protection/backoff/uncertainty check remain. Discovery never clears observations;
+normal complete-snapshot reconciliation makes disappeared targets eligible again.
+No quota, cutoff, TTL, authority, protocol, schema or scheduler-demand change.
+
+Focused **169 passed**: scoped already-applied prefix beyond the 64-row budget,
+other-device presence, stale presence as exclusion only, confirmed disappearance,
+and actual continuous startup/20 missing additions without a hint or clock advance,
+plus existing dispatch, drain, root hashing and phase tests. Compileall/Ruff/diff
+pass. A second full validation and API-only rollout are in progress.
+
+Final-source supplemental checks: **170 passed**, including a defensive exact-field
+guard: future source metadata falls back to canonical encoding rather than being
+omitted by a cached framing template. Final built candidate `01a5c191d81d...`
+passes non-executing configured checks. Repeated paired complete-root benchmark
+with that guard: **0.8063s original / 0.6487s framing**, identical root/receipt/
+summary on the actual 32,425-pair snapshot. Read-only actual selector comparison:
+old first 64 rows were all already observed, corrected first 64 had none observed;
+query times 0.00154s / 0.00230s. No candidates were admitted by that measurement.
+Second full suite: **3003 passed in 500.80s**, plus final-source 170 focused
+checks above; compileall/Ruff/diff pass. API-only rollout follows below.
+
+Final rollout: retained prior `4a328de7b593...` under
+`ftd-shun-api:lab-pre-observed-prefilter-20261103`, drained API to actual exit 0,
+verified IDLE epoch 1737 with no running/unknown jobs and unchanged fingerprints,
+then started only API `01a5c191d81d...` / container `130959323b44`. Web
+`236f2c0c5f50` / `161fef4f92f0...` and agent `e73bc6221426` / `6620e6618a0d...`
+remain unchanged. No schema/gate/credential/pin/network change or new authority.
+
+Real restart acceptance now passes without a hint, new confirmation or test
+fixture. Startup read-only epoch 1738 settled after bounded discovery filled the
+queue (12.119s elapsed; open+initial read 6.735s, final read 1.724s). The frozen
+cutoff still prevented same-session execution of newly admitted ADDs. Successor
+epochs continued the original task automatically. Bounded read-only sample:
+**5,042 → 5,065/32,425**, **23 new VERIFIED in 207.95s (6.64/minute)**, three
+settled mutation epochs. Actual audit, not call counts, proves 1739/1740/1741
+had **7/8/8 VERIFIED** and one exact pre-write deferral each. Zero unknown jobs,
+ATTENTION or device error; status **0.624–1.841s** and integrity `ok`.
+
+Final exact fingerprints retain all three Protected IPs, registry, 32,428 standing
+targets, six policy requests, four manifests/32,430 members and the original
+immutable recovery receipt. Queue legitimately continues with 15 QUEUED/one
+RUNNING at the final health snapshot, not a hold. Web health 200/anonymous 401 pass.
+Original import remains running. Root-local speedup and restart correctness do
+not establish complete 32,425/100,000-address or multi-device/production acceptance.
+About five seconds per semantic ADD/verification remains the main execution cost;
+next delivery should review bounded batch/session execution with truthful
+per-target evidence/priority rather than weakening checks or recreating work.
+
+## 2026-11-03 — Default-off grouped ADD verification foundation
+
+The operator proposed batch additions followed by one full `show shun`, possibly
+waiting for baseline. Reviewed the measured v3 hot path: the same SSH session
+already serves multiple jobs, but each genuine ADD performs a target preflight,
+write and target post-read. Added a separate gated tracked-v4 agent/client path
+which shares only the post-read across at most eight acknowledged ADDs. Preserve
+individual fresh preflight because Cisco's identical duplicate ACK does not prove
+creation. Delaying confirmation outside the current bounded session is not part
+of this increment; the five-minute baseline outlives the current live lease and
+cannot safely resolve unknown writes by presence alone.
+
+STAGE_ADD returns distinct pending status `05`, never successful creation. The
+agent retains ordered pending IPs, refuses duplicate staging and ordinary read/
+REMOVE/END until VERIFY_ADDS, and verifies each exact source-only/profile scope
+in one complete strict table read. It returns the ordered receipt and existing
+bounded/digested typed snapshot stream. Python requires the whole matched stream
+and exact scope before exposing verified results; receipt-only, lost ACK, missing
+IP, duplicate/extra interface, bad sequence/digest and malformed evidence refuse
+success/retry. No v3 ADD meaning changes. Mutation attempts remain 16, CLI 64,
+session 120 seconds and existing step/prompt/IPC bounds remain; v4's 34 wire
+steps accommodate explicit per-command verification checkpoints, not more writes.
+
+This is source-only protocol/executor/client foundation, NOT end-to-end batching
+or a deployment. Configured API/worker still selects v3, and no Compose setting,
+schema, data, authority, protection, credentials, trust or network was changed.
+Next integrate durable RUNNING group acknowledgements bound to the exact live
+owner/epoch, revalidated claims, explicit partial flush for refresh/removal/
+stop/defer/END, result-before-snapshot provenance ordering and failure/drain
+handling. Only then activate the matched path and measure/verify bounded lab work.
+Do not loosen the single-device queue guard globally or recreate the import.
+
+Initial validation: **284 Python focused protocol/recovery tests passed**;
+**81 Rust unit + 9 integration tests passed**, locked release build and Clippy
+passed. The initial sandboxed Rust test run hit EPERM for socketpair; rerunning
+the same tests with authorized local-socket access passed. Compileall/Ruff/diff
+checks pass. Full Python suite and additional boundaries are in progress.
+
+Read-only GET of the existing lab API (all three overlays) reports `ready`, no
+device error and **5,456/32,425** processed, five queued/one running at that
+snapshot. No refresh POST/new task/device fixture/restart/deployment was invoked;
+the original runtime continues unchanged. This is not live v4 throughput,
+whole-import, multi-device or production acceptance.
+
+Final validation: **3031 full Python tests passed in 527.95s**, plus **288
+final-source focused checks** including four supplementary tests added after
+the full collection (NOOP/deferral preserving pending scope, unsafe END refusal,
+7,308-entry chunked group observation and exact receipt ordering/request binding).
+Final Rust: **82 unit + 10 integration tests passed**, including strict default-off
+configuration and before-SSH gate refusal. Locked release build, fmt, Clippy,
+compileall, Ruff and diff checks pass. Synthetic eight-write console coverage
+proves one group post-read instead of eight separate target post-reads, not a
+live throughput gain. No source/runtime activation followed validation; pending
+queue integration and bounded end-to-end lab acceptance remain next.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

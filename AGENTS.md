@@ -44,7 +44,32 @@ invent successful results, alter credentials/trust or silently erase the dataset
 
 ## Current laboratory runtime — updated 2026-11-03
 
-Latest API-only increment: `399df3aedb97...` factors obsolete-work profile scans
+The grouped-ADD increment is a **source-only, default-off v4 agent/client
+foundation**, not a runtime rollout. The configured API still selects v3 and
+cannot dispatch pending groups. Do not enable
+`FTD_SHUN_AGENT_BATCH_ADDITIONS_ENABLED` as a shortcut: durable owner/epoch-bound
+pending queue claims, flush/priority handling and bounded lab acceptance remain
+required. See `docs/manual/batch-additions.md`. No periodic presence may establish
+success for an uncertain ADD; do not recreate the original import to test this.
+Validation: 3031 full Python / 288 final focused checks, 92 Rust tests, release
+build and static checks pass. These are synthetic checks, not live v4 acceptance.
+
+Latest API-only increment: `01a5c191d81d...` fixes restart-prefix starvation by
+excluding same-device active observations before the 64-candidate scan. It retains
+all fresh-snapshot/root/current-authority/protection/uncertainty checks, cutoff
+and quotas. Full-root hashing reuses exact common JSON framing, never validation
+results; fixed method-bound agent phases are diagnostic only. No schema/gates/
+agent/Web/credentials/network changes. Compatible rollback tag:
+`ftd-shun-api:lab-pre-observed-prefilter-20261103` (loses this restart fix).
+API drained exit 0/IDLE epoch 1737 before replacement. Original 32,425-pair task
+automatically refilled/continued without a refresh hint or new consent: 5,042 to
+5,065 in a bounded sample, 23 VERIFIED/207.95s (~6.64/minute), three settled write
+epochs, no unknown/error. Protection/standing roots/retained recovery receipt are
+unchanged; task remains running. Full suite 3003 passed plus final-source focused
+170 checks. Throughput remains inadequate for large lists: prioritize measured
+ADD/verification/session execution next, not resetting work or removing checks.
+
+Previous API-only increment: `399df3aedb97...` factors obsolete-work profile scans
 within each transaction and logs bounded `device.session.timing` aggregates.
 Rollback image `ftd-shun-api:lab-pre-dispatch-timing-20261103` supports the current
 recovery profile. API drained exit 0/IDLE before replacement; Web/agent are unchanged.
