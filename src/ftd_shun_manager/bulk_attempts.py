@@ -59,11 +59,11 @@ def validate(db):
     if (db.execute('SELECT COUNT(*) FROM managed_bulk_attempts').fetchone()[0] > MAX_ATTEMPTS
             or db.execute('''SELECT 1 FROM managed_bulk_attempts a LEFT JOIN managed_bulk_members m
                 ON m.request_id=a.authorization_request_id AND m.device_id=a.device_id AND m.ip=a.ip
-                LEFT JOIN operation_jobs j ON j.id=a.job_id
                 WHERE m.request_id IS NULL OR m.classification='EXCLUDED_PROTECTED'
                     OR m.intent_id!=a.intent_id OR m.generation!=a.generation
                     OR m.authorization_request_id!=a.authorization_request_id
-                    OR (a.state IN ('QUEUED','RUNNING') AND j.id IS NULL) LIMIT 1''').fetchone()):
+                    OR (a.state IN ('QUEUED','RUNNING') AND NOT EXISTS(
+                        SELECT 1 FROM operation_jobs j WHERE j.id=a.job_id)) LIMIT 1''').fetchone()):
         raise BulkUnavailable('Bulk attempt evidence is missing, inconsistent or exceeds retained capacity.')
 
 

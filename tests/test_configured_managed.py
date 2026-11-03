@@ -59,6 +59,40 @@ def test_constructed_capabilities_are_exact_noncreating_and_do_not_connect(confi
     assert dump(store) == before and runtime.dispatcher._task is None
 
 
+@pytest.mark.parametrize('enabled', [False, True])
+def test_grouped_transport_and_worker_are_explicit_matching_noncreating_capabilities(configured, monkeypatch, enabled):
+    settings, store = configured
+    settings = replace(settings, batch_additions_enabled=enabled)
+    before = dump(store)
+    monkeypatch.setattr(UnixAgentClient, 'open_tracked_cycle', lambda *_args: pytest.fail('No RPC during composition'))
+    app = create_app(settings)
+    runner = app.state.synchronizer.dispatcher.runner
+    assert runner.agent.batch_additions is enabled
+    assert runner.configuration['batch_additions_enabled'] is enabled
+    assert dump(store) == before
+    runner.agent.batch_additions = not enabled
+
+    async def scenario():
+        with pytest.raises(ValueError, match='matching strict'):
+            async with app.router.lifespan_context(app): pytest.fail('Mismatched transport must not start')
+    asyncio.run(scenario())
+    assert dump(store) == before
+
+
+def test_batch_environment_is_default_off_strict_and_never_enables_legacy(monkeypatch):
+    monkeypatch.delenv('FTD_SHUN_AGENT_BATCH_ADDITIONS_ENABLED', raising=False)
+    assert Settings.from_environment().batch_additions_enabled is False
+    for value in ['yes', 'TRUE', '1', 'true ', '']:
+        monkeypatch.setenv('FTD_SHUN_AGENT_BATCH_ADDITIONS_ENABLED', value)
+        with pytest.raises(ValueError, match='BATCH_ADDITIONS_ENABLED'): Settings.from_environment()
+    monkeypatch.setenv('FTD_SHUN_AGENT_BATCH_ADDITIONS_ENABLED', 'true')
+    monkeypatch.setenv('FTD_SHUN_API_RUNTIME', 'legacy')
+    with pytest.raises(ValueError, match='continuous-managed'): Settings.from_environment()
+    monkeypatch.setenv('FTD_SHUN_API_RUNTIME', 'continuous-managed')
+    monkeypatch.setenv('FTD_SHUN_AGENT_MODE', 'socket')
+    assert Settings.from_environment().batch_additions_enabled is True
+
+
 @pytest.mark.parametrize('change', [
     {'agent_mode': 'mock'}, {'development_auth': True}, {'agent_cycles_enabled': False},
     {'large_snapshots_enabled': False}, {'device_inventory_path': None},

@@ -28,9 +28,9 @@
     const phases = status.refresh_schedule_mode === "per_device"
       ? active.map(([id]) => status.device_cycles?.[id]?.action)
       : status.refresh_in_progress ? [status.device_cycle?.action] : [];
-    const reading = phases.some((phase) => ["opening_session", "priority_snapshot", "final_snapshot"].includes(phase))
+    const reading = phases.some((phase) => ["opening_session", "priority_snapshot", "final_snapshot", "verify_addition_batch"].includes(phase))
       || (status.refresh_schedule_mode !== "per_device" && status.refresh_in_progress
-        && !phases.some((phase) => ["add_and_verify", "remove_and_verify"].includes(phase)));
+        && !phases.some((phase) => ["add_and_verify", "remove_and_verify", "stage_addition"].includes(phase)));
     const working = Boolean(status.refresh_in_progress || active.length || count(status.active_device_count));
     const attention = Boolean(localError || status.last_error || devices.some(([, device]) =>
       device.last_error || device.stale || ["error", "stale", "pending"].includes(device.state)));
@@ -417,7 +417,7 @@
       Object.entries(status.devices || {}).forEach(([id, device]) => {
         const row = document.createElement("tr");
         const action = status.device_cycles?.[id]?.action;
-        const state = device.state === "refreshing" && ["add_and_verify", "remove_and_verify"].includes(action)
+        const state = device.state === "refreshing" && ["add_and_verify", "remove_and_verify", "stage_addition"].includes(action)
           ? "Device work" : ({ ready: "Current", refreshing: "Refreshing", error: "Error",
           stale: "Stale", pending: "Not yet confirmed", disabled: "Disabled" })[device.state] || "Unknown";
         const deviceView = status.refresh_schedule_mode === "per_device" && device.state !== "disabled"
@@ -452,12 +452,14 @@
         const cycle = status.device_cycle;
         const actions = { opening_session: "Opening session", remove_and_verify: "Removing and verifying",
           add_and_verify: "Adding and verifying",
+          stage_addition: "Adding · awaiting batch verification", verify_addition_batch: "Verifying added addresses",
           priority_snapshot: "Reading priority snapshot", final_snapshot: "Reading final snapshot",
           completed: "Cycle completed", failed: "Cycle failed" };
         progress.textContent = status.refresh_schedule_mode === "per_device"
           ? Object.entries(status.device_cycles || {}).filter(([id]) => status.devices?.[id]?.active).map(([id, phase]) =>
             `${status.devices[id].hostname}: ${actions[phase.action] || phase.action || "Opening session"}`
-            + `${phase.ip ? ` ${phase.ip}` : ""}; ${phase.completed || 0} items completed.`).join(" ")
+            + `${phase.ip ? ` ${phase.ip}` : ""}; ${phase.completed || 0} items completed.`
+            + `${phase.pending_verification ? ` ${phase.pending_verification} awaiting verification.` : ""}`).join(" ")
           : status.session_cycles_enabled && cycle?.device_id
           ? `${status.devices?.[String(cycle.device_id)]?.hostname || cycle.device_id}: `
             + `${actions[cycle.action] || cycle.action}${cycle.ip ? ` ${cycle.ip}` : ""}. `

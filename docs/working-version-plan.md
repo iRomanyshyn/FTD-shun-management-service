@@ -7,9 +7,21 @@ Grouped-verification increment, 2026-11-03: the operator requested batch ADDs
 followed by a shared complete read. The gated tracked-v4 agent/client foundation
 implements pending acknowledgements and an explicit verification of at most eight
 targets, keeping per-target preflight and all existing mutation/session bounds.
-Queue integration/priority flush/persistent pending evidence and live acceptance
-come next; configured execution still uses v3. Do not substitute generic later
+Queue integration now retains pending evidence and flushes for priority/protection/
+cancellation/drain, with an explicit matching managed-only setting. Consult current
+status for actual rollout/acceptance; defaults remain off. Do not substitute generic later
 baseline presence for verified creation. See [Grouped Additions](manual/batch-additions.md).
+
+Next execution-performance target, 2026-11-03: exact root decoding is now cheaper
+without skipped members/cached authority, but the actual import remains around
+7.5 addresses/minute. Review the fixed five-second scheduler delay following a
+healthy budget-deferred session with real terminal progress; preserve no-progress/
+failure backoff, fresh session/lease admission and every uncertainty hold.
+Observed gaps alone are not permission to bypass the existing checks. This
+follow-up is not implemented yet. Also add bounded per-session fixed CLI-phase
+duration/count aggregates to distinguish target preflight, ADD and complete-read
+cost, without arguments/raw output or using diagnostics as execution proof.
+Do not make another input-capacity increase or remove verification to claim speed.
 
 Latest execution checkpoint, 2026-11-03: exact per-call source framing reduces
 full-root verification locally without changing its bytes/checks. Actual restart

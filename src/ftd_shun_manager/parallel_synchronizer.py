@@ -25,9 +25,10 @@ from .synchronizer import Synchronizer
 class _DeviceWorker(Synchronizer):
     """One isolated context running the same semantic collector/result pipeline."""
 
-    def __init__(self, store, agent, device_id, **configuration):
+    def __init__(self, store, agent, device_id, *, batch_additions_enabled=False, **configuration):
         super().__init__(store, agent, initialize_queue=False, **configuration)
         self.device_id = device_id
+        self.batch_additions_enabled = batch_additions_enabled
         self.rpc_failed = False
         self.snapshot_callback = None
         self.clock = monotonic
@@ -35,7 +36,10 @@ class _DeviceWorker(Synchronizer):
         self._timing = SessionTiming()
 
     def bind(self, token, lease_seconds, *, priority_removals=False):
-        self.queue = DeviceOperationQueue(self.store, token, priority_removals=priority_removals)
+        from .batch_queue import BatchDeviceOperationQueue
+
+        queue_type = BatchDeviceOperationQueue if self.batch_additions_enabled and self.device_id in self.addition_device_ids else DeviceOperationQueue
+        self.queue = queue_type(self.store, token, priority_removals=priority_removals)
         self.instance_id = token.owner
         self._lease_seconds = lease_seconds
         # Preserve non-authoritative keyset hints across rounds, never authority.
@@ -73,7 +77,8 @@ class _DeviceWorker(Synchronizer):
         phase = 'open' if opening else 'other'
         if session is not None and getattr(function, '__self__', None) is session:
             for name, label in (('snapshot', 'snapshot'), ('finish', 'finish'),
-                                ('add_shun', 'add'), ('remove_shun', 'remove')):
+                                ('add_shun', 'add'), ('remove_shun', 'remove'),
+                                ('stage_addition', 'stage_add'), ('verify_additions', 'verify_adds')):
                 if function == getattr(session, name, None):
                     phase = label
                     break
@@ -168,6 +173,13 @@ class _DeviceWorker(Synchronizer):
             self._admit_trusted(device_id, [target])
         return completed
 
+    async def _session_mutations(self, device_id, cycle, snapshot):
+        if getattr(cycle, 'version', None) == 4:
+            from .batch_session import BatchSession
+
+            return await BatchSession(self, device_id, cycle, snapshot).run()
+        return await super()._session_mutations(device_id, cycle, snapshot)
+
 
 class ParallelSynchronizer:
     """Internal round coordinator, disabled unless explicitly constructed enabled.
@@ -180,7 +192,7 @@ class ParallelSynchronizer:
     def __init__(self, store, agent, *, enabled=False, agent_concurrency=1,
                  operation_timeout_seconds=125, poll_interval_seconds=300,
                  interactive_min_interval_seconds=60, addition_device_ids=frozenset(),
-                 bulk_dispatch_enabled=False, settled_cycles_required=False):
+                 bulk_dispatch_enabled=False, settled_cycles_required=False, batch_additions_enabled=False):
         if (type(enabled) is not bool or type(bulk_dispatch_enabled) is not bool or type(settled_cycles_required) is not bool
                 or type(agent_concurrency) is not int or not 1 <= agent_concurrency <= 10
                 or type(operation_timeout_seconds) is not int or not 5 <= operation_timeout_seconds <= 240
@@ -189,6 +201,11 @@ class ParallelSynchronizer:
                 or type(addition_device_ids) is not frozenset or len(addition_device_ids) > 10
                 or any(type(device) is not int or not 1 <= device <= 65535 for device in addition_device_ids)):
             raise ValueError('Literal bounded parallel scheduler configuration is required.')
+        if (type(batch_additions_enabled) is not bool or (batch_additions_enabled and (
+                not enabled or not bulk_dispatch_enabled or not settled_cycles_required
+                or getattr(agent, 'batch_additions', None) is not True
+                or getattr(agent, 'tracked_cycles', None) is not True))):
+            raise ValueError('Batch execution requires enabled fenced bulk dispatch and matching strict tracked transport.')
         rpc_timeout = getattr(agent, 'timeout_seconds', operation_timeout_seconds)
         if type(rpc_timeout) is not int or not 1 <= rpc_timeout <= operation_timeout_seconds:
             raise ValueError('Agent RPC deadline must fit the configured operation bound.')
@@ -204,7 +221,8 @@ class ParallelSynchronizer:
                               'session_cycles_enabled': True,
                               'import_execution_enabled': bulk_dispatch_enabled,
                               'addition_device_ids': addition_device_ids,
-                              'bulk_dispatch_enabled': bulk_dispatch_enabled}
+                              'bulk_dispatch_enabled': bulk_dispatch_enabled,
+                              'batch_additions_enabled': batch_additions_enabled}
         self._workers = {}
         self._round = None
         self._stopping = False

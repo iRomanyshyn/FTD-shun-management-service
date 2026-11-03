@@ -7,6 +7,7 @@ registry that deliberately makes legacy services refuse this database profile.
 import hashlib
 import hmac
 import json
+import re
 import sqlite3
 from contextlib import closing, contextmanager
 from datetime import UTC, datetime
@@ -29,6 +30,15 @@ MAX_KEYS = 200000
 MAX_REQUESTS = 400000
 MAX_ROOTS = 128
 MAX_MEMBERS = 1000000
+
+_ASSIGNED_INTENT_UUID = re.compile(r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}')
+
+
+def _assigned_intent_valid(value):
+    # Exactly the canonical text accepted by str(UUID(value)) == value,
+    # including nil/max and all version/variant bits, without constructing
+    # and formatting a UUID object for every retained member on every claim.
+    return isinstance(value, str) and len(value) == 36 and _ASSIGNED_INTENT_UUID.fullmatch(value) is not None
 
 _DDL = """
 ALTER TABLE managed_shun_registry RENAME TO managed_bulk_registry;
@@ -169,15 +179,22 @@ def _state(db):
                          ('managed_bulk_manifests', MAX_ROOTS), ('managed_bulk_members', MAX_MEMBERS)):
         if db.execute(f'SELECT COUNT(*) FROM {table}').fetchone()[0] > limit:
             raise BulkUnavailable('Retained bulk storage exceeds its fixed capacity.')
+    # Validate the entire member -> manifest -> request chain first. Every
+    # target below must match one of those members, so joining its request a
+    # second time adds no evidence. This is transitive validation, not a cache;
+    # keep these checks together in the caller's same SQLite snapshot. Reads
+    # without an owning transaction retain the independent request join.
+    request_join = '' if db.in_transaction else 'LEFT JOIN managed_shun_requests r ON r.id=t.authorization_request_id'
+    missing_request = '' if db.in_transaction else 'r.id IS NULL OR'
     if (db.execute("""SELECT 1 FROM managed_bulk_manifests m LEFT JOIN managed_shun_requests r ON r.id=m.id
             WHERE r.id IS NULL OR m.pair_count!=(SELECT COUNT(*) FROM managed_bulk_members b WHERE b.request_id=m.id)
             OR m.accepted_count!=(SELECT COUNT(*) FROM managed_bulk_members b
                 WHERE b.request_id=m.id AND b.classification!='EXCLUDED_PROTECTED') LIMIT 1""").fetchone()
             or db.execute('SELECT 1 FROM managed_bulk_members b LEFT JOIN managed_bulk_manifests m ON m.id=b.request_id WHERE m.id IS NULL LIMIT 1').fetchone()
-            or db.execute("""SELECT 1 FROM managed_shun_targets t LEFT JOIN devices d ON d.id=t.device_id
-                LEFT JOIN managed_shun_requests r ON r.id=t.authorization_request_id
+            or db.execute(f"""SELECT 1 FROM managed_shun_targets t LEFT JOIN devices d ON d.id=t.device_id
+                {request_join}
                 LEFT JOIN managed_bulk_members b ON b.request_id=t.authorization_request_id AND b.device_id=t.device_id AND b.ip=t.ip
-                WHERE d.id IS NULL OR r.id IS NULL OR b.request_id IS NULL OR b.intent_id!=t.intent_id OR b.generation!=t.generation
+                WHERE d.id IS NULL OR {missing_request} b.request_id IS NULL OR b.intent_id!=t.intent_id OR b.generation!=t.generation
                     OR b.authorization_request_id!=t.authorization_request_id OR b.classification='EXCLUDED_PROTECTED' LIMIT 1""").fetchone()):
         raise BulkUnavailable('Bulk policy or retained membership is incomplete.')
     if cancellation:
@@ -495,7 +512,7 @@ class BulkPolicies:
             cursor = db.execute('SELECT * FROM managed_bulk_members WHERE request_id=? ORDER BY device_id,ip', (key,))
             while chunk := cursor.fetchmany(100):
                 for member in chunk:
-                    source_members.feed(member)
+                    address = source_members.feed(member)
                     kind = member['classification']
                     if kind == 'ALREADY_MANAGED':
                         expected = tuple(member[name] for name in ('previous_intent_id','previous_generation','previous_authorization_request_id'))
@@ -503,11 +520,11 @@ class BulkPolicies:
                         expected = (None, None, None)
                     else:
                         expected = (member['intent_id'], (member['previous_generation'] or 0) + 1, key)
-                        if str(UUID(member['intent_id'])) != member['intent_id']:
+                        if not _assigned_intent_valid(member['intent_id']):
                             raise BulkUnavailable('Invalid assigned intent identity.')
                     if tuple(member[name] for name in ('intent_id','generation','authorization_request_id')) != expected:
                         raise BulkUnavailable('Assigned bulk authority does not match its original classification.')
-                    yield member['device_id'], IPv4Address(member['ip']), kind
+                    yield member['device_id'], address, kind
 
         summary = verify_bulk_intent(row['payload_json'], records(), row['payload_digest'])
         descriptor = decode_bulk_descriptor(row['payload_json'], row['payload_digest'])

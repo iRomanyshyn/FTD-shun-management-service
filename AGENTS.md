@@ -44,17 +44,78 @@ invent successful results, alter credentials/trust or silently erase the dataset
 
 ## Current laboratory runtime — updated 2026-11-03
 
-The grouped-ADD increment is a **source-only, default-off v4 agent/client
-foundation**, not a runtime rollout. The configured API still selects v3 and
-cannot dispatch pending groups. Do not enable
-`FTD_SHUN_AGENT_BATCH_ADDITIONS_ENABLED` as a shortcut: durable owner/epoch-bound
-pending queue claims, flush/priority handling and bounded lab acceptance remain
-required. See `docs/manual/batch-additions.md`. No periodic presence may establish
-success for an uncertain ADD; do not recreate the original import to test this.
-Validation: 3031 full Python / 288 final focused checks, 92 Rust tests, release
-build and static checks pass. These are synthetic checks, not live v4 acceptance.
+Latest API-only increment `e00a76582543...` removes repeated assigned UUID/IP
+object conversion during complete original-root verification. Every member and
+source byte is still checked per claim; canonical acceptance, stored digests and
+all authority/profile/protocol/time/write guards are unchanged. No result cache.
+Full Python 3117 and final focused 79 pass. Paired complete 32,425-member root
+verification median 0.63679 -> 0.53923s (~15% lower), identical full results;
+not a whole-import speedup. API drained exit 0/IDLE epoch 1897, no RUNNING/unknown
+jobs, integrity ok and nine original hashes unchanged. Compatible API rollback:
+`ftd-shun-api:lab-pre-root-decoding-20261103`; Web/agent/configuration unchanged.
+Startup epoch 1898 was settled read-only. Write epochs 1899–1901 verified 9/9/9
+in 216.366s including gaps (7.49/minute), no overall throughput gain established.
+Bounded status at 14:32:18Z: 6,251/32,425, ready, no unknown/error/ATTENTION,
+integrity ok and original hashes unchanged. Next review the five-second budget-
+defer cooldown after successful progress (not zero-progress/error backoff), then
+measure fixed per-CLI phase aggregates; neither follow-up is implemented yet.
 
-Latest API-only increment: `01a5c191d81d...` fixes restart-prefix starvation by
+Previous API-only increment `cb8c07f85ede...` uses equivalent profile SQL and an
+exact same-transaction result handoff only in device-scoped claims/results.
+Both full executor/profile boundaries, base audit validation, fresh exact-row/
+delegation checks and original root/current eligibility remain. Global/legacy
+paths keep independent resolution; no cache, schema, profile, gate, deadline,
+protocol, authority or configuration change. Full Python 3095 and focused 223
+tests pass. Complete query-only profile validation median fell from 69.13 to
+61.46ms in eight paired same-snapshot checks, not an import speedup claim.
+Old API exited 0, IDLE epoch 1877, no RUNNING/unknown jobs, integrity ok and all
+nine original fingerprints unchanged. API rollback:
+`ftd-shun-api:lab-pre-result-handoff-20261103`. Web/agent did not restart.
+Retained audit confirms epochs 1878–1880 each VERIFIED nine addresses:
+27 in 212.379s (7.63/minute including gaps). Nine-address result persistence
+costs 3.130–3.346s versus earlier 4.17–4.31s; claims still cost 13.65–13.98s.
+Bounded status at 14:08:05Z: 6,098/32,425, ready, no unknown/error/ATTENTION,
+integrity ok and nine original hashes unchanged. This is not whole-list/load or
+production acceptance; remaining root/claim/session overhead still matters.
+
+Previous API-only increment `d5eff09ed228...` removes two adjacent redundant
+grouped-claim profile scans while retaining both executor boundaries, complete
+base audit validation and every original root/current eligibility check. No
+validation cache or authority/bound/schema/gate change. Fixed local timing now
+separates ACK persistence, group settlement and failed settlement. Full Python
+3065 tests passed; built-image non-executing preflight passed. Old API exited 0,
+IDLE epoch 1856, no RUNNING/unknown jobs, integrity ok and nine original
+authority/protection/recovery/inventory hashes unchanged before replacement.
+Compatible batch-capable API rollback tag:
+`ftd-shun-api:lab-pre-claim-scans-20261103`. Web/agent did not restart. Original
+32,425-pair task continues without reimport, hint or renewed consent. Consult
+status/log for bounded live observations: settled epochs 1857/1858 verified
+8+8 in 133.136s (7.21/minute); final status 5,915/32,425, no unknown/error/
+ATTENTION, integrity ok and unchanged fingerprints. ACK persistence costs
+about 2s/group, result settlement 3.8–3.9s and claims 13.7–14.7s. No significant
+overall speedup is established; prioritize remaining measured local overhead.
+This small reduction is not large-list throughput acceptance.
+
+The lab now runs matching grouped-v4 API `e00a76582543...`, Web `51dddbe0d7f5...`
+and agent `cbb6492d90a6...`, with private `.env`
+`FTD_SHUN_AGENT_BATCH_ADDITIONS_ENABLED=true`; examples default false. Keep all
+three overlays. API/agent drained exit 0/IDLE epoch 1832 before replacement;
+original authority/protection/recovery/inventory fingerprints are unchanged.
+Durable owner/epoch-bound pending ACKs, priority/protection/cancellation/drain
+flush and result-before-snapshot settlement preserve per-target outcomes and
+all original bounds/checks. No schema, new import/consent, trust/network change
+or reset. Rollback tags ftd-shun-{api,web,agent}:lab-pre-batch-20261103 retain old
+matching images; drain and disable the batch gate before v3 rollback.
+Real epochs 1833–1835 verified 8/9/8 (25 in 207.066s, 7.24/minute); first eight
+used 19 CLI commands, one shared verification and a settled session. Latest
+rollout checkpoint: 5,766/32,425, no unknown/error/ATTENTION, integrity ok. This is
+not whole-list/priority-failure/multi-device/production acceptance. Full Python
+3060, final focused 233, browser/Node 74 and Rust 92 checks pass. Next prioritize
+measured local claim/validation overhead (15–16s per sampled session), not a
+root-check bypass, expired-authority renewal, reset or reimport. See the batch
+manual/status/log. Never infer uncertain ADD success from later generic presence.
+
+Earlier API-only increment: `01a5c191d81d...` fixes restart-prefix starvation by
 excluding same-device active observations before the 64-candidate scan. It retains
 all fresh-snapshot/root/current-authority/protection/uncertainty checks, cutoff
 and quotas. Full-root hashing reuses exact common JSON framing, never validation

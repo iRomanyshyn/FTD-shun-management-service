@@ -1,8 +1,8 @@
 # Agent Cycle Protocol v1
 
-The separate default-off [grouped ADD foundation](batch-additions.md) defines
-tracked cycle v4. It is not selected by the configured worker and does not change
-the v1/v2/v3 contracts below or the current lab's execution mode.
+The separate default-off [grouped ADD integration](batch-additions.md) defines
+tracked cycle v4 and an explicit configured managed worker. It does not change
+the v1/v2/v3 contracts below. Consult current status for actual lab selection.
 
 Current integration: the clean managed lab uses v3 with strict settlement; the
 new configured client selects [recoverable opening BEGIN `17`](opening-recovery.md).

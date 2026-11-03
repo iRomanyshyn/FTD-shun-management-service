@@ -97,3 +97,14 @@ def test_agent_phase_labels_are_bounded_and_detached():
     assert report['agent_phase_calls'] == {'other': 100}
     report['agent_phase_calls']['other'] = 900
     assert timing.report()['agent_phase_calls']['other'] == 100
+
+
+def test_pending_audit_and_group_settlement_have_distinct_fixed_local_phases():
+    timing = SessionTiming()
+    phases = ('acknowledge_addition', 'finish_verified_group', 'fail_pending_group')
+    for phase in phases:
+        timing.local(SimpleNamespace(__name__=phase), 2)
+    report = timing.report()
+    assert report['local_phases_seconds'] == dict.fromkeys(phases, 2)
+    assert report['local_seconds'] == 6 and report['local_calls'] == 3
+    assert report['agent_calls'] == 0

@@ -30,12 +30,15 @@ endpoint, device command, feature switch or schema upgrade is needed.
 - `local_seconds` / `local_calls`: awaited local work, including thread scheduling,
   database locking, queue validation and result persistence, also on failed calls.
 - `local_phases_seconds`: fixed labels for renewal, claims, result persistence,
-  snapshot publication/discovery and obsolete-work sweeps; other work is combined.
+  snapshot publication/discovery and obsolete-work sweeps; grouped execution
+  separately labels `acknowledge_addition`, `finish_verified_group` and
+  `fail_pending_group`. Other work is combined under `other`.
 - `agent_seconds` / `agent_calls`: agent-call wall time/attempts, excluding their
   local lease-renewal time. Includes IPC, SSH/CLI and semantic verification; it is
   not a per-Cisco-command measurement or proof a call reached the agent.
 - `agent_phases_seconds` / `agent_phase_calls`: fixed method-bound `open`,
-  `snapshot`, `add`, `remove`, `finish` and `other` aggregates. `open` includes SSH
+  `snapshot`, `add`, `remove`, `stage_add`, `verify_adds`, `finish` and `other`
+  aggregates. `open` includes SSH
   opening and the first complete snapshot; `finish` includes final observation
   and terminal settlement. This does not separately time pure login or each CLI
   command. Failed/deferred ADD calls are counted too, never treated as verified.
@@ -57,12 +60,45 @@ Web/agent, inventory, credentials, protection and admitted import authority need
 not change. Compare actual same-workload throughput after deployment; these local
 optimizations do not establish 100,000-address device capacity.
 
+Grouped claims also omit an adjacent duplicate executor scan and leave their
+extra membership probe's full validation to the existing base audit path. The
+original claim transaction retains both executor boundaries, complete profile
+validation before audit insertion and all original-root/current eligibility
+checks. No cache outlives a query, transaction or session.
+
+### Transaction-local result persistence
+
+The device-scoped queue now passes its resolved attempt within the same owning
+claim/result transaction. Persistence re-reads the complete exact row and current
+delegation/request/job binding; changed rows fail and roll back. Both full
+executor/profile boundaries and base audit validation remain. Global/legacy
+paths keep independent resolution; each verified target still commits separately,
+before publishing its shared snapshot. No authority/result cache or replay.
+
+Profile SQL avoids a repeated target/request join only inside an existing
+transaction after validating the complete member/manifest/request chain. Reads
+without a transaction retain that join. Pending job presence remains mandatory
+for QUEUED/RUNNING attempts, using the equivalent conditional existence query.
+This is not permission to prune UNVERIFIED or captured evidence. No DDL,
+gate/configuration/protocol change or new consent is needed. Roll out/roll back
+only the API after clean drain; retain Web/agent and current matching batch mode.
+
 Full original-root verification now reuses at most ten common source-JSON framing
 templates within each verification call. It still decodes/hashes every literal
 member and verifies the same source/manifest/descriptor/receipt and authority.
 Unusual shapes retain the original encoder; this is not a root-validation cache
 or new format. Existing retained digests and profile-compatible rollback images
 remain valid. No migration, initialization or new user consent is needed.
+
+Repeated root decoding now checks assigned UUID canonical text directly instead
+of constructing/formatting an object. It accepts exactly the same canonical
+lowercase values, not only UUIDv4. Source JSON and binary manifest encoding share
+each member's one freshly parsed IPv4 object; no literal, membership or root
+verification is omitted or cached. Stored source bytes/digests and independent
+operation-ID/descriptor validation are unchanged. This API-only optimization
+needs no schema/gate/configuration or agent/Web change. Use a clean API drain
+and retain the compatible prior API image for rollback. Query-only root timing
+is not successful device execution or large-list acceptance.
 
 ## Session scheduling
 

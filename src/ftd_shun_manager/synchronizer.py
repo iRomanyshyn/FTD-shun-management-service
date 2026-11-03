@@ -427,8 +427,9 @@ class Synchronizer:
                                           "completed": 0, "limit": MAX_CYCLE_MUTATIONS,
                                           "priority_state": "none", "budget_deferred": False}
                     cycle = await self._agent_call(self.agent.open_cycle, device.id)
-                    if device.id in self.addition_device_ids and getattr(cycle, "version", None) != 3:
-                        raise AgentUnavailable("addition-capable device requires exact cycle version 3; no fallback")
+                    expected_version = 4 if getattr(self, 'batch_additions_enabled', False) else 3
+                    if device.id in self.addition_device_ids and getattr(cycle, "version", None) != expected_version:
+                        raise AgentUnavailable(f"addition-capable device requires exact cycle version {expected_version}; no fallback")
                     snapshot = cycle.initial_snapshot
                 else:
                     snapshot = await self._agent_call(self.agent.list_shuns, device.id)

@@ -76,6 +76,22 @@ def attempt(journal, job):
         return dict(attempt_for_job(db, job))
 
 
+def test_global_result_path_keeps_independent_full_attempt_resolution(bulk, journal, monkeypatch):
+    from ftd_shun_manager import managed_restoration
+
+    _, job, _ = running(bulk, journal)
+    calls = []
+    original = managed_restoration.attempt_for_job
+
+    def lookup(db, job_id):
+        calls.append(job_id)
+        return original(db, job_id)
+
+    monkeypatch.setattr(managed_restoration, 'attempt_for_job', lookup)
+    assert journal[1].finish_addition(job, OWNER, AdditionResult(False)) == 'NOOP'
+    assert calls == [job] * 3  # Source, base audit and independent result lookup.
+
+
 def test_optional_constructor_init_boundaries_and_original_profile_unchanged(bulk, cancellation_controls, tmp_path):
     absent = Store(tmp_path / 'absent.db')
     BulkAttempts(absent, OperationQueue(absent))

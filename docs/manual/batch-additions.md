@@ -1,12 +1,19 @@
 # Grouped addition verification
 
-Status: default-off agent/client foundation, not selected by the configured API
-or queue. The current lab import still uses v3. Do not enable this gate to speed
-up the lab until pending-group queue integration and bounded acceptance pass.
+Status: default-off agent/client and fenced queue/worker integration. Configured
+`continuous-managed` may explicitly select it; other runtime modes cannot.
+Consult project status/log for live rollout and acceptance. Code support alone
+does not establish a measured speedup or large-list acceptance.
+
+The desk lab selected this mode on 2026-11-03 after matched preflight and exit-0
+API/agent drain. The original import continued; first three settled epochs
+verified 25 addresses in 207.066s. This is only 7.24/minute, not large-list
+acceptance. Examples remain false. See current status for image IDs, rollback
+tags, integrity checks and remaining local claim overhead.
 
 ## Execution contract
 
-The proposed worker stages at most eight ADDs on one device's existing SSH
+The grouped worker stages at most eight ADDs on one device's existing SSH
 session. Each stage reads that exact target immediately before writing, branches
 to NOOP if already present, and otherwise checks the strict Cisco acknowledgement.
 It does not run a target-specific post-read. One explicit VERIFY_ADDS reads the
@@ -26,9 +33,11 @@ Cycle v4 requires tracked BEGIN `18 04 device:u16 nonce:16`. The separate agent
 environment gate `FTD_SHUN_AGENT_BATCH_ADDITIONS_ENABLED` defaults to `false`
 and requires existing additions/cycles/large-read gates and the validated device
 profile. The low-level Python client additionally requires explicit
-`batch_additions=True` with tracked/recoverable/settled addition cycles. No
-configured API environment selector, Compose activation or HTTP endpoint exists
-yet. Old clients continue to select their exact old version; no fallback occurs.
+`batch_additions=True` with tracked/recoverable/settled addition cycles. The same
+environment flag selects the configured API's matching managed worker. It must
+be false for legacy/observation modes. Existing Compose `env_file` propagation
+supplies both API and agent; no new public port/HTTP endpoint is introduced.
+Defaults are false. Old clients retain their exact old version; no fallback.
 
 | Operation | Exact request | Response |
 | --- | --- | --- |
@@ -49,12 +58,12 @@ mutations, 16 nonempty group reads, one priority read and END. The full snapshot
 still has the existing 200,000-entry / 16 MiB typed / 32 MiB CLI limits.
 
 Ordinary ADD opcode `14` is v3-only. Stage/verify are v4-only. While any additions
-are pending, the agent rejects SNAPSHOT, REMOVE and END. The future scheduler
-must explicitly verify a partial group before those operations, allowing
+are pending, the agent rejects SNAPSHOT, REMOVE and END. The grouped scheduler
+explicitly verifies a partial group before those operations, allowing
 interactive requests to interrupt staging between semantic commands rather than
 waiting for an entire import. There is no second connection/writer.
 
-## Queue integration still required
+## Queue integration
 
 Keep staged jobs RUNNING with owner/epoch/group-bound append-only acknowledgement
 evidence. Permit multiple RUNNING claims only for that exact validated pending
@@ -68,7 +77,14 @@ The status panel should distinguish staging from group verification and show the
 pending-verification count. Whole-import processed/success counts advance only
 after verified per-target settlement, not after ACKs. Keep task-level progress
 and cancellation review; do not recreate one-address progress cards for group
-members. This UI integration is also pending, not part of the current foundation.
+members. The status panel now labels these phases and pending counts separately.
+
+Diagnostic `device.session.timing` separates local `acknowledge_addition`,
+`finish_verified_group` and `fail_pending_group` durations from `other`. These
+are aggregate method wall times, including failed calls, not device execution,
+successful task progress or isolated SQLite/CLI timings. Group claims retain
+both executor boundaries and full base audit profile validation without
+repeating adjacent equivalent scans. No profile or authority cache is used.
 
 Waiting for the five-minute baseline across sessions is not implemented: it
 outlives the current executor lease and loses the live pending evidence. A
@@ -76,11 +92,18 @@ generic later observation must never turn an unknown ADD into success.
 
 ## Deployment and rollback
 
-No database/schema/data/credentials/trust/network changes in this increment.
-Do not change the running lab merely to install this dormant foundation. A later
-rollout must test the queue integration, drain API before agent replacement,
-retain compatible images and use all three managed-lab overlays. Never downgrade
+No database/schema/data/credentials/trust/network changes are needed. Validate
+the queue integration, drain API before agent replacement, retain compatible
+images and use all three managed-lab overlays. Enable the shared flag only in
+the matching managed API/agent configuration after preflight checks. Never downgrade
 in-flight pending groups or requeue unknown writes; terminal settlement or the
-existing uncertainty hold is required before replacement. The first bounded lab
-test must measure real writes and grouped observations, then independently verify
-cleanup; synthetic protocol/console tests are not throughput acceptance.
+existing uncertainty hold is required before replacement. For the retained
+pre-batch v3 images, drain first, check IDLE/no RUNNING/unknown work and set the
+shared batch flag false before starting the matching old API/agent/Web. Never
+release unknown work to obtain a convenient rollback boundary.
+
+Fresh-fixture tests must measure writes/grouped observations and verify cleanup.
+Alternatively, observe the original already-consented running import without
+granting/reimporting anything; retain its intended blocks rather than deleting
+them as test cleanup. Synthetic console/protocol checks alone do not establish
+throughput or live failure/priority acceptance.

@@ -7,8 +7,9 @@ class SessionTiming:
     # Fixed labels only: do not log arguments, IP lists, actors or CLI output.
     LOCAL_PHASES = frozenset({'renew', 'claim_next_mutation', 'claim_addition', 'claim_removal',
                              'finish_addition', 'finish_removal', '_publish_snapshot',
-                             '_discover_snapshot', 'cancel_obsolete_policy'})
-    AGENT_PHASES = frozenset({'open', 'snapshot', 'finish', 'add', 'remove'})
+                             '_discover_snapshot', 'cancel_obsolete_policy', 'acknowledge_addition',
+                             'finish_verified_group', 'fail_pending_group'})
+    AGENT_PHASES = frozenset({'open', 'snapshot', 'finish', 'add', 'remove', 'stage_add', 'verify_adds'})
 
     def __init__(self):
         self.started = monotonic()

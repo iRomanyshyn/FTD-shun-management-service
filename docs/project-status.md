@@ -15,7 +15,166 @@ priority. See [the planned constraints](working-version-plan.md#deferred-ip-cont
 
 ## Current increment
 
-**Grouped ADD protocol foundation (2026-11-03, not deployed).** The operator
+**Exact original-root decoding (2026-11-03, deployed).** Per-member assigned
+UUID checking now uses the equivalent canonical text predicate without allocating
+and formatting UUID objects. Source JSON and binary pair-manifest construction
+share each member's freshly parsed IPv4 instead of parsing twice. Every member,
+byte, descriptor and receipt still participates in each complete root check;
+no authority/result cache, schema, stored digest, protocol, gate or bound change.
+
+Actual 32,425-member complete-root comparison in the built API, five alternating
+pairs after warmup in one query-only snapshot, with captured previous verifier:
+median **0.63679 -> 0.53923s (~15% lower)**; identical full root/receipt/summary.
+This is verification timing, not live import throughput. Initial UUID-only paired
+comparison was 0.63635 -> 0.57383s.
+
+Initial focused **186 passed**; final frozen-byte-reference/UUID/root focused
+**79 passed**; **3117 full Python tests passed in 519.76s**. Compileall/Ruff/diff
+pass. API image `e00a76582543...` is built and configured non-executing preflight
+passed. Prior compatible API retained as
+`ftd-shun-api:lab-pre-root-decoding-20261103`. Old API actually exited 0; IDLE
+epoch 1897, zero RUNNING/unknown jobs, integrity `ok` and nine original hashes
+checked before replacement. Web/agent did not restart. No schema/configuration/
+authority, new task, consent or fixture change.
+
+After the settled read-only startup epoch 1898, retained terminal/release audit
+proves write epochs 1899–1901 each **9 VERIFIED** and one exact pre-write deferral:
+**27 in 216.366s (7.49/minute)** including gaps. The startup visit is excluded
+from this explicitly write-epoch sample, not hidden as successful work. This
+does not establish overall throughput improvement; remote-call time remains
+42.06–43.85s versus local 24.74–27.48s in these sessions.
+Bounded status at 14:32:18Z: ready, **6,251/32,425**, no device error/FAILED/
+UNVERIFIED/ATTENTION, integrity `ok` and unchanged nine fingerprints. Web health
+200/anonymous 401; status samples 0.806–1.160s. Original import continues.
+
+Next targeted work: review the coordinator's five-second delay after a successful
+budget-deferred session that actually made verified/NOOP progress; retain
+zero-progress/error retry backoff, exact settlement and uncertainty fences.
+Observed write-session gaps were 5.174/5.184s. This follow-up is not implemented.
+Then measure bounded fixed CLI-phase aggregates (target preflight/ADD/full read),
+without raw commands, arguments or treating timings as success proof. Whole-list/
+load/production acceptance remains pending; do not remove guards for speed.
+
+**Equivalent profile SQL and scoped result handoff (2026-11-03, deployed).**
+Device-scoped claims/results re-read and validate their already resolved exact
+attempt rather than repeating full resolution. Both complete executor/profile
+boundaries and base audit validation remain; global/legacy resolution is unchanged.
+Per-target commits, partial-failure retention, uncertainty, original-root and
+current authority/time/protection checks are unchanged. No cache/schema/profile/
+protocol/gate/deadline or authority changes.
+
+Profile SQL factors request existence through the already validated whole member/
+manifest/request chain only inside an existing transaction; autocommit retains
+the independent join. A conditional pending-job existence query preserves the
+same QUEUED/RUNNING requirement without pointless settled-job lookups. Query-only
+paired measurements in one actual lab snapshot (eight alternating pairs): target
+binding median **0.04021 -> 0.03679s**; attempt binding **0.01397 -> 0.00993s**.
+These are isolated SQL measurements, not verified execution throughput.
+Paired complete profile validation in the final built image: median
+**0.06913 -> 0.06146s** over eight alternating pairs after warmup, one query-only
+SQLite snapshot and identical profile results. This is not end-to-end speedup.
+
+**3095 full Python tests passed in 509.07s**, plus **223 focused tests**, including exact-schema data corruption, autocommit
+fallback, stale attempt/current delegation rollback and unchanged global path.
+Compileall/Ruff/diff and built-image non-executing configured checks pass. API
+image `cb8c07f85ede...` replaced only API after actual exit 0, IDLE epoch 1877,
+zero RUNNING/unknown jobs, integrity `ok` and unchanged nine original fingerprints.
+Prior API is retained as `ftd-shun-api:lab-pre-result-handoff-20261103`; Web/agent
+did not restart. No schema/configuration or new task/consent/fixture change.
+Retained audit confirms three completed epochs 1878–1880 with **9/9/9 VERIFIED**,
+one exact pre-write deferral in each of the latter two: **27 in 212.379s,
+7.63/minute**, including gaps. Nine-address result settlement took
+**3.130–3.346s**, versus sampled prior **4.17–4.31s**. Claims still cost
+13.652–13.979s and ACK persistence 1.904–2.270s. These are small live method/
+throughput samples, not a controlled benchmark or whole-list acceptance.
+
+Bounded status at 14:08:05Z: ready, **6,098/32,425**, device error `null`, no
+FAILED/UNVERIFIED/ATTENTION, integrity `ok`, unchanged nine original fingerprints.
+Status samples 0.692–0.912s, Web health 200/anonymous 401; active work continues.
+Remaining original-root/claim/session overhead still needs improvement for
+large lists. No increased bounds, skipped root checks or renewed authority.
+
+**Grouped-claim duplicate scans and settlement timing (2026-11-03, deployed).**
+Removed two redundant complete profile scans per grouped ADD claim: the scope
+hook no longer repeats the executor check immediately preceding it, and its
+extra managed-attempt existence check leaves full validation to the base audit
+path in the same transaction. Both original executor boundaries, complete event
+profile validation, original root hashing and all current eligibility checks
+remain. No validation cache, schema, authority, protocol or execution-bound change.
+ACK persistence, group settlement and failed-group settlement now have separate
+fixed local timing labels rather than sharing `other`; timing is not success.
+
+Validation: **3065 full Python tests passed in 528.86s**, with **63 focused tests**
+including rollback after profile corruption before base audit and both executor
+boundaries. Compileall, Ruff, diff and built-image non-executing configured checks
+pass. API `d5eff09ed228...` replaced the prior API after actual exit 0, IDLE epoch
+1856, zero RUNNING/unknown jobs, integrity `ok` and unchanged nine original
+authority/protection/inventory/recovery hashes. Web/agent/configuration did not
+change; compatible rollback is `ftd-shun-api:lab-pre-claim-scans-20261103`.
+Restarted task continued without hint/reimport/new authority. Completed epochs
+1857/1858 retained **8+8 VERIFIED in 133.136s (7.21/minute)**, including the gap;
+the latter had one exact pre-write deferral. Final bounded status at 13:42:15Z:
+ready, **5,915/32,425**, device error `null`, no FAILED/UNVERIFIED/ATTENTION,
+integrity `ok`, unchanged nine fingerprints. Web health 200/anonymous 401;
+status samples 1.260–2.075s. Ongoing RUNNING work is expected.
+New phases measured ACK persistence 1.938–2.130s and group settlement
+3.801–3.898s per eight-address session; claims still took 13.737–14.703s.
+These method timings and two sessions do not prove a significant throughput
+improvement or whole-list acceptance.
+
+Query-only live profiling found complete profile scans around 0.07 seconds each after
+module warmup; this small duplicate reduction is not a large-import throughput
+solution. Next reduce the remaining measured claim/result-persistence overhead,
+preserving original-root/current eligibility, exact outcomes and session bounds.
+
+**Grouped ADD queue/worker integration (2026-11-03, deployed to the desk lab).** The new
+default-off shared API/agent gate selects a matching strict tracked-v4
+`continuous-managed` worker. Ordinary same-device claims remain serialized;
+only the exact live owner/epoch/group's durably acknowledged RUNNING ADDs may
+coexist. Original root, current protection/freshness/delegation/cutoff/lease
+checks run before every new stage. Old exact-prewrite-deferral claims remain
+history rather than current permission. No schema or standing-authority change.
+
+Whole-receipt validation precedes separately committed per-target results and
+shared snapshot publication. Partial local failure preserves earlier VERIFIED
+results and holds unfinished/unknown work. Flushes cover eight members, stop/
+pause, typed deferral/claim expiry, priority refresh/removal, newly protected
+pending addresses and END. Whole-import cancellation retains already-applied
+blocks and cancels unstarted work. Status distinguishes staging, group reads
+and pending verification without advancing successful task progress on ACK.
+
+Validation: **3060 full Python tests passed in 514.94s**, plus **233 final-source
+focused checks** after final epoch-history/status-only staging refinements.
+**74 Node/Chromium checks**, **92 Rust tests**, release build and static checks
+pass. Matching built-image API/agent preflight passes without execution. Pending
+ACKs update status without forcing shun-data reload; verified results/full reads
+still publish data revisions.
+
+**Lab rollout:** old API/agent both exited 0; exact IDLE epoch 1832, zero
+RUNNING/unknown jobs and all authority/protection/recovery fingerprints checked
+before replacement. Private `.env` now enables the shared batch gate.
+API `c1e2552697f1...`, Web `51dddbe0d7f5...`, agent `cbb6492d90a6...` run with
+all three overlays. Compatible rollback tags:
+`ftd-shun-{api,web,agent}:lab-pre-batch-20261103`. No schema/reset, new
+import/consent, fixture, credentials/trust/network change or refresh hint.
+
+Original import continued automatically. Epoch 1833 used **19 CLI commands for
+eight VERIFIED ADDs**, including eight preflights/eight writes and initial/group/
+final full reads, rather than 26 commands with separate post-reads. Retained audit
+proves epochs 1833–1835 had **8/9/8 VERIFIED**, with one exact pre-write deferral
+in each of the latter two: **25 in 207.066s (7.24/minute)** including session gaps.
+A later healthy snapshot shows **5,766/32,425**, no unknown/error/ATTENTION,
+integrity `ok`, unchanged nine original authority/protection/recovery/inventory
+fingerprints, Web health 200/anonymous 401. Status samples 0.770–1.646s.
+
+This is real grouped execution/continuation, not whole-list, live failure/priority,
+multi-device or production acceptance. Throughput remains inadequate for large
+lists: local work costs roughly **27–30 seconds** in sampled 8/9-write sessions,
+including **15–16 seconds in claim calls**. Next profile/factor repeated local
+transaction validation without removing root/current eligibility checks,
+renewing expired delegation or recreating work. See [Grouped Additions](manual/batch-additions.md).
+
+**Earlier grouped ADD protocol foundation checkpoint (2026-11-03).** The operator
 requested batched additions and shared verification. A separate default-off
 tracked cycle v4 now stages at most eight acknowledged additions, with a fresh
 per-IP preflight and strict ACK, then verifies them through one complete

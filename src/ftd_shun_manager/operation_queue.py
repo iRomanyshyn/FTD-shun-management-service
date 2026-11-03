@@ -547,6 +547,22 @@ class OperationQueue:
     def _removal_priority(self):
         return False  # Legacy/global claims retain FIFO and the original cutoff.
 
+    def _claim_running_scope(self, db, device_id, owner, action):
+        """Default same-device exclusion; only a fenced pending-group queue extends it."""
+        from .bulk_dispatch import present
+
+        blocked = present(db) and db.execute(
+            "SELECT 1 FROM operation_jobs WHERE device_id=? AND state='RUNNING'", (device_id,)).fetchone()
+        return not blocked, action
+
+    def _record_attempt_result(self, db, job, attempt, state, timestamp, reason=None):
+        # Global/legacy callers keep independent full attempt resolution. Only
+        # the device-scoped queue with full profile/executor boundaries hands
+        # off its already resolved exact row.
+        from .managed_restoration import record_result
+
+        record_result(db, self.store, job, state, timestamp, reason)
+
     def claim_next_mutation(self, device_id: int, owner: str, cutoff: int, *, additions_enabled: bool = False,
                             managed_restoration_enabled: bool = False, bulk_dispatch_enabled: bool = False) -> dict | None:
         """One atomic FIFO claim; the leased scheduler supplies device capability."""
@@ -565,7 +581,7 @@ class OperationQueue:
                         bulk_dispatch_enabled=False) -> dict | None:
         from .bulk_dispatch import authority_valid as bulk_authority_valid
         from .bulk_dispatch import present as bulk_dispatch_present
-        from .managed_restoration import ACTOR, attempt_for_job, record_result, validate_binding
+        from .managed_restoration import ACTOR, attempt_for_job, validate_binding
 
         if type(managed_restoration_enabled) is not bool or type(bulk_dispatch_enabled) is not bool:
             raise ValueError("Restoration capability must be boolean.")
@@ -582,8 +598,8 @@ class OperationQueue:
             executor = self._executor(db, owner, device_id)
             if executor["owner"] != owner or not executor["lease_until"] or executor["lease_until"] < stamp(self._now()):
                 raise QueueConflict("executor lease lost")
-            if bulk_dispatch_present(db) and db.execute(
-                    "SELECT 1 FROM operation_jobs WHERE device_id=? AND state='RUNNING'", (device_id,)).fetchone():
+            permitted, action = self._claim_running_scope(db, device_id, owner, action)
+            if not permitted:
                 return None  # Never overlap command/verification on the same device.
             priority = self._removal_priority()
             jobs = db.execute("""SELECT * FROM operation_jobs
@@ -640,7 +656,7 @@ class OperationQueue:
                 db.execute("UPDATE operation_jobs SET state='RUNNING',started_at=?,dispatch_kind=? WHERE id=?",
                            (stamp(self._now()), job_action, job["id"]))
                 if restoration:
-                    record_result(db, self.store, job, "RUNNING", stamp(self._now()))
+                    self._record_attempt_result(db, job, restoration, "RUNNING", stamp(self._now()))
                 for request in requests:
                     self._event(db, "SHUN_OPERATION_RUNNING", request, job)
                 self._bump(db)
@@ -657,7 +673,7 @@ class OperationQueue:
                 return {**dict(job), "state": "RUNNING", "dispatch_kind": job_action}
         return None
 
-    def _finish(self, db, job, state: str, reason: str | None = None) -> None:
+    def _finish(self, db, job, state: str, reason: str | None = None, *, restoration_attempt=None) -> None:
         from .managed_restoration import record_result
 
         current = stamp(self._now())
@@ -673,7 +689,10 @@ class OperationQueue:
                 self._event(db, "SHUN_ADD_FAILED" if job["action"] == "ADD" else
                             "SHUN_TRUSTED_AUTO_REMOVE_FAILED" if request["source"] == "trusted_policy"
                             else "SHUN_REMOVE_FAILED", request, job, {"reason": reason, "outcome": state})
-        record_result(db, self.store, job, state, current, reason)
+        if restoration_attempt is None:
+            record_result(db, self.store, job, state, current, reason)
+        else:
+            self._record_attempt_result(db, job, restoration_attempt, state, current, reason)
         self._bump(db)
 
     def defer_removal(self, job_id: str, owner: str) -> None:
@@ -779,7 +798,8 @@ class OperationQueue:
                 raise QueueConflict("addition ownership or executor lease lost")
             requests = db.execute("""SELECT r.* FROM operation_requests r JOIN operation_links l ON l.request_id=r.id
                 JOIN manual_import_batches b ON b.id=r.id WHERE l.job_id=? AND r.state='ACTIVE'""", (job_id,)).fetchall()
-            source = SOURCE if attempt_for_job(db, job_id) else "manual_import"
+            restoration = attempt_for_job(db, job_id)
+            source = SOURCE if restoration else "manual_import"
             if state == "VERIFIED":
                 if db.execute("SELECT 1 FROM shun_state WHERE device_id=? AND ip=? AND active=1",
                               (job["device_id"], job["ip"])).fetchone():
@@ -803,7 +823,7 @@ class OperationQueue:
             if state == "NOOP":
                 for request in requests:
                     self._event(db, "SHUN_ADD_NOOP", request, job, {"created": False})
-            self._finish(db, job, state, reason)
+            self._finish(db, job, state, reason, restoration_attempt=restoration)
             self._executor(db, owner, job['device_id'])
         print(json.dumps({"event": "queue.addition.completed", "operation_id": job_id,
                           "source": source, "state": state, "device_id": job["device_id"],

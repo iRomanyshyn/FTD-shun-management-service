@@ -65,12 +65,16 @@ class Settings:
     managed_removal_admission_enabled: bool = False
     api_runtime: str = 'legacy'
     agent_concurrency: int = 1
+    batch_additions_enabled: bool = False
 
     def __post_init__(self) -> None:
         if type(self.api_runtime) is not str or self.api_runtime not in {'legacy', 'continuous-observation', 'continuous-managed'}:
             raise ValueError('FTD_SHUN_API_RUNTIME must be legacy, continuous-observation or continuous-managed')
         if type(self.agent_concurrency) is not int or not 1 <= self.agent_concurrency <= 10:
             raise ValueError('Agent concurrency must be a literal integer between 1 and 10')
+        if type(self.batch_additions_enabled) is not bool or (self.batch_additions_enabled and (
+                self.api_runtime != 'continuous-managed' or self.agent_mode != 'socket')):
+            raise ValueError('Batch additions require the configured continuous-managed socket runtime.')
         if type(self.managed_removal_admission_enabled) is not bool:
             raise ValueError("managed removal admission setting must be boolean")
         if self.managed_removal_admission_enabled and (
@@ -103,6 +107,9 @@ class Settings:
         large_snapshots = environ.get("FTD_SHUN_LARGE_SNAPSHOTS_ENABLED", "false")
         if large_snapshots not in {"true", "false"}:
             raise ValueError("FTD_SHUN_LARGE_SNAPSHOTS_ENABLED must be true or false")
+        batch_additions = environ.get('FTD_SHUN_AGENT_BATCH_ADDITIONS_ENABLED', 'false')
+        if batch_additions not in {'true', 'false'}:
+            raise ValueError('FTD_SHUN_AGENT_BATCH_ADDITIONS_ENABLED must be true or false')
         import_admission = environ.get("FTD_SHUN_IMPORT_ADMISSION_ENABLED", "false")
         if import_admission not in {"true", "false"}:
             raise ValueError("FTD_SHUN_IMPORT_ADMISSION_ENABLED must be true or false")
@@ -167,4 +174,5 @@ class Settings:
             managed_removal_admission_enabled=removal_admission == "true",
             api_runtime=environ.get('FTD_SHUN_API_RUNTIME', 'legacy'),
             agent_concurrency=int(concurrency),
+            batch_additions_enabled=batch_additions == 'true',
         )

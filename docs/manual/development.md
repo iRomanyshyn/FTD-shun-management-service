@@ -74,6 +74,29 @@ verification and deterministic mixed streams. Framing reuse is not cached proof.
 Agent-phase tests bind current session methods rather than arbitrary names and
 retain failure/renewal timing semantics. These tests do not submit live device work.
 
+For exact root-decoding equivalence:
+
+```bash
+python3 -m pytest -q tests/test_assigned_intent_uuid.py tests/test_member_digest.py tests/test_bulk_policy.py
+```
+
+Compare canonical UUID checks to the previous UUID roundtrip across all bit
+patterns/format variants, and source bytes to a frozen pre-refactor member
+encoder, not only the new shared parser. Verify invalid IP/assigned-ID rejection
+and full root/source/descriptor/receipt equality. No verified result may be
+inferred from encoding benchmarks; every member still participates per claim.
+
+For equivalent profile SQL and device-scoped result handoffs:
+
+```bash
+python3 -m pytest -q tests/test_profile_query_equivalence.py tests/test_batch_queue.py tests/test_bulk_attempts.py tests/test_unsubmitted_recovery.py tests/test_device_leases.py
+```
+
+These disposable-database tests damage data bindings while restoring the exact
+schema, check transactional/autocommit query behavior, stale-row/delegation
+rollback, unchanged global result resolution and exact pending job presence.
+Corruption helpers are test fixtures only, never lab repair or pruning tools.
+
 For the narrow optional held-epoch recovery profile:
 
 ```bash

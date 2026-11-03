@@ -6,8 +6,8 @@ from random import Random
 
 import pytest
 
-from ftd_shun_manager import member_digest
-from ftd_shun_manager.import_preparations import _feed, _member
+from ftd_shun_manager import import_preparations, member_digest
+from ftd_shun_manager.import_preparations import _feed, _member, _member_and_ip
 from ftd_shun_manager.member_digest import MemberDigest
 
 
@@ -16,6 +16,16 @@ def row(**changes):
             'classification': 'PROPOSE_ADD', 'managed_enabled': 0, 'observed_at': None,
             'previous_intent_id': None, 'previous_generation': None,
             'previous_authorization_request_id': None, **changes}
+
+
+def legacy_member(value):
+    # Frozen pre-refactor encoder input: do not derive expected bytes from the
+    # newly shared parser, or two matching bugs could change a retained digest.
+    return {'device_id': value['device_id'], 'ip': str(IPv4Address(value['ip'])),
+            'classification': value['classification'], 'observed_at': value['observed_at'],
+            'managed_enabled': bool(value['managed_enabled']),
+            **{key: value[key] for key in ('previous_intent_id', 'previous_generation',
+                                         'previous_authorization_request_id')}}
 
 
 class Bytes:
@@ -40,8 +50,10 @@ def test_each_encoded_byte_matches_original_canonical_feed(changes):
     writer = MemberDigest(actual)
     # A preceding common row must not make a different shape share its template.
     for value in (row(), row(**changes), row(ip=IPv4Address('255.255.255.255').packed)):
-        _feed(expected, _member(value))
-        writer.feed(value)
+        assert _member(value) == legacy_member(value)
+        _feed(expected, legacy_member(value))
+        address = writer.feed(value)
+        assert type(address) is IPv4Address and address == IPv4Address(value['ip'])
     assert actual.data == expected.data
 
 
@@ -53,7 +65,7 @@ def test_mixed_stream_exact_digest_and_template_bound():
         value = row(device_id=1 + i % 20, ip=IPv4Address(rng.getrandbits(32)).packed)
         if i % 4 == 0:
             value.update(observed_at=f'2026-11-03T12:00:{i % 60:02d}Z', managed_enabled=1)
-        _feed(expected, _member(value))
+        _feed(expected, legacy_member(value))
         writer.feed(value)
         assert len(writer._templates) <= 10
     assert actual.digest() == expected.digest()
@@ -71,7 +83,7 @@ def test_common_shapes_reuse_only_framing_not_previous_member_or_result(monkeypa
     writer = MemberDigest(actual)
     for i in range(1000):
         value = row(ip=IPv4Address(i).packed)
-        _feed(expected, _member(value))
+        _feed(expected, legacy_member(value))
         writer.feed(value)
     assert len(calls) == 1 and actual.data == expected.data
     # Even after template creation, invalid IP input is not accepted/cached.
@@ -83,13 +95,36 @@ def test_common_shapes_reuse_only_framing_not_previous_member_or_result(monkeypa
 
 def test_future_source_fields_fall_back_instead_of_reusing_an_incomplete_template(monkeypatch):
     def expanded(value):
-        return {**_member(value), 'future_metadata': value['ip'].hex()}
+        canonical, address = _member_and_ip(value)
+        return {**canonical, 'future_metadata': value['ip'].hex()}, address
 
-    monkeypatch.setattr(member_digest, '_member', expanded)
+    monkeypatch.setattr(member_digest, '_member_and_ip', expanded)
     expected, actual = Bytes(), Bytes()
     writer = MemberDigest(actual)
     for i in range(3):
         value = row(ip=IPv4Address(i).packed)
-        _feed(expected, expanded(value))
+        _feed(expected, expanded(value)[0])
         writer.feed(value)
     assert actual.data == expected.data and not writer._templates
+
+
+def test_member_digest_parses_each_literal_only_once_even_for_fallback_rows(monkeypatch):
+    calls = []
+
+    def parse(value):
+        calls.append(value)
+        return IPv4Address(value)
+
+    values = [row(), row(classification='PROPOSE_ADOPT'), row(previous_intent_id='predecessor')]
+    monkeypatch.setattr(import_preparations, 'IPv4Address', parse)
+    writer = MemberDigest(Bytes())
+    for value in values:
+        assert writer.feed(value) == IPv4Address(value['ip'])
+    assert calls == [value['ip'] for value in values]
+
+
+@pytest.mark.parametrize('value', [b'', b'123', b'12345', '999.1.2.3', -1, 2**32])
+def test_single_parse_does_not_accept_invalid_literals(value):
+    writer = MemberDigest(Bytes())
+    with pytest.raises(ValueError):
+        writer.feed(row(ip=value))

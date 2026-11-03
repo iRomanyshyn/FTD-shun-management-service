@@ -292,6 +292,16 @@ class DeviceOperationQueue(OperationQueue):
     def _removal_priority(self):
         return self.priority_removals
 
+    def _record_attempt_result(self, db, job, attempt, state, timestamp, reason=None):
+        from .managed_restoration import _record_bound_result
+
+        if job['device_id'] != self.token.device_id:
+            raise QueueConflict('Result handoff is outside this fixed device lease.')
+        # Claim/finish owns BEGIN IMMEDIATE and both full profile/executor
+        # boundaries. The helper still re-reads the exact attempt and validates
+        # its complete current delegation before transitioning it.
+        _record_bound_result(db, self.store, job, attempt, state, timestamp, reason)
+
     def _event(self, db, event, request, job, details=None):
         # Revocation may sweep other devices too; never attribute those jobs to this token.
         if job['device_id'] == self.token.device_id and (event == 'SHUN_OPERATION_RUNNING' or dict(job).get('state') == 'RUNNING'):

@@ -2,6 +2,85 @@
 
 ## Bounded grouped ADD verification — 2026-11-03
 
+### Exact root decoding without repeated object conversion
+
+Every original member/source byte still participates in full root verification
+before every claim. Assigned intent IDs use the equivalent bounded lowercase
+canonical UUID text predicate rather than UUID object construction/formatting;
+all 128-bit values, including nil/max and arbitrary version/variant bits, retain
+the same acceptance. Other operation/descriptor identity rules are unchanged.
+Source encoding and the binary pair manifest use the same newly parsed IPv4
+literal for each member, not a second parse. Shared canonical source fields and
+length-prefixed JSON bytes remain identical, including the general fallback.
+No member, root, digest, membership or authority result is cached; existing
+bounded framing templates contain only formatting. Schema, stored digests,
+profile/protocol, eligibility and execution bounds are unchanged.
+
+### Transaction-local result handoff and equivalent profile queries
+
+Device-scoped claim/result transactions may hand their already resolved attempt
+to the persistence helper instead of resolving the full profile again. The
+helper requires the owning transaction, re-reads the exact retained row, rejects
+any difference and rechecks the complete current request/job/delegation binding.
+Both full executor/profile boundaries and base audit validation remain. Global/
+legacy paths retain independent resolution. Per-target result transactions,
+partial-failure retention, uncertainty and original-root checks are unchanged;
+this handoff is not a cached authority decision or permission to replay work.
+
+Complete profile validation still proves every retained target/member/manifest/
+request/device binding. Within an existing SQLite transaction, the validated
+member -> manifest -> request chain supplies the target's request-existence
+proof, avoiding a redundant join; outside a transaction keep that independent
+join. Pending attempt/job presence uses conditional `NOT EXISTS` with the exact
+same QUEUED/RUNNING predicate rather than looking up every settled job. This does
+not relax separate evidence-retention/uncertainty rules. No schema, profile,
+wire format, bounds, authority, deadline or startup behavior changes.
+
+### Fenced pending-group queue integration
+
+The grouped scope hook uses the executor validation immediately preceding it
+inside the owning claim transaction; the original final executor check remains.
+Its additional managed-attempt membership probe does not duplicate the complete
+profile scan performed by the base audit path before insertion. No validation
+result is cached across calls, writes, claims, transactions or sessions. Original
+root verification and current eligibility checks still run for every new ADD.
+
+The explicit configured `continuous-managed` composition can now select the
+matching grouped worker with `FTD_SHUN_AGENT_BATCH_ADDITIONS_ENABLED=true`.
+Defaults remain false; agent gates/profile, strict tracked settlement and exact
+API/client/worker capability matching are required. No legacy or observation
+runtime gains ADD capability. This increment has no schema or authority change.
+
+The existing default same-device RUNNING exclusion remains. Its sole extension
+is a fresh group on the current device lease: every existing RUNNING job must be
+an exact ADD in that group's original owner/epoch-bound claim audit and have its
+own durable acknowledgement. Other/unacknowledged/foreign work refuses overlap;
+a replacement queue cannot adopt pending work, even using the same token. Exact
+pre-write deferral claims from older epochs remain historical and cannot supply
+the current claim binding. Every new ADD still performs original root, current
+policy/protection, freshness, expiry, cutoff and lease checks without reuse.
+
+Acknowledgements use append-only `SHUN_ADDITION_ACKNOWLEDGED` events with the
+original request/actor and a separate exact `batch_session` binding plus wire
+sequence, never a second `SHUN_OPERATION_RUNNING` or terminal event. The original
+claim/terminal `device_executor` evidence remains unchanged; diagnostics cannot
+substitute for either. Jobs stay RUNNING with an awaiting-verification reason,
+without success/creation provenance. The worker validates the entire ordered
+group receipt and complete snapshot before separately persisting each result;
+it publishes that snapshot only after all results commit. A later local failure
+retains earlier VERIFIED results and marks remaining RUNNING work UNVERIFIED
+where possible, otherwise retaining RUNNING and the fence. No unknown retry.
+
+Flush at eight, stop/pause, exact pre-write deferral, pre-send claim expiry, END,
+eligible interactive refresh and before claiming queued priority REMOVE. Newly
+protected pending targets also force a flush; publication then admits normal
+protected removal before later background ADD. Cancellation retires unstarted
+work but still verifies already-sent additions, retaining their applied blocks.
+The current mutation/command/time limits remain unchanged. Status exposes staging,
+group verification and pending count; whole-task progress advances only on actual
+terminal settlement. Existing live-epoch release and uncertainty/recovery rules
+remain; batch completion does not manufacture terminal session settlement.
+
 The operator-approved next execution target replaces each ADD's individual
 post-read with one complete `show shun` for at most eight acknowledged additions
 in the same bounded SSH session. Preserve a fresh target-specific preflight and
@@ -17,7 +96,7 @@ snapshot. The client requires both, with exact scope/order/binding and snapshot
 digest. Missing/malformed evidence or lost transport never permits success/replay.
 
 Pending additions prohibit ordinary reads, removals and END until the group is
-verified; the future queue integration must flush before servicing interactive
+verified; the queue integration must flush before servicing interactive
 refresh/removal, at capacity, stop, pre-write deferral and session completion.
 Commands remain individually sequential. Existing limits of 16 mutation attempts,
 64 CLI commands, 120-second session and prompt/operation/IPC bounds remain;
@@ -33,9 +112,10 @@ Do not wait for a five-minute baseline outside the current session: that needs a
 separate durable delayed-verification design. Generic periodic presence alone
 cannot verify an old uncertain write or establish service creation.
 
-Current increment implements only the gated agent/client protocol foundation;
-the configured API/worker still selects v3. No schema or deployment change,
-bulk speedup, live v4 validation or release acceptance is claimed yet.
+The first increment implemented the gated agent/client foundation only. The
+subsequent queue integration above supplies explicit default-off configuration;
+consult project status/log for actual deployment and acceptance. Source support
+alone establishes neither live speedup nor release acceptance.
 
 ## Import execution profiling — 2026-11-03
 

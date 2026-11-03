@@ -88,11 +88,29 @@ def _event(db, store, attempt, state, timestamp, reason=None):
 
 
 def record_result(db, store, job, state, timestamp, reason=None):
-    from .bulk_attempts import present as bulk_present
-
     attempt = attempt_for_job(db, job["id"])
     if attempt is None:
         return
+    _record_bound_result(db, store, job, attempt, state, timestamp, reason)
+
+
+def _record_bound_result(db, store, job, attempt, state, timestamp, reason=None):
+    """Persist the exact resolved row inside its owning result transaction.
+
+    The caller already resolved this attempt through attempt_for_job. Re-read
+    the exact row and all delegation bindings; never use a stale transition or
+    replace a scoped caller's final full-profile/executor check with this helper.
+    Direct handoffs are device-scoped; record_result retains full resolution
+    for global, legacy and other callers.
+    """
+    from .bulk_attempts import present as bulk_present
+
+    if not db.in_transaction:
+        raise ValueError('Bound result handoff requires its owning write transaction.')
+    table = 'managed_bulk_attempts' if bulk_present(db) else 'managed_restoration_attempts'
+    current = db.execute(f'SELECT * FROM {table} WHERE job_id=?', (job['id'],)).fetchone()
+    if current is None or dict(current) != dict(attempt):
+        raise ManagedStateUnavailable('Restoration attempt changed during its result handoff.')
     validate_binding(db, attempt, job)
     if job["action"] != "ADD" or attempt["device_id"] != job["device_id"] or attempt["ip"] != job["ip"]:
         raise ManagedStateUnavailable("Restoration job linkage is inconsistent.")
@@ -103,7 +121,6 @@ def record_result(db, store, job, state, timestamp, reason=None):
         if len(rows) != 1 or not rows[0]["occurrence_id"]:
             raise ManagedStateUnavailable("Verified restoration is missing its occurrence.")
         occurrence = rows[0]
-    table = 'managed_bulk_attempts' if bulk_present(db) else 'managed_restoration_attempts'
     db.execute(f"""UPDATE {table} SET state=?,completed_at=?,occurrence_id=?,interface=?
         WHERE id=?""", (state, None if state in {"QUEUED", "RUNNING"} else timestamp,
                        occurrence["occurrence_id"] if occurrence else None,

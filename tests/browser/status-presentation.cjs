@@ -9,6 +9,15 @@ const initial = () => ({ refresh_schedule_mode: "per_device", refresh_enabled: t
   devices: { "1": { state: "ready", active: false, refresh_pending: false } }, device_cycles: {} });
 const timing = (baseline = 270, interactive = 30) => (key) => ({ baseline, interactive })[key] ?? null;
 
+test('staged additions are device work; their group observation is a real read phase', () => {
+  const status = { ...initial(), refresh_in_progress: true, active_device_count: 1,
+    devices: { '1': { state: 'refreshing', active: true } },
+    device_cycles: { '1': { action: 'stage_addition', pending_verification: 3 } } };
+  assert.equal(refreshPresentation(status, timing()).phase, 'working');
+  status.device_cycles['1'].action = 'verify_addition_batch';
+  assert.equal(refreshPresentation(status, timing()).phase, 'reading');
+});
+
 test('fetch and response-body network failures retain data with a readable retry notice', () => {
   for (const error of [new TypeError('NetworkError when attempting to fetch resource'),
       { name: 'NetworkError' }, { name: 'TimeoutError' }, { name: 'AbortError' }]) {

@@ -66,9 +66,11 @@ def configured_dispatcher(settings, store):
         addition_ids = frozenset(device.id for device in enabled)
     agent = UnixAgentClient(settings.agent_socket, settings.agent_timeout_seconds + 5,
                             large_snapshots=True, settled_cycles=True, recoverable_cycles=True, tracked_cycles=True,
-                            additions_enabled=managed, addition_device_ids=addition_ids)
+                            additions_enabled=managed, addition_device_ids=addition_ids,
+                            batch_additions=settings.batch_additions_enabled)
     return ContinuousDispatcher(store, agent, enabled=True, agent_concurrency=settings.agent_concurrency,
                                 bulk_dispatch_enabled=managed, addition_device_ids=addition_ids,
+                                batch_additions_enabled=settings.batch_additions_enabled,
                                 ordered_promotion_enabled=managed,
                                 operation_timeout_seconds=settings.agent_timeout_seconds + 5,
                                 poll_interval_seconds=settings.poll_interval_seconds,

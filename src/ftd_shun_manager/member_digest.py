@@ -1,6 +1,6 @@
 """Exact canonical source hashing with bounded formatting reuse, not authority caching."""
 
-from .import_preparations import _feed, _json, _member
+from .import_preparations import _feed, _json, _member_and_ip
 
 
 class MemberDigest:
@@ -20,7 +20,9 @@ class MemberDigest:
         self._templates = {}
 
     def feed(self, row):
-        value = _member(row)
+        # Both source JSON and the binary manifest use this one literal parse.
+        # Returning it is formatting work reuse, not a membership proof/cache.
+        value, address = _member_and_ip(row)
         device = value['device_id']
         common = (value.keys() == self._FIELDS and type(device) is int and 1 <= device <= 65535
                   and value['classification'] == 'PROPOSE_ADD'
@@ -36,7 +38,8 @@ class MemberDigest:
             template = self._templates[device] = (before + b'"ip":"', b'"' + after)
         if template is None:
             _feed(self.digest, value)
-            return
+            return address
         raw = template[0] + value['ip'].encode('ascii') + template[1]
         self.digest.update(len(raw).to_bytes(4, 'big'))
         self.digest.update(raw)
+        return address
