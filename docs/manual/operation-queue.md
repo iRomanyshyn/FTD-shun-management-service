@@ -102,7 +102,15 @@ running first and then FIFO. An empty queue says **Queue is empty**, even when
 historical results exist. Next eligibility appears only when work is pending.
 
 **Needs attention** separately shows up to 20 latest FAILED/UNVERIFIED results
-and their total counts; these are not pending automatic retries.
+that remain unresolved and their total counts; these are not pending automatic
+retries. It appears before long import/active lists. An exactly validated
+[quiescent reconciliation](quiescent-managed-reconciliation.md) moves only its
+reviewed unknown records out of attention into collapsed **Reviewed history**,
+with a separate total and at most 20 entries. The original outcome stays
+UNVERIFIED, with original reason, review time and IP link; no action is needed
+for that historical record. A later success does not rewrite it. New/unrelated
+unknowns and FAILED operations remain attention; missing or invalid evidence is
+not a reason to suppress warnings.
 **Completed operations** is collapsed by default and contains the latest 20
 VERIFIED/NOOP/CANCELLED/RECONCILED_ABSENT results. Opening/closing this panel
 survives local polling and partial page updates. Old completed cycle progress
@@ -111,9 +119,16 @@ is hidden while idle.
 All groups include device/IP, outcome, requesters, timestamps/reasons, and an
 IP-detail link to retained audit history. Counts cover all retained rows, not
 only the visible slice. The independent limits (100 active, 20 attention,
-20 completed; at most 140 jobs per status response) keep a large backlog from
+20 completed, plus 20 separately reviewed-history records; at most 160 jobs per
+status response) keep a large backlog from
 hiding results/errors or flooding the page. This is a bounded operational
 summary, not a full paginated queue browser.
+
+Private status retains raw historical `counts` and separately supplies
+`attention_counts` plus `reviewed_history` from the same validated read snapshot.
+Queue warning/icon use unresolved counts; old or inconsistent metadata defaults
+conservatively to raw attention. Reading or expanding history never acknowledges
+an incident, changes outcomes/policy or releases a fence.
 
 BFF polling updates it locally without generating CLI queries. Hiding completed
 rows does not delete or requeue them: they remain under the configured history

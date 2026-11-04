@@ -73,6 +73,9 @@ class BulkOrderedRemovalScopes:
 
     @staticmethod
     def _target(db, target, ip, now):
+        from .device_leases import device_uncertain
+        from .device_reconciliation import unresolved
+
         device, blockers, predecessor = target['device_id'], [], None
         pair = (device, ip.packed)
         if not target['device_enabled']:
@@ -86,11 +89,11 @@ class BulkOrderedRemovalScopes:
             blockers.append('DEVICE_CLOCK_REVERSED')
         elif fence['state'] == 'LEASED' and fence['lease_until'] <= now:
             blockers.append('DEVICE_FENCE_EXPIRED')
-        if (db.execute("SELECT 1 FROM operation_jobs WHERE device_id=? AND state IN ('UNVERIFIED','RECONCILED_ABSENT') LIMIT 1", (device,)).fetchone()
-                or db.execute("SELECT 1 FROM managed_bulk_attempts WHERE device_id=? AND state='UNVERIFIED' LIMIT 1", (device,)).fetchone()):
+        if device_uncertain(db, device):
             blockers.append('DEVICE_OUTCOME_UNKNOWN')
         if (db.execute("SELECT 1 FROM operation_jobs WHERE device_id=? AND ip=? AND action='ADD' AND state='FAILED' LIMIT 1", pair).fetchone()
-                or db.execute("SELECT 1 FROM managed_bulk_attempts WHERE device_id=? AND ip=? AND state IN ('FAILED','UNVERIFIED') LIMIT 1", pair).fetchone()):
+                or db.execute("SELECT 1 FROM managed_bulk_attempts WHERE device_id=? AND ip=? AND state IN ('FAILED','UNVERIFIED') AND "
+                              + unresolved(db, 'job_id') + ' LIMIT 1', pair).fetchone()):
             blockers.append('PAIR_ADD_ATTENTION')
         job = db.execute("SELECT * FROM operation_jobs WHERE device_id=? AND ip=? AND state IN ('QUEUED','RUNNING')", pair).fetchone()
         if job is None:

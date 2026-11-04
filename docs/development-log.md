@@ -9099,6 +9099,219 @@ Final unused candidate agent `d972adf099df...` also passes configured
 non-executing `--check-config`; final Ruff/diff checks pass. It remains built
 only, not deployed. The old running pair and held epoch are unchanged.
 
+### 2026-11-03 — Explicit quiescent managed-ADD reconciliation
+
+Implemented a separate desired-state review/decision for the retained unknown
+ADD case, after an architecture amendment. Actual API/Web/agent shutdown, exact
+whole-epoch claims/terminal/diagnostic audit, original system attempts/requests/
+roots, checked exclusive backup and a fresh whole-DB digest are required. An
+immutable optional table binds only those unknown job/attempt digests to one
+recovery receipt. Original outcomes, policy, delegations, protection and audit
+remain; no old job is retried or labelled successful. Runtime barriers exempt
+only valid reviewed original records; later unknowns, failed/manual/REMOVE or
+foreign work stay blocked. New current managed attempts require a complete read
+after the decision, current root/protection/retirement and existing backoff.
+
+The new exact profile is opt-in only through this offline tool; old DB writers
+refuse it. Startup/GET do not initialize or reconcile. Managed views label reviewed
+unknown history separately; progress uses current pending/presence or later real
+verification, not fabricated old success. No credentials/trust/network/auth
+change, generic CLI or second executor. Current lab is still held epoch 2060;
+no decision or new device work has been submitted during implementation.
+
+Initial focused checks: 162 lease/discovery/removal/recovery tests and 155
+concurrent/ordered/recovery tests pass; additional proof/refusal tests and full
+regression are in progress. Build, actual-dataset rehearsal and any later lab
+activation must be recorded separately; implementation is not live acceptance.
+
+Full Python regression: 3170 pass in 539.05s. Final expanded reconciliation/
+policy-view/import-progress set: 53 pass; all 75 browser checks pass. Compileall,
+Ruff/diff pass. Further synthetic cases cover stale/foreign/missing/actor/REMOVE
+evidence, actual policy retirement/protection, queue-retention preservation,
+later unknown epochs, old-receipt non-release and a future genuinely verified
+recovery alongside reviewed unknown history. No original unknown is relabelled.
+
+Built profile-aware API `517de8921634...` and Web `45392bd7edec...`; API
+non-executing configured preflight passes. Rehearsed on a disposable SQLite
+backup of the actual original dataset: epoch 2060, nine claims, one unknown;
+strict verified-only tool refuses, new reconciliation succeeds, original job/
+attempt counts and unknown bytes unchanged, integrity ok. Live source opened
+read-only; zero SSH/device work. Private original failure logs were retained in
+`/tmp/ftd-quiescent-20261103.uJWZai/`. Old running API/Web retained under
+`lab-pre-quiescent-reconciliation-20261103`; old writers cannot use the new
+optional profile. Actual API/Web/agent shutdown and exact offline lab activation
+are now in progress; do not treat this as completed activation yet.
+
+All original services actually stopped exit 0: API `9c58b6329751`, Web
+`a22c285d6e96`, agent `6c844c0e08d1`. Applied only epoch-2060 reconciliation
+at **18:20:30.926Z**, new decision `e73e4081-5c21-44cb-a3fc-6c9cce80e3bc`.
+The private checked archive is
+`quiescent-reconciliation-20261103-epoch2060/before-reconciliation.db`.
+Exactly nine original claims / one unknown reviewed; original job/attempt bytes,
+eight policy/protection/inventory fingerprints and prior recovery receipts all
+unchanged. Zero jobs retried, policy unchanged, integrity ok. Epoch 2060 becomes
+IDLE only through the new receipt-bound transaction; original unknown remains.
+
+Profile-aware API and matching agent non-executing preflights pass after the
+decision. New v5 agent listener ready, then API/Web started with all three lab
+overlays: API `517de8921634...`, Web `45392bd7edec...`, agent `d972adf099df...`.
+No new task, standing grant, credential/trust/network or authentication change.
+Post-receipt complete reads, real successor execution, history preservation and
+throughput are being checked; not yet measured whole-list acceptance.
+
+Durable audit proves startup epoch 2061 was read-only (18:21:07.683Z–
+18:21:20.935Z), followed by three settled write epochs:
+
+- 2062: 18:21:21.287Z–18:22:46.711Z, 14 VERIFIED / 14 ACKs / one pre-write DEFER;
+- 2063: 18:22:47.084Z–18:24:12.863Z, 14 VERIFIED / 14 ACKs / one pre-write DEFER;
+- 2064: 18:24:13.218Z–18:25:39.356Z, 14 VERIFIED / 14 ACKs / one pre-write DEFER.
+
+The three complete write visits verified **42 in 258.069s (9.76/minute)**,
+including gaps. Including the read-only startup gives 42 in 271.673s (9.28/min).
+The preceding small v4 sample was 8.18/min; this is an unpaired bounded observed
+gain, not a controlled benchmark or adequate whole-list acceptance. Actual batch
+size remains deadline-dependent, not a promise of 16. First full v5 agent record:
+30 commands, exactly 14 preflights, 14 ADDs and **two** complete reads rather
+than four, zero CLI errors/cancellations, zero pending additions at terminal.
+Agent event/timing is diagnostic; original epoch-bound job/release audit is the
+success evidence. No new unknowns, reimport or consent renewal were submitted.
+
+The reviewed pair has a distinct new attempt `30caf7ae-3cb2-5ee4-96bb-b9fc7c1d6eaa`,
+captured from a complete read started 18:24:03.861Z, after the reconciliation
+receipt. It was RUNNING at the bounded check, not yet claimed successful. Original
+job `db174cf8-3496-53d8-aa78-1096bc39b251` stays UNVERIFIED, original request
+CANCELLED with unchanged 17:40:06.650Z expiry. This is a fresh desired-state
+attempt, not replay/renewal of the original unknown job.
+
+The new reviewed-pair attempt subsequently became **VERIFIED** at
+18:26:58.233Z, using snapshot started 18:24:03.861Z. Its original unknown
+predecessor remains UNVERIFIED with the unchanged cancelled/expired delegation.
+This completes actual live acceptance of the explicit reviewed-quiescence,
+new-full-absence, new-current-attempt path; it does not retroactively prove the
+original command. No new grant or old-key replay was used.
+
+Owner-bound diagnostics for all three measured epochs confirm exactly 30 CLI
+commands: 14 target preflights + 14 ADDs + two complete reads, with zero command
+errors/cancellations/pending at terminal. Epoch 2065 also reports the same
+14-address/two-read pattern. Final template assertions explicitly prove the
+reviewed-unknown caption preserves the unknown historical result and displays
+neither fabricated creation nor an unresolved-hold warning. Final focused set
+remains 53 passing; static checks pass. Whole-list execution, production, broad
+automatic unknown recovery and cross-session first confirmation remain pending.
+
+Final sample includes all first five settled write visits 2062–2066, each
+14 VERIFIED and one exact pre-write DEFER: **70 in 429.536s (9.78/minute)**
+including gaps. Last two visits took 85.233s and 85.494s; the initial three were
+not selectively retained as the only benchmark. Final 18:28:36Z: original task
+7,615/32,425 verified / 24,810 outstanding, ready, no device error or new unknown/
+ATTENTION, integrity ok and eight original policy/protection/inventory hashes
+unchanged. The one original reviewed UNVERIFIED remains retained. Normal epoch
+2067 active, not global idleness; status 1.056s, Web health 200/anonymous 401.
+No full-list completion/production/automatic unknown recovery acceptance claimed.
+
+## 2026-11-04 — Evidence-scoped scheduling recovery
+
+Operator reported a locked UI with only cancellation available. Read-only checks
+found the original import stopped at 12,582/32,425 VERIFIED, 19,843 outstanding,
+two QUEUED jobs, no RUNNING jobs and IDLE epoch 2423. Last complete read was
+03:13:16Z. The coordinator's retained error is `database is locked`; the agent's
+last session and 14 additions completed normally. Integrity is ok and no new
+unknown job appeared; the single historical reviewed UNVERIFIED stays retained.
+The runtime remains HTTP-ready even though dispatch stopped, so HTTP health alone
+was insufficient. No cancellation, reimport, guard reset or new authority used.
+
+Implement local scheduling retry for numeric SQLite BUSY only, with capped
+5/10/20/40/60-second backoff, retained demand and unchanged active sessions. Hints
+cannot defeat backoff; orderly stop wakes it. Retry revalidates current scheduling
+state rather than replaying worker RPCs/results. Non-BUSY/profile/unknown failures
+retain stop/drain and existing evidence-based recovery. Add private/BFF recovery
+metadata and compact Status/Queue states with operator guidance instead of a
+misleading periodic countdown. Add recovery operator manual and normative scope.
+No DDL, credential/trust/network, authority, agent/protocol or feature-gate change.
+
+Validation: full Python 3190 pass in 540.08s, 244 focused lifecycle/concurrency/
+recovery checks pass, final classification subset 10 pass, browser 78 pass in
+157.55s including a real retry/stopped/recovered DOM flow without device demand.
+Compileall, Ruff and diff-check pass. An initial 50ms timing assertion included
+first-import overhead; replace it with measured minimum backoff intervals and
+rerun successfully. Two restricted-sandbox focused runs stalled and were stopped;
+normal local socket/thread runs passed. No product process was terminated by that
+test cleanup. Agent source unchanged; no new Rust validation claimed.
+
+Built API/Web `639135b3f440...` / `7e10ec88e7b5...`; configured non-executing API
+preflight reports no execution/migration. Retained old compatible images as
+`ftd-shun-{api,web}:lab-pre-storage-retry-20261104` and bounded old service logs plus
+status/fingerprints in private `/tmp/ftd-storage-recovery-20261104.DrN9qN/`.
+Old API `1baf2e6533d5` and Web `7ab80990315e` actually exited 0. Stopped DB remained
+IDLE epoch 2423, no RUNNING work, same two QUEUED/one historical UNVERIFIED and
+12,588 VERIFIED jobs, integrity ok and all nine original fingerprints unchanged.
+No DDL, recovery receipt or unknown-state change. Started only new API/Web using
+all three lab overlays; agent `e2d0128319c2` / `d972adf099df...` was not restarted.
+Web health 200 and anonymous refusal 401. At 10:09:55Z new API exposes running
+recovery, refresh enabled and a complete read at 10:09:48Z; the same original
+32,425-pair task has 12,582 VERIFIED and 16 queued. This is startup/read acceptance,
+not new ADD proof or a live induced-contention/unknown recovery experiment.
+
+Post-deployment acceptance: read-only epoch 2424 settled in 14.457s; epoch 2425
+settled 14 independently VERIFIED ADDs (14 ACKs, one exact no-write DEFER) in
+89.583s. These are durable original claim/result/release audits, not timing-based
+success inference. At 10:12:02Z the original import is 12,596/32,425 VERIFIED,
+19,829 outstanding, normal epoch 2426 active/LEASED. Integrity ok, all nine
+original authority/protection/inventory/recovery fingerprints unchanged, no new
+unknown/ATTENTION; original reviewed unknown retained. BFF exposes the running
+recovery state; shipped JS SHA-256 matches source. No live DB contention/outage
+was induced. Read-only metadata snapshots can differ slightly during active
+work; no global idleness, full-list completion or throughput gain is claimed.
+
+## 2026-11-04 — Quiet reviewed queue history
+
+Operator correctly reported that the persistent one-unknown warning and red Queue
+badge still made an already reviewed historical case look actionable. Diagnosis
+found the original epoch-2060 unknown and exact existing reconciliation receipt;
+the same pair has a later independent VERIFIED addition. Status had retained raw
+UNVERIFIED=1 and presented it as current attention. Nothing was cancelled,
+reconciled again, deleted or retroactively marked successful.
+
+Separate read-only unresolved attention counts and a bounded reviewed-history
+group after complete optional-profile validation. Keep raw counts/job/attempt/
+receipt/audit unchanged. Update Queue warning/badge and add quiet collapsed
+Reviewed history with original outcome/reason, review time and IP link; real
+Needs attention now precedes long progress/active lists. Legacy or inconsistent
+metadata conservatively retains raw warnings. No new schema, acknowledgment,
+recovery decision, authority, fence release, agent/protocol or security change.
+Focused queue/reconciliation/private-API checks: 105 pass; complete browser rerun
+82 pass in 161.75s. A stale DOM-order expectation was updated for the intentional
+attention-first layout. Initial new-test fixture/placement mistakes were fixed
+before the final focused run; an obsolete full run was stopped and replaced with
+a clean full run. Final full Python suite: **3194 pass in 532.53s**;
+compileall/Ruff/diff pass. Tests cover raw outcome preservation,
+read-only projection, invalid original evidence refusal, separate later unknowns,
+legacy/malformed metadata fallback, quiet collapsed history and no browser demand.
+
+Built API `7a005907d019...` / Web `b86fac92f284...`; configured non-executing
+preflight passes. Candidate read-only queue projection on actual lab data gives
+raw UNVERIFIED=1, zero unresolved attention and one reviewed historical record
+still UNVERIFIED. No additional executor or new device operation is started by
+that check. Compatible rollback images retained as
+`ftd-shun-{api,web}:lab-pre-reviewed-history-20261104`. After all final checks,
+announced API/Web-only rollout begins with orderly original-session drain;
+agent, original import/authority and all evidence remain unchanged.
+
+Rollout completed: old API `fc50da873188` / Web `5bdeb73b4ed4` actually exited 0.
+Stopped DB IDLE epoch 2472, zero RUNNING jobs, raw one historical UNVERIFIED,
+integrity ok and all nine original authority/protection/inventory/recovery hashes
+unchanged. Retained bounded pre-update logs/status in private
+`/tmp/ftd-reviewed-history-20261104.bZxpWL/`. Started matching API/Web with all three
+overlays; agent `e2d0128319c2` unchanged. New API `15830248969b`, Web `f42288374e68`.
+Deployed BFF reports zero unresolved attention, raw UNVERIFIED=1, one reviewed
+historical UNVERIFIED and no unresolved rows. Shipped JS SHA-256 matches source,
+history template present; Web health 200, anonymous 401. At 11:17:15Z original
+task 13,168/32,425 VERIFIED, normal epoch 2474 active/LEASED, integrity ok and all
+nine original fingerprints unchanged; no new unknown/ATTENTION. No new task,
+authority, fixture, acknowledgment/recovery or rewritten outcome. Already-open
+pages need one reload to replace old browser code; normal ongoing imports retain
+their working activity indicator, without the obsolete reviewed-history warning.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

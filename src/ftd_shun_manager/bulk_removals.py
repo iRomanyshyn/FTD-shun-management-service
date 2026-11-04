@@ -188,6 +188,9 @@ class BulkRemovals:
         return result, logs
 
     def _apply(self, db, key, scope, payload, subject, display_name, roles, ttl, reason):
+        from .device_leases import device_uncertain
+        from .device_reconciliation import unresolved
+
         state = _state(db)
         if state is None or not device_profile_present(db):
             raise BulkUnavailable('Existing exact fenced v2 storage is required.')
@@ -212,12 +215,11 @@ class BulkRemovals:
                 raise QueueConflict('Every target must be enabled; use policy-only retirement separately.')
             if (db.execute("SELECT 1 FROM operation_jobs WHERE device_id=? AND ip=? AND state IN ('QUEUED','RUNNING') LIMIT 1",
                            (row['device_id'], ip.packed)).fetchone()
-                    or db.execute("SELECT 1 FROM managed_bulk_attempts WHERE device_id=? AND ip=? AND state IN ('QUEUED','RUNNING','FAILED','UNVERIFIED') LIMIT 1",
+                    or db.execute("SELECT 1 FROM managed_bulk_attempts WHERE device_id=? AND ip=? AND state IN ('QUEUED','RUNNING','FAILED','UNVERIFIED') AND " + unresolved(db, 'job_id') + ' LIMIT 1',
                                   (row['device_id'], ip.packed)).fetchone()
                     or db.execute("SELECT 1 FROM operation_jobs WHERE device_id=? AND ip=? AND action='ADD' AND state='FAILED' LIMIT 1",
                                   (row['device_id'], ip.packed)).fetchone()
-                    or db.execute("SELECT 1 FROM operation_jobs WHERE device_id=? AND state IN ('UNVERIFIED','RECONCILED_ABSENT') LIMIT 1", (row['device_id'],)).fetchone()
-                    or db.execute("SELECT 1 FROM managed_bulk_attempts WHERE device_id=? AND state='UNVERIFIED' LIMIT 1", (row['device_id'],)).fetchone()):
+                    or device_uncertain(db, row['device_id'])):
                 raise QueueConflict('Ready-only scope has pending or unresolved work; no waiting, replay or partial removal was admitted.')
         retiring = [row for row in current['targets'] if row['maintenance_enabled']]
         count = db.execute('SELECT COUNT(*) FROM managed_shun_requests').fetchone()[0]

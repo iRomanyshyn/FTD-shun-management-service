@@ -9,6 +9,8 @@ from .managed_shuns import ManagedConflict
 
 
 def check_admission(db, plan_id, device_ids, expected_suspended, now):
+    from .device_leases import device_uncertain
+    from .device_reconciliation import unresolved
     state = _state(db)
     if state is None or not present(db):
         raise BulkUnavailable('Concurrent standing admission requires exact existing fenced-device storage.')
@@ -22,18 +24,17 @@ def check_admission(db, plan_id, device_ids, expected_suspended, now):
         if (fence is None or fence['state'] not in {'IDLE', 'LEASED'} or fence['updated_at'] > timestamp
                 or (fence['state'] == 'LEASED' and fence['lease_until'] <= timestamp)):
             raise ManagedConflict('Selected device fence is absent, expired, ahead of the clock or needs attention.')
-    marks = ','.join('?' for _ in device_ids)
-    if (db.execute("SELECT 1 FROM operation_jobs WHERE device_id IN (" + marks + ") AND state IN ('UNVERIFIED','RECONCILED_ABSENT') LIMIT 1", device_ids).fetchone()
-            or db.execute("SELECT 1 FROM managed_bulk_attempts WHERE device_id IN (" + marks + ") AND state='UNVERIFIED' LIMIT 1", device_ids).fetchone()):
+    if any(device_uncertain(db, device) for device in device_ids):
         raise ManagedConflict('Selected device has retained uncertainty; admission cannot resolve or bypass it.')
     queries = (
         """SELECT 1 FROM import_preparation_targets p JOIN operation_jobs j
             ON j.device_id=p.device_id AND j.ip=p.ip WHERE p.plan_id=? AND p.classification!='EXCLUDED_PROTECTED'
             AND (j.state IN ('QUEUED','RUNNING','UNVERIFIED','RECONCILED_ABSENT') OR
-                (j.action='ADD' AND NOT EXISTS(SELECT 1 FROM managed_bulk_attempts a WHERE a.job_id=j.id))) LIMIT 1""",
+                (j.action='ADD' AND NOT EXISTS(SELECT 1 FROM managed_bulk_attempts a WHERE a.job_id=j.id))) AND """
+                + unresolved(db, 'j.id') + ' LIMIT 1',
         """SELECT 1 FROM import_preparation_targets p JOIN managed_bulk_attempts a
             ON a.device_id=p.device_id AND a.ip=p.ip WHERE p.plan_id=? AND p.classification!='EXCLUDED_PROTECTED'
-            AND a.state IN ('QUEUED','RUNNING','FAILED','UNVERIFIED') LIMIT 1""",
+            AND a.state IN ('QUEUED','RUNNING','FAILED','UNVERIFIED') AND """ + unresolved(db, 'a.job_id') + ' LIMIT 1',
         """SELECT 1 FROM import_preparation_targets p JOIN managed_bulk_cancellation_members m
             ON m.device_id=p.device_id AND m.ip=p.ip WHERE p.plan_id=? AND p.classification!='EXCLUDED_PROTECTED'
             AND m.state='WAITING_OUTCOME' AND NOT EXISTS(SELECT 1 FROM managed_bulk_wait_results r

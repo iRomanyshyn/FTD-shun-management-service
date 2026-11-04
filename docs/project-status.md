@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-11-03
+Last updated: 2026-11-04
 
 ## Deferred product ideas
 
@@ -15,7 +15,120 @@ priority. See [the planned constraints](working-version-plan.md#deferred-ip-cont
 
 ## Current increment
 
-**Larger groups and shared terminal snapshot (2026-11-03, tested; not deployed).**
+**Quiet reviewed queue history (2026-11-04, deployed and checked).**
+The retained reviewed unknown was still counted as an active queue warning.
+Candidate status preserves raw outcomes but separates validated unresolved
+`attention_counts` and a 20-row `reviewed_history` view from the same read
+snapshot. Queue badge/warning use the unresolved projection, with conservative
+raw fallback for old/inconsistent metadata; reviewed records remain in a quiet
+collapsed history with original unknown outcome/reason and review timestamp.
+Real attention moves above long progress/active lists. No DDL, job/attempt/audit
+change, new review, replay, lease release or agent/credential/gate change.
+Focused queue/reconciliation/API checks: 105 pass; browser 82 pass in 161.75s,
+including quiet reviewed history, distinct later unknown warning, preserved
+expanded history and no device demand. Compileall/Ruff/diff pass. The first
+browser run had one obsolete order assertion after intentionally moving real
+attention first; corrected and the complete browser rerun passes. Candidate
+API/Web are `7a005907d019...` / `b86fac92f284...`; configured non-executing
+preflight passes. A separate candidate read on the actual lab DB reports raw
+UNVERIFIED=1, unresolved FAILED/UNVERIFIED=0, reviewed total=1 with the original
+UNVERIFIED outcome retained. No device executor or new request started by that
+check. Final full Python suite: **3194 pass in 532.53s**, browser 82 pass;
+compileall/Ruff/diff pass. Old API/Web exited 0; stopped DB IDLE epoch 2472,
+zero RUNNING jobs, unchanged nine original fingerprints, integrity ok. New
+API/Web are started using all three overlays; agent unchanged. Final metadata
+and auth/asset checks passed: deployed BFF reports raw UNVERIFIED=1 but unresolved
+FAILED/UNVERIFIED=0, one reviewed UNVERIFIED history row and no unresolved rows.
+Shipped JS matches checked source; new history template is present; Web health
+200/anonymous 401. At 11:17:15Z the original task is 13,168/32,425 VERIFIED,
+normal epoch 2474 active/LEASED, integrity ok, all nine original fingerprints
+unchanged and no new unknown/ATTENTION. API/Web containers `15830248969b` /
+`f42288374e68`; agent remains `e2d0128319c2`. No schema, outcome or recovery
+decision changed. Reload already-open pages once to load the new browser code.
+
+**Evidence-scoped execution recovery (2026-11-04, deployed; bounded continuation verified).**
+Overnight diagnosis: the original import reached 12,582/32,425 VERIFIED before
+the local coordinator stopped on SQLite `database is locked`; last complete
+read 03:13:16Z. Device epoch 2423 is IDLE, zero RUNNING/new unknown jobs, integrity
+ok, and the one already reviewed historical UNVERIFIED remains retained. No
+import cancellation, new authority or recovery decision was submitted.
+The candidate API now retries only numerically proved SQLITE_BUSY during local
+scheduling with capped 5–60s exponential backoff, preserving active device tasks,
+demand and all original uncertainty/authority. Non-BUSY failures still stop and
+drain. API/BFF/Status/Queue expose automatic retry versus stopped execution and
+operator guidance, without a restart/replay endpoint. No DDL/agent/gate/secret/
+network change. See [Execution Recovery](manual/execution-recovery.md).
+Validation: full Python 3190 pass in 540.08s, focused lifecycle/recovery 244 pass,
+final numeric classification checks 10 pass, browser 78 pass (including a real
+Chromium retry/stopped/recovered scenario with no submitted demand), compileall/
+Ruff/diff pass. Initial overly short synthetic timing assertion was corrected to
+measure actual minimum backoff intervals; final focused checks pass. Two stalled
+sandbox-only test runs were terminated and rerun with normal local socket/thread
+support; no product process was affected. The built API non-executing preflight
+passes, with no dispatch/migration.
+Old API/Web exited 0; stopped DB integrity ok, IDLE epoch 2423, job counts and all
+nine original authority/protection/inventory/recovery fingerprints unchanged.
+API `639135b3f440...` / Web `7e10ec88e7b5...` now run; agent container/image remain
+unchanged. Rollback references: `ftd-shun-{api,web}:lab-pre-storage-retry-20261104`.
+At 10:09:55Z, execution recovery reports running, refresh enabled, new complete
+read 10:09:48Z, no error, original task still 12,582/32,425 with 16 rolling queued
+members. This startup/read is not yet proof of new verified additions. No fence
+recovery decision, task recreation, old-outcome change or new consent occurred.
+
+Post-update epoch 2424 completed read-only, then epoch 2425 settled with 14
+VERIFIED ADDs, 14 acknowledgements and one exact pre-write DEFER in 89.583s.
+At 10:12:02Z the original task is **12,596/32,425 VERIFIED**, 19,829 outstanding;
+normal epoch 2426 active/LEASED, not globally idle. Integrity ok, all nine original
+fingerprints unchanged, no new unknown/ATTENTION; the historical reviewed unknown
+remains. Web health 200/anonymous 401; shipped JS matches the checked source.
+Contention/retry acceptance is synthetic; no live DB lock or outage was induced.
+This increment restores resilient scheduling, not large-import throughput or
+general automatic unknown-write recovery.
+
+**Quiescent managed-ADD reconciliation (2026-11-03, deployed; bounded lab checks passed).**
+A separate offline command reviews the whole held ADD epoch, requires stopped
+API/Web/agent, an exclusive checked backup and a fresh whole-DB digest. The new
+optional immutable profile retains every original unknown job/attempt/audit,
+policy and protection, binding only the exact reviewed unknowns to one epoch
+release. Future dispatch needs a complete post-receipt read and current standing
+authority; old jobs/delegations are never replayed or renewed. Manual/REMOVE/
+failed/foreign/pending/partial evidence refuses. Managed views distinguish a
+reviewed historical unknown from an unresolved hold; no creation is inferred.
+3170 full Python checks pass, plus 53 final focused and 75 browser checks;
+compileall/Ruff/diff pass. Actual-dataset rehearsal preserved all original
+outcomes and refused the old verified-only tool. API/Web/agent actually exited
+0 before activation; a checked exclusive backup and a fresh whole-DB review
+preceded the exact epoch-2060 decision at 18:20:30.926Z. Original nine claims /
+one unknown, policy/protection/inventory and older recovery receipts remain.
+Zero old jobs replayed or relabelled. The new matching runtime is API
+`517de8921634...`, Web `45392bd7edec...`, v5 agent `d972adf099df...`.
+Both configured non-executing preflights pass; Web 200/anonymous 401. Post-receipt
+fresh reads and original import continuation are confirmed. Epochs 2062–2064
+each VERIFIED 14 new ADDs: **42 in 258.069s (9.76/min)** across the three complete
+write visits, or 9.28/min including read-only startup. Prior small v4 sample was
+8.18/min; this is a bounded unpaired gain, not whole-list/production acceptance.
+Actual native v5 sessions use two complete reads rather than four. Timing is
+diagnostic; original per-epoch job/terminal/release audit proves progress.
+
+18:26:45Z: original task 7,587/32,425 verified, 24,838 outstanding; one old
+reviewed UNVERIFIED remains retained, no new unknowns/ATTENTION, normal epoch
+2065 active. Integrity ok, eight original policy/protection/inventory hashes
+unchanged; recovery ledger has two retained receipts (old and new). Status
+0.729s. Larger batches remain deadline-dependent, not a guarantee of 16.
+See the new manual for compatibility/rollback; no old image can write the new
+profile. More throughput and cross-session first-confirmation remain follow-up.
+
+Final bounded sample includes **all first five** write epochs 2062–2066:
+14 VERIFIED each, **70 in 429.536s (9.78/minute)** including gaps, each with one
+exact pre-write deferral rather than a fifteenth success. Latest 18:28:36Z:
+**7,615/32,425** verified, 24,810 outstanding, integrity ok, original eight hashes
+unchanged, no new unknowns/ATTENTION, status 1.056s, normal epoch 2067 active.
+The reviewed pair's distinct new attempt is now VERIFIED from a post-receipt
+complete absence read; its original job remains UNVERIFIED with unchanged
+cancelled/expired delegation. This verifies the reviewed desired-state path,
+not retroactive success or general automatic uncertainty recovery.
+
+**Larger groups and shared terminal snapshot (2026-11-03, now deployed with reconciliation).**
 The matching grouped API/agent selects tracked v5 with up to 16 pending addresses,
 retaining v4's eight-address low-level contract. VERIFY_END returns exact group
 proof plus a full bound snapshot and actual terminal settlement; the final read
@@ -33,7 +146,7 @@ expectations corrected to version 6 and both pass on rerun; not a second clean
 full run. Candidate API `ddae8a1863d2...` / agent `d972adf099df...` are built;
 non-executing preflight results are recorded in the development log.
 
-**Runtime blocker found before replacement:** the old runtime entered ATTENTION
+**Historical runtime blocker found before replacement:** the old runtime entered ATTENTION
 epoch 2060, retaining one UNVERIFIED ADD after an agent EAGAIN idle receive
 failure. An adjacent SQLite lock and local group settlement preceded it; timings
 are diagnostic, not proof that the next ADD was never submitted. API stop exited
@@ -48,7 +161,9 @@ compatible prior image pair is retained as `lab-pre-shared-final-20261103`.
 No agent replacement, fence reset, reimport, request renewal or unknown replay.
 Next resolve this exact retained case with a tested recovery contract; the
 verified-only old recovery cannot release an epoch containing an unknown ADD.
-No v5 live speedup/large-list acceptance is claimed.
+The separate quiescent reconciliation above subsequently resolved the execution
+hold while retaining the unknown result; the old verified-only receipt was not
+used. V5 live measurements follow; no large-list acceptance is claimed.
 
 Automatic restoration after later disappearance of a VERIFIED managed block is
 unchanged. Cross-session first confirmation and retry of an ACKed but absent

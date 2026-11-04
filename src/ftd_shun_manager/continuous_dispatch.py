@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import sqlite3
 from copy import deepcopy
 from dataclasses import dataclass
@@ -17,6 +18,8 @@ from .parallel_synchronizer import ParallelSynchronizer
 RECHECK_SECONDS = 1
 DEFER_SECONDS = 5
 MAX_CONNECT_RETRY_SECONDS = 60
+STORAGE_RETRY_SECONDS = 5
+MAX_STORAGE_RETRY_SECONDS = 60
 POLICY_READ_MARGIN_SECONDS = 0.001  # SQL authority timestamps have millisecond precision.
 
 
@@ -84,6 +87,8 @@ class ContinuousDispatcher:
         self._work_hints = set()
         self._policy_scans = {}
         self._error = None
+        self._storage_failures = 0
+        self._storage_retry_at = None
         self._revision = 0
         self._controls = None
         self.instance_id = str(uuid4())
@@ -111,6 +116,8 @@ class ContinuousDispatcher:
         await self.maintenance.start()
         self._stopping = self.runner._stopping = False
         self._error = None
+        self._storage_failures = 0
+        self._storage_retry_at = None
         self.runner._service_active = True
         self._loop = asyncio.get_running_loop()
         self._task = asyncio.create_task(self._serve(), name='ftd-continuous-dispatch')
@@ -304,6 +311,7 @@ class ContinuousDispatcher:
             'last_successful_refresh': min(successes) if enabled and len(successes) == len(enabled) else None,
             'last_attempt': max((row['last_attempt'] for row in enabled if row['last_attempt']), default=None),
             'last_error': sampled['error'] or ('Some device information needs attention.' if failures else None),
+            'execution_recovery': sampled['recovery'],
             'next_baseline_refresh': min((row['next_baseline_refresh'] for row in enabled if row['next_baseline_refresh']), default=None),
             'next_interactive_refresh': deadline(min(due)) if due else None,
             'baseline_interval_seconds': self.runner.configuration['poll_interval_seconds'],
@@ -349,9 +357,24 @@ class ContinuousDispatcher:
         maintenance_error = maintenance['expiry_error'] or maintenance['retention_error']
         if maintenance['broken']:
             maintenance_error = 'Maintenance stopped unexpectedly; inspect storage and lifecycle before restarting.'
+        running = self._task is not None and not self._task.done()
+        retrying = self._storage_retry_at is not None and running and not self._stopping
+        recovery = {
+            'state': 'retrying' if retrying else 'running' if running and not self._stopping else
+                     'stopped' if self.runner.enabled else 'disabled',
+            'attempts': self._storage_failures,
+            'retry_in_seconds': max(0, self._storage_retry_at - current) if retrying else None,
+            'retry_at': (datetime.now(UTC) + timedelta(seconds=max(0, self._storage_retry_at - current))).isoformat(
+                timespec='milliseconds').replace('+00:00', 'Z') if retrying else None,
+            'reason': 'SQLite storage is busy; scheduling will retry automatically.' if retrying else self._error,
+            'operator_action': None if running and not self._stopping or not self.runner.enabled else
+                'Inspect service logs and retained device outcomes before restarting the API. '
+                'Do not cancel or reimport merely to resume; unknown writes require offline review.',
+        }
         return deepcopy({'enabled': self.runner.enabled, 'running': self._task is not None and not self._task.done(),
                          'stopping': self._stopping, 'broken': self.runner._broken,
                          'error': self._error or maintenance_error, 'revision': self._revision,
+                         'recovery': recovery,
                          'maintenance': maintenance,
                          'devices': devices, 'execution': self.runner.status()})
 
@@ -407,6 +430,32 @@ class ContinuousDispatcher:
             self._retry_after[device] = self.clock() + delay
             self._revision += 1
 
+    async def _storage_backoff(self, error):
+        # This boundary retries local scheduling only, never a worker RPC,
+        # claimed job, completion journal write or uncertain device operation.
+        code = getattr(error, 'sqlite_errorcode', None)
+        if not isinstance(error, sqlite3.OperationalError) or type(code) is not int or code & 255 != sqlite3.SQLITE_BUSY:
+            raise error
+        self._storage_failures += 1
+        delay = min(MAX_STORAGE_RETRY_SECONDS, STORAGE_RETRY_SECONDS * 2 ** min(self._storage_failures - 1, 4))
+        self._storage_retry_at = self.clock() + delay
+        self._error = 'SQLite storage is busy; scheduling will retry automatically.'
+        self._revision += 1
+        print(json.dumps({'event': 'dispatcher.storage.retry', 'attempt': self._storage_failures,
+                          'retry_seconds': delay, 'sqlite_code': code}), flush=True)
+        # Repeated browser hints must not shorten the backoff. Stop still wakes
+        # it promptly; admitted device workers continue their original drain.
+        deadline = asyncio.get_running_loop().time() + delay
+        while not self._stopping:
+            self._wake.clear()
+            remaining = deadline - asyncio.get_running_loop().time()
+            if remaining <= 0:
+                break
+            try:
+                await asyncio.wait_for(self._wake.wait(), timeout=remaining)
+            except TimeoutError:
+                break
+
     async def _serve(self):
         try:
             while not self._stopping:
@@ -416,40 +465,15 @@ class ContinuousDispatcher:
                     break
                 if self.maintenance.status()['broken']:
                     raise QueueConflict('Maintenance stopped unexpectedly; coordinator stopped without rearming work.')
-                profile, devices = self.runner._configured_devices()
-                if self.ordered_promotion_enabled is True and self.ordered_promoter.advance(enabled=True):
-                    self.note_state_change()
-                self._enabled = {device.id for device in devices}
-                controls = self._control_state()
-                if (controls[0] != self._controls[0] or (self._controls[1] and not controls[1])
-                        or (self._controls[2] and not controls[2]) or controls[3] != self._controls[3]):
-                    self._work_hints.update(self._enabled)
-                self._controls = controls
-                current, ready = self.clock(), []
-                for device in devices:
-                    if device.id in self._active:
-                        self._nudge(device.id, current)
-                        continue
-                    if self._retry_after.get(device.id, 0) > current:
-                        continue
-                    demand = self._demands[device.id]
-                    manual = demand.manual_due(self.runner.configuration['interactive_min_interval_seconds'])
-                    manual_due = manual is not None and manual <= current
-                    baseline_due = demand.baseline_due <= current
-                    policy_due = self._policy_scan_due(device.id)
-                    policy_due = policy_due is not None and policy_due < current
-                    pending = self._pending(device.id)
-                    if not (manual_due or baseline_due or pending or policy_due or device.id in self._work_hints):
-                        continue
-                    priority = 0 if manual_due else 1 if pending and self._pending(device.id, removals_only=True) else 2 if baseline_due else 3
-                    ready.append((priority, self._last_dispatch.get(device.id, -1), device.id, device))
-                for _, _, device_id, device in sorted(ready)[:max(0, profile['concurrency'] - len(self._active))]:
-                    self._work_hints.discard(device_id)
-                    self._dispatch_sequence += 1
-                    self._last_dispatch[device_id] = self._dispatch_sequence
-                    task = asyncio.create_task(self.runner._visit(device), name=f'ftd-device-{device_id}')
-                    self._active[device_id] = task
-                    task.add_done_callback(lambda _: self._wake.set())
+                try:
+                    self._dispatch_ready()
+                except sqlite3.OperationalError as error:
+                    await self._storage_backoff(error)
+                    continue
+                if self._storage_failures:
+                    print(json.dumps({'event': 'dispatcher.storage.recovered', 'attempts': self._storage_failures}), flush=True)
+                    self._storage_failures = 0
+                    self._storage_retry_at = self._error = None
                     self._revision += 1
                 try:
                     await asyncio.wait_for(self._wake.wait(), timeout=RECHECK_SECONDS)
@@ -460,6 +484,7 @@ class ContinuousDispatcher:
             raise
         except (ValueError, OSError, sqlite3.Error) as error:
             self._error = str(error)
+            print(json.dumps({'event': 'dispatcher.stopped', 'error_type': type(error).__name__}), flush=True)
         finally:
             self._stop()
             # Ordinary stop never cancels these tasks or their to_thread RPCs.
@@ -478,3 +503,41 @@ class ContinuousDispatcher:
                 if self.maintenance.status()['broken']:
                     self.runner._broken = True
                 self.runner._service_active = False
+
+    def _dispatch_ready(self):
+        """Revalidate current local scheduling state; never replay a device call."""
+        profile, devices = self.runner._configured_devices()
+        if self.ordered_promotion_enabled is True and self.ordered_promoter.advance(enabled=True):
+            self.note_state_change()
+        self._enabled = {device.id for device in devices}
+        controls = self._control_state()
+        if (controls[0] != self._controls[0] or (self._controls[1] and not controls[1])
+                or (self._controls[2] and not controls[2]) or controls[3] != self._controls[3]):
+            self._work_hints.update(self._enabled)
+        self._controls = controls
+        current, ready = self.clock(), []
+        for device in devices:
+            if device.id in self._active:
+                self._nudge(device.id, current)
+                continue
+            if self._retry_after.get(device.id, 0) > current:
+                continue
+            demand = self._demands[device.id]
+            manual = demand.manual_due(self.runner.configuration['interactive_min_interval_seconds'])
+            manual_due = manual is not None and manual <= current
+            baseline_due = demand.baseline_due <= current
+            policy_due = self._policy_scan_due(device.id)
+            policy_due = policy_due is not None and policy_due < current
+            pending = self._pending(device.id)
+            if not (manual_due or baseline_due or pending or policy_due or device.id in self._work_hints):
+                continue
+            priority = 0 if manual_due else 1 if pending and self._pending(device.id, removals_only=True) else 2 if baseline_due else 3
+            ready.append((priority, self._last_dispatch.get(device.id, -1), device.id, device))
+        for _, _, device_id, device in sorted(ready)[:max(0, profile['concurrency'] - len(self._active))]:
+            self._work_hints.discard(device_id)
+            self._dispatch_sequence += 1
+            self._last_dispatch[device_id] = self._dispatch_sequence
+            task = asyncio.create_task(self.runner._visit(device), name=f'ftd-device-{device_id}')
+            self._active[device_id] = task
+            task.add_done_callback(lambda _: self._wake.set())
+            self._revision += 1

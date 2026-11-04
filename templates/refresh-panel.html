@@ -28,6 +28,11 @@
 <p data-queue-summary>Loading queue status…</p>
 <p>Requests are queued; acceptance is not verified success. {% if refresh.runtime_mode == 'continuous-managed' %}Commands run one at a time on each device; other devices can progress independently. Managed blocks are checked against fresh device data before execution.{% elif refresh.import_execution_enabled %}Cycles share a limit of 16 additions/removals per device within command/time limits. Additions require an explicitly configured device profile.{% elif refresh.session_cycles_enabled %}Session cycles handle up to 16 removals per device within command/time limits. ADD execution is disabled.{% else %}Each cycle handles at most one removal per device. ADD execution is disabled.{% endif %}</p>
 <p data-cycle-progress role="status" aria-live="polite"></p>
+<section data-queue-attention-section hidden aria-labelledby="queue-attention-heading">
+<h3 id="queue-attention-heading">Needs attention</h3>
+<p data-queue-attention-summary></p>
+<table class="operation-queue"><thead><tr><th>Device / IP</th><th>Outcome</th><th>Requested by</th><th>Details</th></tr></thead><tbody data-queue-attention></tbody></table>
+</section>
 <section data-import-progress-section hidden aria-labelledby="import-progress-heading">
 <h3 id="import-progress-heading">Import progress</h3>
 <p class="preview-help">Whole imports, including addresses not yet in the rolling queue. Commands are sequential within a shared SSH session (up to 16 per session), with verification for each address.</p>
@@ -40,16 +45,16 @@
 <div data-request-progress></div>
 </section>
 <table class="operation-queue" data-queue-active-table hidden><thead><tr><th>Device / IP</th><th>State</th><th>Requested by</th><th>Details / action</th></tr></thead><tbody data-operation-queue></tbody></table>
-<section data-queue-attention-section hidden aria-labelledby="queue-attention-heading">
-<h3 id="queue-attention-heading">Needs attention</h3>
-<p data-queue-attention-summary></p>
-<table class="operation-queue"><thead><tr><th>Device / IP</th><th>Outcome</th><th>Requested by</th><th>Details</th></tr></thead><tbody data-queue-attention></tbody></table>
-</section>
 <details id="queue-results-details" hidden>
 <summary data-queue-completed-summary>Completed operations</summary>
 <p data-queue-completed-note></p>
 <p>These are retained results, not pending work. Full audit history is available on each IP's detail page.</p>
 <table class="operation-queue"><thead><tr><th>Device / IP</th><th>Outcome</th><th>Requested by</th><th>Details</th></tr></thead><tbody data-queue-completed></tbody></table>
+</details>
+<details id="queue-reviewed-details" hidden>
+<summary data-queue-reviewed-summary>Reviewed history</summary>
+<p data-queue-reviewed-note></p>
+<table class="operation-queue"><thead><tr><th>Device / IP</th><th>Outcome</th><th>Requested by</th><th>Review / original details</th></tr></thead><tbody data-queue-reviewed></tbody></table>
 </details>
 </div></details>
 </div>

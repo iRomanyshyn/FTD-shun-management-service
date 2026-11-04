@@ -559,7 +559,7 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
       try {
         await page.until("document.querySelector('[data-device-status] .status-label')?.textContent==='Not yet confirmed'");
         assert.deepEqual(await page.evaluate(`Array.from(document.querySelectorAll('.operation-queue .status-label'), e => e.textContent)`),
-          ['Held', 'UNVERIFIED', 'VERIFIED']);
+          ['UNVERIFIED', 'Held', 'VERIFIED']);
         assert.ok(await page.evaluate("document.querySelector('[data-operation-queue]').textContent.includes('Held — ADD execution disabled')"));
         await page.evaluate(`(() => {
           const host = document.createElement('section'); host.id = 'nowrap-fixture';
@@ -841,6 +841,39 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
         await wake(page);
         await page.until("document.querySelector('#queue-menu').dataset.activity==='paused'");
         assert.equal(await page.evaluate("document.querySelector('#queue-menu').dataset.attention"), "true");
+        assert.equal(postCount, hints);
+        assert.equal(executionCount, executions);
+      } finally { await page.close(); }
+    });
+    await t.test("storage retry and stopped execution give truthful guidance without extra device demand", async () => {
+      status = initial();
+      Object.assign(status, { refresh_schedule_mode: "per_device", active_device_count: 0,
+        pending_refresh_device_count: 0, device_cycles: {},
+        execution_recovery: { state: "retrying", attempts: 2, retry_at: future(20) },
+        last_error: "SQLite storage is busy; scheduling will retry automatically." });
+      const hints = postCount, executions = executionCount;
+      const page = await connectPage(debugOrigin, `${origin}/history`);
+      try {
+        await page.until("document.querySelector('[data-refresh-controller]').dataset.refreshPhase==='recovering'");
+        assert.match(await page.evaluate("document.querySelector('[data-status-summary]').textContent"), /retrying automatically/);
+        assert.equal(await page.evaluate("document.querySelector('[data-refresh-timing-label]').textContent"), "Scheduling retry");
+        assert.equal(await page.evaluate("document.querySelector('[data-refresh-request]').disabled"), false);
+        assert.equal(await page.evaluate("document.querySelector('#queue-menu').dataset.attention"), "true");
+        status.execution_recovery = { state: "stopped", operator_action: "Inspect retained outcomes; do not cancel or reimport." };
+        status.refresh_enabled = false;
+        status.status_revision += 1;
+        await wake(page);
+        await page.until("document.querySelector('[data-refresh-controller]').dataset.refreshPhase==='stopped'");
+        assert.equal(await page.evaluate("document.querySelector('[data-refresh-request]').disabled"), true);
+        assert.match(await page.evaluate("document.querySelector('[data-refresh-timing-help]').textContent"), /do not cancel or reimport/);
+        assert.match(await page.evaluate("document.querySelector('.baseline-countdown').textContent"), /no refresh is scheduled/);
+        assert.equal(await page.evaluate("document.querySelector('#queue-menu').dataset.activity"), "paused");
+        status.execution_recovery = { state: "running" };
+        status.refresh_enabled = true;
+        status.last_error = null;
+        status.status_revision += 1;
+        await wake(page);
+        await page.until("document.querySelector('[data-refresh-controller]').dataset.refreshPhase==='idle'");
         assert.equal(postCount, hints);
         assert.equal(executionCount, executions);
       } finally { await page.close(); }
@@ -1448,6 +1481,43 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
         assert.equal(await page.evaluate("document.querySelectorAll('[data-operation-queue] tr').length"), 0);
         assert.equal(await page.evaluate("document.querySelector('#queue-results-details').open"), true);
         assert.equal(await page.evaluate("document.querySelectorAll('[data-queue-completed] tr').length"), 20);
+      } finally { await page.close(); }
+    });
+    await t.test("reviewed unknown history stays quiet while new unresolved operations remain prominent", async () => {
+      status = initial();
+      const reviewed = { id: 'old-reviewed', state: 'UNVERIFIED', action: 'ADD', device_id: 1,
+        hostname: 'lab-ftd', ip: '198.51.100.10', requests: [], reason: 'Original lost reply',
+        reviewed_at: '2026-11-03T18:20:30Z', review_id: 'fixture-review' };
+      status.queue = { revision: 1, counts: { UNVERIFIED: 1, VERIFIED: 5000 }, items: [],
+        attention_counts: { FAILED: 0, UNVERIFIED: 0 },
+        reviewed_history: { total: 1, items: [reviewed], limit: 20 } };
+      const hints = postCount, executions = executionCount;
+      const page = await connectPage(debugOrigin, `${origin}/history`);
+      try {
+        await page.until("document.querySelector('#queue-reviewed-details').hidden===false");
+        assert.equal(await page.evaluate("document.querySelector('[data-queue-warning]').hidden"), true);
+        assert.equal(await page.evaluate("document.querySelector('[data-queue-attention-section]').hidden"), true);
+        assert.equal(await page.evaluate("document.querySelector('#queue-menu').dataset.attention"), 'false');
+        assert.equal(await page.evaluate("document.querySelector('[data-queue-indicator]').textContent"), '');
+        assert.equal(await page.evaluate("document.querySelector('#queue-reviewed-details').open"), false);
+        await page.evaluate("document.querySelector('#queue-menu').open=true;document.querySelector('#queue-reviewed-details').open=true");
+        assert.match(await page.evaluate("document.querySelector('[data-queue-reviewed]').textContent"), /Reviewed unknown.*Original outcome: UNVERIFIED/s);
+        assert.match(await page.evaluate("document.querySelector('[data-queue-reviewed-note]').textContent"), /No action is needed/);
+        status.queue.counts.UNVERIFIED = 2;
+        status.queue.attention_counts.UNVERIFIED = 1;
+        status.queue.items = [{ ...reviewed, id: 'new-unknown', reason: 'A separate new lost reply' }];
+        status.queue.revision += 1;
+        status.status_revision += 1;
+        await wake(page);
+        await page.until("document.querySelector('[data-queue-warning]').hidden===false");
+        assert.equal(await page.evaluate("document.querySelector('#queue-menu').dataset.attention"), 'true');
+        assert.equal(await page.evaluate("document.querySelector('[data-queue-indicator]').textContent"), '!1');
+        assert.match(await page.evaluate("document.querySelector('[data-queue-attention]').textContent"), /A separate new lost reply/);
+        assert.equal(await page.evaluate("document.querySelectorAll('[data-queue-reviewed] tr').length"), 1);
+        assert.equal(await page.evaluate("document.querySelector('#queue-reviewed-details').open"), true);
+        assert.ok(await page.evaluate("document.querySelector('[data-queue-attention-section]').getBoundingClientRect().top < document.querySelector('[data-import-progress-section]').getBoundingClientRect().top || document.querySelector('[data-import-progress-section]').hidden"));
+        assert.equal(postCount, hints);
+        assert.equal(executionCount, executions);
       } finally { await page.close(); }
     });
     await t.test("whole-import progress includes unqueued addresses and offers only a frozen cancellation review", async () => {

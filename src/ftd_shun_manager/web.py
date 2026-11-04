@@ -193,6 +193,7 @@ def refresh_metadata(refresh: object) -> dict[str, object]:
         "cycle_outcome",
         "refresh_enabled",
         "refresh_schedule_mode",
+        "execution_recovery",
         "runtime_mode",
         "bulk_execution_enabled",
         "manual_mutations_available",

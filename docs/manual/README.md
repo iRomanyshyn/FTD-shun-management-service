@@ -25,8 +25,10 @@ not a runbook or permission to change gates, initialize schemas or run new fixtu
 | [Operations](operations.md) | Roles, removal workflow, logs, backup, health, and incident response. |
 | [Imports — Operator Guide](imports.md) | Paste/review/confirm, whole-task progress/cancellation, shared SSH batches, saved drafts and truthful held-device state in the managed runtime. |
 | [Operation Queue](operation-queue.md) | Queued removal, progress/cancellation, limits, lease recovery, migration, backup restore, and rollback. |
+| [Execution Recovery](execution-recovery.md) | Automatic local scheduling-contention retry, visible retry/stopped states and evidence-based operator recovery without reimport. |
 | [Offline Recovery](recovery.md) | Checked backup, durable mutation pause, composite queue/policy suspension and reviewed ordinary resume. |
 | [Verified Held-Session Recovery](verified-epoch-recovery.md) | Offline, backup/review-bound release of an exactly evidenced fully verified epoch; original hold/claims retained, no unknown-write replay. |
+| [Quiescent Managed-ADD Reconciliation](quiescent-managed-reconciliation.md) | Explicit offline desired-state decision retaining unknown outcomes; exact receipt-bound scope and a new complete read before future work. |
 | [Offline Managed Maintenance](managed-maintenance.md) | Explicit empty-schema migration, exact-state five-minute review and separate policy resume; no live activation or uncertainty override. |
 | [Offline Attention Inspection](managed-attention.md) | Read-only uncertainty catalog and exact-case inspection, full fleet membership in snapshot-bound pages, evidence provenance and planned resolution boundaries. |
 | [Incident Acknowledgments](incident-acknowledgements.md) | Reviewed offline ordinary/single/fleet administrative receipts, whole-scope evidence and unchanged uncertainty/controls. |

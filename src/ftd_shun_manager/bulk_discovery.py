@@ -85,10 +85,9 @@ class BulkDiscovery:
                     raise BulkUnavailable('Bulk refill requires the exact existing dispatch profile.')
                 _lease(db, self.queue, owner, snapshot.device_id)
                 hold = 'suspended' if state['restoration_suspended'] else 'recovery_pause' if mutations_suspended(db) else None
-                if hold is None and (db.execute("SELECT 1 FROM operation_jobs WHERE device_id=? AND state IN ('UNVERIFIED','RECONCILED_ABSENT')",
-                                               (snapshot.device_id,)).fetchone()
-                                     or db.execute("SELECT 1 FROM managed_bulk_attempts WHERE device_id=? AND state='UNVERIFIED'",
-                                                   (snapshot.device_id,)).fetchone()):
+                from .device_leases import device_uncertain
+
+                if hold is None and device_uncertain(db, snapshot.device_id):
                     hold = 'device_uncertain'
                 if hold is None and (not self.remaining or self.checked >= CHECK_LIMIT):
                     hold = 'cycle_budget'

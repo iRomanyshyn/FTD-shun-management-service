@@ -11,6 +11,16 @@ from .operation_queue import OperationQueue, QueueConflict
 from .safety import mutations_suspended
 from .schema import execute_schema, schema_connection
 
+
+def device_uncertain(db, device_id):
+    """Receipt-bound reviewed ADD history is distinct from unresolved work."""
+    from .device_reconciliation import unresolved
+
+    return (db.execute("SELECT 1 FROM operation_jobs WHERE device_id=? AND state IN ('UNVERIFIED','RECONCILED_ABSENT') AND "
+                       + unresolved(db, 'id'), (device_id,)).fetchone() is not None
+            or db.execute("SELECT 1 FROM managed_bulk_attempts WHERE device_id=? AND state='UNVERIFIED' AND "
+                          + unresolved(db, 'job_id'), (device_id,)).fetchone() is not None)
+
 DDL = """
 CREATE TABLE managed_bulk_device_profile (
     id INTEGER PRIMARY KEY CHECK(id=1),format_version INTEGER NOT NULL CHECK(format_version=1),
@@ -168,8 +178,8 @@ class DeviceLeases:
             if row['state'] != 'IDLE':
                 return None
             if (not db.execute('SELECT 1 FROM devices WHERE id=? AND enabled=1', (device_id,)).fetchone()
-                    or db.execute("SELECT 1 FROM operation_jobs WHERE device_id=? AND state IN ('RUNNING','UNVERIFIED','RECONCILED_ABSENT')", (device_id,)).fetchone()
-                    or db.execute("SELECT 1 FROM managed_bulk_attempts WHERE device_id=? AND state='UNVERIFIED'", (device_id,)).fetchone()):
+                    or db.execute("SELECT 1 FROM operation_jobs WHERE device_id=? AND state='RUNNING'", (device_id,)).fetchone()
+                    or device_uncertain(db, device_id)):
                 return None
             limit = db.execute('SELECT concurrency FROM managed_bulk_device_profile').fetchone()[0]
             if db.execute("SELECT COUNT(*) FROM managed_bulk_device_executors WHERE state='LEASED'").fetchone()[0] >= limit:
@@ -236,10 +246,7 @@ class DeviceLeases:
             if db.execute("SELECT 1 FROM operation_jobs WHERE device_id=? AND state='RUNNING'", (token.device_id,)).fetchone():
                 raise QueueConflict('Settle RUNNING work before releasing a device lease.')
             if opening_event is not None and (
-                    db.execute("SELECT 1 FROM operation_jobs WHERE device_id=? AND state IN ('UNVERIFIED','RECONCILED_ABSENT')",
-                               (token.device_id,)).fetchone()
-                    or db.execute("SELECT 1 FROM managed_bulk_attempts WHERE device_id=? AND state='UNVERIFIED'",
-                                  (token.device_id,)).fetchone()
+                    device_uncertain(db, token.device_id)
                     or db.execute("SELECT 1 FROM shun_events WHERE device_id=? AND event_type='SHUN_OPERATION_RUNNING' "
                                   "AND json_extract(details_json,'$.device_executor.owner')=? "
                                   "AND json_extract(details_json,'$.device_executor.epoch')=?",

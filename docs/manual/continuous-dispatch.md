@@ -9,6 +9,12 @@ status/demand to the BFF. No HTTP request selects the runtime or enables authori
 
 ## Independent scheduling
 
+The running coordinator now retries numerically identified SQLite BUSY during
+local scheduling with capped 5–60-second exponential backoff, preserving browser
+demand and admitted device tasks. It never wraps/replays worker RPCs or releases
+fences. Non-BUSY storage/profile failures still stop and drain. See
+[Execution Recovery](execution-recovery.md) for status and operator procedures.
+
 If expensive claim validation crosses a snapshot/delegation deadline before
 returning a job, the exact local `ClaimNotSubmitted` rolls back that claim and
 ends mutation selection for this session. `queue.claim.not_submitted` is an

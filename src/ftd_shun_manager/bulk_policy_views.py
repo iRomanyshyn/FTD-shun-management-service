@@ -83,6 +83,9 @@ class BulkPolicyViews:
 
     @staticmethod
     def _entries(db, rows):
+        from .device_reconciliation import present as reconciliations_present
+        from .device_reconciliation import unresolved
+
         entries, metadata = [], {}
         attempts = db.execute("SELECT 1 FROM sqlite_master WHERE name='managed_bulk_attempts'").fetchone() is not None
         for row in rows:
@@ -105,12 +108,18 @@ class BulkPolicyViews:
                 EXISTS(SELECT 1 FROM operation_jobs j WHERE j.id=a.job_id) AS job_present
                 FROM managed_bulk_attempts a WHERE a.device_id=? AND a.ip=?
                 ORDER BY a.requested_at DESC,a.id DESC LIMIT 1''', pair).fetchone() if attempts else None
-            attention = attempts and db.execute("SELECT 1 FROM managed_bulk_attempts WHERE device_id=? AND ip=? AND state IN ('FAILED','UNVERIFIED') LIMIT 1", pair).fetchone() is not None
+            attention = attempts and db.execute("SELECT 1 FROM managed_bulk_attempts WHERE device_id=? AND ip=? AND state IN ('FAILED','UNVERIFIED') AND "
+                                                + unresolved(db, 'job_id') + ' LIMIT 1', pair).fetchone() is not None
+            reconciled = (db.execute('''SELECT r.recovered_at FROM managed_bulk_reconciled_jobs m
+                JOIN managed_bulk_device_recovery r ON r.id=m.recovery_id JOIN operation_jobs j ON j.id=m.job_id
+                WHERE j.device_id=? AND j.ip=? ORDER BY r.recovered_at DESC LIMIT 1''', pair).fetchone()
+                          if reconciliations_present(db) else None)
             verified = db.execute("SELECT MAX(completed_at) FROM managed_bulk_attempts WHERE device_id=? AND ip=? AND state='VERIFIED'", pair).fetchone()[0] if attempts else None
             pending = db.execute("SELECT COUNT(*) FROM operation_jobs WHERE device_id=? AND ip=? AND state IN ('QUEUED','RUNNING')", pair).fetchone()[0]
             entry.update(last_attempt_state=latest['state'] if latest else None,
                          last_attempt_generation=latest['generation'] if latest else None,
                          last_verified_application_at=verified, attention=bool(attention), pending_jobs=pending,
+                         unknown_reconciled_at=reconciled[0] if reconciled else None,
                          missing_unknown_job=bool(latest and latest['state'] == 'UNVERIFIED' and not latest['job_present']))
             entry['ip'] = str(IPv4Address(row['ip']))
             for field in ('enabled', 'device_enabled', 'observed_present', 'protected'):

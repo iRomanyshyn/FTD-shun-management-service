@@ -102,7 +102,7 @@ def _initialize(db):
 
 @lru_cache(maxsize=18)
 def _expected(cancellation=False, attempts=False, waits=False, dispatch=False, devices=False, ordered=False, promotions=False,
-              recovery=False):
+              recovery=False, reconciliation=False):
     with closing(sqlite3.connect(':memory:')) as db:
         db.execute('BEGIN')
         _initialize(db)
@@ -140,6 +140,10 @@ def _expected(cancellation=False, attempts=False, waits=False, dispatch=False, d
             from .device_recovery import DDL
 
             execute_schema(db, DDL)
+        if reconciliation:
+            from .device_reconciliation import DDL
+
+            execute_schema(db, DDL)
         return _objects(db)
 
 
@@ -159,10 +163,11 @@ def _state(db):
                   or table.startswith('managed_bulk_ordered_') for _, name, table, _ in objects)
     promotions = any(name.startswith('managed_bulk_ordered_promotion') for _, name, _, _ in objects)
     recovery = any(name.startswith('managed_bulk_device_recovery') for _, name, _, _ in objects)
+    reconciliation = any(name.startswith('managed_bulk_reconciled') for _, name, _, _ in objects)
     if ((attempts and not cancellation) or (waits and not attempts) or (dispatch and not waits)
             or (devices and not dispatch) or (ordered and not devices)
-            or (promotions and not ordered) or (recovery and not devices)
-            or objects != _expected(cancellation, attempts, waits, dispatch, devices, ordered, promotions, recovery)):
+            or (promotions and not ordered) or (recovery and not devices) or (reconciliation and not recovery)
+            or objects != _expected(cancellation, attempts, waits, dispatch, devices, ordered, promotions, recovery, reconciliation)):
         raise BulkUnavailable('Exact version-2 storage is required; legacy/partial/optional state was not converted.')
     row = db.execute('SELECT revision,restoration_suspended,format_version FROM managed_bulk_registry WHERE id=1').fetchone()
     if (row is None or type(row[0]) is not int or row[0] < 0 or row[2] != 2
@@ -225,6 +230,10 @@ def _state(db):
         from .device_recovery import validate as validate_recovery
 
         validate_recovery(db)
+    if reconciliation:
+        from .device_reconciliation import validate as validate_reconciliation
+
+        validate_reconciliation(db)
     return {'revision': row[0], 'restoration_suspended': bool(row[1])}
 
 
@@ -302,6 +311,8 @@ def _key_free(db, key):
 
 
 def _quiescent(db):
+    from .device_reconciliation import unresolved
+
     row = db.execute('SELECT owner,lease_until FROM operation_executor WHERE id=1').fetchone()
     if row is None or row[0] is not None or row[1] is not None:
         raise ManagedConflict('Settle the executor lease before offline bulk storage changes.')
@@ -309,7 +320,7 @@ def _quiescent(db):
 
     if devices_present(db) and db.execute("SELECT 1 FROM managed_bulk_device_executors WHERE state!='IDLE'").fetchone():
         raise ManagedConflict('Settle every device lease/attention before offline bulk storage changes.')
-    if db.execute("SELECT 1 FROM operation_jobs WHERE state IN ('QUEUED','RUNNING','UNVERIFIED') LIMIT 1").fetchone():
+    if db.execute("SELECT 1 FROM operation_jobs WHERE state IN ('QUEUED','RUNNING','UNVERIFIED') AND " + unresolved(db, 'id') + ' LIMIT 1').fetchone():
         raise ManagedConflict('Pending or uncertain work remains; bulk storage never resolves it.')
     from .bulk_attempts import present as attempts_present
     from .bulk_attempts import validate_held_jobs

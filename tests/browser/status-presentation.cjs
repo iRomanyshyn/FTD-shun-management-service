@@ -9,6 +9,58 @@ const initial = () => ({ refresh_schedule_mode: "per_device", refresh_enabled: t
   devices: { "1": { state: "ready", active: false, refresh_pending: false } }, device_cycles: {} });
 const timing = (baseline = 270, interactive = 30) => (key) => ({ baseline, interactive })[key] ?? null;
 
+test('reviewed historical unknowns do not warn or change an idle queue icon', () => {
+  const view = queuePresentation({ queue: { counts: { VERIFIED: 15, UNVERIFIED: 1 },
+    attention_counts: { FAILED: 0, UNVERIFIED: 0 }, reviewed_history: { total: 1, items: [] } } });
+  assert.equal(view.attention, false);
+  assert.equal(view.activity, 'idle');
+  assert.equal(view.badge, '');
+  assert.match(view.description, /0 need attention/);
+});
+
+test('a later unknown or failed operation still warns alongside reviewed history', () => {
+  const view = queuePresentation({ queue: { counts: { FAILED: 1, UNVERIFIED: 2 },
+    attention_counts: { FAILED: 1, UNVERIFIED: 1 }, reviewed_history: { total: 1, items: [] } } });
+  assert.equal(view.attention, true);
+  assert.equal(view.badge, '!2');
+});
+
+test('missing or inconsistent review metadata retains the original unknown warning', () => {
+  for (const metadata of [{}, { attention_counts: { FAILED: 0, UNVERIFIED: 0 } },
+      { attention_counts: { FAILED: 0, UNVERIFIED: 0 }, reviewed_history: { total: 0, items: [] } },
+      { attention_counts: { FAILED: 0, UNVERIFIED: -1 }, reviewed_history: { total: 2, items: [] } }]) {
+    assert.equal(queuePresentation({ queue: { counts: { UNVERIFIED: 1 }, ...metadata } }).attention, true);
+  }
+});
+
+test('storage retry displays automatic recovery instead of a misleading periodic timer', () => {
+  const status = { ...initial(), execution_recovery: { state: 'retrying', retry_at: 'interactive' } };
+  const view = refreshPresentation(status, timing());
+  assert.equal(view.phase, 'recovering');
+  assert.equal(view.activity, 'waiting');
+  assert.equal(view.attention, true);
+  assert.equal(view.timing, 'in 30s');
+  assert.match(view.description, /retrying automatically/);
+  assert.doesNotMatch(view.timing, /4m/);
+  const queue = queuePresentation({ ...status, queue: { counts: { QUEUED: 2 } } });
+  assert.equal(queue.attention, true);
+  assert.match(queue.description, /import is retained/);
+});
+
+test('stopped execution gives operator guidance without pretending monitoring continues', () => {
+  const status = { ...initial(), refresh_enabled: false, execution_recovery: { state: 'stopped',
+    operator_action: 'Inspect retained outcomes; do not cancel or reimport.' } };
+  const view = refreshPresentation(status, timing());
+  assert.equal(view.phase, 'stopped');
+  assert.equal(view.activity, 'paused');
+  assert.match(view.timing, /no refresh is scheduled/);
+  assert.match(view.timingHelp, /do not cancel or reimport/);
+  const queue = queuePresentation(status);
+  assert.equal(queue.activity, 'paused');
+  assert.equal(queue.attention, true);
+  assert.doesNotMatch(queue.description, /monitoring continues/);
+});
+
 test('staged additions are device work; their group observation is a real read phase', () => {
   const status = { ...initial(), refresh_in_progress: true, active_device_count: 1,
     devices: { '1': { state: 'refreshing', active: true } },

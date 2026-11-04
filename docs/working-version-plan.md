@@ -14,6 +14,13 @@ under current managed intent after actual settlement, separately from unknown
 writes. Existing verified-managed disappearance restoration remains available.
 Do not claim cross-session first-confirmation/retry is implemented yet.
 
+The later explicit quiescent reconciliation supplies reviewed recovery of an
+existing unknown managed ADD epoch after all original executors are stopped.
+It preserves old unknown outcomes and requires a new complete read before
+current managed intent can produce a fresh attempt. This is not automatic
+cross-session first confirmation or retry without a reviewed quiescence decision.
+The same original lab import resumed on matching v5; see current status/log.
+
 Next delivery slice for the requested import-completion model:
 
 1. Retain acknowledged-but-unconfirmed additions durably, bound to the original

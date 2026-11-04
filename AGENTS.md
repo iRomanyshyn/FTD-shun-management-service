@@ -42,9 +42,76 @@ invent successful results, alter credentials/trust or silently erase the dataset
   decision; publishing a release/tag still requires the operator's request.
   Follow [Versioning](docs/manual/versioning.md). Core security applies now too.
 
-## Current laboratory runtime — updated 2026-11-03
+## Current laboratory runtime — updated 2026-11-04
 
-Latest checkpoint: the proposed shared-final v5 increment is **not deployed**.
+Latest API/Web `7a005907d019...` / `b86fac92f284...` now separate validated
+reviewed queue history from real unresolved attention. Raw UNVERIFIED=1 and its
+original outcome remain; unresolved attention is zero, reviewed history one.
+No new reconciliation, DDL, authority, replay or device command was submitted
+by this presentation update. Old API/Web exited 0; stopped IDLE epoch 2472,
+integrity ok, all nine original fingerprints unchanged. Agent stays
+`e2d0128319c2` / `d972adf099df...`. Current containers API `15830248969b`, Web
+`f42288374e68`; rollback tags `ftd-shun-{api,web}:lab-pre-reviewed-history-20261104`.
+Full Python 3194 and browser 82 checks pass; BFF zero-attention/retained-history,
+source-matching assets and Web 200/anonymous 401 checked. At 11:17:15Z original
+import 13,168/32,425 VERIFIED, normal epoch 2474 active/LEASED, no new unknown/
+ATTENTION, integrity ok and all nine fingerprints unchanged. Old open pages need
+one reload. Later unknowns still warn; no old receipt suppresses them. Follow
+docs/manual/operation-queue.md and retain all three lab overlays/current DB.
+
+Latest API/Web `639135b3f440...` / `7e10ec88e7b5...` add evidence-scoped automatic
+retry of local scheduling SQLITE_BUSY (5–60s capped backoff) and visible recovery/
+stopped guidance. The old coordinator stopped at IDLE epoch 2423 after SQLite
+contention, leaving the original import at 12,582/32,425 VERIFIED with no new
+unknowns. API/Web actually exited 0 before replacement; stopped DB integrity and
+all nine original authority/protection/inventory/recovery fingerprints unchanged.
+Agent remains `e2d0128319c2` / `d972adf099df...`; gates/secrets/networks unchanged.
+At 10:09:55Z new runtime reports running and a fresh read, original rolling queue
+refilled to 16, but new write acceptance is still being observed. Keep the original
+task and reviewed historical unknown; do not reset/reimport or reuse old receipts.
+Rollback tags `ftd-shun-{api,web}:lab-pre-storage-retry-20261104` are compatible with
+the current optional reconciliation profile. Full Python 3190, final focused
+classification 10 and browser 78 checks pass. Follow docs/manual/execution-recovery.md:
+only coordinator-local numeric BUSY retries; unknown RPCs/results and non-BUSY
+storage/profile failures retain existing holds and operator review.
+Bounded post-update acceptance now confirms read-only epoch 2424 and write epoch
+2425 with 14 VERIFIED ADDs and actual settlement. At 10:12:02Z original task
+12,596/32,425, integrity ok, all nine fingerprints unchanged, no new unknown or
+ATTENTION; normal epoch 2426 active/LEASED, not global idleness. BFF recovery
+metadata and shipped asset checked; retry tests are synthetic, not an induced
+live storage lock or arbitrary unknown recovery.
+
+Latest runtime: profile-aware API `517de8921634...`, Web `45392bd7edec...` and
+shared-final v5 agent `d972adf099df...` are now deployed with all three lab
+overlays. At 18:20:30.926Z, after actual API/Web/agent exit 0 and a checked
+exclusive backup, new decision `e73e4081-5c21-44cb-a3fc-6c9cce80e3bc` reconciled
+only original ATTENTION epoch 2060. Its nine original claims and one unknown
+are retained; no old job/attempt was replayed or relabelled, original policy/
+protection/inventory and old recovery receipts unchanged. The new optional
+`managed_bulk_reconciled_jobs` profile binds that exact unknown to this decision.
+Next work requires a complete read strictly after the receipt and all current
+root/protection/backoff checks; later unknowns still block. Old DB writers refuse
+this profile. Do not use an old image or restore stale authority to undo it.
+The private archive is `quiescent-reconciliation-20261103-epoch2060/before-reconciliation.db`.
+3170 full Python checks, 53 final focused checks and 75 browser tests pass;
+actual-dataset rehearsal passed before activation. Read-only startup epoch 2061
+and complete write epochs 2062–2064 settled; 14 VERIFIED each, 42 in 258.069s
+(9.76/min excluding startup, 9.28 including). Native v5 visits use two complete
+reads rather than four. Prior small v4 sample was 8.18/min; this is a bounded
+unpaired gain, not whole-list/production acceptance. At 18:26:45Z task
+7,587/32,425, one old reviewed UNVERIFIED retained, no new unknowns/ATTENTION,
+integrity ok and eight original policy/protection/inventory hashes unchanged.
+Normal epoch 2065 active, not globally idle; status 0.729s. Batch size is dynamic.
+Later complete first-five sample (2062–2066): 14 VERIFIED each, 70 in 429.536s
+(9.78/minute including gaps). At 18:28:36Z task 7,615/32,425, no new unknown/
+ATTENTION, integrity ok/eight hashes unchanged, normal epoch 2067 active, status
+1.056s. The reviewed pair's new job `30caf7ae-3cb2-5ee4-96bb-b9fc7c1d6eaa`
+became VERIFIED at 18:26:58.233Z from a post-receipt read; its predecessor remains
+UNVERIFIED and expired/cancelled. Do not relabel that old outcome or reuse keys.
+Follow docs/manual/quiescent-managed-reconciliation.md, preserving original
+unknown history and the receipt; never reuse this key to release a later epoch.
+
+Historical pre-rollout checkpoint: shared-final v5 was **not yet deployed**.
 During validation the old API/agent independently entered ATTENTION epoch 2060:
 one ADD `db174cf8-3496-53d8-aa78-1096bc39b251` is UNVERIFIED. Agent diagnostics
 show eight preceding ADDs/group read and an EAGAIN idle receive failure, with an

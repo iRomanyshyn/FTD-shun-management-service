@@ -87,11 +87,12 @@ def _digest(db):
     return digest.hexdigest()
 
 
-def _review(db, store, device_id, current):
+def _review(db, store, device_id, current, *, reconcile=False):
     from .bulk_ordered_waits import held_count, validate_held_predecessors
     from .bulk_ordered_waits import present as ordered_present
     from .bulk_waits import present as waits_present
     from .bulk_waits import validate_pending
+    from .device_reconciliation import unresolved
     from .managed_restoration import attempt_for_job, validate_binding
 
     if type(device_id) is not int or not 1 <= device_id <= 65535:
@@ -106,8 +107,11 @@ def _review(db, store, device_id, current):
             or not fence['lease_until'] < fence['updated_at'] < stamp(current)):
         raise ValueError('An exact expired ATTENTION epoch is required.')
     if (db.execute("SELECT 1 FROM managed_bulk_device_executors WHERE device_id!=? AND state!='IDLE'", (device_id,)).fetchone()
-            or db.execute("SELECT 1 FROM operation_jobs WHERE state IN ('QUEUED','RUNNING','UNVERIFIED','RECONCILED_ABSENT')").fetchone()
-            or db.execute("SELECT 1 FROM managed_bulk_attempts WHERE device_id=? AND state IN ('FAILED','UNVERIFIED')", (device_id,)).fetchone()):
+            or db.execute("SELECT 1 FROM operation_jobs WHERE state IN ('QUEUED','RUNNING','RECONCILED_ABSENT')").fetchone()
+            or (not reconcile and db.execute("SELECT 1 FROM operation_jobs WHERE state='UNVERIFIED' AND " + unresolved(db, 'id')).fetchone())
+            or db.execute("SELECT 1 FROM managed_bulk_attempts WHERE device_id=? AND state='FAILED'", (device_id,)).fetchone()
+            or (not reconcile and db.execute("SELECT 1 FROM managed_bulk_attempts WHERE device_id=? AND state='UNVERIFIED' AND "
+                                             + unresolved(db, 'job_id'), (device_id,)).fetchone())):
         raise ValueError('Pending, uncertain, failed or other owned device work prevents recovery.')
     if waits_present(db) and validate_pending(db):
         raise ValueError('Captured cancellation remains unsettled.')
@@ -127,12 +131,21 @@ def _review(db, store, device_id, current):
     events = db.execute("""SELECT id,event_type,timestamp,details_json FROM shun_events WHERE device_id=?
         AND json_extract(details_json,'$.device_executor.owner')=?
         AND json_extract(details_json,'$.device_executor.epoch')=? ORDER BY timestamp,id""", scope).fetchall()
-    claims, terminal = {}, {}
+    claims, terminal, diagnostics = {}, {}, {}
     for event in events:
         details = json.loads(event['details_json'])
         job_id = details['operation_id']
+        if reconcile and event['event_type'] == 'SHUN_ADD_FAILED':
+            if (job_id in diagnostics or details.get('action') != 'ADD' or details.get('outcome') != 'UNVERIFIED'
+                    or not openings[0][0] <= event['timestamp'] <= fence['updated_at']):
+                raise ValueError('Unknown ADD diagnostic audit is duplicated or inconsistent.')
+            diagnostics[job_id] = dict(event)
+            continue
         target = claims if event['event_type'] == 'SHUN_OPERATION_RUNNING' else terminal
-        if (event['event_type'] not in {'SHUN_OPERATION_RUNNING', 'SHUN_OPERATION_VERIFIED', 'SHUN_OPERATION_NOOP'}
+        permitted = {'SHUN_OPERATION_RUNNING', 'SHUN_OPERATION_VERIFIED', 'SHUN_OPERATION_NOOP'}
+        if reconcile:
+            permitted.add('SHUN_OPERATION_UNVERIFIED')
+        if (event['event_type'] not in permitted
                 or job_id in target or not openings[0][0] <= event['timestamp'] <= fence['updated_at']):
             raise ValueError('Original epoch has unknown, duplicated or inconsistent claim results.')
         target[job_id] = dict(event)
@@ -146,7 +159,8 @@ def _review(db, store, device_id, current):
     for key, claim in sorted(claims.items()):
         job = db.execute('SELECT * FROM operation_jobs WHERE id=?', (key,)).fetchone()
         result = terminal[key]
-        if (job is None or job['state'] not in {'VERIFIED', 'NOOP'} or job['device_id'] != device_id
+        if (job is None or job['state'] not in ({'VERIFIED', 'NOOP', 'UNVERIFIED'} if reconcile else {'VERIFIED', 'NOOP'})
+                or job['device_id'] != device_id or (reconcile and job['action'] != 'ADD')
                 or result['event_type'] != 'SHUN_OPERATION_' + job['state']
                 or not openings[0][0] <= job['started_at'] <= claim['timestamp'] <= job['completed_at'] <= result['timestamp']
                 or any(json.loads(event['details_json']).get('action') != job['action'] for event in (claim, result))):
@@ -156,11 +170,21 @@ def _review(db, store, device_id, current):
             validate_binding(db, attempt, job)
             if attempt['completed_at'] != job['completed_at']:
                 raise ValueError('Original attempt and verified job disagree.')
+            if reconcile and db.execute('SELECT state FROM operation_requests WHERE id=?', (attempt['id'],)).fetchone()[0] != 'CANCELLED':
+                raise ValueError('Original terminal system request must remain revoked, never renewed.')
         elif job['action'] == 'ADD':
             raise ValueError('A held ADD requires its retained system attempt evidence.')
         evidence.append({'job_id': key, 'action': job['action'], 'state': job['state'],
                          'running_event_id': claim['id'], 'terminal_event_id': result['id'],
                          'evidence_digest': hashlib.sha256(repr((tuple(job), tuple(attempt) if attempt else None)).encode()).hexdigest()})
+    if reconcile:
+        unknown = {entry['job_id'] for entry in evidence if entry['state'] == 'UNVERIFIED'}
+        retained = {row[0] for row in db.execute("SELECT id FROM operation_jobs WHERE state='UNVERIFIED' AND " + unresolved(db, 'id'))}
+        attempts = {row[0] for row in db.execute("SELECT job_id FROM managed_bulk_attempts WHERE state='UNVERIFIED' AND " + unresolved(db, 'job_id'))}
+        if not unknown or unknown != retained or unknown != attempts:
+            raise ValueError('Reconcile the exact whole held ADD scope; foreign or missing uncertainty is not covered.')
+        if set(diagnostics) != unknown or any(diagnostics[key]['timestamp'] < terminal[key]['timestamp'] for key in unknown):
+            raise ValueError('Original unknown ADD diagnostic audit is missing or inconsistent.')
     return {'device_id': device_id, 'epoch': fence['epoch'], 'claims': evidence, 'original_fence': dict(fence)}
 
 

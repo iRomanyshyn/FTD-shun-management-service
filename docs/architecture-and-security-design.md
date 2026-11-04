@@ -6034,6 +6034,36 @@ the existing serialized/timeout/backoff loop; polling never submits device hints
 Frozen forms, revisions, identity/CSRF, backend timing, dispatch, held evidence and
 unknown-write recovery remain unchanged. No new API, protocol, setting or schema.
 
+### Offline quiescent managed-ADD reconciliation — 2026-11-03
+
+Provide a separate explicit trusted-host reconciliation for an expired ATTENTION
+device epoch containing 1–16 retained system managed ADD claims, with at least
+one UNVERIFIED result and all others VERIFIED/NOOP. This is not verified-epoch
+recovery. Require actual API/Web/agent shutdown, a fresh whole-database review,
+checked exclusive backup, exact original claim/terminal/job/attempt/request
+bindings, original standing roots and no pending work, foreign uncertainty,
+failed attempts or cleanup. The operator's offline assertion proves executor
+quiescence only; it never proves the original ADD's outcome.
+
+Keep every original job/attempt UNVERIFIED and all old audit, authority, desired
+policy and protection unchanged. Install an explicitly compatible optional
+immutable ledger binding only those exact unknown jobs/attempts and their
+digests to a new recovery receipt. Only this whole-scope transaction can release
+that original device epoch. Original-key replay is historical and cannot release
+a successor. Raw unknown work without its exact valid receipt still blocks.
+Old writers must refuse the optional profile; no startup/GET creates or recovers it.
+
+After restart require a complete read started strictly after the new receipt.
+Current presence is observational, never old creation proof; current absence may
+admit a NEW managed attempt under unchanged current consent/protection/backoff,
+never requeue or relabel the old job or renew its delegation. Cancellation and
+retired/protected targets remain retired. All normal current-root, claim, lease,
+priority and verification checks apply. Keep reviewed uncertainty visible as
+historical unknown, separately from an unresolved executor hold. This deliberate
+offline desired-state decision supersedes the blanket device-wide old-unknown
+barrier only for its receipt-bound system ADDs, not arbitrary uncertain commands,
+manual ADD/REMOVE, FAILED work, crashes without quiescence or automatic replay.
+
 ### Larger import groups and a shared terminal observation — 2026-11-03
 
 The operator requests larger import batches and reuse of complete observations.
@@ -6063,3 +6093,42 @@ later complete observation proves disappearance. Deferring first confirmation
 across sessions, and retrying an ACKed but missing first verification, need a
 separate durable known-absence/settlement contract; they are not implemented by
 this increment. Never replay an unknown ADD or erase its fence to finish a list.
+
+### Evidence-scoped execution recovery — 2026-11-04
+
+The running continuous coordinator retries local scheduling only when SQLite
+reports an OperationalError with numeric base code SQLITE_BUSY (including its
+extended codes). Backoff is 5, 10, 20, 40, then at most every 60 seconds until a
+successful validated pass or orderly stop. Browser demand stays coalesced and
+cannot shorten backoff. Active device tasks retain their original session,
+epoch, command/time bounds, result persistence and settlement; no RPC or unknown
+operation is replayed. Each scheduling retry rechecks current full profiles,
+controls, authority and eligibility rather than caching an earlier decision.
+
+Do not extend this retry wrapper to worker claims, result persistence, arbitrary
+exceptions, SQLITE_LOCKED, corruption or I/O errors. Non-BUSY storage/validation
+failures retain stop-and-drain behavior. Exactly evidenced opening/read recovery
+and reviewed offline held-epoch procedures keep their separate existing limits.
+No startup/GET/browser button repairs evidence, resets a fence, renews authority
+or retroactively verifies an operation. Status/Queue distinguish automatic retry
+and its eligibility from stopped execution requiring operator inspection. Never
+show an unrelated periodic countdown as recovery progress or require cancelling
+an intact import to resume. No schema, new public mutation endpoint or device
+protocol change accompanies this scheduling-only recovery.
+
+### Queue attention versus reviewed history — 2026-11-04
+
+Queue attention counters, warning and badge must exclude only historical unknown
+jobs bound to an exactly validated existing quiescent-reconciliation receipt.
+Validate the complete existing optional profile before computing this read-only
+projection. Retain raw outcome counts and unchanged UNVERIFIED jobs/attempts/audit;
+neither a later success nor current presence retroactively verifies the original.
+Expose separate bounded unresolved and reviewed-history groups from the same
+SQLite snapshot. Display reviewed records in a quiet collapsed history with
+original outcome/reason and review time, not in Needs attention or as successful
+jobs. New/unrelated unknowns and FAILED operations still demand attention;
+missing/malformed profile evidence must refuse or conservatively retain warnings.
+Older API metadata defaults to raw warning counts, never assumes resolution.
+Keep real unresolved cases above long queue/progress lists. This is presentation
+only: no acknowledgment, recovery decision, fence release, job replay, new schema,
+authority or device operation is caused by a GET or rendered history.

@@ -6,7 +6,7 @@ from .bulk_policy import BulkUnavailable
 _COUNTS = '''WITH attempts AS (
     SELECT authorization_request_id,device_id,ip,intent_id,generation,
         MAX(state='VERIFIED') AS verified,MAX(state='NOOP') AS noop,
-        MAX(state='UNVERIFIED') AS uncertain,MAX(state='FAILED') AS failed,
+        MAX(state='UNVERIFIED' AND {unresolved}) AS uncertain,MAX(state='FAILED') AS failed,
         MAX(state='RUNNING') AS running,MAX(state='QUEUED') AS queued
     FROM managed_bulk_attempts GROUP BY authorization_request_id,device_id,ip,intent_id,generation
 ), scope AS (
@@ -42,8 +42,10 @@ def import_progress(db):
     """
     if not db.in_transaction:
         raise ValueError('Import progress requires a consistent validated snapshot.')
+    from .device_reconciliation import unresolved
+
     counts = {}
-    for key, outcome, count in db.execute(_COUNTS):
+    for key, outcome, count in db.execute(_COUNTS.format(unresolved=unresolved(db, 'job_id'))):
         counts.setdefault(key, {})[outcome] = count
     tasks = []
     for row in db.execute('''SELECT m.id,m.payload_digest,m.accepted_count,m.pair_count,

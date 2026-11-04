@@ -87,6 +87,8 @@ def _authority_valid(db, attempt, now, state):
         raise ValueError('Validated authority checks require a caller-owned transaction.')
     if state is None or not present(db) or state['restoration_suspended'] or mutations_suspended(db):
         return False
+    from .device_leases import device_uncertain
+    from .device_reconciliation import unresolved
     from .device_recovery import fresh_after_recovery
 
     if not fresh_after_recovery(db, attempt['device_id'], attempt['snapshot_started_at']):
@@ -107,15 +109,12 @@ def _authority_valid(db, attempt, now, state):
             or db.execute('SELECT 1 FROM protected_ips WHERE ip=? AND enabled=1', (attempt['ip'],)).fetchone()
             or db.execute('SELECT 1 FROM shun_state WHERE device_id=? AND ip=? AND active=1',
                           (attempt['device_id'], attempt['ip'])).fetchone()
-            or db.execute("SELECT 1 FROM operation_jobs WHERE device_id=? AND state IN ('UNVERIFIED','RECONCILED_ABSENT')",
-                          (attempt['device_id'],)).fetchone()
-            or db.execute("SELECT 1 FROM managed_bulk_attempts WHERE device_id=? AND state='UNVERIFIED'",
-                          (attempt['device_id'],)).fetchone()
+            or device_uncertain(db, attempt['device_id'])
             or db.execute('''SELECT 1 FROM managed_bulk_attempts WHERE device_id=? AND ip=?
-                AND id!=? AND state IN ('QUEUED','RUNNING','FAILED','UNVERIFIED')''',
+                AND id!=? AND state IN ('QUEUED','RUNNING','FAILED','UNVERIFIED') AND ''' + unresolved(db, 'job_id'),
                 (attempt['device_id'], attempt['ip'], attempt['id'])).fetchone()
             or db.execute('''SELECT 1 FROM operation_jobs WHERE device_id=? AND ip=? AND id!=?
-                AND state IN ('QUEUED','RUNNING','UNVERIFIED')''',
+                AND state IN ('QUEUED','RUNNING','UNVERIFIED') AND ''' + unresolved(db, 'id'),
                 (attempt['device_id'], attempt['ip'], attempt['job_id'])).fetchone()
             or db.execute('''SELECT 1 FROM operation_jobs j WHERE device_id=? AND ip=? AND id!=? AND action='ADD'
                 AND NOT EXISTS(SELECT 1 FROM managed_bulk_attempts a WHERE a.job_id=j.id)''',

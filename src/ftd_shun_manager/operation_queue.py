@@ -882,16 +882,31 @@ class OperationQueue:
             counts = {row["state"]: row["n"] for row in db.execute(
                 "SELECT state,COUNT(*) AS n FROM operation_jobs GROUP BY state"
             )}
+            from .device_reconciliation import present as reconciliation_present
+            from .device_reconciliation import unresolved
+
+            # _state above validates every original job/attempt/receipt binding.
+            # Keep raw outcomes intact; only reviewed history leaves attention.
+            reviewed = bulk and reconciliation_present(db)
+            attention_filter = unresolved(db, 'j.id') if reviewed else '1'
+            reviewed_count = db.execute('SELECT COUNT(*) FROM managed_bulk_reconciled_jobs').fetchone()[0] if reviewed else 0
+            attention_counts = {'FAILED': counts.get('FAILED', 0),
+                                'UNVERIFIED': counts.get('UNVERIFIED', 0) - reviewed_count}
             base = "SELECT j.*,d.hostname FROM operation_jobs j JOIN devices d ON d.id=j.device_id "
             rows = db.execute(base + """WHERE j.state IN ('QUEUED','RUNNING')
                 ORDER BY CASE WHEN j.state='RUNNING' THEN 0 ELSE 1 END,j.seq LIMIT 100""").fetchall()
-            rows += db.execute(base + """WHERE j.state IN ('FAILED','UNVERIFIED')
+            rows += db.execute(base + f"""WHERE j.state IN ('FAILED','UNVERIFIED') AND {attention_filter}
                 ORDER BY j.completed_at DESC,j.seq DESC LIMIT 20""").fetchall()
             rows += db.execute(base + """WHERE j.state IN ('VERIFIED','NOOP','CANCELLED','RECONCILED_ABSENT')
                 ORDER BY j.completed_at DESC,j.seq DESC LIMIT 20""").fetchall()
-            jobs = []
+            review_rows = db.execute("""SELECT j.*,d.hostname,r.recovered_at AS reviewed_at,r.id AS review_id
+                FROM managed_bulk_reconciled_jobs m JOIN operation_jobs j ON j.id=m.job_id
+                JOIN devices d ON d.id=j.device_id JOIN managed_bulk_device_recovery r ON r.id=m.recovery_id
+                ORDER BY r.recovered_at DESC,j.seq DESC LIMIT 20""").fetchall() if reviewed else []
+            review_ids = {row['id'] for row in review_rows}
+            jobs, reviewed_jobs = [], []
             target_counts = {}
-            for row in rows:
+            for row in rows + review_rows:
                 restoration = (db.execute('SELECT * FROM managed_bulk_attempts WHERE job_id=?', (row['id'],)).fetchone()
                                if bulk else attempt_for_job(db, row["id"]))
                 query = """SELECT r.id,r.actor_subject,r.actor_display_name,r.source,r.state,r.expires_at
@@ -921,10 +936,11 @@ class OperationQueue:
                 if (row["action"] == "ADD" and row["state"] == "QUEUED"
                         and row["device_id"] in addition_device_ids and reason == "ADD execution is not enabled"):
                     reason = None  # Legacy placeholder, not a real deferral/error.
-                jobs.append({**dict(row), "ip": str(IPv4Address(row["ip"])), "reason": reason,
-                             "execution_enabled": _system_enabled(db, restoration, managed_restoration_enabled, bulk_dispatch_enabled)
-                             and (row["action"] == "REMOVE" or row["device_id"] in addition_device_ids),
-                             "request_count": request_count, "requests": request_views})
+                view = {**dict(row), "ip": str(IPv4Address(row["ip"])), "reason": reason,
+                        "execution_enabled": _system_enabled(db, restoration, managed_restoration_enabled, bulk_dispatch_enabled)
+                        and (row["action"] == "REMOVE" or row["device_id"] in addition_device_ids),
+                        "request_count": request_count, "requests": request_views}
+                (reviewed_jobs if row['id'] in review_ids else jobs).append(view)
             progress_filter = """FROM operation_requests r JOIN operation_links l ON l.request_id=r.id
                 JOIN operation_jobs j ON j.id=l.job_id
                 WHERE r.state='ACTIVE' AND j.state IN ('QUEUED','RUNNING')"""
@@ -953,6 +969,8 @@ class OperationQueue:
         return {"revision": executor["revision"], "next_eligible_at": executor["next_eligible_at"],
                 "mutations_suspended": bool(executor["mutations_suspended"]),
                 "counts": counts, "items": jobs,
+                "attention_counts": attention_counts,
+                "reviewed_history": {"total": reviewed_count, "items": reviewed_jobs, "limit": 20},
                 "display_limits": {"active": 100, "attention": 20, "completed": 20},
                 "add_execution_enabled": bool(addition_device_ids),
                 "imports": imports,

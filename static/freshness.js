@@ -17,6 +17,17 @@
   };
   const count = (value) => Number.isSafeInteger(value) && value >= 0 ? value : 0;
   const compactCount = (value) => value > 99 ? "99+" : String(value);
+  const queueAttentionCounts = (queue) => {
+    const raw = queue.counts || {}, attention = queue.attention_counts, reviewed = queue.reviewed_history;
+    // Older/malformed metadata must not hide unresolved outcomes. The API
+    // supplies this projection only after validating original review evidence.
+    if (!attention || !reviewed || !Array.isArray(reviewed.items)
+        || !Number.isSafeInteger(reviewed.total) || reviewed.total < 0
+        || !Number.isSafeInteger(attention.FAILED) || attention.FAILED !== count(raw.FAILED)
+        || !Number.isSafeInteger(attention.UNVERIFIED) || attention.UNVERIFIED < 0
+        || attention.UNVERIFIED + reviewed.total !== count(raw.UNVERIFIED)) return raw;
+    return attention;
+  };
   // Presentation only: deadlines indicate eligibility, never completed device
   // reads. Keep requested reads separate from the periodic fallback schedule.
   const refreshPresentation = (status, remaining, requesting = false, localError = "") => {
@@ -36,6 +47,7 @@
       device.last_error || device.stale || ["error", "stale", "pending"].includes(device.state)));
     const cooldown = remaining(status.next_interactive_refresh);
     const baseline = remaining(status.next_baseline_refresh);
+    const recovery = status.execution_recovery;
     const result = { activity: "idle", attention, pending, badge: "", phase: "idle",
       summary: devices.length ? "Observations current" : "No enabled devices",
       timingLabel: "Next periodic check", timing: baseline === null ? "not scheduled"
@@ -44,6 +56,17 @@
     if (requesting) {
       Object.assign(result, { activity: "waiting", phase: "requesting", summary: "Sending refresh request…",
         timingLabel: "Requested refresh", timing: "sending request…" });
+    } else if (recovery?.state === "retrying") {
+      const retry = remaining(recovery.retry_at);
+      Object.assign(result, { activity: working ? "busy" : "waiting", phase: "recovering", attention: true,
+        summary: "Storage busy · retrying automatically", timingLabel: "Scheduling retry",
+        timing: retry > 0 ? `in ${duration(retry)}` : "waiting for storage availability",
+        badge: retry > 0 ? duration(retry) : "…",
+        timingHelp: "The import is retained. Scheduling retries automatically; unknown device operations are not replayed." });
+    } else if (recovery?.state === "stopped") {
+      Object.assign(result, { activity: "paused", phase: "stopped", attention: true,
+        summary: "Device execution stopped · operator action needed", timingLabel: "Automatic execution",
+        timing: "stopped; no refresh is scheduled", timingHelp: recovery.operator_action || "Inspect service logs and retained device outcomes before restarting." });
     } else if (pending && reading) {
       Object.assign(result, { activity: "busy", phase: "reading", summary: "Requested refresh in progress…",
         timingLabel: "Requested refresh", timing: "checking device information…" });
@@ -64,7 +87,7 @@
     if (attention && result.phase === "idle") result.summary = "Device information needs attention";
     if (localError) result.timingHelp = "Timings are last reported. Check the warning; elapsed time does not confirm a successful refresh.";
     result.description = `${result.summary}. ${pending ? `${pending} device refresh request(s) pending. ` : ""}`
-      + (attention ? `Needs attention. ${localError || status.last_error || "Check device details."}` : "");
+      + (result.attention ? `Needs attention. ${localError || status.last_error || "Check device details."}` : "");
     return result;
   };
   const queuePresentation = (status, submitting = false, localError = "") => {
@@ -74,12 +97,16 @@
     const importWaiting = (imports?.tasks || []).some((task) => count(task.outstanding));
     const deviceError = Boolean((running || queued || importWaiting)
       && Object.values(status.devices || {}).some((device) => device.state === 'error' || device.last_error));
-    const attention = Math.max(count(counts.FAILED) + count(counts.UNVERIFIED),
+    const attentionCounts = queueAttentionCounts(status.queue || {});
+    const attention = Math.max(count(attentionCounts.FAILED) + count(attentionCounts.UNVERIFIED),
       (imports?.tasks || []).reduce((sum, task) => sum + count(task.attention), 0));
     const paused = status.queue?.mutations_suspended === true;
-    const problem = Boolean(attention || deviceError || paused || localError || status.managed_removal_worker_error || status.managed_restoration_error);
+    const recovery = status.execution_recovery;
+    const stopped = recovery?.state === 'stopped';
+    const problem = Boolean(attention || deviceError || paused || stopped || recovery?.state === 'retrying'
+      || localError || status.managed_removal_worker_error || status.managed_restoration_error);
     const total = running + queued;
-    return { activity: running ? "busy" : paused ? "paused" : queued || submitting || importWaiting ? "waiting" : "idle",
+    return { activity: running ? "busy" : paused || stopped ? "paused" : queued || submitting || importWaiting ? "waiting" : "idle",
       attention: problem,
       badge: [total ? compactCount(total) : submitting || importWaiting ? "…" : paused ? "Paused" : "",
         attention ? `!${compactCount(attention)}` : problem ? "!" : ""].filter(Boolean).join(" · "),
@@ -87,6 +114,8 @@
         + (importWaiting ? ' An import has addresses waiting for rolling dispatch.' : '')
         + (deviceError ? ' Some device work needs attention; open Status. Healthy devices can continue.' : '')
         + (paused ? " Device mutations are paused; monitoring continues." : "")
+        + (recovery?.state === 'retrying' ? " Storage is busy; scheduling retries automatically. The import is retained." : "")
+        + (stopped ? ` Execution stopped. ${recovery.operator_action || 'Open Status for operator instructions.'}` : "")
         + (submitting ? " Submitting operation; acceptance is not verified success." : "")
         + (localError ? ` ${localError}` : "")
         + (status.managed_removal_worker_error ? ` ${status.managed_removal_worker_error}` : "")
@@ -99,7 +128,7 @@
     : error?.message || 'Refresh is temporarily unavailable. Retrying automatically.';
 
   if (typeof module !== "undefined" && module.exports && typeof document === "undefined") {
-    module.exports = { refreshPresentation, queuePresentation, failureText };
+    module.exports = { refreshPresentation, queuePresentation, failureText, queueAttentionCounts };
     return;
   }
   const parseStatus = (value) => {
@@ -476,6 +505,10 @@
           : "";
       }
       const counts = queue.counts || {};
+      const attentionCounts = queueAttentionCounts(queue);
+      const reviewedHistory = attentionCounts === queue.attention_counts ? queue.reviewed_history : null;
+      const reviewedItems = (reviewedHistory?.items || []).slice(0, 20);
+      const reviewedIds = new Set(reviewedItems.map((item) => item.id));
       const activeStates = new Set(["QUEUED", "RUNNING"]);
       const attentionStates = new Set(["FAILED", "UNVERIFIED"]);
       const completedStates = new Set(["VERIFIED", "NOOP", "CANCELLED", "RECONCILED_ABSENT"]);
@@ -485,7 +518,7 @@
       const completedItems = items.filter((item) => completedStates.has(item.state)).slice(0, 20);
       const totalFor = (states) => [...states].reduce((sum, state) => sum + (counts[state] || 0), 0);
       const activeTotal = totalFor(activeStates);
-      const attentionTotal = totalFor(attentionStates);
+      const attentionTotal = [...attentionStates].reduce((sum, state) => sum + (attentionCounts[state] || 0), 0);
       const completedTotal = totalFor(completedStates);
       paintMenu("#queue-menu", queuePresentation(status, Boolean(actionPending), errorMessage || actionError));
       const queueWarning = panel.querySelector("[data-queue-warning]");
@@ -515,7 +548,7 @@
       if (attentionSection) {
         attentionSection.hidden = !attentionTotal;
         panel.querySelector("[data-queue-attention-summary]").textContent =
-          `${counts.FAILED || 0} failed; ${counts.UNVERIFIED || 0} unverified. `
+          `${attentionCounts.FAILED || 0} failed; ${attentionCounts.UNVERIFIED || 0} unverified. `
           + `Showing the latest ${attentionItems.length} of ${attentionTotal}. Unverified writes are not automatically retried.`;
       }
       const results = panel.querySelector("#queue-results-details");
@@ -527,24 +560,35 @@
           + `${counts.VERIFIED || 0} verified; ${counts.NOOP || 0} no-op; `
           + `${counts.CANCELLED || 0} cancelled; ${counts.RECONCILED_ABSENT || 0} reconciled absent.`;
       }
+      const reviewedSection = panel.querySelector('#queue-reviewed-details');
+      const reviewedRows = panel.querySelector('[data-queue-reviewed]');
+      if (reviewedSection) {
+        reviewedSection.hidden = !reviewedHistory?.total;
+        panel.querySelector('[data-queue-reviewed-summary]').textContent = `Reviewed history (${reviewedHistory?.total || 0})`;
+        panel.querySelector('[data-queue-reviewed-note]').textContent =
+          `Showing ${reviewedItems.length} of ${reviewedHistory?.total || 0} reviewed historical operations. `
+          + 'No action is needed for these records. Original unknown outcomes are retained; later results are separate.';
+      }
       // Preserve native indeterminate animation (and focused cancellation
       // controls) when only unrelated freshness/phase metadata changes.
-      const rowSignature = stableSignature([items, panel.dataset.operator, panel.dataset.subject, panel.dataset.administrator]);
+      const rowSignature = stableSignature([items, reviewedItems, panel.dataset.operator, panel.dataset.subject, panel.dataset.administrator]);
       if (queueRows.dataset.signature === rowSignature) return;
       queueRows.dataset.signature = rowSignature;
       queueRows.replaceChildren();
       attentionRows?.replaceChildren();
       completedRows?.replaceChildren();
-      [...activeItems, ...attentionItems, ...completedItems].forEach((item) => {
+      reviewedRows?.replaceChildren();
+      [...activeItems, ...attentionItems, ...completedItems, ...reviewedItems].forEach((item) => {
         const row = document.createElement("tr");
         row.dataset.operationId = item.id;
         const requests = item.requests || [];
         [ `${item.hostname} / ${item.ip}`,
-          item.action === "ADD" && item.state === "QUEUED" && item.execution_enabled !== true
+          reviewedIds.has(item.id) ? 'Reviewed unknown' : item.action === "ADD" && item.state === "QUEUED" && item.execution_enabled !== true
             ? "Held" : item.state,
           requests.map((request) => `${request.actor_display_name} (${request.source}`
             + `${activeStates.has(item.state) && request.state !== "ACTIVE" ? `, ${request.state}` : ""})`).join(", "),
-          item.reason || (item.completed_at ? `Completed: ${formatTime(item.completed_at)}`
+          reviewedIds.has(item.id) ? `Original outcome: ${item.state}. Reviewed: ${formatTime(item.reviewed_at)}. ${item.reason || ''}`
+          : item.reason || (item.completed_at ? `Completed: ${formatTime(item.completed_at)}`
             : item.started_at ? `Started: ${formatTime(item.started_at)}` : `Queued: ${formatTime(item.requested_at)}`),
         ].forEach((value, index) => {
           const cell = document.createElement("td");
@@ -581,7 +625,7 @@
               row.lastElementChild.append(" ", cancel);
             });
         }
-        const target = activeStates.has(item.state) ? queueRows
+        const target = reviewedIds.has(item.id) ? reviewedRows : activeStates.has(item.state) ? queueRows
           : attentionStates.has(item.state) ? attentionRows : completedRows;
         target?.append(row);
       });

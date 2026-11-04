@@ -13,10 +13,12 @@ tags, integrity checks and remaining local claim overhead.
 
 ## Current execution contract (v5)
 
-This is the implemented candidate contract, not current lab activation. The
-2026-11-03 replacement was aborted after the old runtime entered ATTENTION epoch
-2060 with one unknown ADD. Old API/agent/Web remain running; see current status.
-Resolve retained uncertainty before normal replacement; no reset/reimport.
+The lab selected this contract after a separate reviewed
+[quiescent reconciliation](quiescent-managed-reconciliation.md) of the old held
+epoch 2060 at 18:20:30.926Z on 2026-11-03. That unknown outcome remains retained,
+not replayed or relabelled. Matching API/Web/agent are now running; consult
+current status for actual bounded execution/throughput acceptance. No reset or
+reimport was used. Other held epochs still need their own valid contract.
 
 The matching configured grouped API/agent now selects tracked cycle v5. Up to
 **16** acknowledged addresses share a complete verification read. The final group

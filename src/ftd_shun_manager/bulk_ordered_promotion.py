@@ -278,6 +278,9 @@ class BulkOrderedPromoter:
 
     def _barrier(self, db, root, now):
         """None waits; returned unsent jobs may be cancelled inside this transaction."""
+        from .device_leases import device_uncertain
+        from .device_reconciliation import unresolved
+
         validate_held_predecessors(db)
         scope = json.loads(root['payload_json'])['reviewed']
         protected = db.execute('SELECT revision FROM protected_policy WHERE id=1').fetchone()[0]
@@ -305,8 +308,7 @@ class BulkOrderedPromoter:
                         for field in ('intent_id', 'generation', 'authorization_request_id'))
                         or current['revision'] != (retired_revision if target['maintenance_enabled'] else target['target_revision'])))):
                 raise QueueConflict('Device fence, inventory or retired authority changed.')
-            if (db.execute("SELECT 1 FROM operation_jobs WHERE device_id=? AND state IN ('UNVERIFIED','RECONCILED_ABSENT') LIMIT 1", (device,)).fetchone()
-                    or db.execute("SELECT 1 FROM managed_bulk_attempts WHERE device_id=? AND state='UNVERIFIED' LIMIT 1", (device,)).fetchone()):
+            if device_uncertain(db, device):
                 raise QueueConflict('Device outcome remains unknown.')
             if member['job_id'] is not None:
                 evidence = json.loads(member['predecessor_json'])
@@ -331,7 +333,7 @@ class BulkOrderedPromoter:
                     AND (? IS NULL OR id!=?) LIMIT 1""", (device, root['ip'], member['job_id'], member['job_id'])).fetchone():
                 raise QueueConflict('Independent pending work changed the frozen scope.')
             if (db.execute("""SELECT 1 FROM managed_bulk_attempts WHERE device_id=? AND ip=?
-                    AND state IN ('QUEUED','RUNNING','FAILED','UNVERIFIED') AND (? IS NULL OR job_id!=?) LIMIT 1""",
+                    AND state IN ('QUEUED','RUNNING','FAILED','UNVERIFIED') AND (? IS NULL OR job_id!=?) AND """ + unresolved(db, 'job_id') + ' LIMIT 1',
                     (device, root['ip'], member['job_id'], member['job_id'])).fetchone()
                     or db.execute("""SELECT 1 FROM operation_jobs WHERE device_id=? AND ip=? AND action='ADD'
                         AND state='FAILED' AND (? IS NULL OR id!=?) LIMIT 1""",

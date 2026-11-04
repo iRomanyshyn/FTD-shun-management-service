@@ -1,6 +1,7 @@
 """Independent timers/continuous semantic dispatch on disposable state, not FTD."""
 
 import asyncio
+import sqlite3
 from datetime import timedelta
 from ipaddress import IPv4Address
 from uuid import uuid4
@@ -31,6 +32,140 @@ dispatch = dispatch_fixture
 journal = journal_fixture
 leases = leases_fixture
 waits = waits_fixture
+
+
+def actual_sqlite_busy(tmp_path):
+    """Real SQLite BUSY proof, not string-based exception classification."""
+    path = tmp_path / 'busy.db'
+    first, second = sqlite3.connect(path, timeout=0), sqlite3.connect(path, timeout=0)
+    try:
+        first.execute('CREATE TABLE example (id INTEGER)')
+        first.execute('BEGIN IMMEDIATE')
+        with pytest.raises(sqlite3.OperationalError) as raised:
+            second.execute('BEGIN IMMEDIATE')
+        assert raised.value.sqlite_errorcode == sqlite3.SQLITE_BUSY
+        return raised.value
+    finally:
+        first.close()
+        second.close()
+
+
+def coded_sqlite_error(code):
+    error = sqlite3.OperationalError('Synthetic numeric SQLite error')
+    error.sqlite_errorcode = code
+    return error
+
+
+def test_storage_busy_retries_scheduling_and_keeps_refresh_demand(continuous, monkeypatch, tmp_path, capsys):
+    service, agent, _clock = continuous
+    error = actual_sqlite_busy(tmp_path)
+    original, calls = service._dispatch_ready, []
+    monkeypatch.setattr('ftd_shun_manager.continuous_dispatch.STORAGE_RETRY_SECONDS', 0.25)
+
+    def schedule():
+        calls.append(asyncio.get_running_loop().time())
+        if len(calls) <= 2:
+            raise error
+        original()
+    monkeypatch.setattr(service, '_dispatch_ready', schedule)
+
+    async def scenario():
+        await service.start()
+        try:
+            await until(lambda: service.status()['recovery']['state'] == 'retrying')
+            status = service.refresh_status()
+            assert status['refresh_enabled'] and status['execution_recovery']['attempts'] == 1
+            assert status['execution_recovery']['retry_at'] is not None
+            from ftd_shun_manager.web import refresh_metadata
+            assert refresh_metadata(status)['execution_recovery'] == status['execution_recovery']
+            service.request_refresh(frozenset({1}))
+            for _ in range(10):
+                service.signal_work()
+                await asyncio.sleep(0)
+            assert service.status()['devices']['1']['refresh_pending']
+            await idle(service, agent)
+            assert calls[1] - calls[0] >= 0.25  # Hints do not defeat either delay.
+            assert calls[2] - calls[1] >= 0.5
+            assert service.status()['recovery']['state'] == 'running'
+            assert service.status()['recovery']['attempts'] == 0
+            assert service.status()['error'] is None
+            assert not service.status()['devices']['1']['refresh_pending']
+            assert len(agent.seen) == 4 and not agent.writes
+        finally:
+            await service.stop()
+    asyncio.run(scenario())
+    logs = capsys.readouterr().out
+    assert 'dispatcher.storage.retry' in logs and 'dispatcher.storage.recovered' in logs
+
+
+def test_persistent_storage_busy_has_capped_backoff_and_stop_does_not_wait(continuous, monkeypatch, tmp_path):
+    service, agent, _clock = continuous
+    error = actual_sqlite_busy(tmp_path)
+    monkeypatch.setattr('ftd_shun_manager.continuous_dispatch.STORAGE_RETRY_SECONDS', 0.01)
+    monkeypatch.setattr('ftd_shun_manager.continuous_dispatch.MAX_STORAGE_RETRY_SECONDS', 0.02)
+    monkeypatch.setattr(service, '_dispatch_ready', lambda: (_ for _ in ()).throw(error))
+
+    async def scenario():
+        await service.start()
+        await until(lambda: service.status()['recovery']['attempts'] >= 4)
+        assert 0 < service.status()['recovery']['retry_in_seconds'] <= 0.021
+        async with asyncio.timeout(0.5):
+            await service.stop()
+        assert not service.status()['running'] and not agent.seen
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize('error', [
+    sqlite3.OperationalError('database is locked'),  # No numeric evidence.
+    sqlite3.OperationalError('no such table: retained_evidence'),
+    sqlite3.DatabaseError('database disk image is malformed'),
+    coded_sqlite_error(sqlite3.SQLITE_LOCKED),
+    coded_sqlite_error(sqlite3.SQLITE_IOERR),
+    ValueError('retained profile mismatch'),
+])
+def test_non_busy_scheduler_errors_stop_with_operator_instructions(continuous, monkeypatch, error):
+    service, agent, _clock = continuous
+    monkeypatch.setattr(service, '_dispatch_ready', lambda: (_ for _ in ()).throw(error))
+
+    async def scenario():
+        await service.start()
+        await until(lambda: not service.status()['running'])
+        status = service.refresh_status()
+        assert not status['refresh_enabled']
+        assert status['execution_recovery']['state'] == 'stopped'
+        assert status['execution_recovery']['attempts'] == 0
+        assert 'Do not cancel or reimport' in status['execution_recovery']['operator_action']
+        assert not agent.seen
+        await service.stop()
+    asyncio.run(scenario())
+
+
+def test_storage_retry_does_not_reopen_or_cancel_an_active_device_session(continuous, monkeypatch, tmp_path):
+    service, agent, _clock = continuous
+    error = actual_sqlite_busy(tmp_path)
+    agent.block_open = {1}
+    original = service._dispatch_ready
+    monkeypatch.setattr('ftd_shun_manager.continuous_dispatch.STORAGE_RETRY_SECONDS', 0.02)
+
+    async def scenario():
+        await service.start()
+        try:
+            await wait(agent.entered[1])
+            token = service.runner._workers[1].queue.token
+            monkeypatch.setattr(service, '_dispatch_ready', lambda: (_ for _ in ()).throw(error))
+            service.signal_work()
+            await until(lambda: service.status()['recovery']['state'] == 'retrying')
+            assert service._active[1].done() is False
+            assert service.runner._workers[1].queue.token == token
+            assert 1 in agent.active
+            monkeypatch.setattr(service, '_dispatch_ready', original)
+            agent.releases[1].set()
+            await idle(service, agent)
+            assert sum(entry == ('open', 1, None) for entry in agent.trace) == 1
+        finally:
+            agent.releases[1].set()
+            await service.stop()
+    asyncio.run(scenario())
 
 
 class TracedAgent(BlockingAgent):
