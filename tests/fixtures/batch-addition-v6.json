@@ -1,0 +1,15 @@
+{
+  "version": 6,
+  "duration_seconds": 240,
+  "mutation_limit": 64,
+  "command_limit": 256,
+  "pending_limit": 16,
+  "max_sequence": 130,
+  "begin": "1806000700000000000000000000000000000001",
+  "stage": "1a0601c63364fb",
+  "pending": "05061a01",
+  "verify": "1b0611",
+  "final": "1c0644",
+  "settled": "00061844",
+  "last_end": "130682"
+}

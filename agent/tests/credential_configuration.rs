@@ -77,6 +77,42 @@ fn compatibility_check_exits_without_socket_or_ssh() -> Result<()> {
 }
 
 #[test]
+fn extended_batch_profile_requires_canonical_selection_and_enabled_grouped_mode() -> Result<()> {
+    let fixture = Fixture::new()?;
+    for value in ["", "06", "+6", "6.0", " 6", "4", "7", "true"] {
+        assert!(
+            !fixture
+                .run(
+                    fixture
+                        .command()
+                        .env("FTD_SHUN_AGENT_BATCH_SESSION_VERSION", value)
+                )?
+                .status
+                .success()
+        );
+    }
+    assert!(
+        !fixture
+            .run(
+                fixture
+                    .command()
+                    .env("FTD_SHUN_AGENT_BATCH_SESSION_VERSION", "6")
+            )?
+            .status
+            .success()
+    );
+    let mut command = fixture.command();
+    command
+        .env("FTD_SHUN_AGENT_BATCH_SESSION_VERSION", "6")
+        .env("FTD_SHUN_AGENT_BATCH_ADDITIONS_ENABLED", "true")
+        .env("FTD_SHUN_AGENT_ADDITIONS_ENABLED", "true")
+        .env("FTD_SHUN_AGENT_CYCLES_ENABLED", "true")
+        .env("FTD_SHUN_LARGE_SNAPSHOTS_ENABLED", "true");
+    assert!(fixture.run(&mut command)?.status.success());
+    Ok(())
+}
+
+#[test]
 fn invalid_and_incomplete_per_device_mode_never_uses_valid_shared_credentials() -> Result<()> {
     let fixture = Fixture::new()?;
     for mode in ["", "per_device", "unexpected"] {

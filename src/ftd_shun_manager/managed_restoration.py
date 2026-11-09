@@ -11,6 +11,7 @@ from .managed_safety import ManagedStateUnavailable, fleet_target_held, managed_
 from .operation_queue import QueueConflict, QueueFull, stamp
 from .safety import mutations_suspended
 from .schema import execute_schema, schema_connection
+from .snapshot_protocol import MAX_SNAPSHOT_ENTRIES
 
 ACTOR = "system:managed-shun-policy"
 SOURCE = "managed_shun_policy"
@@ -296,7 +297,7 @@ class ManagedRestorations:
                 or type(snapshot.device_id) is not int or not 1 <= snapshot.device_id <= 65535
                 or not isinstance(snapshot.id, str) or str(UUID(snapshot.id)) != snapshot.id or not isinstance(ip, IPv4Address)
                 or not isinstance(snapshot.started_at, datetime) or not isinstance(snapshot.completed_at, datetime)
-                or type(snapshot.present_ips) is not frozenset or len(snapshot.present_ips) > 65536
+                or type(snapshot.present_ips) is not frozenset or len(snapshot.present_ips) > MAX_SNAPSHOT_ENTRIES
                 or any(not isinstance(value, IPv4Address) for value in snapshot.present_ips)):
             raise ValueError("A complete validated snapshot is required.")
         with self.store._connection() as db:

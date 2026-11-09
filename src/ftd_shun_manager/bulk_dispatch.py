@@ -14,6 +14,7 @@ from .managed_restoration import ACTOR, CompleteSnapshot, validate_binding
 from .operation_queue import QueueConflict, QueueFull
 from .safety import mutations_suspended
 from .schema import execute_schema, schema_connection
+from .snapshot_protocol import MAX_SNAPSHOT_ENTRIES
 
 MAX_PORTION = 16
 DDL = """
@@ -62,7 +63,7 @@ class BulkCandidate:
 def _snapshot(snapshot):
     if (type(snapshot) is not CompleteSnapshot or snapshot.complete is not True
             or type(snapshot.device_id) is not int or not 1 <= snapshot.device_id <= 65535
-            or type(snapshot.present_ips) is not frozenset or len(snapshot.present_ips) > 65536
+            or type(snapshot.present_ips) is not frozenset or len(snapshot.present_ips) > MAX_SNAPSHOT_ENTRIES
             or any(type(ip) is not IPv4Address for ip in snapshot.present_ips)):
         raise ValueError('A complete bounded typed snapshot is required.')
     _uuid(snapshot.id)

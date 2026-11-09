@@ -44,6 +44,50 @@ invent successful results, alter credentials/trust or silently erase the dataset
 
 ## Current laboratory runtime — updated 2026-11-04
 
+Latest matched API `c8e66dbd66c6...` / container `7d02442055d0`, agent
+`e8cdc9925a8d...` / `ea9085b90bf5` explicitly select tracked grouped v6 via
+private `FTD_SHUN_AGENT_BATCH_SESSION_VERSION=6`. All three lab overlays and the
+same managed-v2 DB/original 32,425-pair import remain. V6 bounds are 240s/64
+mutation attempts/256 commands/sequence <=130, pending groups <=16; only fully
+verified/persisted/published fresh group reads permit new bounded queue segments.
+Every claim retains original full-root/current policy/protection/lease/time/
+uncertainty checks. Defaults remain v5/grouped false. Agent grace is 300s; drain
+API first explicitly. Old API/agent exited 0, stopped epoch 2591 IDLE/no RUNNING/
+new unknown; integrity ok/nine original fingerprints unchanged. Rollback pair
+`ftd-shun-{api,agent}:lab-pre-multi-group-20261104` requires clean drain and explicit
+v5 selection, never a stale DB restore. Web `f42288374e68` unchanged.
+Full Python 3239, focused 244, Rust 91+7+4 pass; build/Clippy/fmt/compileall/Ruff/
+diff/Compose and non-executing preflights pass. Actual released epochs 2593–2594
+each VERIFIED 33 (groups 16/16/1), exact one pre-write DEFER and real settlement:
+66 in 402.819s including gap, 9.83/minute. Short startup epoch 2592 verified four;
+all first three visits 70/446.268s, 9.41/minute. Earlier unpaired four-visit sample
+was 8.46/minute; gains are modest, not full-list/load/production acceptance.
+At 14:07:10Z task 14,637/32,425, normal epoch 2595 active/LEASED, ready, integrity
+ok/nine hashes unchanged, zero unresolved attention, one old reviewed unknown
+retained; Web 200/401 checked. Do not reset/reimport/renew consent/clear evidence.
+Known limitation: current offline recovery tools refuse epochs above 16 claims;
+do not widen/bypass/reuse old receipts. Compatible larger-epoch recovery and
+durable cross-session first confirmation remain unfinished. Session timing still
+shows ~84s local work per ~201s visit (claims ~47s, result persistence ~13s);
+diagnostics are not execution proof. Follow docs/manual/multi-group-sessions.md.
+
+Latest API `f8ab909fdb10...` / container `2f00c613a2c7` aligns bulk admission,
+attempt capture and legacy restoration to the existing 200,000-entry decoder
+bound, replacing their stale 65,536-IP check. No wire/agent/schema/gate/secret/
+network or authority change; old API exited 0, stopped IDLE epoch 2493 with no
+RUNNING jobs, integrity ok and all nine original fingerprints unchanged. Web
+`f42288374e68` / agent `e2d0128319c2` unchanged. Full Python 3213 and focused
+255 checks pass; non-executing preflight passed. Rollback API reference:
+`ftd-shun-api:lab-pre-policy-snapshot-cap-20261104`. Older API code can still
+refuse valid snapshots above its old bound; do not clear device/database state
+to fit rollback. At 11:45:54Z original task 13,412/32,425 VERIFIED, normal epoch
+2495 active/LEASED, ready, integrity ok/nine fingerprints unchanged, no new unknown
+or ATTENTION and zero unresolved queue attention. Deployed caps all 200,000,
+fresh read and Web 200/anonymous 401 checked. Large policy evidence is validated
+synthetically, not a live 200,000-IP FTD or throughput acceptance. Keep original
+import, protection/receipts and all three overlays. See manual/large-snapshots.md
+under docs; next work remains durable first confirmation/bounded batch execution.
+
 Latest API/Web `7a005907d019...` / `b86fac92f284...` now separate validated
 reviewed queue history from real unresolved attention. Raw UNVERIFIED=1 and its
 original outcome remain; unresolved attention is zero, reviewed history one.

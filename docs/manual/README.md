@@ -91,6 +91,7 @@ not a runbook or permission to change gates, initialize schemas or run new fixtu
 | [Version-2 Ordered Web Controls](ordered-removal-web.md) | Separate frozen ordered consent, durable local-status permalink and CSRF/typed-IP waiting revocation; independent default-off capabilities, no live activation. |
 | [Large Snapshots](large-snapshots.md) | Default-off versioned multi-frame reads, complete-snapshot checks, console/transfer budgets and lab rollout/rollback. |
 | [Grouped Additions](batch-additions.md) | Default-off v5 shared final verification (retained v4 transport), fenced pending queue, priority/drain/failure behavior and rollout limits. |
+| [Multi-group Import Sessions](multi-group-sessions.md) | Explicit matched v6, up to 64 attempts in 240 seconds, fresh bounded refill between verified groups, retained priority/cancellation and uncertainty. |
 | [FTD Laboratory Validation](ftd-lab-validation.md) | Controlled agent, snapshot, and parser-fixture validation. |
 | [Addition Readiness](addition-lab-validation.md) | Current snapshot-capacity blocker and staged Basic-account, one-address direct-CLI validation before ADD design. |
 | [Addition Contract](addition-contract.md) | Default-off agent/transport cycle v3, explicit creation profile, exact ADD verification, shared budgets and remaining admission/lab gates; no executable import. |

@@ -129,7 +129,7 @@ services:
       dockerfile: agent/Dockerfile
     restart: unless-stopped
     # Let admitted bounded RPCs finish after SIGTERM; drain API first.
-    stop_grace_period: 180s
+    stop_grace_period: 300s
     logging:
       driver: local
       options:

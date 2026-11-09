@@ -6,9 +6,9 @@ from ipaddress import IPv4Address
 
 from .agent_client import AgentUnavailable
 from .agent_protocol import (
-    MAX_CYCLE_REMOVALS,
     AdditionResult,
     PendingAddition,
+    max_cycle_mutations,
     max_pending_additions,
 )
 from .batch_queue import BatchDeviceOperationQueue, PendingBatchMustFlush
@@ -17,11 +17,15 @@ from .operation_queue import ClaimNotSubmitted
 
 class BatchSession:
     def __init__(self, worker, device_id, cycle, snapshot):
-        if (not worker.batch_additions_enabled or cycle.version != 5
+        if (not worker.batch_additions_enabled or cycle.version not in (5, 6)
                 or not isinstance(worker.queue, BatchDeviceOperationQueue)):
-            raise ValueError('Grouped execution requires the explicit matching fenced v5 worker.')
+            raise ValueError('Grouped execution requires the explicit matching fenced grouped worker.')
         self.worker, self.device, self.cycle = worker, device_id, cycle
         self.queue, self.snapshot = worker.queue, snapshot
+        if self.queue.version != cycle.version:
+            raise ValueError('Queue and agent session versions differ.')
+        self.limit = max_cycle_mutations(cycle.version)
+        worker._device_cycle['limit'] = self.limit
 
     async def publish(self, snapshot, started, completed):
         self.snapshot = snapshot
@@ -50,6 +54,10 @@ class BatchSession:
         # Result-before-publication is essential: otherwise reconciliation could
         # create an occurrence and cause the verified ADD's origin to be refused.
         await self.publish(list(result.snapshot), started, completed)
+        if self.cycle.version == 6 and not final:
+            # No pending writes remain. New jobs require this fresh read and
+            # current authority; old delegations/deadlines are never extended.
+            w._cycle_cutoff = await w._local_call(self.queue.cutoff)
 
     async def priority(self):
         w = self.worker
@@ -138,11 +146,15 @@ class BatchSession:
         w = self.worker
         w._device_cycle['pending_verification'] = 0
         try:
+            if self.cycle.version == 6:
+                # The caller published and discovered the complete initial read.
+                # Freeze this segment only; each claim retains its evidence age.
+                w._cycle_cutoff = await w._local_call(self.queue.cutoff)
             allowed = await w._local_call(w.policy.enabled_ips)
             await w._local_call(w._admit_trusted, self.device,
                                 sorted({entry.ip for entry in self.snapshot if entry.ip in allowed}, key=int))
             attempts = 0
-            while attempts < MAX_CYCLE_REMOVALS and not w._mutations_blocked and not w._stop_mutations:
+            while attempts < self.limit and not w._mutations_blocked and not w._stop_mutations:
                 if not await self.priority():
                     break
                 if w._mutations_blocked or w._stop_mutations:
@@ -165,7 +177,7 @@ class BatchSession:
                     if not await self.stage(job, target):
                         break
                     if (len(self.queue.pending) >= max_pending_additions(self.cycle.version)
-                            and attempts < MAX_CYCLE_REMOVALS):
+                            and attempts < self.limit):
                         await self.flush()
                 elif not await self.remove(job, target):
                     break
@@ -175,7 +187,7 @@ class BatchSession:
             if final_group:
                 await self.flush(final=True)
             w._device_cycle.update(action='final_snapshot', ip=None)
-            if attempts >= MAX_CYCLE_REMOVALS and w._has_pending(self.device):
+            if attempts >= self.limit and w._has_pending(self.device):
                 w._device_cycle['budget_deferred'] = True
             w._status_revision += 1
             if not final_group:

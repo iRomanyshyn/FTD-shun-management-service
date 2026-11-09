@@ -80,6 +80,120 @@ fn fixture() -> Cycle<Fake> {
     }
 }
 
+#[tokio::test]
+async fn v6_runs_four_bounded_groups_on_one_console_and_retains_exact_limits() -> Result<()> {
+    let vectors: serde_json::Value =
+        serde_json::from_str(include_str!("../../tests/fixtures/batch-addition-v6.json"))?;
+    assert_eq!(decode_begin(&unhex(&vectors["begin"])?)?, (7, 6));
+    assert_eq!(
+        decode_step(&unhex(&vectors["last_end"])?, 130, 6)?,
+        Step::End
+    );
+    let mut cycle = fixture();
+    cycle.version = 6;
+    assert_eq!(cycle.max_duration(), Duration::from_secs(240));
+    assert_eq!(cycle.max_duration().as_secs(), vectors["duration_seconds"]);
+    assert_eq!(cycle.max_commands(), 256);
+    assert_eq!(cycle.max_mutations(), 64);
+    for n in 1..=64 {
+        let seq = cycle.sequence;
+        let mut packet = stage(seq, n);
+        packet[1] = 6;
+        assert_eq!(
+            cycle.execute(&packet).await?.0[0],
+            [5, 6, batch_addition::STAGE, seq]
+        );
+        if n % 16 == 0 {
+            let final_group = n == 64;
+            let opcode = if final_group {
+                batch_addition::VERIFY_END
+            } else {
+                batch_addition::VERIFY
+            };
+            let seq = cycle.sequence;
+            let (frames, done) = cycle.execute(&[opcode, 6, seq]).await?;
+            assert_eq!(done, final_group);
+            assert_eq!(&frames[0][..5], &[0, 6, opcode, seq, 16]);
+            assert!(cycle.pending_additions.is_empty());
+        }
+    }
+    assert_eq!(cycle.observed_entries, 64);
+    assert_eq!(cycle.commands, 133); // initial + 64 immediate preflights/ADDs + four reads
+    assert_eq!(
+        cycle
+            .console
+            .calls
+            .iter()
+            .filter(|call| **call == "preflight")
+            .count(),
+        64
+    );
+    assert_eq!(
+        cycle
+            .console
+            .calls
+            .iter()
+            .filter(|call| **call == "verify_group")
+            .count(),
+        4
+    );
+    assert_eq!(
+        after_cleanup(sessions::BEGIN, 6, 68, Ok(()))?,
+        Some([0, 6, sessions::BEGIN, 68])
+    );
+    let mut extra = stage(cycle.sequence, 65);
+    extra[1] = 6;
+    assert!(cycle.execute(&extra).await.is_err());
+    assert_eq!(cycle.console.rows.len(), 64);
+    assert_eq!(decode_step(&[END, 6, 130], 130, 6)?, Step::End);
+    assert!(decode_step(&[END, 6, 131], 131, 6).is_err());
+    assert!(decode_step(&[END, 7, 1], 1, 7).is_err());
+    assert!(decode_step(&[END, 5, 35], 35, 5).is_err());
+    Ok(())
+}
+
+#[tokio::test]
+async fn v6_reserves_time_commands_and_full_verification_capacity_before_writing() -> Result<()> {
+    for budget in ["time", "commands", "pending"] {
+        let mut cycle = fixture();
+        cycle.version = 6;
+        if budget == "time" {
+            cycle.started = Instant::now() - Duration::from_secs(200);
+        }
+        if budget == "commands" {
+            cycle.commands = 253;
+        }
+        if budget == "pending" {
+            cycle.pending_additions = (1..=16).map(target).collect();
+        }
+        let mut packet = stage(1, 251);
+        packet[1] = 6;
+        assert_eq!(
+            cycle.execute(&packet).await?.0[0],
+            [2, 6, batch_addition::STAGE, 1]
+        );
+        assert!(cycle.console.calls.is_empty());
+    }
+    let mut cycle = fixture();
+    cycle.version = 6;
+    cycle.started = Instant::now() - Duration::from_secs(160);
+    let mut packet = stage(1, 251);
+    packet[1] = 6;
+    assert_eq!(
+        cycle.execute(&packet).await?.0[0],
+        [5, 6, batch_addition::STAGE, 1]
+    );
+    cycle.console.fail_verification = true;
+    assert!(
+        cycle
+            .execute(&[batch_addition::VERIFY_END, 6, 2])
+            .await
+            .is_err()
+    );
+    assert_eq!(cycle.pending_additions, vec![target(251)]);
+    Ok(())
+}
+
 #[test]
 fn v5_local_processing_wait_never_extends_transfer_or_session_bounds() -> Result<()> {
     use nix::sys::socket::{getsockopt, socketpair};
@@ -383,7 +497,7 @@ fn batch_mode_is_rejected_before_inventory_lookup_or_ssh_when_gated() -> Result<
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()?;
-    let agent = Agent {
+    let mut agent = Agent {
         sessions: Arc::new(sessions::Sessions::default()),
         devices: BTreeMap::new(),
         credentials: credentials::Credentials::PerDevice(BTreeMap::new()),
@@ -392,6 +506,7 @@ fn batch_mode_is_rejected_before_inventory_lookup_or_ssh_when_gated() -> Result<
         large_snapshots_enabled: true,
         additions_enabled: true,
         batch_additions_enabled: false,
+        batch_session_version: 5,
         max_concurrent_devices: 1,
     };
     let (_client, server) = socketpair(
@@ -411,6 +526,17 @@ fn batch_mode_is_rejected_before_inventory_lookup_or_ssh_when_gated() -> Result<
     .err()
     .context("disabled batch mode was unexpectedly accepted")?;
     assert!(error.to_string().contains("batch additions are disabled"));
+    agent.batch_additions_enabled = true;
+    let mut extended = unhex(&vectors["begin"])?;
+    extended[1] = 6;
+    let error = handle(&agent, &server, runtime.handle(), &extended)
+        .err()
+        .context("v6 must be explicitly selected")?;
+    assert!(
+        error
+            .to_string()
+            .contains("multi-group session version is not explicitly enabled")
+    );
     assert!(
         finish_result(
             sessions::BEGIN,

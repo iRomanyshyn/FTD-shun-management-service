@@ -51,7 +51,8 @@ dc up -d --no-deps agent
 dc up -d --no-deps api
 ```
 
-Compose now gives **agent** a 180-second stop grace. The API still needs the
+Compose now gives **agent** a 300-second stop grace, including the optional
+[240-second multi-group profile](multi-group-sessions.md). The API still needs the
 explicit stop timeout above; this increment does not change its configuration.
 Existing initial IPC/operation/cycle/cleanup/send budgets fit that agent grace
 under their supported assumptions. Do not shorten it for active work. A shorter
@@ -75,7 +76,7 @@ replacement while the old process drains.
 There is no database, wire, environment flag, credential/trust or network change.
 Cargo enables existing nix poll/signal and Tokio signal support; Cargo.lock pins
 the additional `signal-hook-registry` and `errno` dependencies. Use `--locked`.
-Keep the new 180-second agent stop grace with its supported deadlines.
+Keep the 300-second agent stop grace with its supported deadlines.
 
 No DB restore is needed for code-only rollback. Gracefully drain API/agent, then
 restore the previous compatible agent image and start agent before API. The

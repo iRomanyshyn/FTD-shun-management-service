@@ -6132,3 +6132,46 @@ Older API metadata defaults to raw warning counts, never assumes resolution.
 Keep real unresolved cases above long queue/progress lists. This is presentation
 only: no acknowledgment, recovery decision, fence release, job replay, new schema,
 authority or device operation is caused by a GET or rendered history.
+
+### Bounded multi-group sessions — 2026-11-04
+
+Introduce explicitly selected tracked cycle v6 for the managed grouped worker.
+`FTD_SHUN_AGENT_BATCH_SESSION_VERSION=6` requires the existing grouped capability
+on both API and agent; default 5 retains the existing contract, without fallback.
+V6 permits at most 64 combined mutation attempts, 256 CLI commands and 240 seconds
+including SSH opening. Sequence numbers are bounded at 130. Pending groups remain
+at most 16: each command retains its immediate target preflight and strict ACK,
+and each group is confirmed by one complete read. ACK alone is never success.
+The final read and actual post-handler settlement remain mandatory.
+
+Only after a complete initial or intermediate group observation is published and
+all preceding pending results are durably settled may v6 freeze a new local queue
+cutoff. Discovery uses that new read, with at most 64 admissions/256 checks over
+the entire session and at most 16 queued/running device jobs. Every claim still
+checks original current root/consent, lease, protection, cancellation, fresh
+absence evidence and uncertainty; no old delegation or snapshot is renewed.
+V1–v5 retain their original frozen cutoff, budgets and wire bindings. There is
+no cross-session first-confirmation or automatic unknown-write retry here.
+
+Check priority refresh/removal, protection, cancellation and stop between commands;
+flush pending evidence before another operation. Larger bounds do not permit
+parallel writers or one uninterruptible 64-address command. API-first drain is
+still required; agent grace must exceed the selected maximum session plus cleanup.
+Matched profile/protocol/configuration and synthetic boundary/interruption tests
+precede activation. Measure actual settled progress; larger maxima alone prove
+no throughput gain. Keep the original task and evidence, never reimport to test.
+
+### Shared complete-snapshot capacity in policy admission — 2026-11-04
+
+Bound the unique IPv4 evidence set used by bulk refill/admission, pre-send bulk
+capture and legacy managed restoration by the same 200,000-entry constant as the
+already matched complete-snapshot decoder. Remove their stale 65,536-IP internal
+cap; it prevented valid observations from supporting an approved 100,000-pair
+import as the device grew. This does not increase wire/CLI byte/time limits,
+input/standing-policy capacity, per-session mutations or refill quotas. Reject
+oversized, mutable, incomplete or wrongly typed evidence without truncation.
+Only a complete validated agent read supplies observations; an arbitrary set
+is never an alternative transport proof. All current authority, fresh absence,
+protection, lease, cancellation and unknown-write checks remain. No schema,
+protocol, new authority, activation or device mutation follows from this bound
+correction, and synthetic large-state tests do not certify real FTD capacity.

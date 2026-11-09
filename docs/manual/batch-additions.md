@@ -13,6 +13,10 @@ tags, integrity checks and remaining local claim overhead.
 
 ## Current execution contract (v5)
 
+An explicitly selected [multi-group v6 profile](multi-group-sessions.md) adds
+bounded fresh refill and larger session budgets. Version 5 remains the default;
+the exact v5 contract below is unchanged. Consult current status for deployment.
+
 The lab selected this contract after a separate reviewed
 [quiescent reconciliation](quiescent-managed-reconciliation.md) of the old held
 epoch 2060 at 18:20:30.926Z on 2026-11-03. That unknown outcome remains retained,

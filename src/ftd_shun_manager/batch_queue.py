@@ -9,6 +9,7 @@ from .agent_protocol import (
     AdditionResult,
     PendingAddition,
     VerifiedAdditionBatch,
+    max_cycle_sequence,
 )
 from .device_leases import DeviceOperationQueue
 from .operation_queue import OperationQueue, QueueConflict
@@ -26,7 +27,10 @@ class BatchDeviceOperationQueue(DeviceOperationQueue):
     new authority, terminal state, generic concurrency or automatic recovery.
     """
 
-    def __init__(self, store, token, *, priority_removals=False):
+    def __init__(self, store, token, *, priority_removals=False, version=5):
+        if type(version) is not int or version not in (5, 6):
+            raise ValueError('Grouped queue requires its literal matching session version.')
+        self.version = version
         super().__init__(store, token, priority_removals=priority_removals)
         self.group = str(uuid4())
         self.pending = []
@@ -34,7 +38,8 @@ class BatchDeviceOperationQueue(DeviceOperationQueue):
         self.verification_sequence = None
 
     def _binding(self):
-        return {'group': self.group, 'owner': self.token.owner, 'epoch': self.token.epoch}
+        return {'group': self.group, 'owner': self.token.owner, 'epoch': self.token.epoch,
+                **({'version': 6} if self.version == 6 else {})}
 
     def _events(self, db, job_id, event):
         # Existing request-ID index avoids scanning the whole import history.
@@ -74,7 +79,7 @@ class BatchDeviceOperationQueue(DeviceOperationQueue):
             details = json.loads(events[0]['details_json'])
             sequence = details.get('sequence')
             if (details.get('batch_session') != self._binding() or type(sequence) is not int
-                    or not previous_sequence < sequence <= 34 or details.get('verified') is not False
+                    or not previous_sequence < sequence <= max_cycle_sequence(self.version) or details.get('verified') is not False
                     or events[0]['device_id'] != job['device_id'] or events[0]['ip'] != job['ip']):
                 raise QueueConflict('Pending acknowledgement has a foreign binding or sequence.')
             previous_sequence = sequence
@@ -99,6 +104,8 @@ class BatchDeviceOperationQueue(DeviceOperationQueue):
         return True, 'ADD'  # Never claim REMOVE while any ADD is awaiting observation.
 
     def _event(self, db, event, request, job, details=None):
+        if self.version == 6 and job['action'] == 'ADD':
+            details = {**(details or {}), 'batch_session_version': 6}
         if event == 'SHUN_OPERATION_RUNNING' and job['action'] == 'ADD':
             # Membership is an additional grouped-claim requirement, not a
             # replacement profile validator. The base event below still calls
@@ -115,7 +122,7 @@ class BatchDeviceOperationQueue(DeviceOperationQueue):
 
     def acknowledge_addition(self, job_id, owner, acknowledgement):
         if (type(acknowledgement) is not PendingAddition or type(acknowledgement.sequence) is not int
-                or not 1 <= acknowledgement.sequence <= 34 or type(acknowledgement.ip) is not IPv4Address):
+                or not 1 <= acknowledgement.sequence <= max_cycle_sequence(self.version) or type(acknowledgement.ip) is not IPv4Address):
             raise ValueError('An exact pending ADD acknowledgement is required.')
         with self.store._connection() as db:
             db.execute('BEGIN IMMEDIATE')
@@ -142,7 +149,7 @@ class BatchDeviceOperationQueue(DeviceOperationQueue):
         self.pending.append(job_id)  # Only after the acknowledgement transaction commits.
 
     def finish_verified_group(self, owner, result, sequence):
-        if type(result) is not VerifiedAdditionBatch or type(sequence) is not int or not 1 <= sequence <= 34:
+        if type(result) is not VerifiedAdditionBatch or type(sequence) is not int or not 1 <= sequence <= max_cycle_sequence(self.version):
             raise ValueError('A complete typed group result and exact verification sequence are required.')
         with self.store._connection() as db:
             db.execute('BEGIN')

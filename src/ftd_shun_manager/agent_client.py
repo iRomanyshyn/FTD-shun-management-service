@@ -83,7 +83,7 @@ class UnixAgentClient(AgentClient):
     def __init__(self, socket_path: str, timeout_seconds: int = 125, *, large_snapshots: bool = False,
                  additions_enabled: bool = False, addition_device_ids: frozenset[int] | None = None,
                  settled_cycles: bool = False, recoverable_cycles: bool = False, tracked_cycles: bool = False,
-                 batch_additions: bool = False) -> None:
+                 batch_additions: bool = False, batch_session_version: int = 5) -> None:
         if type(settled_cycles) is not bool:
             raise ValueError('Settled cycle capability must be boolean.')
         if type(recoverable_cycles) is not bool or (recoverable_cycles and not settled_cycles):
@@ -94,6 +94,10 @@ class UnixAgentClient(AgentClient):
             raise ValueError("addition cycles require large snapshots")
         if type(batch_additions) is not bool or (batch_additions and not (additions_enabled and tracked_cycles)):
             raise ValueError('Batch additions require explicit tracked addition cycles.')
+        if (type(batch_session_version) is not int or batch_session_version not in (5, 6)
+                or (batch_session_version == 6 and not batch_additions)):
+            raise ValueError('Extended sessions require the explicit matching grouped capability.')
+        self.batch_session_version = batch_session_version
         self.socket_path = socket_path
         self.timeout_seconds = timeout_seconds
         self.large_snapshots = large_snapshots
@@ -152,7 +156,7 @@ class UnixAgentClient(AgentClient):
             self.addition_device_ids is None or device_id in self.addition_device_ids
         )
         return UnixAgentCycle(self.socket_path, self.timeout_seconds, device_id,
-                              version=5 if addition_cycle and self.batch_additions else 3 if addition_cycle else 2 if self.large_snapshots else 1,
+                              version=self.batch_session_version if addition_cycle and self.batch_additions else 3 if addition_cycle else 2 if self.large_snapshots else 1,
                               settled_cycles=self.settled_cycles, recoverable_cycles=self.recoverable_cycles,
                               session_id=session_id)
 
@@ -165,7 +169,7 @@ class UnixAgentClient(AgentClient):
         if not self.tracked_cycles:
             raise AgentUnavailable('Tracked session capability is disabled.')
         addition_cycle = self.additions_enabled and (self.addition_device_ids is None or device_id in self.addition_device_ids)
-        version = 5 if addition_cycle and self.batch_additions else 3 if addition_cycle else 2 if self.large_snapshots else 1
+        version = self.batch_session_version if addition_cycle and self.batch_additions else 3 if addition_cycle else 2 if self.large_snapshots else 1
         session_id = _session_id(lease_owner)
         request = encode_session_request(SESSION_LOOKUP, version, device_id, session_id)
         try:
@@ -269,7 +273,7 @@ class UnixAgentCycle:
             raise ValueError('Recoverable opening requires explicit strict settlement.')
         if session_id is not None and not recoverable_cycles:
             raise ValueError('Bound session identity requires recoverable strict cycles.')
-        if version in (4, 5) and session_id is None:
+        if version in (4, 5, 6) and session_id is None:
             raise ValueError('Batch cycles require a tracked session identity.')
         operation = (CycleOperation.BEGIN_TRACKED if session_id is not None else
                      CycleOperation.BEGIN_RECOVERABLE if recoverable_cycles else
@@ -343,7 +347,7 @@ class UnixAgentCycle:
         return self._exchange(CycleOperation.ADD, ip=ip)
 
     def stage_addition(self, ip: IPv4Address) -> PendingAddition | AdditionResult | None:
-        if (self.version not in (4, 5) or len(self.pending_additions) >= max_pending_additions(self.version)
+        if (self.version not in (4, 5, 6) or len(self.pending_additions) >= max_pending_additions(self.version)
                 or any(item.ip == ip for item in self.pending_additions)):
             raise ValueError('Invalid batch version, capacity or duplicate pending target.')
         result = self._exchange(CycleOperation.STAGE_ADD, ip=ip)
@@ -352,7 +356,7 @@ class UnixAgentCycle:
         return result
 
     def verify_additions(self) -> VerifiedAdditionBatch:
-        if self.version not in (4, 5) or not self.pending_additions:
+        if self.version not in (4, 5, 6) or not self.pending_additions:
             raise ValueError('A nonempty grouped cycle is required.')
         result = self._exchange(CycleOperation.VERIFY_ADDS)
         self.pending_additions.clear()  # Only after proof AND the complete observation.
@@ -360,7 +364,7 @@ class UnixAgentCycle:
 
     def finish_additions(self) -> VerifiedAdditionBatch:
         """One final full read proves pending ADDs and settles this session."""
-        if self.version != 5 or not self.pending_additions:
+        if self.version not in (5, 6) or not self.pending_additions:
             raise ValueError('Combined verification/end requires a nonempty v5 group.')
         try:
             deadline = monotonic() + self.timeout_seconds

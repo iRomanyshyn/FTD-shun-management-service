@@ -9312,6 +9312,161 @@ authority, fixture, acknowledgment/recovery or rewritten outcome. Already-open
 pages need one reload to replace old browser code; normal ongoing imports retain
 their working activity indicator, without the obsolete reviewed-history warning.
 
+## 2026-11-04 — Align policy evidence with complete-snapshot capacity
+
+Read-only runtime inspection found the original import running at 13,292/32,425
+VERIFIED with zero unresolved attention and normal recovery state. Source review
+found a deterministic larger-import blocker: bulk admission/refill, pre-send
+attempt capture and legacy managed restoration each retained a 65,536-IP evidence
+cap while the matched full reader accepts 200,000 entries. A valid large read
+would therefore fail policy processing before the agreed 100,000-pair import
+could complete. No new import or device fixture was submitted to reproduce it.
+
+Use the reader's shared MAX_SNAPSHOT_ENTRIES constant in all three policy guards.
+Preserve input/pair capacities, strict complete typed evidence, presence/current
+authority/protection/freshness/lease/suspension/cancellation checks, bounded refill/
+commands/time, verification and all unknown history. No DDL, agent/protocol,
+network/trust/credential/gate or runtime-selection change. Add synthetic tests
+at 65,537/95,081/200,000 and rejection at 200,001 without state changes, including
+actual bounded discovery, independent evidence capture and suspended/present
+refusals. Initial test incorrectly treated a legacy request ID as its job ID;
+use its retained request/job link instead. Final dedicated 19 checks pass.
+Combined final dispatch/attempt/discovery/legacy-restoration/large-transport
+regressions: **255 pass in 21.56s**; compileall/Ruff/diff pass. An early full run
+that collected the obsolete request/job assertion was replaced; final full run
+now passes **3213 tests in 556.07s**. Configured non-executing preflight also
+passes without execution/migration. API-only orderly drain/rollout announced.
+Candidate API `f8ab909fdb10...` is built; prior
+API retained as `ftd-shun-api:lab-pre-policy-snapshot-cap-20261104`. Web/agent
+are unchanged. No live large-capacity or throughput acceptance is claimed.
+
+Also profiled one read-only SQLite snapshot of the original lab dataset, with
+query_only enabled and no device requests: three full profile validations and
+one complete 32,425-member root scan took 1.364s under cProfile. Root 1.022s /
+profile checks 0.334s, with source/member decoding dominant. Instrumentation and
+import warmup affect these figures; this is neither a paired speedup nor device
+throughput. Retain original root validation, not an authority cache; use these
+diagnostics to guide the later execution/batch work after this capacity fix.
+
+API-only rollout completed: old API `15830248969b` actually exited 0; stopped
+DB IDLE epoch 2493, zero RUNNING jobs, integrity ok and all nine original
+authority/protection/inventory/recovery hashes unchanged. Retained bounded logs/
+status in private `/tmp/ftd-policy-snapshot-cap-20261104.5Q3clr/`. New API
+`2f00c613a2c7` / `f8ab909fdb10...`; Web `f42288374e68` and agent `e2d0128319c2`
+unchanged. All deployed policy/capture/restoration/decoder caps equal 200,000.
+At 11:45:54Z same original import 13,412/32,425 VERIFIED, normal epoch 2495
+active/LEASED, ready, integrity ok and all nine hashes unchanged; no new unknown/
+ATTENTION, unresolved queue counts zero. Fresh read 11:45:30Z, status 0.862s,
+Web health 200/anonymous 401. No new fixture, task, consent, renewal, schema or
+recovery decision. This is small-observation read/startup acceptance, not live
+large-state ADD capacity/throughput proof; the large evidence cases remain
+synthetic. Web/Rust sources unchanged; no new browser/Rust run is claimed.
+
+## 2026-11-04 — Explicit bounded multi-group import sessions (candidate)
+
+The operator accepted larger useful batches and shared complete verification.
+Read-only initial lab inspection at 13:31:01Z found the original 32,425-pair task
+14,338 VERIFIED, normal active epoch 2571, integrity ok and retained reviewed
+unknown only. No dataset reset, new import, consent renewal or recovery action.
+
+Implement explicitly selected tracked v6: 240s including opening, 64 combined
+mutation attempts, 256 commands and sequence <=130. Keep <=16 pending targets,
+immediate per-target preflight, strict ACK, one complete group verification,
+result-before-observation publication and actual final settlement. Only complete
+initial/intermediate published evidence can freeze a new queue segment; whole-
+session refill is <=64 admissions/256 checks, window <=16. Every claim retains
+current original-root/protection/cancellation/lease/freshness/uncertainty checks;
+no original job deadline is extended. V5 remains explicit default with unchanged
+bounds/cutoff; no protocol fallback. Same selection is required on API/agent,
+with default-off grouped gate and managed-only runtime. No schema/auth/secret/
+trust/network/authority change. Increase agent Compose grace to 300s and document
+API-first drain, matching rollback and limits in multi-group-sessions.md.
+
+Synthetic worker/protocol/configured-runtime focused checks: 94 pass, including
+four groups/64 addresses over one connection, second-group interruption for
+refresh/unblock/protection/cancellation/stop, and retained first-group success
+plus later unknowns. A new test initially expected immediate ATTENTION on failed
+return; corrected to require retained exact LEASED fencing (expiry can later mark
+ATTENTION), never an IDLE release. Sandbox-only socket tests had EPERM/stalled
+threads; stopped only the identified test process and reran with local socket
+permission. Rust then passed 91 unit +6 config +4 shutdown before the latest
+shared-vector/config additions. Final full checks are in progress. Two older
+unknown-version tests used now-supported version 6; update them to truly unknown
+7 without weakening exact v6 selection. No full-clean run claimed yet.
+
+Known limitations: this does not supply durable cross-session first confirmation
+or automatic unknown-write retry. Existing offline reviewed tools intentionally
+refuse whole epochs above 16 claims; compatible larger-epoch ledger/review work
+is separate, not a reason to bypass evidence. No live v6 activation or throughput
+gain is established by synthetic capacity tests. Retain the original task and
+all outcomes/receipts/protection during any later matched lab rollout.
+
+### Final validation and initial v6 lab deployment
+
+The first complete Python run had 3237 pass and exactly two obsolete unknown-
+version expectations; corrected both to unsupported 7. Focused regression 244
+pass; final clean full run **3239 pass in 547.83s**. Final Rust **91 unit +7
+configuration +4 shutdown pass**; locked release build, fmt/Clippy, compileall/
+Ruff/diff pass. V6 ACK bindings and claim/terminal audit explicitly retain the
+selected version; v5 audit shape remains unchanged. Shared v6 vectors bind both
+languages. Three-overlay Compose validates using tracked non-secret example
+interpolation/no private env-file resolution; only Caddy publishes 443 and agent
+grace is 300s. No browser run claimed because no Web/assets changed.
+
+Candidate API `c8e66dbd66c6...`, agent `e8cdc9925a8d...` passed separate non-
+executing configured preflights. Exact old images retained as
+`ftd-shun-{api,agent}:lab-pre-multi-group-20261104`. Old API actually exited 0;
+stopped DB IDLE epoch 2591, zero RUNNING jobs, original reviewed unknown only,
+integrity ok and all nine original policy/protection/inventory/recovery hashes
+unchanged. Old agent then exited 0 promptly. Only then private `.env` selected
+version 6; no secret/trust/network/auth/controller gate changed. Repeat configured
+non-executing preflight passed. Start agent, then API, with all three overlays.
+No new task, consent, reimport, manual fixture or recovery decision was submitted.
+
+Actual containers: API `7d02442055d0`, agent `ea9085b90bf5`; Web `f42288374e68`
+unchanged, health 200/anonymous 401. At 13:59:12Z original import 14,567/32,425
+VERIFIED, epoch 2592 normally active/LEASED, cycle limit 64, ready, status 0.978s,
+integrity ok/nine fingerprints unchanged and no new unknown. This is startup/read
+and dispatch observation, not completed v6 session/throughput acceptance.
+Four pre-change released epochs 2576–2579 verified 41 addresses in 290.777s
+(8.46/minute, including a short visit); retain this as a bounded unpaired baseline,
+not isolated load acceptance. Private evidence: `/tmp/ftd-multi-group-20261104.wwxJsu/`.
+Continue observing original durable claims/results/releases before claiming gain.
+
+### Two complete v6 laboratory visits — bounded acceptance
+
+Durable original claim/terminal/release audits prove epoch 2593 VERIFIED 33 in
+201.266s, then 2594 VERIFIED 33 in 201.118s. Each has 34 claims, 33 strict ACKs,
+one exact before-write DEFER, three confirmed groups 16/16/1 and actual terminal
+settlement/release. Total 66/402.819s including gap = 9.83/minute; adding startup
+2592 gives 70/446.268s =9.41/minute. Earlier four-visit baseline was 8.46/minute.
+This is bounded/unpaired, a modest improvement, not full-list capacity or stable
+throughput acceptance. The old 13–14-address visit has become 33 per login in
+these healthy samples, not the configured maximum 64. No old outcome is changed.
+
+Argument-free diagnostics independently show one opening (~3.6s), 33 target
+preflights, 33 ADD acknowledgements and four complete reads per healthy visit.
+Native CLI phases: target reads ~51.5s, ADD ~50.3s, full reads ~10–11s. API call
+time ~116–117s and local work ~84s: claims ~47–48s, result persistence ~13–14s,
+ACK persistence ~9s, discovery ~6s and lease renewal ~6.6s. These are aggregate
+wall times, not isolated CPU/SQLite/FTD costs or execution proof. Local processing
+remains a material bottleneck; do not skip original-root/current controls or
+claim large-import performance solved. Preserve compatible larger-epoch recovery
+and durable cross-session first-confirmation as explicit follow-ups.
+
+At 14:07:10Z original task 14,637/32,425 VERIFIED, 17,788 outstanding; normal epoch
+2595 active/LEASED, not globally IDLE. Integrity ok, all nine original hashes
+unchanged, no new unknown/ATTENTION, raw historical UNVERIFIED one retained.
+Actual private API reports unresolved FAILED/UNVERIFIED zero, reviewed history
+one, execution recovery running and ready. Status 1.033s; unchanged Web health
+200/anonymous 401. No new task/consent/cancellation/test write/fixture, schema,
+credential/trust/network/auth change or offline recovery decision. Continued
+original intended blocks stay on FPR; no destructive dataset cleanup is needed.
+Private before/stopped/startup/mid/final snapshots, epoch sample and bounded
+argument-free diagnostics are retained under the private evidence directory above.
+All three overlays and explicit lab v6 remain selected. Final source diff checks
+pass; Python/agent results are recorded above, not invented live failure tests.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

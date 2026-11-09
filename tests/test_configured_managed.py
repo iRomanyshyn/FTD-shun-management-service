@@ -93,6 +93,39 @@ def test_batch_environment_is_default_off_strict_and_never_enables_legacy(monkey
     assert Settings.from_environment().batch_additions_enabled is True
 
 
+def test_extended_profile_composition_is_noncreating_and_refuses_changed_selection(configured):
+    settings, store = configured
+    before = dump(store)
+    app = create_app(replace(settings, batch_additions_enabled=True, batch_session_version=6))
+    runner = app.state.synchronizer.dispatcher.runner
+    assert runner.agent.batch_session_version == 6
+    assert dump(store) == before
+    runner.agent.batch_session_version = 5
+
+    async def scenario():
+        with pytest.raises(ValueError, match='matching strict'):
+            async with app.router.lifespan_context(app): pytest.fail('Mismatched profile must not start')
+    asyncio.run(scenario())
+    assert dump(store) == before
+
+
+@pytest.mark.parametrize('value', ['', '06', '+6', '6.0', ' 6', '4', '7', 'true'])
+def test_extended_environment_selection_is_canonical(monkeypatch, value):
+    monkeypatch.setenv('FTD_SHUN_AGENT_BATCH_SESSION_VERSION', value)
+    with pytest.raises(ValueError, match='BATCH_SESSION_VERSION'): Settings.from_environment()
+
+
+def test_extended_environment_requires_grouped_managed_mode(monkeypatch):
+    monkeypatch.delenv('FTD_SHUN_AGENT_BATCH_SESSION_VERSION', raising=False)
+    assert Settings.from_environment().batch_session_version == 5
+    monkeypatch.setenv('FTD_SHUN_AGENT_BATCH_SESSION_VERSION', '6')
+    with pytest.raises(ValueError, match='grouped execution'): Settings.from_environment()
+    monkeypatch.setenv('FTD_SHUN_AGENT_BATCH_ADDITIONS_ENABLED', 'true')
+    monkeypatch.setenv('FTD_SHUN_API_RUNTIME', 'continuous-managed')
+    monkeypatch.setenv('FTD_SHUN_AGENT_MODE', 'socket')
+    assert Settings.from_environment().batch_session_version == 6
+
+
 @pytest.mark.parametrize('change', [
     {'agent_mode': 'mock'}, {'development_auth': True}, {'agent_cycles_enabled': False},
     {'large_snapshots_enabled': False}, {'device_inventory_path': None},

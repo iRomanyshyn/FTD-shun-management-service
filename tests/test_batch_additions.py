@@ -353,3 +353,60 @@ def test_v5_sixteen_pending_writes_share_one_final_observation(tmp_path):
         assert current.settled and current.closed
         server.result(timeout=4)
     finally: pool.shutdown(wait=True)
+
+
+def test_v6_shared_vectors_and_four_groups_use_one_tracked_socket(tmp_path):
+    vectors = json.loads((Path(__file__).parent / 'fixtures/batch-addition-v6.json').read_text())
+    assert encode_session_request(0x18, 6, 7, ID).hex() == vectors['begin']
+    assert encode_cycle_request(CycleOperation.STAGE_ADD, 1, ip=IP, version=6).hex() == vectors['stage']
+    assert encode_cycle_request(CycleOperation.END, 130, version=6).hex() == vectors['last_end']
+    for version in (4, 5):
+        with pytest.raises(ValueError): encode_cycle_request(CycleOperation.END, 35, version=version)
+    with pytest.raises(ValueError): encode_cycle_request(CycleOperation.END, 131, version=6)
+
+    def handler(connection):
+        seq = 1
+        entries = []
+        for group in range(4):
+            targets = tuple(IPv4Address(f'198.51.100.{n}') for n in range(group * 16 + 1, group * 16 + 17))
+            for ip in targets:
+                assert connection.recv(100) == bytes([0x1a, 6, seq]) + ip.packed
+                connection.send(bytes([5, 6, 0x1a, seq]))
+                entries.append((ip, 'management'))
+                seq += 1
+            opcode = 0x1c if group == 3 else 0x1b
+            assert connection.recv(100) == bytes([opcode, 6, seq])
+            connection.send(bytes([0, 6, opcode, seq, 16]) + b''.join(ip.packed + b'\x0amanagement' for ip in targets))
+            for frame in frames(opcode, seq, entries, version=6): connection.send(frame)
+            if group == 3:
+                assert seq == 68
+                connection.send(bytes.fromhex(vectors['settled']))
+            seq += 1
+        assert connection.recv(100) == b''
+
+    path, pool, server = serve(tmp_path, handler, version=6)
+    try:
+        current = UnixAgentCycle(path, 4, 7, version=6, settled_cycles=True, recoverable_cycles=True, session_id=ID)
+        for group in range(4):
+            for n in range(group * 16 + 1, group * 16 + 17):
+                assert isinstance(current.stage_addition(IPv4Address(f'198.51.100.{n}')), PendingAddition)
+            result = current.finish_additions() if group == 3 else current.verify_additions()
+            assert len(result.additions) == 16 and len(result.snapshot) == (group + 1) * 16
+        assert current.settled and current.closed
+        server.result(timeout=4)
+    finally: pool.shutdown(wait=True)
+
+
+@pytest.mark.parametrize('version', [False, True, '6', 0, 4, 7, 6.0])
+def test_extended_client_rejects_nonliteral_or_unknown_selection(version):
+    with pytest.raises(ValueError): UnixAgentClient('/unused', batch_session_version=version)
+
+
+def test_extended_client_is_explicit_and_preserves_nonaddition_device_version(monkeypatch):
+    args = {'large_snapshots': True, 'additions_enabled': True, 'settled_cycles': True,
+            'recoverable_cycles': True, 'tracked_cycles': True, 'addition_device_ids': frozenset({7})}
+    with pytest.raises(ValueError): UnixAgentClient('/unused', batch_session_version=6, **args)
+    monkeypatch.setattr(agent_client, 'UnixAgentCycle', lambda *args, **kwargs: kwargs['version'])
+    client = UnixAgentClient('/unused', batch_session_version=6, batch_additions=True, **args)
+    assert client.open_tracked_cycle(7, OWNER) == 6
+    assert client.open_tracked_cycle(8, OWNER) == 2

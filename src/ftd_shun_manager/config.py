@@ -66,6 +66,7 @@ class Settings:
     api_runtime: str = 'legacy'
     agent_concurrency: int = 1
     batch_additions_enabled: bool = False
+    batch_session_version: int = 5
 
     def __post_init__(self) -> None:
         if type(self.api_runtime) is not str or self.api_runtime not in {'legacy', 'continuous-observation', 'continuous-managed'}:
@@ -75,6 +76,9 @@ class Settings:
         if type(self.batch_additions_enabled) is not bool or (self.batch_additions_enabled and (
                 self.api_runtime != 'continuous-managed' or self.agent_mode != 'socket')):
             raise ValueError('Batch additions require the configured continuous-managed socket runtime.')
+        if (type(self.batch_session_version) is not int or self.batch_session_version not in (5, 6)
+                or (self.batch_session_version == 6 and not self.batch_additions_enabled)):
+            raise ValueError('Batch session version must be 5, or 6 with grouped execution enabled.')
         if type(self.managed_removal_admission_enabled) is not bool:
             raise ValueError("managed removal admission setting must be boolean")
         if self.managed_removal_admission_enabled and (
@@ -110,6 +114,9 @@ class Settings:
         batch_additions = environ.get('FTD_SHUN_AGENT_BATCH_ADDITIONS_ENABLED', 'false')
         if batch_additions not in {'true', 'false'}:
             raise ValueError('FTD_SHUN_AGENT_BATCH_ADDITIONS_ENABLED must be true or false')
+        batch_version = environ.get('FTD_SHUN_AGENT_BATCH_SESSION_VERSION', '5')
+        if batch_version not in {'5', '6'}:
+            raise ValueError('FTD_SHUN_AGENT_BATCH_SESSION_VERSION must be 5 or 6')
         import_admission = environ.get("FTD_SHUN_IMPORT_ADMISSION_ENABLED", "false")
         if import_admission not in {"true", "false"}:
             raise ValueError("FTD_SHUN_IMPORT_ADMISSION_ENABLED must be true or false")
@@ -175,4 +182,5 @@ class Settings:
             api_runtime=environ.get('FTD_SHUN_API_RUNTIME', 'legacy'),
             agent_concurrency=int(concurrency),
             batch_additions_enabled=batch_additions == 'true',
+            batch_session_version=int(batch_version),
         )

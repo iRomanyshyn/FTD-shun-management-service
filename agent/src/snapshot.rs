@@ -26,7 +26,11 @@ pub(super) fn encode_versioned(
 ) -> Result<Vec<Vec<u8>>> {
     if !matches!(
         version,
-        VERSION | addition::VERSION | batch_addition::VERSION | batch_addition::SHARED_END_VERSION
+        VERSION
+            | addition::VERSION
+            | batch_addition::VERSION
+            | batch_addition::SHARED_END_VERSION
+            | batch_addition::MULTI_GROUP_VERSION
     ) || (opcode == 7 && version != VERSION)
         || (batch_addition::supported(version)
             && matches!(
@@ -50,7 +54,7 @@ pub(super) fn encode_versioned(
             7 | 0x10 | cycle::BEGIN_SETTLED | cycle::BEGIN_RECOVERABLE | sessions::BEGIN
         ) && sequence != 0)
         || (opcode == batch_addition::VERIFY && !batch_addition::supported(version))
-        || (opcode == batch_addition::VERIFY_END && version != batch_addition::SHARED_END_VERSION)
+        || (opcode == batch_addition::VERIFY_END && version < batch_addition::SHARED_END_VERSION)
         || (matches!(
             opcode,
             0x11 | 0x13 | batch_addition::VERIFY | batch_addition::VERIFY_END

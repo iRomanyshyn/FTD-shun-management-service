@@ -4,6 +4,7 @@ use super::*;
 
 pub(super) const VERSION: u8 = 4;
 pub(super) const SHARED_END_VERSION: u8 = 5;
+pub(super) const MULTI_GROUP_VERSION: u8 = 6;
 pub(super) const STAGE: u8 = 0x1a;
 pub(super) const VERIFY: u8 = 0x1b;
 pub(super) const VERIFY_END: u8 = 0x1c;
@@ -11,11 +12,11 @@ pub(super) const MAX_PENDING: usize = 16;
 pub(super) const MAX_SEQUENCE: u8 = 34;
 
 pub(super) fn supported(version: u8) -> bool {
-    matches!(version, VERSION | SHARED_END_VERSION)
+    matches!(version, VERSION | SHARED_END_VERSION | MULTI_GROUP_VERSION)
 }
 
 pub(super) fn capacity(version: u8) -> usize {
-    if version == SHARED_END_VERSION {
+    if version >= SHARED_END_VERSION {
         MAX_PENDING
     } else {
         8

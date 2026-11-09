@@ -132,7 +132,7 @@ def test_invalid_session_identity_never_connects(tmp_path, owner):
     with pytest.raises(ValueError): client(str(tmp_path / 'absent.sock')).read_only_session_completed(7, owner)
 
 
-@pytest.mark.parametrize('fields', [{'operation': 0x17}, {'version': True}, {'version': 6}, {'device_id': 0},
+@pytest.mark.parametrize('fields', [{'operation': 0x17}, {'version': True}, {'version': 7}, {'device_id': 0},
     {'device_id': True}, {'session_id': b''}, {'session_id': bytes(16)}, {'session_id': IDENTITY + b'x'}])
 def test_session_packet_validation_is_literal_exact_and_bounded(fields):
     with pytest.raises(ValueError):

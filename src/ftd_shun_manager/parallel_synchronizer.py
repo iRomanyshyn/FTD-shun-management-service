@@ -29,6 +29,10 @@ class _DeviceWorker(Synchronizer):
         super().__init__(store, agent, initialize_queue=False, **configuration)
         self.device_id = device_id
         self.batch_additions_enabled = batch_additions_enabled
+        self.batch_session_version = getattr(agent, 'batch_session_version', 5)
+        if self.batch_session_version == 6:
+            self.bulk_discovery = BulkDiscovery(store, self.queue, enabled=self.bulk_dispatch_enabled,
+                addition_device_ids=self.addition_device_ids, admission_limit=64, check_limit=256)
         self.rpc_failed = False
         self.snapshot_callback = None
         self.clock = monotonic
@@ -39,7 +43,8 @@ class _DeviceWorker(Synchronizer):
         from .batch_queue import BatchDeviceOperationQueue
 
         queue_type = BatchDeviceOperationQueue if self.batch_additions_enabled and self.device_id in self.addition_device_ids else DeviceOperationQueue
-        self.queue = queue_type(self.store, token, priority_removals=priority_removals)
+        options = {'version': self.batch_session_version} if queue_type is BatchDeviceOperationQueue else {}
+        self.queue = queue_type(self.store, token, priority_removals=priority_removals, **options)
         self.instance_id = token.owner
         self._lease_seconds = lease_seconds
         # Preserve non-authoritative keyset hints across rounds, never authority.
@@ -184,7 +189,7 @@ class _DeviceWorker(Synchronizer):
         return completed
 
     async def _session_mutations(self, device_id, cycle, snapshot):
-        if getattr(cycle, 'version', None) == 5:
+        if getattr(cycle, 'version', None) in (5, 6):
             from .batch_session import BatchSession
 
             return await BatchSession(self, device_id, cycle, snapshot).run()

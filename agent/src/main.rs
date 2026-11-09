@@ -64,6 +64,7 @@ struct Agent {
     large_snapshots_enabled: bool,
     additions_enabled: bool,
     batch_additions_enabled: bool,
+    batch_session_version: u8,
     max_concurrent_devices: usize,
 }
 
@@ -202,6 +203,12 @@ impl Agent {
         if batch_additions_enabled && !additions_enabled {
             bail!("batch additions require explicitly enabled additions");
         }
+        let batch_session_version =
+            match env::var("FTD_SHUN_AGENT_BATCH_SESSION_VERSION").as_deref() {
+                Ok("5") | Err(env::VarError::NotPresent) => 5,
+                Ok("6") if batch_additions_enabled => 6,
+                _ => bail!("batch session version must be 5, or 6 with grouped additions enabled"),
+            };
         for device in devices.values() {
             if let Some(profile) = device.addition_profile {
                 profile.validate(&device.allowed_interfaces)?;
@@ -220,6 +227,7 @@ impl Agent {
                 large_snapshots_enabled,
                 additions_enabled,
                 batch_additions_enabled,
+                batch_session_version,
                 max_concurrent_devices,
             },
             socket_file,
@@ -1140,6 +1148,7 @@ async fn main() -> Result<()> {
                 "event": "agent.configuration.checked", "devices": agent.devices.len(),
                 "credential_mode": agent.credentials.mode(),
                 "max_concurrent_devices": agent.max_concurrent_devices,
+                "batch_session_version": agent.batch_session_version,
             })
         );
         return Ok(());
@@ -1246,6 +1255,7 @@ mod tests {
             large_snapshots_enabled: false,
             additions_enabled: false,
             batch_additions_enabled: false,
+            batch_session_version: 5,
             max_concurrent_devices: 2,
         })
     }

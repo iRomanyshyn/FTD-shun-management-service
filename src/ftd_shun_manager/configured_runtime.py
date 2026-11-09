@@ -67,7 +67,8 @@ def configured_dispatcher(settings, store):
     agent = UnixAgentClient(settings.agent_socket, settings.agent_timeout_seconds + 5,
                             large_snapshots=True, settled_cycles=True, recoverable_cycles=True, tracked_cycles=True,
                             additions_enabled=managed, addition_device_ids=addition_ids,
-                            batch_additions=settings.batch_additions_enabled)
+                            batch_additions=settings.batch_additions_enabled,
+                            batch_session_version=settings.batch_session_version)
     return ContinuousDispatcher(store, agent, enabled=True, agent_concurrency=settings.agent_concurrency,
                                 bulk_dispatch_enabled=managed, addition_device_ids=addition_ids,
                                 batch_additions_enabled=settings.batch_additions_enabled,

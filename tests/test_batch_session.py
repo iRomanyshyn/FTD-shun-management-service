@@ -51,7 +51,7 @@ class Agent(TracedAgent):
 
     def open_cycle(self, device):
         session = super().open_cycle(device)
-        session.version, session.sequence = 5, 1
+        session.version, session.sequence = getattr(self, 'batch_session_version', 5), 1
         pending = []
         count = 0
 
@@ -143,6 +143,92 @@ def test_twelve_writes_share_one_terminal_group_read_and_publish_after_provenanc
         assert db.execute("SELECT COUNT(*) FROM managed_bulk_attempts WHERE state='VERIFIED' AND occurrence_id IS NOT NULL").fetchone()[0] == 12
     assert sum(step[0] == 'open' for step in agent.trace) == 1
     assert not agent.lookup
+
+
+@pytest.fixture
+def extended(bulk, leases):
+    grant(bulk, (1,), count=80)
+    token, queue = acquire(leases)
+    assert discover(bulk, queue) == 16
+    queue.finish_cycle(token.owner, 0)
+    agent = Agent()
+    agent.batch_session_version = 6
+    runner = ParallelSynchronizer(leases.store, agent, enabled=True, agent_concurrency=2,
+        addition_device_ids=frozenset({1}), bulk_dispatch_enabled=True,
+        settled_cycles_required=True, batch_additions_enabled=True)
+    runner._priority_removals = True
+    return runner, agent
+
+
+def test_extended_session_refills_from_new_group_reads_without_relogin_or_overfill(extended):
+    runner, agent = extended
+    asyncio.run(visit(runner))
+    assert [len(group) for group in agent.verifications] == [16, 16, 16, 16]
+    assert sum(step[0] == 'open' for step in agent.trace) == 1
+    assert len(agent.writes) == len(set(agent.writes)) == 64
+    assert states(runner) == {'VERIFIED': 64, 'QUEUED': 16}
+    worker = runner._workers[1]
+    assert worker._device_cycle['completed'] == worker._device_cycle['limit'] == 64
+    assert worker.session_settled and not worker.rpc_failed
+    assert worker.bulk_discovery.status()['admitted_this_cycle'] == 64
+    assert worker.bulk_discovery.status()['admission_limit'] == 64
+    assert worker.bulk_discovery.status()['check_limit'] == 256
+    with runner.store._connection() as db:
+        assert db.execute("SELECT state FROM managed_bulk_device_executors WHERE device_id=1").fetchone()[0] == 'IDLE'
+        assert db.execute("SELECT COUNT(*) FROM managed_bulk_attempts WHERE state='VERIFIED'").fetchone()[0] == 64
+        assert db.execute("""SELECT COUNT(*) FROM shun_events WHERE event_type='SHUN_OPERATION_VERIFIED'
+            AND json_extract(details_json,'$.batch_session_version')=6""").fetchone()[0] == 64
+        assert db.execute("""SELECT COUNT(*) FROM shun_events WHERE event_type='SHUN_ADDITION_ACKNOWLEDGED'
+            AND json_extract(details_json,'$.batch_session.version')=6""").fetchone()[0] == 64
+
+
+@pytest.mark.parametrize('interrupt', ['stop', 'refresh', 'remove', 'cancel', 'protect'])
+def test_extended_second_group_still_honors_command_boundary_interruptions(extended, bulk, cancellation_controls, interrupt):
+    runner, agent = extended
+
+    def event(device, ip, count):
+        if count != 18: return
+        worker = runner._workers[1]
+        if interrupt == 'stop': worker._stop_mutations = True
+        elif interrupt == 'refresh': worker._priority_pending = True
+        elif interrupt == 'remove': admitted_removal(bulk, IPv4Address('203.0.113.17'))
+        elif interrupt == 'protect':
+            from ftd_shun_manager.protected_policy import ProtectedPolicy
+
+            ProtectedPolicy(runner.store).change('add', ip, 0, 'synthetic:policy',
+                'Synthetic policy editor', ('Viewer',), managed_revision=1)
+        else:
+            from test_bulk_cancellations import cancel
+
+            with runner.store._connection() as db:
+                key = db.execute('SELECT authorization_request_id FROM managed_bulk_attempts LIMIT 1').fetchone()[0]
+            cancel(cancellation_controls, key)
+
+    agent.on_stage = event
+    asyncio.run(visit(runner))
+    assert [len(group) for group in agent.verifications][:2] == [16, 2]
+    assert sum(step[0] == 'open' for step in agent.trace) == 1
+    assert runner._workers[1].session_settled
+    assert not runner._workers[1].rpc_failed
+    if interrupt in {'stop', 'cancel'}:
+        assert len(agent.writes) == 18
+    if interrupt == 'remove':
+        index = next(i for i, step in enumerate(agent.trace) if step[0] == 'verify' and len(step[2]) == 2)
+        assert agent.trace[index + 1][0] == 'remove'
+
+
+def test_extended_lost_second_group_ack_retains_first_verified_group_and_unknowns(extended):
+    runner, agent = extended
+    agent.fail_stage = 18
+    asyncio.run(visit(runner))
+    assert [len(group) for group in agent.verifications] == [16]
+    assert states(runner)['VERIFIED'] == 16
+    assert states(runner)['UNVERIFIED'] == 2
+    assert not runner._workers[1].session_settled
+    with runner.store._connection() as db:
+        # A failed visit retains its exact live lease; expiry may later classify
+        # ATTENTION. It must never release as IDLE just because the process returned.
+        assert db.execute("SELECT state FROM managed_bulk_device_executors WHERE device_id=1").fetchone()[0] == 'LEASED'
 
 
 @pytest.mark.parametrize('interrupt', ['stop', 'refresh', 'remove', 'pause', 'protect', 'cancel'])

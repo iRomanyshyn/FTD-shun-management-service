@@ -32,7 +32,9 @@ enum Step {
 }
 
 pub(super) fn max_sequence(version: u8) -> u8 {
-    if batch_addition::supported(version) {
+    if version == batch_addition::MULTI_GROUP_VERSION {
+        130
+    } else if batch_addition::supported(version) {
         batch_addition::MAX_SEQUENCE
     } else {
         18
@@ -66,7 +68,7 @@ fn after_cleanup(
     if !matches!(
         begin,
         BEGIN | BEGIN_SETTLED | BEGIN_RECOVERABLE | sessions::BEGIN
-    ) || !matches!(version, 1..=5)
+    ) || !matches!(version, 1..=6)
         || (batch_addition::supported(version) && begin != sessions::BEGIN)
         || !(1..=max_sequence(version)).contains(&sequence)
     {
@@ -89,7 +91,7 @@ pub(super) fn finish_result(
     mutation_steps: u8,
 ) -> Result<Option<[u8; 4]>> {
     if matches!(begin, BEGIN_RECOVERABLE | sessions::BEGIN)
-        && matches!(version, 1..=5)
+        && matches!(version, 1..=6)
         && (!batch_addition::supported(version) || begin == sessions::BEGIN)
         && result.is_err()
         && cleanup.is_ok()
@@ -107,7 +109,8 @@ pub(super) fn finish_result(
 }
 
 fn decode_step(packet: &[u8], expected: u8, version: u8) -> Result<Step> {
-    if packet.len() < 3
+    if !matches!(version, 1..=6)
+        || packet.len() < 3
         || packet[1] != version
         || packet[2] != expected
         || !(1..=max_sequence(version)).contains(&expected)
@@ -127,7 +130,7 @@ fn decode_step(packet: &[u8], expected: u8, version: u8) -> Result<Step> {
             Ipv4Addr::new(packet[3], packet[4], packet[5], packet[6]),
         )),
         (batch_addition::VERIFY, 3) if batch_addition::supported(version) => Ok(Step::VerifyAdds),
-        (batch_addition::VERIFY_END, 3) if version == batch_addition::SHARED_END_VERSION => {
+        (batch_addition::VERIFY_END, 3) if version >= batch_addition::SHARED_END_VERSION => {
             Ok(Step::VerifyEnd)
         }
         _ => bail!("invalid cycle opcode or length"),
@@ -231,11 +234,35 @@ struct Cycle<C> {
 
 impl<C: Console> Cycle<C> {
     fn remaining(&self) -> Duration {
-        MAX_DURATION.saturating_sub(self.started.elapsed())
+        self.max_duration().saturating_sub(self.started.elapsed())
+    }
+
+    fn max_duration(&self) -> Duration {
+        if self.version == batch_addition::MULTI_GROUP_VERSION {
+            Duration::from_secs(240)
+        } else {
+            MAX_DURATION
+        }
+    }
+
+    fn max_mutations(&self) -> u8 {
+        if self.version == batch_addition::MULTI_GROUP_VERSION {
+            64
+        } else {
+            MAX_REMOVALS
+        }
+    }
+
+    fn max_commands(&self) -> usize {
+        if self.version == batch_addition::MULTI_GROUP_VERSION {
+            256
+        } else {
+            MAX_COMMANDS
+        }
     }
 
     fn stage_timeout(&self) -> Duration {
-        if self.version == batch_addition::SHARED_END_VERSION {
+        if self.version >= batch_addition::SHARED_END_VERSION {
             self.timeout.min(FTD_INTERACTION_TIMEOUT * 2)
         } else {
             self.timeout
@@ -243,7 +270,7 @@ impl<C: Console> Cycle<C> {
     }
 
     async fn snapshot(&mut self, opcode: u8, sequence: u8) -> Result<Vec<Vec<u8>>> {
-        if self.commands >= MAX_COMMANDS {
+        if self.commands >= self.max_commands() {
             bail!("cycle snapshot command budget exhausted");
         }
         self.commands += 1;
@@ -275,7 +302,7 @@ impl<C: Console> Cycle<C> {
                     bail!("cycle priority snapshot budget exhausted");
                 }
                 self.priority_used = true;
-                if self.commands + 2 > MAX_COMMANDS
+                if self.commands + 2 > self.max_commands()
                     || self.remaining() < FTD_INTERACTION_TIMEOUT * 2
                 {
                     return Ok((vec![vec![2, self.version, SNAPSHOT, seq]], false));
@@ -284,14 +311,14 @@ impl<C: Console> Cycle<C> {
             }
             Step::End => Ok((self.snapshot(END, seq).await?, true)),
             Step::Remove(ip) => {
-                if self.removals + self.additions >= MAX_REMOVALS {
+                if self.removals + self.additions >= self.max_mutations() {
                     bail!("cycle combined mutation count exceeded");
                 }
                 self.removals += 1;
                 let deferred = vec![vec![2, self.version, REMOVE, seq]];
                 // Reserve a complete operation plus the final full observation.
                 if self.remaining() < self.timeout + FTD_INTERACTION_TIMEOUT
-                    || self.commands + 4 > MAX_COMMANDS
+                    || self.commands + 4 > self.max_commands()
                 {
                     return Ok((deferred, false));
                 }
@@ -301,7 +328,7 @@ impl<C: Console> Cycle<C> {
                     return Ok((vec![vec![0, self.version, REMOVE, seq, 0]], false));
                 }
                 // Reserve ALL interface writes, target verification, and END.
-                if self.commands + interfaces.len() + 2 > MAX_COMMANDS {
+                if self.commands + interfaces.len() + 2 > self.max_commands() {
                     return Ok((deferred, false));
                 }
                 if interfaces.iter().any(|interface| {
@@ -326,12 +353,12 @@ impl<C: Console> Cycle<C> {
                     .addition_profile
                     .context("device has no addition profile")?;
                 profile.validate(&self.allowed)?;
-                if self.removals + self.additions >= MAX_REMOVALS {
+                if self.removals + self.additions >= self.max_mutations() {
                     bail!("cycle combined mutation count exceeded");
                 }
                 self.additions += 1;
                 if self.remaining() < self.timeout + FTD_INTERACTION_TIMEOUT
-                    || self.commands + 4 > MAX_COMMANDS
+                    || self.commands + 4 > self.max_commands()
                 {
                     return Ok((vec![vec![2, self.version, ADD, seq]], false));
                 }
@@ -357,7 +384,7 @@ impl<C: Console> Cycle<C> {
                     .addition_profile
                     .context("device has no addition profile")?;
                 profile.validate(&self.allowed)?;
-                if self.removals + self.additions >= MAX_REMOVALS {
+                if self.removals + self.additions >= self.max_mutations() {
                     bail!("cycle combined mutation count exceeded");
                 }
                 if self.pending_additions.contains(&ip) {
@@ -368,7 +395,7 @@ impl<C: Console> Cycle<C> {
                 // final verification/END. V4 retains its original reserve.
                 if self.pending_additions.len() >= batch_addition::capacity(self.version)
                     || self.remaining() < self.stage_timeout() + FTD_INTERACTION_TIMEOUT
-                    || self.commands + 4 > MAX_COMMANDS
+                    || self.commands + 4 > self.max_commands()
                 {
                     return Ok((
                         vec![vec![2, self.version, batch_addition::STAGE, seq]],
@@ -405,7 +432,7 @@ impl<C: Console> Cycle<C> {
                     .addition_profile
                     .context("device has no addition profile")?;
                 if self.pending_additions.is_empty()
-                    || self.commands + if final_group { 1 } else { 2 } > MAX_COMMANDS
+                    || self.commands + if final_group { 1 } else { 2 } > self.max_commands()
                 {
                     bail!("invalid pending verification or insufficient verification/END budget");
                 }
@@ -449,7 +476,7 @@ pub(super) fn set_ipc_timeout(connection: &OwnedFd, duration: Duration) -> Resul
 
 fn set_cycle_ipc_timeout(connection: &OwnedFd, duration: Duration, version: u8) -> Result<()> {
     set_ipc_timeout(connection, duration)?;
-    if version == batch_addition::SHARED_END_VERSION {
+    if version >= batch_addition::SHARED_END_VERSION {
         // Durable group settlement can exceed the legacy idle wait. Transfer
         // limits and the absolute session deadline do not grow with this wait.
         let duration = duration
@@ -480,6 +507,9 @@ pub(super) fn handle(
     }
     if batch_addition::supported(version) && !agent.batch_additions_enabled {
         bail!("batch additions are disabled pending worker integration and validation");
+    }
+    if version == batch_addition::MULTI_GROUP_VERSION && agent.batch_session_version != version {
+        bail!("multi-group session version is not explicitly enabled");
     }
     let device = agent
         .devices
@@ -580,7 +610,7 @@ pub(super) fn handle(
             ) {
                 failed_read = Some((packet[0], packet[2]));
             }
-            let operation_timeout = if version == batch_addition::SHARED_END_VERSION
+            let operation_timeout = if version >= batch_addition::SHARED_END_VERSION
                 && packet[0] == batch_addition::STAGE
             {
                 cycle.stage_timeout()
@@ -1315,6 +1345,7 @@ mod tests {
             large_snapshots_enabled: true,
             additions_enabled: false,
             batch_additions_enabled: false,
+            batch_session_version: 5,
             max_concurrent_devices: 1,
         };
         let (_sender, receiver) = socketpair(
@@ -1414,6 +1445,7 @@ mod tests {
             large_snapshots_enabled: false,
             additions_enabled: false,
             batch_additions_enabled: false,
+            batch_session_version: 5,
             max_concurrent_devices: 1,
         };
         let (sender, receiver) = socketpair(

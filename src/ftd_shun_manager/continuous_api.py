@@ -106,6 +106,7 @@ class ContinuousApiRuntime:
                 runner.agent.socket_path != settings.agent_socket or runner.agent.timeout_seconds != settings.agent_timeout_seconds + 5
                 or runner.agent.large_snapshots is not True or runner.agent.settled_cycles is not True
                 or runner.agent.batch_additions is not settings.batch_additions_enabled
+                or runner.agent.batch_session_version != settings.batch_session_version
                 or runner.agent.additions_enabled is not self.managed_execution or runner.agent.addition_device_ids != expected_ids):
             raise ValueError('Continuous API requires a matching strict large-read transport and exact selected ADD scope.')
         if (settings.api_runtime in {'continuous-observation', 'continuous-managed'}

@@ -52,6 +52,27 @@ reconciliation until terminal digest, full strict entry decoding, exact count,
 absence of duplicates and absence of trailing bytes all pass. The digest is
 a completeness/correlation check, not a replacement for peer authentication.
 
+Policy-evidence alignment (2026-11-04): bulk refill/admission, pre-send attempt
+capture and legacy managed restoration now use the same 200,000-entry transport
+constant when bounding the unique IPv4 set in a complete snapshot. Their older
+65,536-IP check incorrectly rejected already valid large reads, preventing the
+agreed 100,000-address import from completing on a sufficiently populated device.
+This removes that internal mismatch, not the transport limit. A unique-IP set
+does not prove a stream complete: it is still built only from the validated full
+snapshot, and cannot classify a partial/failed read as absence. The 100,000 import
+pair limit, original standing consent, freshness, protection, retention, queue/
+session budgets, verification and uncertainty remain unchanged. No larger list
+is applied to a real FTD by this correction.
+
+This is an API-only compatible-code update on existing storage: no DDL, protocol,
+agent, gate, credential/trust/network change or legacy-state conversion. Drain
+API, retain its prior compatible image and original authority/evidence, replace
+API and check the same task resumes. Older API code can still refuse snapshots
+above its old internal cap even with a newer agent; do not erase data or remove
+device entries merely to make rollback fit. Synthetic policy tests cover 65,537,
+95,081 and 200,000 observed IPs, rejection of 200,001 and preserved presence/
+suspension/type/completeness guards. This is not live 200,000-entry FTD acceptance.
+
 Bad version/opcode/sequence/kind/index/length, missing/reordered/duplicate frames,
 bad digest, oversize, invalid fields, timeout or EOF abort the request/session.
 Partial data stays local and is discarded; prior observations remain active

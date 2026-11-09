@@ -15,6 +15,87 @@ priority. See [the planned constraints](working-version-plan.md#deferred-ip-cont
 
 ## Current increment
 
+**Bounded multi-group execution (2026-11-04, deployed; two complete lab visits verified).**
+Explicit `FTD_SHUN_AGENT_BATCH_SESSION_VERSION=6` selects matching tracked API/
+agent sessions: 240s/64 mutation attempts/256 CLI commands/sequence <=130, with
+pending groups still <=16. Initial and fully verified/persisted/published group
+reads can freeze new queue segments and admit fresh work, bounded to 64 new jobs/
+256 checks per session and a 16-job device window. Per-target preflight, complete
+original-root/current protection/lease/deadline/uncertainty checks, command-boundary
+priority/cancellation and real final settlement remain. V5 stays default and its
+frozen cutoff/120s/16-attempt contract is unchanged. No schema, task recreation,
+consent renewal, credentials/trust/network or unknown-write retry. Compose agent
+grace becomes 300s; API-first explicit drain remains required. Synthetic actual
+worker tests run 64 addresses/four groups on one connection, interrupt the second
+group for refresh/removal/protection/cancel/stop, and retain earlier verified
+results plus later unknowns after a lost ACK. Focused Python 244 pass; final full
+suite **3239 pass in 547.83s**; Rust **91 unit +7 configuration +4 shutdown pass**.
+Locked release build, Clippy/fmt, compileall/Ruff/diff and both non-executing
+configured preflights pass. Three-overlay Compose validation uses tracked example
+interpolation without private env-file resolution; only Caddy publishes 443.
+See [Multi-group Sessions](manual/multi-group-sessions.md).
+The old offline recovery tools refuse epochs above 16 claims; do not bypass
+them. Larger held-epoch recovery and cross-session first confirmation remain
+separate unfinished contracts. The first full run had only two obsolete
+unknown-version expectations (3237 pass); both were corrected to unknown 7 and
+the clean final run above passes. API `c8e66dbd66c6...` / `7d02442055d0`, agent
+`e8cdc9925a8d...` / `ea9085b90bf5` now select v6 in the known desk lab. Old API
+and agent actually exited 0; stopped epoch 2591 IDLE, zero RUNNING/new unknown,
+integrity ok and all nine original fingerprints unchanged. Rollback references
+`ftd-shun-{api,agent}:lab-pre-multi-group-20261104` retained; no DDL or data reset.
+Private lab `.env` selects 6; tracked example remains default 5/grouped false.
+Web `f42288374e68` unchanged, health 200/anonymous 401. Startup at 13:59:12Z:
+original task 14,567/32,425 VERIFIED, epoch 2592 active, cycle limit 64, integrity
+ok/nine fingerprints unchanged, no new unknown. Startup is not complete v6
+write/session acceptance or throughput gain. Retained four pre-change settled
+epochs 2576–2579: 41 VERIFIED/290.777s (8.46/minute, includes a short visit),
+not an isolated benchmark. Observation continues on the same original import.
+
+Actual released epochs **2593–2594 each VERIFIED 33** addresses on one SSH
+session, in groups **16/16/1**, with one exact before-write DEFER each and real
+terminal settlement. Total **66 in 402.819s including the gap, 9.83/minute**;
+including short startup 2592: 70/446.268s, 9.41/minute. This is a modest bounded
+unpaired gain over the earlier 8.46/minute sample, not large-import acceptance.
+At **14:07:10Z** original task **14,637/32,425 VERIFIED**, normal epoch 2595 active/
+LEASED, ready, integrity ok/nine fingerprints unchanged, no new unknown or
+ATTENTION. Raw old UNVERIFIED remains one; unresolved FAILED/UNVERIFIED zero,
+reviewed history one, execution recovery running. Status 1.033s. Diagnostics for
+the complete visits show ~116–117s agent calls and ~84s local work, including
+~47–48s claim processing, ~13–14s group-result persistence and ~9s ACK persistence.
+Logs are not proof of mutation/settlement; retained job/result/release evidence
+supplies that proof. Next optimize that measured cost without deleting original
+root/current eligibility checks, and finish compatible larger-epoch recovery and
+durable first-confirmation contracts. No reset/reimport/cleared history/new fixture.
+
+**Policy snapshot-capacity alignment (2026-11-04, deployed and read-checked).**
+Bulk admission/refill, retained attempt capture and legacy restoration still
+rejected more than 65,536 observed IPs, despite the complete reader's 200,000
+entry bound and approved 100,000-pair imports. Candidate code imports the shared
+decoder constant at all three boundaries. No truncation, input-cap increase,
+schema/protocol/gate/agent change, new consent or device operation. Synthetic
+tests exercise admission/discovery/capture at 65,537/95,081/200,000, over-limit
+refusal and preserved present/suspended/type/completeness controls. The new
+19-test focused set passes; combined dispatch/attempt/refill/restoration/transport
+regression: **255 pass in 21.56s**, full suite **3213 pass in 556.07s**.
+Compileall/Ruff/diff and configured non-executing preflight pass. API
+`f8ab909fdb10...` / container `2f00c613a2c7` is deployed; compatible
+rollback `ftd-shun-api:lab-pre-policy-snapshot-cap-20261104` retained. Web/agent
+remain unchanged. A separate query-only profile of the original 32,425-member
+root still finds full original-root validation dominant (cProfile-instrumented
+root 1.022s, three profile validations 0.334s; not throughput or paired timing).
+No validation is skipped/cached and no performance improvement is claimed.
+Old API exited 0; stopped DB IDLE epoch 2493, zero RUNNING jobs, integrity ok and
+all nine original authority/protection/inventory/recovery hashes unchanged.
+Web `f42288374e68` / agent `e2d0128319c2` were not replaced. Deployed policy/
+capture/restoration/decoder constants all equal 200,000. At 11:45:54Z original
+task 13,412/32,425 VERIFIED, normal epoch 2495 active/LEASED, ready, integrity ok,
+all nine hashes unchanged, no new unknown/ATTENTION and zero unresolved queue
+attention. Fresh read 11:45:30Z; status 0.862s, Web 200/anonymous 401. This is
+small-population read/startup acceptance, not live 200,000-IP write/throughput
+acceptance. Original task, protected settings, old reviewed unknown and receipts
+remain; no reimport/renewed consent or additional lab fixture.
+This prevents a future capacity stop, not a measured throughput improvement.
+
 **Quiet reviewed queue history (2026-11-04, deployed and checked).**
 The retained reviewed unknown was still counted as an active queue warning.
 Candidate status preserves raw outcomes but separates validated unresolved

@@ -19,11 +19,15 @@ DEVICE_WINDOW = 16
 
 
 class BulkDiscovery:
-    def __init__(self, store, queue, *, enabled=False, addition_device_ids=frozenset()):
+    def __init__(self, store, queue, *, enabled=False, addition_device_ids=frozenset(), admission_limit=ADMISSION_LIMIT, check_limit=CHECK_LIMIT):
         if (type(enabled) is not bool or type(addition_device_ids) is not frozenset
                 or len(addition_device_ids) > 10
                 or any(type(device) is not int or not 1 <= device <= 65535 for device in addition_device_ids)):
             raise ValueError('Bulk refill requires a boolean capability and at most ten literal device profiles.')
+        if (type(admission_limit) is not int or type(check_limit) is not int
+                or (admission_limit, check_limit) not in {(16, 64), (64, 256)}):
+            raise ValueError('Bulk refill needs an exact bounded session budget.')
+        self.admission_limit, self.check_limit = admission_limit, check_limit
         self.store, self.queue = store, queue
         self.enabled, self.addition_device_ids = enabled, addition_device_ids
         self.source = BulkDispatch(store, queue)
@@ -33,7 +37,7 @@ class BulkDiscovery:
 
     def begin_cycle(self):
         with self._lock:
-            self.remaining, self.checked = ADMISSION_LIMIT, 0
+            self.remaining, self.checked = self.admission_limit, 0
             self.devices = {}
             self._publish_status()
 
@@ -45,9 +49,9 @@ class BulkDiscovery:
         counts = Counter()
         for device in self.devices.values():
             counts.update(device['counts'])
-        self._published_status = deepcopy({'enabled': self.enabled, 'admitted_this_cycle': ADMISSION_LIMIT - self.remaining,
-            'admission_limit': ADMISSION_LIMIT, 'checked_this_cycle': self.checked,
-            'check_limit': CHECK_LIMIT, 'device_window': DEVICE_WINDOW,
+        self._published_status = deepcopy({'enabled': self.enabled, 'admitted_this_cycle': self.admission_limit - self.remaining,
+            'admission_limit': self.admission_limit, 'checked_this_cycle': self.checked,
+            'check_limit': self.check_limit, 'device_window': DEVICE_WINDOW,
             'counts_are_sampled_checks': True, 'counts': dict(counts), 'devices': self.devices})
 
     def ordered_devices(self, devices):
@@ -89,7 +93,7 @@ class BulkDiscovery:
 
                 if hold is None and device_uncertain(db, snapshot.device_id):
                     hold = 'device_uncertain'
-                if hold is None and (not self.remaining or self.checked >= CHECK_LIMIT):
+                if hold is None and (not self.remaining or self.checked >= self.check_limit):
                     hold = 'cycle_budget'
                 pending = db.execute("SELECT COUNT(*) FROM operation_jobs WHERE device_id=? AND state IN ('QUEUED','RUNNING')",
                                      (snapshot.device_id,)).fetchone()[0]
@@ -114,9 +118,9 @@ class BulkDiscovery:
                     WHERE t.device_id=? AND t.enabled=1 AND t.ip>?
                     AND NOT EXISTS (SELECT 1 FROM shun_state s
                         WHERE s.device_id=t.device_id AND s.ip=t.ip AND s.active=1)
-                    ORDER BY t.ip LIMIT ?''', (snapshot.device_id, cursor, CHECK_LIMIT - self.checked + 1)).fetchall()
+                    ORDER BY t.ip LIMIT ?''', (snapshot.device_id, cursor, self.check_limit - self.checked + 1)).fetchall()
                 candidates = []
-                for row in rows[:CHECK_LIMIT - self.checked]:
+                for row in rows[:self.check_limit - self.checked]:
                     if len(candidates) >= room:
                         break
                     checked += 1

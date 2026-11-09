@@ -3,6 +3,24 @@
 Agreed with the operator: 2026-10-20.
 Status: approved target behavior and delivery plan; not a deployment procedure.
 
+Multi-group execution increment, 2026-11-04: an explicit matched tracked v6
+profile permits 240-second/64-attempt/256-command sessions with groups of 16.
+Complete verified intermediate observations allow bounded new queue segments
+and fresh admission without relogin, retaining every claim's current guards and
+original evidence/deadline. V5 remains default and unchanged. Consult current
+status and manual/multi-group-sessions.md for validation/deployment; no speedup
+is presumed. Cross-session first confirmation/retry and larger held-epoch offline
+recovery remain separate unfinished contracts, not supplied by these bounds.
+
+Capacity correction, 2026-11-04: policy admission/capture/restoration still had
+a 65,536-IP complete-evidence cap despite the matched 200,000-entry reader and
+100,000-pair import target. Align these internal guards to the reader's shared
+constant, retaining exact bounds and all authority/time/protection/uncertainty
+checks. Synthetic large evidence is not live capacity acceptance. This prevents
+a deterministic future large-import stop; it is not a throughput improvement.
+Continue with the durable first-confirmation/bounded-session work below, not
+another source-input limit increase or reset of the original lab import.
+
 Current batching follow-up, 2026-11-03: tracked v5 increases pending capacity to
 16 and combines final group verification, visible snapshot refresh and terminal
 session completion in one full read. The 120-second / 16-mutation bounds remain;
