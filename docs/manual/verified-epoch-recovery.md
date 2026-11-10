@@ -13,6 +13,9 @@ cleanup, missing evidence, other owned devices and changed/expired reviews. Its
 current narrow scope requires 1–16 verified claims and all other device fences
 IDLE. An old read-only hold or pruned/missing original job is not covered.
 
+A separate explicit [extended v6 profile](extended-session-recovery.md) covers
+17–64 matching system ADD claims; the default 1–16 scope remains unchanged.
+
 This is a trusted-host offline procedure, not a Web button or automatic startup
 action. Stop API/Web, then gracefully stop the privileged agent and verify its
 actual exit. Prevent their orchestrator from restarting them. The offline flag

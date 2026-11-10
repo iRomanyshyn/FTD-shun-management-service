@@ -7,7 +7,9 @@ _COUNTS = '''WITH attempts AS (
     SELECT authorization_request_id,device_id,ip,intent_id,generation,
         MAX(state='VERIFIED') AS verified,MAX(state='NOOP') AS noop,
         MAX(state='UNVERIFIED' AND {unresolved}) AS uncertain,MAX(state='FAILED') AS failed,
-        MAX(state='RUNNING') AS running,MAX(state='QUEUED') AS queued
+        MAX(state='RUNNING') AS running,MAX(state='QUEUED') AS queued,
+        MAX(state='AWAITING_CONFIRMATION') AS awaiting,MAX(state='OBSERVED_PRESENT') AS observed,
+        MAX(state='CONFIRMED_ABSENT') AS absent
     FROM managed_bulk_attempts GROUP BY authorization_request_id,device_id,ip,intent_id,generation
 ), scope AS (
     SELECT m.request_id,
@@ -15,6 +17,7 @@ _COUNTS = '''WITH attempts AS (
              WHEN m.classification='ALREADY_MANAGED' THEN 'unchanged'
              WHEN a.verified=1 THEN 'verified'
              WHEN a.noop=1 THEN 'noop'
+             WHEN a.observed=1 THEN 'present'
              WHEN t.intent_id IS NULL THEN 'unknown'
              WHEN t.intent_id!=m.intent_id OR t.generation!=m.generation
                  OR t.authorization_request_id!=m.authorization_request_id THEN 'superseded'
@@ -23,6 +26,8 @@ _COUNTS = '''WITH attempts AS (
              WHEN t.enabled=0 THEN 'stopped'
              WHEN a.running=1 THEN 'running'
              WHEN a.queued=1 THEN 'queued'
+             WHEN a.awaiting=1 THEN 'awaiting_confirmation'
+             WHEN a.absent=1 THEN 'awaiting_retry'
              WHEN EXISTS(SELECT 1 FROM shun_state s WHERE s.device_id=m.device_id AND s.ip=m.ip AND s.active=1)
                  THEN 'present'
              ELSE 'pending' END AS outcome
@@ -60,7 +65,7 @@ def import_progress(db):
                 or descriptor['manifest']['accepted_count'] != row['accepted_count']
                 or descriptor['manifest']['pair_count'] != row['pair_count']):
             raise BulkUnavailable('Complete original import progress is unavailable.')
-        outstanding = sum(states.get(state, 0) for state in ('pending', 'queued', 'running'))
+        outstanding = sum(states.get(state, 0) for state in ('pending', 'queued', 'running', 'awaiting_confirmation', 'awaiting_retry'))
         attention = sum(states.get(state, 0) for state in ('failed', 'unverified', 'unknown'))
         tasks.append({'id': row['id'], 'label': descriptor['label'],
             'actor_subject': row['actor_subject'], 'actor_display_name': row['actor_display_name'],

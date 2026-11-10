@@ -14,7 +14,7 @@
 {% for target in scope.targets %}{% set item = inspection.targets[loop.index0] %}<tr>
 <td>{{ target.hostname }} ({{ target.device_id }})<br>{{ scope.ip }}<br>{{ 'Device enabled' if target.device_enabled else 'Device disabled — blocks entire scope' }}</td>
 <td>{{ 'Auto-restore on — will turn off' if target.maintenance_enabled else 'Auto-restore off — remove block only' }}<br>{{ 'Observed present' if target.observed_present else 'Not currently observed — retained scope' }}</td>
-<td><span class="state-badge {{ 'policy-disabled' if item.disposition == 'BLOCKED' else '' }}">{{ item.disposition }}</span>{% for blocker in item.blockers %}<br>{{ blocker }}{% endfor %}</td>
+<td><span class="state-badge {{ 'policy-disabled' if item.disposition == 'BLOCKED' else '' }}">{{ item.disposition }}</span>{% for blocker in item.blockers %}<br>{{ 'The previous addition is awaiting a complete device read. Request refresh, then review removal again.' if blocker == 'ADD_AWAITING_CONFIRMATION' else blocker }}{% endfor %}</td>
 <td>{% if item.predecessor %}<code>{{ item.predecessor.job_id }}</code><br>Generation {{ item.predecessor.generation }} · epoch {{ item.predecessor.executor_epoch }}<br>Original ADD expires <time class="local-timestamp" datetime="{{ item.predecessor.expires_at }}">{{ item.predecessor.expires_at }}</time>{% else %}No waitable RUNNING ADD{% endif %}</td>
 </tr>{% endfor %}</tbody></table></div>
 {% if review %}

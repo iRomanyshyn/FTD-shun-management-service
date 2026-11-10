@@ -95,12 +95,14 @@ class BulkOrderedRemovalScopes:
                 or db.execute("SELECT 1 FROM managed_bulk_attempts WHERE device_id=? AND ip=? AND state IN ('FAILED','UNVERIFIED') AND "
                               + unresolved(db, 'job_id') + ' LIMIT 1', pair).fetchone()):
             blockers.append('PAIR_ADD_ATTENTION')
-        job = db.execute("SELECT * FROM operation_jobs WHERE device_id=? AND ip=? AND state IN ('QUEUED','RUNNING')", pair).fetchone()
+        job = db.execute("SELECT * FROM operation_jobs WHERE device_id=? AND ip=? AND state IN ('QUEUED','RUNNING','AWAITING_CONFIRMATION')", pair).fetchone()
         if job is None:
-            if db.execute("SELECT 1 FROM managed_bulk_attempts WHERE device_id=? AND ip=? AND state IN ('QUEUED','RUNNING') LIMIT 1", pair).fetchone():
+            if db.execute("SELECT 1 FROM managed_bulk_attempts WHERE device_id=? AND ip=? AND state IN ('QUEUED','RUNNING','AWAITING_CONFIRMATION') LIMIT 1", pair).fetchone():
                 blockers.append('ADD_BINDING_UNAVAILABLE')
         elif job['action'] != 'ADD':
             blockers.append('PENDING_REMOVE')
+        elif job['state'] == 'AWAITING_CONFIRMATION':
+            blockers.append('ADD_AWAITING_CONFIRMATION')
         elif job['state'] != 'RUNNING':
             blockers.append('ADD_NOT_RUNNING')
         elif not blockers:

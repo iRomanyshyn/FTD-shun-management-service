@@ -148,7 +148,8 @@ def test_api_and_bff_preserve_active_order_and_current_appearance_timestamp(stat
 
         def internal(request):
             assert request.method == "GET", "Rendering must not dispatch work"
-            return httpx.Response(200, json=shuns if request.url.path == "/api/v1/shuns" else refresh)
+            return httpx.Response(200, json={"items": shuns, "page": 1, "pages": 1, "total": len(shuns), "page_size": 100}
+                                  if request.url.path == "/api/v1/shuns-page" else refresh)
 
         monkeypatch.setattr(web, "api_client", lambda _: httpx.Client(
             transport=httpx.MockTransport(internal), base_url="http://internal"))

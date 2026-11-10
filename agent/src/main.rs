@@ -13,6 +13,8 @@ mod dispatch;
 mod sessions;
 mod shutdown;
 mod snapshot;
+#[cfg(test)]
+mod ssh_idle_tests;
 
 // Offline executable specification only; never linked into the shipped agent.
 #[cfg(test)]
@@ -271,6 +273,15 @@ impl Agent {
     }
 
     async fn connect_device(&self, device_id: u16) -> Result<SshSession> {
+        self.connect_device_with_idle(device_id, Duration::from_secs(15))
+            .await
+    }
+
+    async fn connect_device_with_idle(
+        &self,
+        device_id: u16,
+        inactivity_timeout: Duration,
+    ) -> Result<SshSession> {
         let device = self
             .devices
             .get(&device_id)
@@ -278,7 +289,13 @@ impl Agent {
             .context("unknown or disabled device")?;
         let credential = self.credentials.for_device(device_id)?;
         let password = load_ssh_password(&credential.password_file)?;
-        SshSession::connect(device, &credential.username, password.as_str()).await
+        SshSession::connect(
+            device,
+            &credential.username,
+            password.as_str(),
+            inactivity_timeout,
+        )
+        .await
     }
 }
 
@@ -323,11 +340,20 @@ impl CiscoOperation {
 }
 
 impl SshSession {
-    async fn connect(device: &Device, username: &str, password: &str) -> Result<Self> {
-        let configuration = client::Config {
-            inactivity_timeout: Some(Duration::from_secs(15)),
+    fn configuration(inactivity_timeout: Duration) -> client::Config {
+        client::Config {
+            inactivity_timeout: Some(inactivity_timeout),
             ..Default::default()
-        };
+        }
+    }
+
+    async fn connect(
+        device: &Device,
+        username: &str,
+        password: &str,
+        inactivity_timeout: Duration,
+    ) -> Result<Self> {
+        let configuration = Self::configuration(inactivity_timeout);
         let mut handle = timeout(
             FTD_INTERACTION_TIMEOUT,
             client::connect(

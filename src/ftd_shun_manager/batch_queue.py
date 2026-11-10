@@ -13,6 +13,7 @@ from .agent_protocol import (
 )
 from .device_leases import DeviceOperationQueue
 from .operation_queue import OperationQueue, QueueConflict
+from .result_storage import persist_result
 
 
 class PendingBatchMustFlush(QueueConflict):
@@ -27,8 +28,10 @@ class BatchDeviceOperationQueue(DeviceOperationQueue):
     new authority, terminal state, generic concurrency or automatic recovery.
     """
 
+    _session_versions = (5, 6)
+
     def __init__(self, store, token, *, priority_removals=False, version=5):
-        if type(version) is not int or version not in (5, 6):
+        if type(version) is not int or version not in self._session_versions:
             raise ValueError('Grouped queue requires its literal matching session version.')
         self.version = version
         super().__init__(store, token, priority_removals=priority_removals)
@@ -39,7 +42,7 @@ class BatchDeviceOperationQueue(DeviceOperationQueue):
 
     def _binding(self):
         return {'group': self.group, 'owner': self.token.owner, 'epoch': self.token.epoch,
-                **({'version': 6} if self.version == 6 else {})}
+                **({'version': self.version} if self.version >= 6 else {})}
 
     def _events(self, db, job_id, event):
         # Existing request-ID index avoids scanning the whole import history.
@@ -104,8 +107,8 @@ class BatchDeviceOperationQueue(DeviceOperationQueue):
         return True, 'ADD'  # Never claim REMOVE while any ADD is awaiting observation.
 
     def _event(self, db, event, request, job, details=None):
-        if self.version == 6 and job['action'] == 'ADD':
-            details = {**(details or {}), 'batch_session_version': 6}
+        if self.version >= 6 and job['action'] == 'ADD':
+            details = {**(details or {}), 'batch_session_version': self.version}
         if event == 'SHUN_OPERATION_RUNNING' and job['action'] == 'ADD':
             # Membership is an additional grouped-claim requirement, not a
             # replacement profile validator. The base event below still calls
@@ -124,8 +127,7 @@ class BatchDeviceOperationQueue(DeviceOperationQueue):
         if (type(acknowledgement) is not PendingAddition or type(acknowledgement.sequence) is not int
                 or not 1 <= acknowledgement.sequence <= max_cycle_sequence(self.version) or type(acknowledgement.ip) is not IPv4Address):
             raise ValueError('An exact pending ADD acknowledgement is required.')
-        with self.store._connection() as db:
-            db.execute('BEGIN IMMEDIATE')
+        def write(db):
             self._executor(db, owner, self.token.device_id)
             if job_id in self.pending or len(self.pending) >= MAX_PENDING_ADDITIONS:
                 raise QueueConflict('Duplicate or full pending addition group.')
@@ -146,7 +148,11 @@ class BatchDeviceOperationQueue(DeviceOperationQueue):
             db.execute("UPDATE operation_jobs SET reason='Awaiting batch verification' WHERE id=?", (job_id,))
             self._bump(db)
             self._executor(db, owner, self.token.device_id)
+        persist_result(self.store, write, phase='acknowledgement')
         self.pending.append(job_id)  # Only after the acknowledgement transaction commits.
+
+    def _commit_addition(self, write):
+        return persist_result(self.store, write, phase='addition_result')
 
     def finish_verified_group(self, owner, result, sequence):
         if type(result) is not VerifiedAdditionBatch or type(sequence) is not int or not 1 <= sequence <= max_cycle_sequence(self.version):

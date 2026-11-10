@@ -13,6 +13,7 @@ from .agent_protocol import (
     ObservedShun,
     Operation,
     PendingAddition,
+    SettledPendingAdditions,
     VerifiedAdditionBatch,
     decode_addition_batch,
     decode_cycle_open_failure,
@@ -20,6 +21,7 @@ from .agent_protocol import (
     decode_cycle_response,
     decode_cycle_settlement,
     decode_list_shuns_response,
+    decode_pending_end,
     decode_session_lookup,
     encode_cycle_request,
     encode_request,
@@ -273,7 +275,7 @@ class UnixAgentCycle:
             raise ValueError('Recoverable opening requires explicit strict settlement.')
         if session_id is not None and not recoverable_cycles:
             raise ValueError('Bound session identity requires recoverable strict cycles.')
-        if version in (4, 5, 6) and session_id is None:
+        if version in (4, 5, 6, 7) and session_id is None:
             raise ValueError('Batch cycles require a tracked session identity.')
         operation = (CycleOperation.BEGIN_TRACKED if session_id is not None else
                      CycleOperation.BEGIN_RECOVERABLE if recoverable_cycles else
@@ -287,6 +289,7 @@ class UnixAgentCycle:
         self.sequence = 0
         self.closed = False
         self.version = version
+        self.device_id = device_id
         self.timeout_seconds = timeout_seconds
         self.settled_cycles = settled_cycles
         self.begin_operation = operation
@@ -316,6 +319,9 @@ class UnixAgentCycle:
             if self.connection.send(request) != len(request):
                 raise AgentUnavailable("agent cycle send was incomplete")
             result = (
+                decode_pending_end(_receive_before(self.connection, deadline), self.sequence,
+                                   tuple(self.pending_additions), version=self.version)
+                if operation == CycleOperation.END_PENDING else
                 _receive_addition_batch(self.connection, deadline, self.sequence,
                                        tuple(item.ip for item in self.pending_additions),
                                        version=self.version, operation=operation)
@@ -347,7 +353,7 @@ class UnixAgentCycle:
         return self._exchange(CycleOperation.ADD, ip=ip)
 
     def stage_addition(self, ip: IPv4Address) -> PendingAddition | AdditionResult | None:
-        if (self.version not in (4, 5, 6) or len(self.pending_additions) >= max_pending_additions(self.version)
+        if (self.version not in (4, 5, 6, 7) or len(self.pending_additions) >= max_pending_additions(self.version)
                 or any(item.ip == ip for item in self.pending_additions)):
             raise ValueError('Invalid batch version, capacity or duplicate pending target.')
         result = self._exchange(CycleOperation.STAGE_ADD, ip=ip)
@@ -356,7 +362,7 @@ class UnixAgentCycle:
         return result
 
     def verify_additions(self) -> VerifiedAdditionBatch:
-        if self.version not in (4, 5, 6) or not self.pending_additions:
+        if self.version not in (4, 5, 6, 7) or not self.pending_additions:
             raise ValueError('A nonempty grouped cycle is required.')
         result = self._exchange(CycleOperation.VERIFY_ADDS)
         self.pending_additions.clear()  # Only after proof AND the complete observation.
@@ -364,7 +370,7 @@ class UnixAgentCycle:
 
     def finish_additions(self) -> VerifiedAdditionBatch:
         """One final full read proves pending ADDs and settles this session."""
-        if self.version not in (5, 6) or not self.pending_additions:
+        if self.version not in (5, 6, 7) or not self.pending_additions:
             raise ValueError('Combined verification/end requires a nonempty v5 group.')
         try:
             deadline = monotonic() + self.timeout_seconds
@@ -377,6 +383,29 @@ class UnixAgentCycle:
             return result
         except (OSError, ValueError, AgentUnavailable) as error:
             raise AgentUnavailable('Final addition verification/settlement unavailable; no retry attempted.') from error
+        finally:
+            self.abort()
+
+    def finish_pending_additions(self) -> SettledPendingAdditions:
+        """Transport foundation only: no current worker releases jobs from this.
+
+        End the exact acknowledged group without a verification read. Never
+        substitute this for successful creation or retry a lost response.
+        """
+        if self.version != 7 or not self.pending_additions:
+            raise ValueError('Pending-only end requires a nonempty tracked-v7 group.')
+        try:
+            deadline = monotonic() + self.timeout_seconds
+            pending = self._exchange(CycleOperation.END_PENDING, _deadline=deadline)
+            sequence = self.sequence - 1
+            decode_cycle_settlement(
+                _receive_before(self.connection, min(deadline, monotonic() + 5)),
+                sequence, version=self.version, begin=self.begin_operation)
+            self.settled = True
+            self.pending_additions.clear()
+            return SettledPendingAdditions(self.device_id, self.session_id, sequence, pending)
+        except (OSError, ValueError, AgentUnavailable) as error:
+            raise AgentUnavailable('Pending-only end/settlement unavailable; no retry attempted.') from error
         finally:
             self.abort()
 

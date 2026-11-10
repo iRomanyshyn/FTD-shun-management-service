@@ -3,14 +3,163 @@
 Agreed with the operator: 2026-10-20.
 Status: approved target behavior and delivery plan; not a deployment procedure.
 
+Recovery UX increment, 2026-11-10: add explicit **Check and resume import**
+inspection/guidance and known-lab host orchestration instead of an unactionable
+unknown warning. Old outcomes remain unknown, a fresh complete read precedes
+new currently eligible missing-target work. Current recovery remains host-assisted
+with actual API/Web/agent quiescence; true online browser recovery needs a separate
+proof-carrying coordinator contract, not Docker access granted to Web. See status/
+log and manual/queue-recovery.md for actual deployment and validation scope.
+
+Shuns browsing increment, 2026-11-10: server-side pages of 100 observations now
+bound initial rendering and live replacements, including selected-page import
+provenance. Protected/newest ordering and whole-dataset IP search remain. This
+addresses browser lockup on long lists without changing device execution or
+authority. See status/log for validation and deployment evidence.
+
+Shared-session idle increment, 2026-11-10: a reproduced 15s SSH transport idle
+disconnect during local group persistence/root checks is fixed in the agent.
+Visit inactivity now fits its existing 120s/240s hard budget; no CLI/session/
+IPC/quota extension, keepalive, reconnect/resend or v7 activation. Known unknowns
+still need exact separate recovery decisions. Agent-only lab rollout and bounded
+acceptance are recorded in status/log: a real 28-ADD session (16/12) crossed the
+old failure boundary and actually settled, preserving all original unknowns.
+No whole-list speedup is presumed; deferred-v7 activation remains unfinished.
+
+Deferred retry-child replacement increment, 2026-11-10: exact retained tracked-v7
+pre-write-DEFER followed by cancellation can now permit a new child under original
+confirmed-absence lineage. New causal complete absence/read/lease/current-policy
+checks, original backoff/hourly limits and fresh IDs remain; original outcomes
+and requests are untouched. Missing/ambiguous/acknowledged/unknown evidence still
+refuses. Actual claim-visit audit survives retention even across a different
+admission visit. Source-only/default disabled; no live selector/schema/deployment.
+Next ordered pending capture/promotion, compatible deferred recovery and explicit
+fresh-store configuration before bounded lab activation. See current status/log.
+
+Exact pre-write recovery increment, 2026-11-10: separate explicit offline v6
+profile now validates 17–64 original claims with exactly one final expired/
+cancelled typed pre-write DEFER and otherwise VERIFIED/NOOP outcomes. It retains
+all outcomes/authority, requires actual process quiescence, fresh whole-DB review
+and checked exclusive backup, and atomically records a distinct immutable marker/
+receipt before exact same-epoch release. No old RPC is replayed. Real-copy
+rehearsal and full 3537-test regression passed. Explicit offline lab apply at
+11:58:02.571Z released only original epoch 2921 with all outcomes unchanged.
+New compatible API resumed the original import after a causal complete read;
+epoch 2922 actually settled with 24 VERIFIED ADDs. Original task/authority and
+unknown history remain, no reset/reimport. SQLite contention remains observable.
+Consult current status/log for backup/profile compatibility and bounded evidence.
+V7 stays off; this v6 repair does not complete deferred-v7 recovery or activation.
+
+Deferred lifecycle increment, 2026-11-10: ordinary standing-policy restoration
+now accepts later causal absence after a validated OBSERVED_PRESENT, retaining
+normal 300-second/three-per-hour bounds and all current authority/protection/
+uncertainty checks. Only strictly earlier known absence in that exact scope may
+be superseded for scheduling by later proven presence; no outcome or old command
+changes. Ready device/fleet cleanup explicitly blocks awaiting confirmation, then
+can use fresh atomic whole-scope retirement/REMOVE consent after confirmation.
+Ordered inspection gives readable refresh/review guidance and no token while
+pending. Source-only; current v6 lab/import unchanged. Next ordered pending capture,
+deferred recovery, claimed/deferred child replacement and configured fresh-store
+activation/acceptance. A newly observed v6 epoch 2921 hold has 32 VERIFIED and one
+claimed pre-write-DEFER then CANCELLED; existing recovery refuses this mixed
+scope. Preserve evidence and implement compatible recovery, never force release.
+
+Continuous deferred scheduling increment, 2026-11-09: source-only/default-disabled
+`DeferredContinuousDispatcher` now schedules causal confirmation after handoff and
+fresh reads after confirmed-absence backoff, without waiting for the periodic
+interval or sleeping inside SSH. Bounded advisory scans never grant permission;
+all worker/root/current-policy/lease/uncertainty checks and scheduler limits remain.
+Pending settlement never satisfies refresh demand or resets freshness. Existing
+Queue UI now distinguishes neutral pending/known observation/retry waits from
+actual unresolved attention. Current configured runtime/selectors and original
+v6 lab import remain unchanged. Next complete ordered managed/fleet cleanup,
+deferred recovery, later disappearance restoration and claimed/deferred child
+replacement, then deliberate fresh-store configuration and bounded lab acceptance.
+
+Explicit worker increment, 2026-11-09: source-only default-disabled
+`DeferredParallelSynchronizer` now composes causal all-group confirmation before
+publication, bounded guarded fresh-retry discovery and final settled-v7 handoff.
+Intermediate/priority groups retain strict verification; the final pending group
+does not falsely reset freshness or increase verified counts. Real cancellation
+drain and successor-lease fencing are tested. Original configured v5/v6 paths,
+current lab data/runtime and public selectors stay unchanged. Next connect
+continuous confirmation/wait scheduling and public status/UI, complete ordered
+managed/fleet cleanup, deferred recovery and later disappearance restoration,
+then bounded separate-fresh-store lab acceptance. Do not reset/reimport the
+original task or claim live v7/throughput acceptance from synthetic visits.
+
+Fresh retry increment, 2026-11-09: source-only `PendingRetries` admits new jobs
+after exact settled CONFIRMED_ABSENT results under current original standing
+consent and all protection/cancellation/root/lease/uncertainty guards. Old attempts
+are not requeued or relabelled. Immutable provenance binds new IDs to original
+absence and the current complete read/visit; 5→10→20→40→60s backoff and a rolling
+12/device/IP/hour cap expose typed scheduling waits. Same-read reuse requires
+identical full evidence and existing freshness; cancelled child replacement is
+limited to never-claimed work. Unknowns remain held. Retention preserves linked
+jobs/requests/audits/visit claims. No live DDL/deployment/v7 selection or original
+import change. Next compose matched worker/priority/removal/UI behavior and later
+disappearance restoration, then bounded live acceptance in a separate fresh DB.
+See manual/deferred-confirmation.md and current status.
+
+Fresh queue handoff increment, 2026-11-09: source-only `PendingExecution` now
+atomically retains original settled-v7 scope, transitions exact jobs/attempts to
+AWAITING_CONFIRMATION and releases that original lease. A current causal read
+settles presence/known absence and captured cancellation without inventing
+creation or retrying the old command. Progress/retention distinguish pending
+confirmation and known-absence retry work. Initialization is fresh-empty only,
+not a converter or live schema change; current coordinator/configuration still
+refuse this profile/v7. Next implement current-policy/backoff fresh admission
+and matched worker/priority/UI/ordered-removal integration before bounded lab
+acceptance. No reset/reimport of the running original task is part of this work.
+
+Durable evidence increment, 2026-11-09: source-only `PendingConfirmations` now
+retains exact original settled-v7 attempt/claim/ACK scope and classifies its first
+causally later complete observation after a restart. Present/confirmed absent are
+evidence labels, not verified creation or a retry/release capability. Immutable
+optional storage requires explicit paused/quiescent initialization; no live schema
+or mode was changed. Original jobs stay RUNNING/fenced and current composition
+still refuses v7. Next integrate distinct queue/attempt states, safe settled
+release, current-policy/backoff fresh attempts and UI/priority/protection/cancel
+behavior before activation. See manual/deferred-confirmation.md.
+
+Transport foundation, 2026-11-09: tracked-v7 END_PENDING can end acknowledged
+scope without a final read, returning a distinct non-success value only after
+strict actual settlement. Shared Rust/Python vectors and synthetic transports
+are implemented. Current configuration/worker admission still refuses v7; no
+deployment/activation or durable job/lease release follows from this code.
+Complete the explicit pending profile and causal full-read classification below
+before enabling it. See manual/deferred-confirmation.md and current status.
+
+Recovery increment, 2026-11-09: an explicit extended tracked-v6 offline profile
+is implemented for 17–64 system ADD claims. Keep original outcomes and all
+quiescence/full-review/backup/fresh-read barriers. A separate immutable marker
+binds compact complete evidence without raising the old 16-KiB receipt bound;
+old tools/writers must refuse unsupported scope/profile. The lab's epoch 2600
+(16 verified/10 unknown) passed actual-copy rehearsal and a fresh offline
+decision, retaining every old outcome. The original import resumed after a
+post-receipt complete read. See status for bounded settlement evidence, not an
+assumption that any implementation or host restart resolves other holds. Local
+SQLite contention prevention and durable first confirmation remain follow-ups.
+
+Local result-storage slice, 2026-11-09: ACK/ADD-result callbacks now have bounded
+numeric BUSY retry only after proved local rollback (or failed pre-write BEGIN).
+Real competing-writer tests cover both paths and retain one original session/
+command per target. Keep original session time budgets, per-target current
+checks, partial-result preservation and fences. Unknown commits, lost ACKs,
+expired/foreign leases and unknown device writes never qualify. See current
+status for final validation/deployment rather than assuming this feature is
+already enabled or prevents every storage hold. Durable first confirmation and
+remaining measured root/claim overhead are still the next product work.
+
 Multi-group execution increment, 2026-11-04: an explicit matched tracked v6
 profile permits 240-second/64-attempt/256-command sessions with groups of 16.
 Complete verified intermediate observations allow bounded new queue segments
 and fresh admission without relogin, retaining every claim's current guards and
 original evidence/deadline. V5 remains default and unchanged. Consult current
 status and manual/multi-group-sessions.md for validation/deployment; no speedup
-is presumed. Cross-session first confirmation/retry and larger held-epoch offline
-recovery remain separate unfinished contracts, not supplied by these bounds.
+is presumed. Cross-session first confirmation/retry remains a separate unfinished
+contract. Extended offline recovery above has its own narrower evidence rules,
+not a general recovery guarantee supplied by these session bounds.
 
 Capacity correction, 2026-11-04: policy admission/capture/restoration still had
 a 65,536-IP complete-evidence cap despite the matched 200,000-entry reader and

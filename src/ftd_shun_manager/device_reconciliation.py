@@ -14,6 +14,8 @@ from .bulk_policy import BulkUnavailable, _atomic, _key_free, _state
 from .device_recovery import DDL as RECOVERY_DDL
 from .device_recovery import _digest, _review
 from .device_recovery import present as recovery_present
+from .extended_recovery import claims as receipt_claims
+from .extended_recovery import encode, expanded, record
 from .maintenance import _actor, checked_offline
 from .operation_queue import stamp
 from .schema import execute_schema
@@ -97,7 +99,7 @@ def validate(db):
 
         validate_binding(db, attempt, job)
         receipt = json.loads(recovery['receipt_json'])
-        claims = [claim for claim in receipt.get('claims', []) if claim.get('job_id') == job['id']]
+        claims = [claim for claim in receipt_claims(receipt) if claim.get('job_id') == job['id']]
         if (receipt.get('mode') != MODE or len(claims) != 1 or claims[0].get('state') != 'UNVERIFIED'
                 or receipt.get('operation_id') != recovery['id'] or receipt.get('epoch') != recovery['epoch']
                 or receipt.get('recovered_at') != recovery['recovered_at']
@@ -113,13 +115,13 @@ def validate(db):
             raise BulkUnavailable('Reconciliation receipt does not bind the original unknown claim.')
     for recovery in db.execute("SELECT id,receipt_json FROM managed_bulk_device_recovery WHERE json_extract(receipt_json,'$.mode')=?", (MODE,)):
         receipt = json.loads(recovery['receipt_json'])
-        expected = {claim['job_id'] for claim in receipt.get('claims', []) if claim.get('state') == 'UNVERIFIED'}
+        expected = {claim['job_id'] for claim in receipt_claims(receipt) if claim.get('state') == 'UNVERIFIED'}
         actual = {row[0] for row in db.execute(f'SELECT job_id FROM {TABLE} WHERE recovery_id=?', (recovery['id'],))}
         if not expected or expected != actual:
             raise BulkUnavailable('The complete reconciled unknown scope is missing or inconsistent.')
 
 
-def inspect(database, device_id, *, now=None):
+def inspect(database, device_id, *, now=None, extended_v6=False):
     current = now or datetime.now(UTC)
     if current.tzinfo is None or current.utcoffset() != timedelta(0):
         raise ValueError('Reconciliation time must be explicit UTC.')
@@ -127,12 +129,14 @@ def inspect(database, device_id, *, now=None):
     with closing(sqlite3.connect(path.as_uri() + '?mode=ro', uri=True)) as db:
         db.row_factory = sqlite3.Row
         db.execute('BEGIN')
-        review = _review(db, Store(path), device_id, current, reconcile=True)
-        return {**review, 'mode': MODE, 'reviewed_at': stamp(current), 'review_digest': _digest(db),
+        review = _review(db, Store(path), device_id, current, reconcile=True, extended_v6=extended_v6)
+        return {**review, 'mode': MODE, 'reviewed_at': stamp(current), 'review_digest': _digest(db, extended_v6=extended_v6),
                 'read_only': True, 'original_outcomes_unchanged': True}
 
 
-def reconcile(db, store, device_id, key, actor, reviewed_at, review_digest, *, offline=False, now=None):
+def reconcile(db, store, device_id, key, actor, reviewed_at, review_digest, *, offline=False, now=None, extended_v6=False):
+    if type(extended_v6) is not bool:
+        raise ValueError('Extended v6 recovery requires a literal explicit selection.')
     if offline is not True or not db.in_transaction:
         raise ValueError('Stop API/Web/agent and explicitly attest offline quiescence.')
     if type(device_id) is not int or not 1 <= device_id <= 65535:
@@ -149,14 +153,16 @@ def reconcile(db, store, device_id, key, actor, reviewed_at, review_digest, *, o
                 receipt = json.loads(old['receipt_json'])
                 if (old['device_id'], old['actor_subject'], old['review_digest'], receipt.get('mode')) != (device_id, subject, review_digest, MODE):
                     raise ValueError('Reconciliation key is bound to another decision.')
-                return {**receipt, 'replayed': True}
+                if (receipt.get('recovery_profile') == 'tracked-v6') is not extended_v6:
+                    raise ValueError('Reconciliation key belongs to another profile selection.')
+                return {**expanded(receipt), 'replayed': True}
         reviewed = datetime.fromisoformat(reviewed_at)
         if (reviewed.tzinfo is None or reviewed.utcoffset() != timedelta(0) or stamp(reviewed) != reviewed_at
                 or not reviewed <= current <= reviewed + timedelta(minutes=5)
                 or type(review_digest) is not str or len(review_digest) != 64
-                or not hmac.compare_digest(_digest(db), review_digest)):
+                or not hmac.compare_digest(_digest(db, extended_v6=extended_v6), review_digest)):
             raise ValueError('The review is expired or the database changed; inspect again.')
-        review = _review(db, store, device_id, current, reconcile=True)
+        review = _review(db, store, device_id, current, reconcile=True, extended_v6=extended_v6)
         _key_free(db, key)
         if not recovery_present(db):
             execute_schema(db, RECOVERY_DDL)
@@ -175,14 +181,16 @@ def reconcile(db, store, device_id, key, actor, reviewed_at, review_digest, *, o
         receipt = {**review, 'operation_id': key, 'mode': MODE, 'actor_subject': subject, 'recovered_at': timestamp,
                    'offline_assertion': 'api_web_agent_stopped', 'replayed': False,
                    'jobs_retried': 0, 'policy_changed': False, 'original_outcomes_unchanged': True}
+        stored, serialized = encode(receipt, extended_v6)
         fence = review['original_fence']
         db.execute('INSERT INTO managed_bulk_device_recovery VALUES (?,?,?,?,?,?,?,?,?,?)',
                    (key, device_id, fence['epoch'], fence['owner'], fence['lease_until'], fence['updated_at'],
-                    timestamp, subject, review_digest, json.dumps(receipt, sort_keys=True)))
+                    timestamp, subject, review_digest, serialized))
+        record(db, stored)
         db.execute("UPDATE managed_bulk_device_executors SET state='IDLE',owner=NULL,lease_until=NULL,updated_at=? WHERE device_id=?",
                    (timestamp, device_id))
         store._insert_event(db, 'DEVICE_LEASE_OFFLINE_MANAGED_RECONCILIATION', device_id, None, None, subject,
-                            'Offline desired-state reconciliation; old ADD outcome remains unknown', (), key, receipt, timestamp)
+                            'Offline desired-state reconciliation; old ADD outcome remains unknown', (), key, stored, timestamp)
         db.execute('UPDATE operation_executor SET revision=revision+1 WHERE id=1')
         _state(db)
         return receipt
@@ -193,6 +201,7 @@ def main(argv=None):
     parser.add_argument('action', choices=('inspect', 'reconcile'))
     parser.add_argument('--database', type=Path, required=True)
     parser.add_argument('--device', type=int, required=True)
+    parser.add_argument('--extended-v6', action='store_true', help='Explicit 17-64-claim tracked-v6 system ADD profile')
     parser.add_argument('--key')
     parser.add_argument('--actor')
     parser.add_argument('--reviewed-at')
@@ -204,13 +213,13 @@ def main(argv=None):
         parser.error('Use explicit absolute database and backup paths.')
     try:
         if args.action == 'inspect':
-            result = inspect(args.database, args.device)
+            result = inspect(args.database, args.device, extended_v6=args.extended_v6)
         else:
             if not all((args.key, args.actor, args.reviewed_at, args.review_digest, args.backup,
                         args.confirm_api_web_agent_stopped)):
                 parser.error('Reconciliation requires a fresh review, backup, actor/key and stopped-executor assertion.')
             result = checked_offline(args.database, args.backup, lambda db, store: reconcile(
-                db, store, args.device, args.key, args.actor, args.reviewed_at, args.review_digest, offline=True))
+                db, store, args.device, args.key, args.actor, args.reviewed_at, args.review_digest, offline=True, extended_v6=args.extended_v6))
         print(json.dumps(result, sort_keys=True))
     except (ValueError, OSError, sqlite3.Error) as error:
         parser.exit(2, f'Reconciliation refused: {error}\n')

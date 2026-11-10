@@ -1,5 +1,373 @@
 # FTD Shun Management Service
 
+## Host-assisted queue recovery — 2026-11-10
+
+Expose read-only local queue-recovery inspection and an authenticated guidance/
+download page, linked from unresolved Queue attention. Inspection validates the
+existing profile and literal default/extended offline contracts but never creates
+a ledger, releases a fence, admits a retry, sends SSH or attests process shutdown.
+Current eligibility is not recovery authorization. Unsupported state is explicit.
+
+The explicit trusted-host lab helper may orchestrate the existing offline
+procedure for the known single-device fpr1010-lab only: exact expected epoch and
+real maintenance label, original evidence retained, matching images/all overlays,
+actual clean API/Web then agent exits, real-copy rehearsal, fresh complete review,
+checked exclusive backup and a new exact reconciliation decision. Preserve original
+outcomes/authority/receipts; fresh state must precede any new current-policy work.
+Failures after stop stay stopped. No stale reset, automatic tag rollback or old
+key/RPC replay. Containerized Web/API receive no Docker socket or new privilege;
+only a host operator can invoke the helper. True online browser recovery remains
+unimplemented and needs a separate proof-carrying quiescence contract.
+
+## Stable IP review editors during live refresh — 2026-11-10
+
+Managed-IP action disclosures have stable IDs. Non-authoritative preparation
+regions explicitly marked `data-live-editor` retain their actual DOM when fresh
+server markup is identical after ignoring only user-controlled details open
+state. This preserves native select popups, summary/button focus and draft input
+without stopping observations, Status or Queue updates. Do not normalize away
+hidden fields, option scope, disabled state, actions or capability changes: those
+must still refresh, with existing matching-field draft restoration. Stable IDs
+preserve expansion when a real update is necessary; removed actions stay removed.
+This is not a frozen authorization review or a new execution permission. Original
+CSRF/CAS/frozen-review and server-side admission checks remain unchanged.
+
+## Bounded Shuns browsing — 2026-11-10
+
+The browser's active Shuns list uses server-side pages of 100 observations.
+The local read-only `GET /api/v1/shuns-page?page=N` returns items, page, pages,
+total and page_size. Count, selection and import provenance share one SQLite
+read transaction. Apply SQL LIMIT/OFFSET before hydration; resolve provenance
+only for selected occurrences. Never fetch the full dataset and slice in the
+BFF/browser, or fall back to that path after a page error. The existing full-list
+endpoint remains for internal compatibility, not browser rendering.
+
+Preserve Protected-IP-first/current-appearance ordering with deterministic ties.
+An out-of-range positive page clamps to the last current page (empty = page 1).
+Live refresh replaces, rather than appends, the current page and preserves its
+page/search query. This is a moving observation list, not an immutable export:
+new observations/removals can shift rows between pages. Universal IP search
+continues across all retained observations/history, independently of the page.
+Page navigation/read never admits work, requests SSH or supplies write authority.
+No schema, agent, policy, authentication or protocol change is needed.
+
+## SSH idle budget during bounded visits — 2026-11-10
+
+The SSH transport inactivity timer must not pre-empt a valid visit while the API
+persists a verified group or rechecks original roots locally. Configure it from
+the existing hard visit budget (120s for v1–v5, 240s for v6/v7), not the 15s CLI
+prompt timeout. Standalone operations keep their previous 15s inactivity budget.
+Opening/CLI/IPC/step/hard-wall-clock/command/mutation/sequence and graceful-drain
+bounds remain unchanged; no keepalive packets, automatic reconnect/resend, trust/
+credential/network change or v7 activation. The timer supplies no outcome/replay
+proof and never releases existing uncertainty. Validate actual SSH silence and
+resumed traffic with an isolated pinned in-memory transport, not only a config
+assertion. Existing held epochs need their separate complete offline review.
+
+## Fresh replacement after exact pre-write cancellation — 2026-11-10
+
+In the explicit fresh deferred-v7 execution profile only, an expired/obsolete
+retry child cancelled after exactly one proved pre-write DEFER may be replaced
+by a new child of its original confirmed-absent predecessor. Require original
+same-device/target/system identity, tracked-v7 claim/group/owner/epoch, matching
+original visit, literal write_sent=false, exact requeue/cancellation and unchanged
+job/attempt/request binding. Missing/duplicate claims or deferrals, any ACK,
+pending ledger membership, foreign version/scope or unknown result refuses.
+Never replay/relabel the old child, renew its delegation or release a fence.
+
+Require a new complete absence read started strictly after every replaced child's
+cancellation, in the current live lease, within original freshness. Recheck full
+original roots/current standing scope/protection/cancellation/device/pause and
+uncertainty at both admission and claim. Retain original exponential/rolling-hour
+limits, fresh IDs, immutable existing retry provenance and original outcomes.
+Historical validation/replay includes only earlier siblings, never uses later
+work as earlier permission. Keep original actual claim-visit audit even if it
+differs from the admission visit. Corrupt replacement proof refuses retention.
+
+Never-claimed cancellation remains replaceable under its original contract.
+Legacy/non-v7 claimed cancellation remains blocked. This source-only internal
+increment changes no schema/default/configuration or current v6 lab/runtime;
+ordered pending/recovery and explicit fresh-store activation remain separate.
+
+## Exact pre-write-DEFER offline recovery — 2026-11-10
+
+A separate explicit tracked-v6 pre-write recovery profile may recover 17–64
+system ADD claims after actual API/Web/agent quiescence, with exactly one final
+claimed ADD cancelled after delegation expiry following its original typed
+pre-write DEFER. All other claims must retain VERIFIED/NOOP outcomes. Require
+the exact original owner/epoch/version/action/source, one original claim, no ACK
+or subsequent claim, original requeue/defer/cancellation audit and job/attempt/
+request binding. Missing, changed, duplicated, ambiguous, sent, unknown, failed,
+manual or foreign work refuses. This is not a reinterpretation of CANCELLED as
+NOOP, automatic retry, or permission to replay its old command.
+
+Retain a separate immutable optional marker/proof and distinct compact receipt
+profile, created only by successful offline apply. Keep the original whole-scope
+five-minute review, exclusive checked backup, actual process-stop assertion,
+current full-root checks, fresh-read-after-recovery barrier and exact same-epoch
+release. Atomic late failure rolls back marker/receipt/audit/release. Old tools
+must refuse the new profile; old keys cannot release a later epoch. Preserve all
+original jobs, attempts, requests, policy, protection and prior recovery evidence.
+No startup/GET DDL or v7 activation. Existing all-verified/unknown recovery modes
+remain unchanged and refuse this mixed scope without explicit selection.
+
+## Deferred presence restoration and ready cleanup — 2026-11-10
+
+In the explicit fresh deferred profile, OBSERVED_PRESENT is a known terminal
+observation, not creation proof or a permanent restoration hold. A later causal
+complete absence read may admit a new ordinary managed ADD under the exact same
+still-current standing intent/generation/authorization/revision. Retain original
+results and all normal root/protection/cancellation/lease/device/uncertainty checks,
+300-second pair backoff and three admissions per rolling hour. Never replay old
+commands or extend read freshness/expired execution delegation.
+
+An earlier CONFIRMED_ABSENT for that exact standing scope stops blocking ordinary
+restoration only after a retained, validated later VERIFIED/NOOP/OBSERVED_PRESENT
+attempt proves the address was subsequently present. This is a scheduling
+exception, not relabelling old absence, attributing creation, replay permission
+or resolution of unknowns. A newer known absence still needs the explicit bounded
+fresh-retry path; missing proof, other scope and generic stored presence do not
+supply this exception. Every retained result not covered by an exact retry or
+this strictly older absence exception keeps its causal read barrier.
+
+Ready-only device/fleet removal must explicitly refuse AWAITING_CONFIRMATION
+before any retirement or queue admission. Ordered inspection reports it as
+ADD_AWAITING_CONFIRMATION, not READY or an executable RUNNING predecessor. After
+actual confirmation, known presence/absence is terminal and can use existing
+fresh frozen ready-removal consent: atomically retire the complete selected
+scope and enqueue semantic REMOVE, never silently convert ready consent into
+waiting or partially remove a fleet. Unknowns and stale/disabled/changed scopes
+still refuse. Ordered pending capture/promotion remains unfinished; no schema,
+public v7 selector or lab-runtime change follows from this source-only contract.
+
+## Continuous deferred scheduling and presentation — 2026-11-09
+
+An explicit internal `DeferredContinuousDispatcher`, default disabled, composes
+the fresh-profile worker with the existing continuous scheduler. The configured
+API/client/agent still refuse v7. No startup/GET DDL, old-data conversion or live
+selection follows. Ordinary configured dispatch remains unchanged.
+
+After actual pending handoff, schedule another complete read without waiting for
+the periodic interval. Its start must be strictly after millisecond-precision
+settlement (at least the next millisecond). Read-only confirmation remains possible
+while mutations are paused. A bounded rotating scan of 64 confirmed-absence
+candidates uses the same backoff/rolling-hour arithmetic as admission, requesting
+a new complete read when eligible. The timer grants no write authority: the
+worker rechecks all original current-policy/root/lease/uncertainty evidence.
+Existing pool limits, manual/removal priorities and connection/storage/empty-defer
+backoffs remain. Never sleep inside an SSH session awaiting a retry timer.
+
+END_PENDING neither satisfies browser demand nor resets periodic freshness;
+only actual complete-read publication does. Do not nudge a session already
+settling its final group: retain the demand for the next causal read. Status
+reports per-device pending counts and sampled retry eligibility/UTC times, not
+global totals, execution promises or fresh evidence. Unknowns retain fences.
+
+The existing Queue popup distinguishes neutral awaiting confirmation, observed
+presence (not creation proof), confirmed absence and eligible retry waits. Awaiting
+work remains active but has no running animation or misleading queued-job cancel
+button. Known observations are retained outcomes, not failures. Real unknowns,
+device errors and existing attention remain visible. Browser projection, GET and
+countdowns create no jobs, schema, demand or success. Ordered managed/fleet cleanup,
+compatible deferred recovery, later disappearance restoration, claimed/deferred
+retry-child replacement and deliberate configured fresh-store activation remain
+unfinished before bounded lab acceptance. Preserve the current v6 import.
+
+## Explicit deferred worker composition — 2026-11-09
+
+A separate internal, default-disabled `DeferredParallelSynchronizer` may compose
+the fresh execution profile with a strictly matching tracked-v7 client. Its
+explicit deferred queue/session subclasses admit only v7; ordinary grouped
+queue/session paths continue to admit only v5/v6. Validate exact storage, fixed
+device scope, transport capabilities, concurrency and settlement before scheduling.
+No startup/GET DDL, implicit profile conversion, public selector or old-data reset.
+Current configured API/client/agent and continuous service still do not select v7.
+
+Every complete initial/intermediate/priority/final read has one typed evidence
+identity. Under its current device lease, atomically classify all bounded prior
+pending groups **before** publishing observations/refresh callbacks; a failed
+classification rolls back the entire read's classifications and publishes nothing.
+Use BEGIN IMMEDIATE and at most 16 outstanding groups per read. Then publish the
+same observation and admit eligible fresh retry/ordinary jobs under current
+guards. Retry selection checks at most 64 candidates/admitting at most 16 per
+complete read, respecting the existing 16-work device window. Advisory cursors
+and scheduling metadata never substitute for fresh full permission checks.
+
+Intermediate full groups retain strict original in-session verification to renew
+freshness and continue within unchanged 240s/64-mutation/256-command/sequence
+bounds. Only the final nonempty group may use actual END_PENDING settlement and
+atomic original handoff/lease release, with no extra read, publication, freshness
+callback or verified-progress increment. Never release again or touch a successor's
+lease after that committed handoff. Empty/read-only visits retain ordinary strict
+END and exact release. Pending count is not a verified success count.
+
+Interactive refresh, priority REMOVE and enabled protection flush the current
+group with real in-session verification at a command boundary before proceeding;
+no second SSH session/stream overtakes it. Stop/pause/import cancellation may
+settle the final acknowledged group into awaiting state without an extra read.
+Subsequent observation retains cancellation/protection retirement semantics.
+Caller cancellation drains the actual RPC and required terminal evidence; lost
+ACK/end proof, mismatched scope, unknown results or failed local handoff retain
+uncertainty/fences. No mutated-session read-only lookup or generic later presence
+can clear those holds.
+
+This is tested internal per-visit composition, not configured live activation or
+a complete continuous retry loop. Continuous scheduling of confirmations/waits,
+public UI/configuration, ordered managed/fleet cleanup, compatible deferred recovery,
+later OBSERVED_PRESENT disappearance restoration and claimed/deferred child retry
+replacement remain unfinished. Preserve the current v6 lab import; complete those
+contracts before matched activation and new bounded fresh-store lab acceptance.
+
+## Confirmed-absence fresh admission — 2026-11-09
+
+The fresh deferred execution profile may admit a **new** bounded ADD after its
+exact settled predecessor becomes CONFIRMED_ABSENT. Never requeue, relabel or
+resend the old job/RPC. Retain immutable predecessor/origin/read/visit links and
+real system-policy audit; original outcomes, identity and consent remain intact.
+Recheck the complete original root, exact current intent/generation/authorization/
+revision, enabled device, protection, cancellation, pause, uncertainty, live lease
+and fresh complete absence both at admission and before claim. Expired original
+execution delegation is not renewed; a new job has its own bounded delegation
+under still-current standing consent. Lost ACK/settlement or unknown child outcome
+never supplies this authority; OBSERVED_PRESENT is not first-confirmation retry
+authority either.
+
+Use 5/10/20/40/60-second capped backoff and at most 12 fresh retry admissions per
+device/IP in a rolling hour. A typed wait carries the next eligible UTC time,
+not a failed write or attention condition. The same first-confirmation read may
+serve admission after the wait only with identical device, ID, times and full-set
+digest and within the existing 120-second freshness bound/current visit. A new
+read must start strictly after the predecessor result. Retained history from
+another unrelated operation still enforces its causal barrier. Replacement of
+a cancelled child requires it never to have been claimed; claimed/deferred,
+pending, sent and unknown children are not automatically replaced.
+
+Admit 1–16 members atomically through the original shared queue checks, with new
+attempt/job IDs and immutable provenance committed with jobs/audit. Exact-key
+replay returns history only, even after revocation. Retain all linked jobs,
+requests, claim/ACK/admission audits and referenced visit claims across retention;
+missing proof refuses pruning/admission, never changes uncertainty into absence.
+
+This remains internal source-only composition, default-disabled and part of the
+explicit fresh-empty execution schema, not a live migration or configured retry
+loop. No startup/GET DDL, public endpoint or v7 selection is introduced. Complete
+matched worker/priority/removal/UI integration before activation. Keep the current
+v6 original lab import and every existing authority/recovery/unknown record.
+
+## Fresh deferred queue handoff — 2026-11-09
+
+A separate explicit fresh execution profile may expand job/attempt/cancellation
+result states while retaining the evidence-only profile's original contracts.
+Initialization requires paused, quiescent, empty execution/history tables and
+never copies/converts/deletes retained jobs or authority. Existing data refuses;
+no startup/GET initialization or live-profile replacement. Older writers and
+the current configured coordinator must refuse this not-yet-supported worker
+profile. Ordered-removal/recovery profile combinations remain unsupported here.
+
+Only original RUNNING jobs in a fully bound settled-v7 group may atomically become
+AWAITING_CONFIRMATION. Record original scope/root/delegation/claim/ACK evidence,
+transition the entire group and original attempts, append real-identity audits
+and release the same live lease in one transaction. No unresolved device work,
+missing terminal proof, old unknown, expired/foreign lease or partial group can
+use it. Failure rolls back the handoff, never resending a remote command. SQL
+guards require original evidence and forbid requeue/old-terminal laundering.
+
+A current same-device visit may atomically consume its first causal complete
+read as OBSERVED_PRESENT or CONFIRMED_ABSENT, with immutable first-read binding,
+per-target outcome/attempt/audit/delegation and captured cancellation settlement.
+No created occurrence, interface or import origin is inferred. Cancellation keeps
+confirmed-present entries and retires exact confirmed-absent targets without
+attention; protection retirement is never reversed. Expired original delegation
+does not stop read-only confirmation and never grants another write. Awaiting
+and known-absent retry work remain outstanding in progress, and all ledger-linked
+queue evidence survives retention.
+
+These are source-only internal hooks, not v7 activation or an automatic retry
+loop. Unbound ordinary discovery refuses same-intent deferred terminal outcomes;
+only the explicit fresh-admission contract above can use confirmed absence. Configuration,
+high-level client, grouped queue and agent still select only v5/v6; no worker
+publishes/executes the new mode. Runtime/UI/priority/ordered removal and
+bounded live acceptance must be completed before changing those gates. Do not
+reset/reimport the current lab task or apply fresh initialization to its DB.
+
+## Durable pending evidence boundary — 2026-11-09
+
+An explicit optional bulk profile may retain a tracked-v7 settled-pending session
+and its exact 1–16 original ordered members. Initialize only under paused,
+quiescent device-scoped storage, never startup/GET. Record only the actual typed
+terminal transport value, full original RUNNING scope, original attempt/delegation,
+complete original root and unique owner/epoch/group/version/sequence-bound claim
+and ACK audits. Check the same live lease before and after the atomic insert.
+Store a conservative local receipt time after real client settlement; missing
+ACK/terminal/cleanup proof cannot become durable settled evidence. Retain all
+original uncertainty, authority and older recovery profiles without alteration.
+
+An append-only first observation may classify exact members as OBSERVED_PRESENT
+or CONFIRMED_ABSENT using one complete same-device read started strictly after
+that settlement barrier, completed by classification time and started within
+120 seconds. Partial, overlapping, stale, failed, foreign or future reads classify
+nothing. Retain the read's identity/times/full-set SHA-256 and exact present
+ordinals; a shared identity cannot describe different evidence. Neither verdict
+proves original creation, changes protection/consent, resolves an ordered
+cancellation wait or authorizes replay of an old command.
+
+This increment is an evidence-only source contract. Its optional immutable tables
+do not change existing job/attempt states, managed occurrence provenance, task
+progress or leases. RUNNING continues to fence release. No production worker,
+configuration or public route selects v7 or consumes these verdicts yet, and the
+lab schema/runtime remain unchanged. Distinct awaiting queue states, safe settled
+lease release, current-policy fresh-attempt admission/backoff, priority/protection/
+cancellation integration and UI must be implemented and tested before activation.
+Do not widen current v5/v6 admission or initialize live pending tables as a
+shortcut. Older writers must refuse this unsupported optional profile.
+
+## Deferred first confirmation: transport foundation — 2026-11-09
+
+A separate tracked-v7 terminal operation `END_PENDING` (`0x1d`) may acknowledge
+the exact nonempty ordered pending scope without another Cisco read. Its status
+`06` is not verified ADD success, presence, creation provenance or retry authority.
+The client must match every originally received ACK/target/sequence and receive
+the original post-cleanup/guard/worker-IDLE terminal settlement before returning
+a distinct settled-pending value. Missing/malformed/partial settlement remains
+unknown; never fall back, reconnect or resend a command. A mutation session still
+cannot use the read-only completion lookup as recovery proof.
+
+V7 keeps v6's 240s/64-attempt/256-command/sequence<=130 bounds and pending<=16;
+existing versions/operations retain their exact verification contract. Plain END,
+snapshot and removal cannot overtake pending ADDs. END_PENDING is terminal only,
+requires at least one acknowledged ADD and performs no additional Cisco command.
+
+This increment is transport-only, not runtime activation. Public configuration,
+high-level API client, grouped queue and workers continue to admit only v5/v6;
+agent configuration does not select v7. The v7 admission gate must therefore
+refuse before SSH opening on a configured agent. No RUNNING job/lease may be
+released from this new value. A later explicit durable profile must bind original
+ACKs, attempt/root and complete actual session settlement, distinguish pending
+from success and use a causally later complete read. Only then can confirmed
+absence under current intent allow a fresh attempt. Generic later presence is
+not proof of original creation. Lost ACK/session proof remains uncertainty.
+
+## Local grouped-result persistence — 2026-11-09
+
+Only the grouped queue's ACK and ADD-terminal-result transactions may retry
+local numeric `SQLITE_BUSY` (including extended BUSY codes). They reuse the same
+already received response or terminal diagnostic; no RPC, claim or new command
+is retried. Use at most three fresh SQLite connections/transactions, a two-second
+lock wait per attempt, 50/150-ms backoff and a seven-second retry-start window.
+These are local admission/wait bounds, not a preemption guarantee for a running
+SQL callback. Original agent/session, lease and eligibility deadlines are never
+extended; fresh original executor/profile/binding checks run on every attempt.
+
+A failed BEGIN before any callback write is safe to repeat. After BEGIN, retry
+requires an open original transaction and successful explicit complete rollback.
+If commit has already ended the transaction, rollback fails, numeric BUSY proof
+is missing, or validation/ownership/time fails, propagate the error and retain
+the existing uncertainty fence. No string matching, commit-status guess or
+unknown-write replay. DB-only callbacks cannot commit or change queue memory;
+pending membership and success logging advance only after commit. Earlier
+per-target verified results survive a later failure. No SQL/schema migration,
+new authority, global storage retry or startup recovery is introduced.
+
 ## Bounded grouped ADD verification — 2026-11-03
 
 ### Literal verification without temporary per-member containers
@@ -6134,6 +6502,28 @@ only: no acknowledgment, recovery decision, fence release, job replay, new schem
 authority or device operation is caused by a GET or rendered history.
 
 ### Bounded multi-group sessions — 2026-11-04
+
+#### Explicit extended offline recovery — 2026-11-09
+
+The legacy 1–16-claim offline tools remain strict by default. Add a separate
+explicit `--extended-v6` review/apply selection for 17–64 retained **system ADD**
+claims in one exact held epoch. Every original claim and terminal event must
+carry matching v6/group metadata; all existing full-root, original job/attempt/
+request, whole-scope, quiescence, backup, fresh-review and no-foreign-work checks
+remain. Verified-only recovery still refuses any unknown; quiescent managed-ADD
+reconciliation keeps unknown outcomes unchanged and requires a newer fresh read
+before any new attempt under current standing intent. Neither selection retries
+an old job, renews delegation, changes protection/policy or clears other epochs.
+
+Use a new optional immutable extended-receipt marker profile, installed only
+inside explicit offline apply, never startup/GET. Store the exact ordered claim
+fields as bounded compact tuples with a canonical digest, still within the
+existing 16-KiB receipt limit; expand them for operator review/replay output.
+The marker binds the original receipt and exact 17–64-member scope. Missing,
+malformed, mismatched or unsupported format/profile refuses. Old writers must
+refuse this new profile rather than interpreting it as ordinary recovery.
+Existing receipts remain byte-for-byte unchanged. Do not merely raise the old
+review limit, truncate evidence, weaken schema guards or reuse historical keys.
 
 Introduce explicitly selected tracked cycle v6 for the managed grouped worker.
 `FTD_SHUN_AGENT_BATCH_SESSION_VERSION=6` requires the existing grouped capability

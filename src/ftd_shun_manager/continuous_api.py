@@ -161,7 +161,7 @@ class ContinuousApiRuntime:
 
     def supports(self, method, path):
         if method == 'GET':
-            return bool(path in {'/api/v1/status', '/api/v1/shuns', '/api/v1/import-devices',
+            return bool(path in {'/api/v1/status', '/api/v1/shuns', '/api/v1/shuns-page', '/api/v1/queue-recovery', '/api/v1/import-devices',
                                  '/api/v1/history', '/api/v1/history-page', '/api/v1/search', '/api/v1/protected-ips',
                                  '/api/v2/managed-shuns/page'}
                         or re.fullmatch(r'/api/v1/(?:shuns|history)/[^/]+', path)

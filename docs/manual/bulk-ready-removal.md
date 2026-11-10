@@ -48,6 +48,13 @@ digest only when its local and API factory capabilities both permit submission.
 
 ## Atomic backend contract
 
+In the explicit source-only deferred profile, `AWAITING_CONFIRMATION` is pending
+ADD work and blocks the entire ready-only action before retirement/admission.
+After a causal complete read classifies `OBSERVED_PRESENT`/`CONFIRMED_ABSENT`,
+these are known terminal outcomes, not failures or creation proof. A fresh frozen
+ready review may then use the same atomic contract below. Ordered pending capture
+is not implemented for this profile. See [Deferred First Confirmation](deferred-confirmation.md).
+
 `BulkRemovals.admit` and its caller-owned `apply_admit` hook require an explicit
 literal `enabled=True` supplied by trusted composition code, never form/status
 data. Default-off calls do not access/create storage. Admission requires existing

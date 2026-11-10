@@ -210,7 +210,9 @@ print(templates.get_template(p["template"]).render(identity=Identity("test", "Te
     page=1, pages=2, page_targets=review.targets[:100] if p["template"] == "managed-batch-review.html" else [],
     confirm_count="", acknowledged=False, import_text_limit=MAX_TEXT_BYTES,
     managed=p.get("managed"), handoffs=p.get("handoffs"), fleet_cleanup=p.get("fleet_cleanup"),
-    csrf_token="fixture-token", shuns=[shun], refresh=p["refresh"], search_query=p["query"],
+    csrf_token="fixture-token", shuns=[dict(shun, ip=str(IPv4Address(0xC6120000 + (p["bulk_page"]-1)*100 + i))) for i in range(100)] if p.get("large_shuns") else [shun],
+    shun_pagination=dict(page=p["bulk_page"],pages=1000,total=100000,page_size=100) if p.get("large_shuns") else None,
+    refresh=p["refresh"], search_query=p["query"],
     search_results=None, trusted_policy_ips=enabled_ips, disabled_policy_ips=disabled_ips, recent_events=p.get("history", {}).get("events", [event]),
     pagination=p.get("history", {}), anchored_history=bool(p.get("anchor")),
     ip=shun["ip"], events=[event], is_trusted_policy_ip=shun["ip"] in enabled_ips,
@@ -308,6 +310,7 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
   let fleetCleanup = { initialized: false, counts: {}, items: [], display_limit: 20, scope_display_limit: 5, read_only: true };
   let historyRows = [];
   let shunOrigins = [];
+  let largeShuns = false;
   const appendHistory = () => {
     const sequence = historyRows.length + 1;
     historyRows.push({ id: `00000000-0000-4000-8000-${sequence.toString(16).padStart(12, "0")}`,
@@ -493,6 +496,7 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
             entries: managed.entries.slice((current - 1) * 100, current * 100) };
       }
       const payload = { refresh: stamp(), generation, query: url.searchParams.get("q") || "", shun_origins: shunOrigins,
+        large_shuns: largeShuns,
         bulk_page: Number(url.searchParams.get("page") || 1), bulk_review: url.pathname.endsWith("/review"),
         import_kind: url.searchParams.get("kind"),
         fleet_review: url.pathname === "/managed-shuns/fleet-removal-review",
@@ -590,6 +594,26 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
           }
         }
       } finally { await page.close(); status = initial(); }
+    });
+
+    await t.test("Shuns pagination stays bounded and keeps its page during live replacement", async () => {
+      largeShuns = true;
+      const page = await connectPage(debugOrigin, `${origin}/?page=2&q=198.18`);
+      try {
+        assert.equal(await page.evaluate("document.querySelectorAll('#active-shuns tbody tr').length"), 100);
+        assert.match(await page.evaluate("document.querySelector('[data-shun-page-summary]').textContent"), /Page 2 of 1000/);
+        assert.equal(await page.evaluate("new URL(document.querySelector('#active-shuns a[rel=next]').href).searchParams.get('q')"), '198.18');
+        const before = generation;
+        complete();
+        await wake(page);
+        await page.until(`document.querySelector('#active-shuns').textContent.includes('FIXTURE_EVENT_${generation}')`);
+        assert.ok(generation > before);
+        assert.equal(await page.evaluate("document.querySelectorAll('#active-shuns tbody tr').length"), 100);
+        assert.equal(await page.evaluate("new URL(location.href).searchParams.get('page')"), '2');
+        await page.evaluate("document.querySelector('#active-shuns a[rel=next]').click()");
+        await page.until("document.querySelector('[data-shun-page-summary]')?.textContent.includes('Page 3 of 1000')");
+        assert.equal(await page.evaluate("document.querySelectorAll('#active-shuns tbody tr').length"), 100);
+      } finally { await page.close(); largeShuns = false; status = initial(); }
     });
 
     await t.test("one click; slow status; partial updates preserve fields and open status menu", async () => {
@@ -995,6 +1019,69 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
         assert.equal(postCount, hints);
         assert.equal(executionCount, executions);
       } finally { await page.close(); managed = previous; }
+    });
+    await t.test("open IP action editors keep their actual controls across refreshes, but accept changed scope and revoked capabilities", async () => {
+      const previous = managed;
+      status = initial();
+      Object.assign(status, { runtime_mode: "continuous-managed", managed_policy_format: 2,
+        managed_policy_view_available: true, managed_policy_retirement_available: true,
+        ready_removal_review_available: true, ordered_removal_review_available: true });
+      managed = { initialized: true, intent_format: 2, limit: 200000, revision: 7,
+        restoration_suspended: false, attempt_ledger_initialized: true, read_only: true,
+        entries: [{ device_id: 1, hostname: "Fixture FTD", ip: "198.51.100.201", enabled: true,
+          device_enabled: true, observed_present: true, protected: false, generation: 1,
+          pending_jobs: 0, attention: false, missing_unknown_job: false, last_attempt_state: "VERIFIED",
+          actor_subject: "fixture", actor_display_name: "Fixture", label: "Original label", reason: "" }] };
+      const hints = postCount, executions = executionCount;
+      const page = await connectPage(debugOrigin, `${origin}/managed-shuns`);
+      try {
+        await page.evaluate(`window.ipEditors = ['managed-retirement-options', 'ready-removal-options', 'ordered-removal-options'].map(id => document.getElementById(id));
+          ipEditors.forEach(el => el.open = true);
+          window.ipControls = ['retirement-target', 'ready-removal-target', 'ordered-removal-target'].map(id => document.getElementById(id));
+          ipControls.forEach(el => el.value = '1:198.51.100.201');
+          document.querySelector('#ready-removal-reason').value = 'Keep my draft';`);
+        for (const [index, selector] of ['#ready-removal-options summary', '#ready-removal-target', '#ready-removal-options button'].entries()) {
+          await page.evaluate(`document.querySelector(${JSON.stringify(selector)}).focus()`);
+          managed.entries[0].label = `Updated editor fixture ${index}`;
+          status.data_revision += 1;
+          await wake(page);
+          await page.until(`document.querySelector('#managed-shun-state').textContent.includes(${JSON.stringify(managed.entries[0].label)})`);
+          assert.equal(await page.evaluate("ipEditors.every(el => el.isConnected && el.open) && ipControls.every(el => el.isConnected && el.value==='1:198.51.100.201')"), true);
+          assert.equal(await page.evaluate(`document.activeElement === document.querySelector(${JSON.stringify(selector)})`), true);
+          assert.equal(await page.evaluate("document.querySelector('#ready-removal-reason').value"), 'Keep my draft');
+        }
+        managed.entries.push({ ...managed.entries[0], ip: '198.51.100.202', label: 'Changed target scope' });
+        status.data_revision += 1;
+        await wake(page);
+        await page.until("document.querySelector('#ready-removal-target option[value=\"1:198.51.100.202\"]')");
+        assert.equal(await page.evaluate("document.querySelector('#ready-removal-options').open"), true);
+        assert.equal(await page.evaluate("document.querySelector('#ready-removal-target') !== ipControls[1]"), true);
+        assert.equal(await page.evaluate("document.querySelector('#ready-removal-reason').value"), 'Keep my draft');
+        Object.assign(status, { managed_policy_retirement_available: false,
+          ready_removal_review_available: false, ordered_removal_review_available: false });
+        managed.entries[0].label = 'Capability change applied';
+        status.data_revision += 1;
+        await wake(page);
+        await page.until("document.querySelector('#managed-shun-state').textContent.includes('Capability change applied')");
+        assert.equal(await page.evaluate("document.querySelectorAll('#managed-retirement-options, #ready-removal-options, #ordered-removal-options').length"), 0);
+        assert.equal(postCount, hints);
+        assert.equal(executionCount, executions);
+      } finally { await page.close(); managed = previous; status = initial(); }
+    });
+    await t.test("queue offers recovery inspection without submitting retries or hiding unknown results", async () => {
+      status = initial();
+      status.queue = { counts: { UNVERIFIED: 13 }, attention_counts: { FAILED: 0, UNVERIFIED: 13 },
+        items: [], display_limits: { attention: 20 }, progress: { requests: [] } };
+      const hints = postCount, executions = executionCount;
+      const page = await connectPage(debugOrigin, origin);
+      try {
+        await page.evaluate("document.querySelector('#queue-menu').open=true");
+        await page.until("!document.querySelector('[data-queue-attention-section]').hidden");
+        assert.equal(await page.evaluate("document.querySelector('[data-queue-attention-section] a.action-link').getAttribute('href')"), '/queue-recovery');
+        assert.equal(await page.evaluate("document.querySelector('[data-queue-attention-section]').textContent.includes('13 unverified')"), true);
+        assert.equal(postCount, hints);
+        assert.equal(executionCount, executions);
+      } finally { await page.close(); status = initial(); }
     });
     await t.test("auto-restoration off is quiet history, never hidden current blocks or uncertain work", async () => {
       const previous = managed;
@@ -1481,6 +1568,33 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
         assert.equal(await page.evaluate("document.querySelectorAll('[data-operation-queue] tr').length"), 0);
         assert.equal(await page.evaluate("document.querySelector('#queue-results-details').open"), true);
         assert.equal(await page.evaluate("document.querySelectorAll('[data-queue-completed] tr').length"), 20);
+      } finally { await page.close(); }
+    });
+    await t.test("deferred confirmation stays visible without false success, attention or running animation", async () => {
+      status = initial();
+      const job = (state) => ({ id: 'pending-read', state, action: 'ADD', hostname: 'lab-ftd',
+        device_id: 1, ip: '198.51.100.10', requested_at: future(-30), started_at: future(-20),
+        requests: [{ id: 'pending-request', source: 'manual_import', state: 'ACTIVE', actor_subject: 'test', actor_display_name: 'Test Operator' }] });
+      status.queue = { revision: 1, counts: { AWAITING_CONFIRMATION: 16 }, items: [job('AWAITING_CONFIRMATION')] };
+      const hints = postCount, executions = executionCount;
+      const page = await connectPage(debugOrigin, origin);
+      try {
+        await page.until("document.querySelector('[data-operation-queue] .status-label')?.textContent==='Awaiting confirmation'");
+        assert.match(await page.evaluate("document.querySelector('[data-queue-summary]').textContent"), /16 awaiting confirmation/);
+        assert.equal(await page.evaluate("document.querySelector('#queue-menu').dataset.activity"), 'waiting');
+        assert.equal(await page.evaluate("document.querySelector('#queue-menu').dataset.attention"), 'false');
+        assert.equal(await page.evaluate("document.querySelectorAll('[data-operation-queue] progress, [data-operation-cancel]').length"), 0);
+        assert.equal(await page.evaluate("document.querySelector('[data-queue-warning]').hidden"), true);
+        status.queue.counts = { OBSERVED_PRESENT: 15, CONFIRMED_ABSENT: 1 };
+        status.queue.items = [job('OBSERVED_PRESENT'), { ...job('CONFIRMED_ABSENT'), id: 'absent' }];
+        status.queue.revision++; status.status_revision++;
+        await wake(page);
+        await page.until("document.querySelectorAll('[data-queue-completed] tr').length===2");
+        assert.equal(await page.evaluate("document.querySelectorAll('[data-operation-queue] tr').length"), 0);
+        assert.match(await page.evaluate("document.querySelector('[data-queue-completed-note]').textContent"), /15 observed present \(not creation proof\)/);
+        assert.match(await page.evaluate("document.querySelector('[data-queue-completed-note]').textContent"), /1 confirmed absent/);
+        assert.equal(await page.evaluate("document.querySelector('#queue-menu').dataset.attention"), 'false');
+        assert.equal(postCount, hints); assert.equal(executionCount, executions);
       } finally { await page.close(); }
     });
     await t.test("reviewed unknown history stays quiet while new unresolved operations remain prominent", async () => {

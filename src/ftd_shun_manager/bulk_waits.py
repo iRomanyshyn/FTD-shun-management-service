@@ -74,9 +74,9 @@ def classify(db, member):
             job = db.execute('SELECT * FROM operation_jobs WHERE id=?', (attempt['job_id'],)).fetchone()
             if job is not None:
                 validate_binding(db, attempt, job)
-            elif attempt['state'] in {'QUEUED', 'RUNNING', 'UNVERIFIED'}:
+            elif attempt['state'] in {'QUEUED', 'RUNNING', 'AWAITING_CONFIRMATION', 'UNVERIFIED'}:
                 raise BulkUnavailable('Owned pending/unknown attempt is missing its queue evidence.')
-            if attempt['state'] in {'QUEUED', 'RUNNING'}:
+            if attempt['state'] in {'QUEUED', 'RUNNING', 'AWAITING_CONFIRMATION'}:
                 if pending is not None:
                     raise BulkUnavailable('Multiple unfinished attempts cannot be captured as one predecessor.')
                 pending = attempt
@@ -89,9 +89,9 @@ def classify(db, member):
                 AND a.generation=? AND a.authorization_request_id=?) LIMIT 1''',
         tuple(member[name] for name in ('device_id', 'ip', 'intent_id', 'generation', 'authorization_request_id'))).fetchone():
         raise ManagedConflict('Independent ADD evidence/unfinished work cannot be taken over by bulk cancellation.')
-    if states.intersection({'VERIFIED', 'NOOP'}):
+    if states.intersection({'VERIFIED', 'NOOP', 'OBSERVED_PRESENT'}):
         state, job_id = 'RETAINED_APPLIED', None
-    elif pending is not None and pending['state'] == 'RUNNING':
+    elif pending is not None and pending['state'] in {'RUNNING', 'AWAITING_CONFIRMATION'}:
         state, job_id = 'WAITING_OUTCOME', pending['job_id']
     else:
         state = 'STOPPED_UNVERIFIED' if 'UNVERIFIED' in states else 'STOPPED_FAILED' if 'FAILED' in states else 'STOPPED_UNSENT'
@@ -121,7 +121,7 @@ def validate_pending(db):
 
 
 def settle_result(db, store, attempt, outcome, timestamp):
-    if outcome == 'RUNNING' or not present(db):
+    if outcome in {'RUNNING', 'AWAITING_CONFIRMATION'} or not present(db):
         return
     _state(db)
     rows = db.execute('''SELECT m.* FROM managed_bulk_cancellation_members m
@@ -139,11 +139,12 @@ def settle_result(db, store, attempt, outcome, timestamp):
             state = 'SUPERSEDED'
         elif not target['enabled']:
             state = 'ALREADY_STOPPED'
-        elif outcome in {'VERIFIED', 'NOOP'}:
+        elif outcome in {'VERIFIED', 'NOOP', 'OBSERVED_PRESENT'}:
             state = 'RETAINED_APPLIED'
         else:
             state = {'FAILED': 'STOPPED_FAILED', 'UNVERIFIED': 'STOPPED_UNVERIFIED',
-                     'QUEUED': 'STOPPED_UNSENT', 'CANCELLED': 'STOPPED_UNSENT'}[outcome]
+                     'QUEUED': 'STOPPED_UNSENT', 'CANCELLED': 'STOPPED_UNSENT',
+                     'CONFIRMED_ABSENT': 'STOPPED_UNSENT'}[outcome]
         db.execute('INSERT INTO managed_bulk_wait_results VALUES (?,?,?,?,?,?,?,?)',
             (member['import_id'], member['device_id'], member['ip'], member['job_id'], state,
              int(outcome in {'FAILED', 'UNVERIFIED'}), outcome, timestamp))

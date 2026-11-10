@@ -5,14 +5,37 @@ use super::*;
 pub(super) const VERSION: u8 = 4;
 pub(super) const SHARED_END_VERSION: u8 = 5;
 pub(super) const MULTI_GROUP_VERSION: u8 = 6;
+// Transport foundation only: configuration still refuses selecting this version.
+pub(super) const PENDING_END_VERSION: u8 = 7;
 pub(super) const STAGE: u8 = 0x1a;
 pub(super) const VERIFY: u8 = 0x1b;
 pub(super) const VERIFY_END: u8 = 0x1c;
+pub(super) const END_PENDING: u8 = 0x1d;
 pub(super) const MAX_PENDING: usize = 16;
 pub(super) const MAX_SEQUENCE: u8 = 34;
 
 pub(super) fn supported(version: u8) -> bool {
-    matches!(version, VERSION | SHARED_END_VERSION | MULTI_GROUP_VERSION)
+    matches!(
+        version,
+        VERSION | SHARED_END_VERSION | MULTI_GROUP_VERSION | PENDING_END_VERSION
+    )
+}
+
+pub(super) fn pending_end(targets: &[Ipv4Addr], sequence: u8, version: u8) -> Result<Vec<u8>> {
+    if version != PENDING_END_VERSION
+        || !(1..=cycle::max_sequence(version)).contains(&sequence)
+        || targets.is_empty()
+        || targets.len() > MAX_PENDING
+        || targets.iter().collect::<BTreeSet<_>>().len() != targets.len()
+    {
+        bail!("invalid pending-only terminal scope");
+    }
+    // 06 is deliberately neither verified creation nor an observed snapshot.
+    let mut packet = vec![6, version, END_PENDING, sequence, targets.len() as u8];
+    for target in targets {
+        packet.extend(target.octets());
+    }
+    Ok(packet)
 }
 
 pub(super) fn capacity(version: u8) -> usize {

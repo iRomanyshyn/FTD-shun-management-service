@@ -70,10 +70,11 @@ verified groups remain verified. Do not infer success from logging or replay
 unknown writes. Deferred first confirmation across sessions and automatic retry
 of safely settled-but-absent initial additions remain separate future work.
 
-The existing offline reviewed recovery tools intentionally bound whole epochs to
-16 claims. They refuse a larger v6 held epoch; do not bypass that limit or reuse
-an old receipt. A compatible larger-epoch review/ledger contract is separate
-follow-up work, not automatic recovery supplied by this profile.
+Ordinary offline recovery still bounds epochs to 16 claims. The separately
+selected [extended v6 profile](extended-session-recovery.md) supports 17–64 exact
+system ADD claims with new immutable receipt bindings; consult current status
+for activation. It is not automatic recovery or a guard bypass. Missing evidence,
+deferred/nonterminal claims, manual/REMOVE/FAILED work and broader cases refuse.
 
 Before replacing the pair, retain compatible images and current non-secret
 evidence. Use all three managed-lab Compose overlays. Drain API first with an

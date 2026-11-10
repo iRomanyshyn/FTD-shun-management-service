@@ -81,6 +81,158 @@ fn fixture() -> Cycle<Fake> {
 }
 
 #[tokio::test]
+async fn v7_pending_end_is_terminal_without_verification_or_an_extra_cisco_command() -> Result<()> {
+    let vectors: serde_json::Value =
+        serde_json::from_str(include_str!("../../tests/fixtures/pending-end-v7.json"))?;
+    assert_eq!(decode_begin(&unhex(&vectors["begin"])?)?, (7, 7));
+    let mut cycle = fixture();
+    cycle.version = 7;
+    assert_eq!(cycle.max_duration().as_secs(), vectors["duration_seconds"]);
+    assert_eq!(cycle.max_mutations(), 64);
+    assert_eq!(cycle.max_commands(), 256);
+    assert_eq!(
+        cycle.execute(&unhex(&vectors["stage_first"])?).await?.0[0],
+        unhex(&vectors["ack_first"])?
+    );
+    cycle.console.rows.insert(
+        target(253),
+        "shun (management) 198.51.100.253 0.0.0.0 0 0 0\n".into(),
+    );
+    assert_eq!(
+        cycle
+            .execute(&[batch_addition::STAGE, 7, 2, 198, 51, 100, 253])
+            .await?
+            .0[0],
+        [0, 7, batch_addition::STAGE, 2, 0]
+    );
+    assert_eq!(
+        cycle.execute(&unhex(&vectors["stage_second"])?).await?.0[0],
+        unhex(&vectors["ack_second"])?
+    );
+    let calls = cycle.console.calls.clone();
+    let commands = cycle.commands;
+    let (frames, done) = cycle.execute(&unhex(&vectors["end_pending"])?).await?;
+    assert!(done);
+    assert_eq!(frames, vec![unhex(&vectors["receipt"])?]);
+    assert_eq!(cycle.console.calls, calls);
+    assert_eq!(cycle.commands, commands);
+    // Retain unconfirmed scope until resource drop; no verification occurred.
+    assert_eq!(cycle.pending_additions, [target(251), target(252)]);
+    assert!(!calls.contains(&"verify_group"));
+    assert_eq!(
+        after_cleanup(sessions::BEGIN, 7, 4, Ok(()))?
+            .context("terminal")?
+            .to_vec(),
+        unhex(&vectors["settled"])?
+    );
+    assert!(after_cleanup(sessions::BEGIN, 7, 4, Err(anyhow::anyhow!("lost cleanup"))).is_err());
+    Ok(())
+}
+
+#[tokio::test]
+async fn v7_never_lets_plain_end_snapshot_or_remove_overtake_pending_acknowledgements() -> Result<()>
+{
+    let mut cycle = fixture();
+    cycle.version = 7;
+    cycle
+        .execute(&[batch_addition::STAGE, 7, 1, 198, 51, 100, 251])
+        .await?;
+    let calls = cycle.console.calls.clone();
+    for packet in [
+        vec![END, 7, 2],
+        vec![SNAPSHOT, 7, 2],
+        vec![REMOVE, 7, 2, 198, 51, 100, 251],
+    ] {
+        assert!(cycle.execute(&packet).await.is_err());
+        assert_eq!(cycle.sequence, 2);
+        assert_eq!(cycle.console.calls, calls);
+    }
+    for version in 1..=6 {
+        assert!(decode_step(&[batch_addition::END_PENDING, version, 2], 2, version).is_err());
+    }
+    assert!(
+        snapshot::encode_versioned(BTreeSet::new(), batch_addition::END_PENDING, 2, 7).is_err()
+    );
+    Ok(())
+}
+
+#[test]
+fn v7_pending_header_rejects_empty_duplicate_oversized_or_foreign_scope() {
+    for targets in [
+        vec![],
+        vec![target(251), target(251)],
+        vec![target(251); 17],
+    ] {
+        assert!(batch_addition::pending_end(&targets, 2, 7).is_err());
+    }
+    for (version, sequence) in [(6, 2), (8, 2), (7, 0), (7, 131)] {
+        assert!(batch_addition::pending_end(&[target(251)], sequence, version).is_err());
+    }
+}
+
+#[test]
+fn configured_agent_refuses_v7_before_inventory_or_ssh_and_mutation_lookup_never_becomes_safe()
+-> Result<()> {
+    use nix::sys::socket::socketpair;
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()?;
+    let (_peer, connection) = socketpair(
+        AddressFamily::Unix,
+        SockType::SeqPacket,
+        None,
+        SockFlag::SOCK_CLOEXEC,
+    )?;
+    let vectors: serde_json::Value =
+        serde_json::from_str(include_str!("../../tests/fixtures/pending-end-v7.json"))?;
+    let mut agent = Agent {
+        sessions: Arc::new(sessions::Sessions::default()),
+        devices: BTreeMap::new(),
+        credentials: credentials::Credentials::PerDevice(BTreeMap::new()),
+        operation_timeout: Duration::from_secs(45),
+        cycles_enabled: true,
+        large_snapshots_enabled: true,
+        additions_enabled: true,
+        batch_additions_enabled: true,
+        batch_session_version: 5,
+        max_concurrent_devices: 1,
+    };
+    for configured in [5, 6] {
+        agent.batch_session_version = configured;
+        let error = handle(
+            &agent,
+            &connection,
+            runtime.handle(),
+            &unhex(&vectors["begin"])?,
+        )
+        .err()
+        .context("v7 must not enter configured execution")?;
+        assert!(
+            error
+                .to_string()
+                .contains("session version is not explicitly enabled")
+        );
+    }
+    let key = sessions::decode(&unhex(&vectors["begin"])?, sessions::BEGIN)?;
+    agent.sessions.reserve(key)?;
+    assert_eq!(agent.sessions.lookup(key)?[0], 2);
+    agent.sessions.complete(key)?; // No prepare_read_only for a mutation session.
+    assert_eq!(agent.sessions.lookup(key)?[0], 1);
+    assert!(
+        finish_result(
+            sessions::BEGIN,
+            7,
+            Err(anyhow::anyhow!("lost pending end")),
+            Ok(()),
+            Some((END, 4)),
+            2
+        )
+        .is_err()
+    );
+    Ok(())
+}
+
+#[tokio::test]
 async fn v6_runs_four_bounded_groups_on_one_console_and_retains_exact_limits() -> Result<()> {
     let vectors: serde_json::Value =
         serde_json::from_str(include_str!("../../tests/fixtures/batch-addition-v6.json"))?;
@@ -147,7 +299,7 @@ async fn v6_runs_four_bounded_groups_on_one_console_and_retains_exact_limits() -
     assert_eq!(cycle.console.rows.len(), 64);
     assert_eq!(decode_step(&[END, 6, 130], 130, 6)?, Step::End);
     assert!(decode_step(&[END, 6, 131], 131, 6).is_err());
-    assert!(decode_step(&[END, 7, 1], 1, 7).is_err());
+    assert!(decode_step(&[END, 8, 1], 1, 8).is_err());
     assert!(decode_step(&[END, 5, 35], 35, 5).is_err());
     Ok(())
 }

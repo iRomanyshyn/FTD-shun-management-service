@@ -9467,6 +9467,1285 @@ argument-free diagnostics are retained under the private evidence directory abov
 All three overlays and explicit lab v6 remain selected. Final source diff checks
 pass; Python/agent results are recorded above, not invented live failure tests.
 
+## 2026-11-09 — Held v6 session and explicit extended recovery
+
+After the operator requested continued development, read-only checks found the
+same original import held in ATTENTION epoch 2600 since 2026-11-04T14:27:14.829Z.
+Its 26 original v6 claims retain 16 VERIFIED and 10 UNVERIFIED outcomes, reasons
+`database is locked`; raw unknown count 11 includes the separately reviewed old
+epoch-2060 record. Agent diagnostics report 26 ADD ACK envelopes, ten pending
+at failure and no terminal settlement; those logs do not prove original success.
+API reports 14,821 VERIFIED/ten unverified original-task members, 17,594 remaining.
+The host/services restarted on November 9, but correctly did not release the
+hold or replay old commands. SQLite integrity is ok. Preserve this failure;
+do not cancel/reimport, relabel outcomes or renew old requests.
+
+Created a new checked 0600 SQLite archive in the private state-volume directory
+`private-backups/extended-v6-20261109/source-online.db`, without overwriting live
+data. The old November 4 `/tmp` helper/evidence directory is absent after the host
+pause; historical records describe that earlier checkpoint, not current file
+availability. New diagnostics/rehearsal files use private
+`/tmp/ftd-held-session-20261109.gJNiMX/`; useful live backup stays in the volume.
+
+Implement explicit `--extended-v6` review/apply for 17–64 same-epoch system ADDs,
+with matching literal v6/group claim/terminal metadata and every old full-root,
+job/attempt/request, whole-scope, fresh review, checked backup, quiescence and
+foreign-work barrier. Default mode remains <=16; verified-only still rejects
+unknowns. New optional immutable `managed_bulk_extended_recovery` binds the exact
+compact six-field ordered claims and digest, preserving the 16-KiB receipt bound
+and old receipts byte-for-byte. Operator output stays expanded/readable. Profile-
+aware schema recognition refuses missing/drifted markers; old writers refuse the
+new optional profile. Startup/GET never create it. Reconciliation preserves old
+unknowns and requires a complete post-receipt read before any newly authorized
+current-intent attempt. No agent/protocol/auth/secret/network or default change.
+Documented the procedure and unchanged deferred/missing/manual/REMOVE/FAILED/
+foreign-case refusals in extended-session-recovery.md. This is not a generic
+automatic unknown-write retry or a claim that SQLite contention is fixed.
+
+Disposable actual-worker tests cover 17/26/64 claims, original job/policy
+preservation, compact bounds, old-profile refusal, rollback, damaged/missing
+audit and malformed tuples; focused recovery/lease/batch/claim set: 195 pass.
+System Python lost its old dev packages after restart, so installed the declared
+development dependencies in a task-private temporary virtualenv (Python 3.15),
+not system Python or live containers. Ruff/compileall/diff pass. Full tests and
+actual-dataset copy rehearsal were initially in progress. The verified application
+and its limits are recorded below; do not treat this initial checkpoint as a
+claim that merely restarting the host resolves the hold.
+
+### Rehearsal and exact offline application
+
+Full regression completed with 3262 passes in 505.00s. An additional SQL release
+guard and direct missing-marker rollback test then passed the final focused
+recovery set (77 tests in 18.50s). Clean final-source full rerun then passed
+**3263 tests in 500.21s**, with no failures.
+Two separate actual-dataset copy rehearsals passed, including the final SQL
+guard: legacy and verified-only modes refused, exact 26-claim reconciliation
+retained all eleven original unknown jobs, every original job/attempt/request/
+policy table and both older base receipts. Integrity/foreign-key checks pass;
+the final rehearsal's compact receipt is 5931 bytes. Rehearsal keys/receipts
+were never copied into live authority.
+
+Built profile-aware API `d3005b86a025...`, with configured non-executing preflight
+before activation. Explicitly stopped API/Web (actual exit 0), then unchanged
+agent (actual exit 0). Stopped epoch 2600 remained ATTENTION with no QUEUED/RUNNING
+jobs, integrity ok and all nine pre-change fingerprints unchanged. With fresh
+whole-DB review at 14:30:37.282Z, checked exclusive 0600 backup and new real
+`maintenance:lab-extended-v6-20261109` identity, applied decision
+`ed150402-84bc-407b-a1b2-23982d625ca0` at **14:30:43.356Z**. Only original epoch
+2600 moved to IDLE. All original 26 outcomes, eleven unknown jobs, attempts,
+requests, policy tables and older receipts remain unchanged; compact receipt
+5926 bytes. New marker and ten exact unknown-ledger rows are retained atomically.
+Backup: `private-backups/extended-v6-20261109/before-live-reconciliation.db` in
+the state volume. No guard bypass, original command replay, reset/reimport,
+consent renewal or credentials/trust/network change occurred.
+
+Post-activation non-executing preflight passed. Restarted the same agent and Web;
+new API container `c8bb2950bdce` is profile-compatible. Old image retained as
+`ftd-shun-api:lab-pre-extended-recovery-20261109` is forensic, not a compatible
+rollback writer now that the optional marker exists. Do not restore a stale DB
+or remove guards/markers to force rollback. Complete owned fresh read at
+14:31:33Z is strictly after the decision. Epoch 2601 automatically admitted new
+work under the original intent, without a new hint/import/request. At 14:33:58Z
+original task 14,837 VERIFIED plus ten observed/reviewed unknowns, zero unresolved
+attention; eight original authority/protection/inventory fingerprints and all
+unknown rows unchanged, integrity ok. Sixteen new ADDs already have durable
+VERIFIED outcomes; the session has not yet settled at this checkpoint. Later
+presence never relabels the old unknown results. Web health 200/anonymous 401.
+
+### Bounded post-recovery acceptance
+
+Original audit proves epoch 2601 actually released at 14:34:50.395Z with 33
+VERIFIED ADDs, followed by epoch 2602 released at 14:38:10.351Z with 32 VERIFIED.
+Each retains one exact pre-write DEFER, not an unknown or fabricated success.
+Together **65 in 405.906s including the gap =9.61/minute**. This is bounded,
+unpaired continuation evidence, not throughput improvement or whole-list/load
+acceptance. Runtime diagnostics also showed a numeric local scheduling BUSY
+retry/recovered pair; the already implemented coordinator retry worked without
+new uncertainty. No live lock was induced, and ACK/result persistence retry is
+still not implemented by this increment.
+
+Final 14:38:27Z snapshot: original import **14,886 VERIFIED/32,425**, ten reviewed
+unknowns currently observed (14,896 processed), 17,529 outstanding, zero unresolved
+attention. All eleven original unknown rows and eight authority/protection/
+inventory fingerprints unchanged; integrity/foreign keys ok. Normal epoch 2603
+is active/LEASED, not globally idle. Later holds still require their own evidence;
+the epoch-2600 decision is not reusable authority. Clean final-source Python
+3263 passed, focused 77 passed, Ruff/compileall/diff and image preflights passed.
+Agent/Web sources were unchanged; no new Rust/browser run is claimed here.
+
+This is explicit recovery acceptance for this known lab scope, not automatic
+unknown retry, a live SQLite-lock prevention test, completed 32,425-list/load/
+production acceptance or durable cross-session first confirmation. Continue
+measuring actual settlement and prioritize the local SQLite-contention cause;
+never reuse this decision to release a later held epoch.
+
+## 2026-11-09 — Local grouped-result storage resilience (candidate)
+
+Following the operator's request, separated local SQLite result persistence from
+remote command execution. The original import remains active; initial read-only
+checkpoint 15:04:07Z: 15,133 VERIFIED/32,425, normal epoch 2610 LEASED, eleven
+reviewed unknowns retained and zero unresolved attention. No new task, authority,
+fixture, device command or recovery decision was submitted by development checks.
+
+Only grouped ACK and ADD-terminal-result callbacks select `persist_result`.
+It opens existing WAL storage in mode=rw (never initializes a missing DB), uses
+fresh BEGIN IMMEDIATE transactions, numeric BUSY classification and successful
+explicit rollback proof after BEGIN. Three attempts, 2s lock waits, 50/150ms
+backoff and a 7s retry-start window; check the window again after scheduler wakeup.
+The callback repeats only local SQL with the same response/diagnostic and all
+original executor/profile/job/attempt/request checks. It never calls the agent,
+claims a job, extends lease/session/delegation or changes queue memory before
+commit. The base/global queue retains its original transaction behavior via a
+private result-commit hook; grouped queues alone select the retry helper.
+
+Commit ambiguity after the transaction ends, failed rollback, absent/wrong
+numeric error, non-BUSY, validation/lease failures and exhausted bounds still
+propagate into existing uncertainty/fence handling. Earlier target results stay
+VERIFIED if later local persistence fails. Fixed phase/count/code diagnostics
+report retry/recovery without device text or credentials. No schema/profile,
+wire/agent/Web, default/gate, credential/trust/network or authority change.
+
+Initial grouped regression 40 pass; initial storage+grouped set 60 pass. Real
+competing SQLite writers exercise ACK/result through the actual synthetic worker,
+one connection/one stage per address and one complete verification. Numeric
+fault tests cover partial rollback, pre/post-commit failures, count/time/wakeup
+bounds, stale lease, failed rollback, duplicate prevention and a later failed
+result preserving the first VERIFIED plus eleven UNVERIFIED jobs. A preliminary
+full run was deliberately interrupted after the final wakeup guard was added
+(454 pass, no failure; not a clean full acceptance). Final focused/full runs
+are in progress at this initial checkpoint. Built API `52e05efca40d...` then
+passed configured non-executing preflight. Final storage/group/lease/recovery
+set: 161 passed in 41.98s; legacy/global paths: 127 passed in 2.52s.
+Ruff/compileall/diff pass. Documented the boundary in architecture, plan and
+manual/result-storage-retry.md. This is not automatic unknown-write recovery,
+a hard preemption deadline for running SQL or a throughput improvement claim.
+
+### API-only deployment
+
+With the complete full regression still running, deployed after the critical
+focused checks above. Retained compatible image d3005b86a025 as
+`ftd-shun-api:lab-pre-result-retry-20261109`. Explicit API drain actually exited
+0, stopped epoch 2613 IDLE, zero RUNNING, integrity ok, all nine original
+authority/protection/inventory/recovery fingerprints and all eleven old unknown
+rows unchanged. One safe unstarted QUEUED item remains; it was not erased.
+Agent/Web containers did not restart. New API `7d82c196f5cc` / image
+`52e05efca40d...` started at 15:14:48.854Z with unchanged all-three-overlay
+configuration. No schema, backup restore, recovery decision, new consent,
+fixture, secret/trust/network or device-command change. Startup 15:14:52Z:
+original task 15,231 VERIFIED plus ten reviewed/present unknowns, zero unresolved
+attention, epoch 2614 active/LEASED; actual settlement is being observed.
+
+First retained claim/result/release audit confirms epoch 2614 settled with 15
+VERIFIED ADDs at 15:16:32.777Z. At 15:17:20Z original task 15,246 VERIFIED,
+normal epoch 2615 active/LEASED, complete fresh read, integrity ok/eight authority
+hashes and all eleven old unknown rows unchanged, no new uncertainty/attention.
+Unchanged Web health 200/anonymous 401 checked. A coordinator-local scheduling
+BUSY retry/recovered pair occurred in that visit; no result-storage retry was
+observed live or lock induced. The latter acceptance remains real competing-
+writer testing on disposable SQLite, not claimed as a live FPR failure test.
+
+### Final validation and bounded acceptance
+
+The clean final-source full Python suite passed **3285 tests in 527.10s**, with
+no failures. Final Ruff/compileall/diff pass. No Rust/browser run is claimed:
+agent/Web sources and runtime identities are unchanged. Exact original audit
+confirms epoch 2615 released at 15:20:00.384Z with 33 VERIFIED ADDs and one exact
+pre-write DEFER. Together with startup's 15, **48 additions have actual persisted
+verification and session release** after deployment. This is healthy bounded
+continuation, not a throughput improvement or completed large-import acceptance.
+
+At 15:20:34Z original task **15,279 VERIFIED/32,425**, ten historical reviewed
+unknowns currently present (15,289 processed), 17,136 outstanding, zero unresolved
+attention. Normal epoch 2616 active/LEASED, complete fresh read 15:20:11Z, no
+device error. Final 15:20:56Z read: integrity ok, all nine original authority/
+protection/inventory/recovery fingerprints and all eleven old unknown rows
+unchanged. No live result-storage BUSY retry is claimed; real competing-writer
+fault acceptance remains disposable/local, not an induced FPR or production test.
+Original import continues without reset/reimport, receipt reuse or extra consent.
+Durable cross-session first confirmation and measured root/claim overhead remain
+follow-up work; this increment does not resolve arbitrary uncertain writes.
+
+## 2026-11-09 — Deferred-confirmation transport foundation (source only)
+
+Continued the agreed next import-completion slice. Read-only initial checkpoint
+15:23:40Z: same original 32,425-pair task, 15,312 VERIFIED plus ten reviewed/
+present unknowns, normal epoch 2617 LEASED, zero unresolved attention and no
+device error. Do not reset/reimport or use those historical unknowns as test
+authority. The lab remains on API 52e05efca40d/7d82c196f5cc and agent
+e8cdc9925a8d/ea9085b90bf5, with unchanged Web/all three overlays/private v6.
+
+Added a separate tracked-v7 terminal `END_PENDING` (0x1d). The agent returns
+status 06 and the exact ordered nonempty pending IP scope, without another
+Cisco read or verification. Existing strict post-cleanup/resource/guard/worker
+completion supplies the terminal receipt; failure cannot manufacture success.
+The Python low-level client validates original ordered ACK identities/sequences,
+the exact end scope and terminal binding before returning immutable
+`SettledPendingAdditions` with device/session/sequence/ACKs. It has no creation,
+interface, snapshot or verified-success field. Missing/lost/malformed ACK/end/
+settlement closes without fallback, reconnect or resend. Pending writes still
+block ordinary END/snapshot/REMOVE; v7 can still request strict group verification.
+V6's 240s/64-attempt/256-command/sequence<=130 limits and pending<=16 remain.
+Mutated sessions never acquire read-only completion lookup proof.
+
+This is transport foundation, not an activated mode or completed cross-session
+workflow. Current configuration/API high-level client/grouped queue and agent
+configuration still refuse v7. The agent's explicit selection gate refuses it
+before inventory/SSH. No current job/attempt/lease outcome is changed, no schema
+or durable pending authority is initialized, and no new gates/defaults, credentials,
+trust, network or Cisco command text exists. No live deployment, fixture, imported
+authority, recovery decision or device test write was submitted. Documented the
+new boundary and remaining durable queue/causal observation/retry/UI work in
+architecture, working plan and manual/deferred-confirmation.md.
+
+Shared Python/Rust fixture covers the exact frame bytes. Synthetic Rust consoles
+prove no extra command/read, original stage checks and bounds, pending barriers,
+wrong/empty/duplicate scope refusal, cleanup failure and pre-SSH admission refusal.
+Real synthetic Unix sockets cover NOOP exclusion, typed pending-only output,
+wrong/lost/truncated/reordered scope, foreign/absent terminal and lost ACK without
+fallback or duplicate send. Initial focused Python 146 pass; final expanded
+transport/worker/snapshot/config set **283 pass in 18.51s**. Rust **95 unit +7
+configuration +4 shutdown** pass; locked release build, all-target Clippy, fmt,
+Ruff/compileall/diff pass. One old unknown-version=7 expectation was objectively
+stale; moved it to 8 while retaining high-level v7 refusal. The first full run
+was interrupted with that one failure/396 passed; clean final full regression is
+running, not yet claimed. Local release binary is validation, not deployment.
+
+Actual release-binary preflight with isolated synthetic inventory/credentials
+accepted v6 (all normal ADD/group gates enabled) and refused v7 with the exact
+configuration-selection error. Neither process bound its synthetic socket or
+started SSH; no live inventory or secret was used. Synthetic files are private
+under `/tmp/ftd-pending-end-check.EE5vdJ/`. This is an additional admission guard
+check, not a v7 lab deployment or write acceptance.
+
+### Final validation and unchanged-runtime check
+
+Clean final-source full Python suite: **3324 passed in 527.36s**, no failures.
+Final Ruff/compileall/diff and Rust fmt checks pass; locked release/all-target
+Clippy and 95+7+4 Rust checks are recorded above. No browser run is claimed for
+unchanged UI code. At 15:42:56Z lab integrity ok, all nine original authority/
+protection/inventory/recovery fingerprints and all eleven historical unknown
+rows are unchanged. Source-only transport work never replaced an image or
+selected v7 in the lab.
+
+Read-only status caught a normal coordinator-local numeric scheduling BUSY at
+15:43:33Z; retained diagnostics prove automatic retry/recovered at 15:43:38Z,
+without an agent command replay or new unknown. At 15:44:12Z execution recovery
+is running, last_error null, zero unresolved attention; original task
+**15,502 VERIFIED/32,425**, ten reviewed/present unknowns (15,512 processed),
+16,913 outstanding, ordinary next session active. This is unchanged v6 import
+continuation, not live v7 or induced storage-fault acceptance. Next implement
+the explicit durable pending profile and causal confirmation/absence handling;
+no current RUNNING/UNVERIFIED/old receipt is permission to skip that work.
+
+## 2026-11-09 — Durable settled-pending evidence and causal observation (source-only)
+
+Implemented `pending_confirmation.py` as an internal default-disabled composition
+hook over three immutable optional tables: exact terminal sessions, ordered
+original members and first complete observations. Explicit initialization requires
+the existing device-scoped bulk profile, quiescence and a durable mutation pause;
+startup/GET/constructors never install it. Extended the exact-profile validator
+without changing old profile DDL or dropping retained recovery profiles. Older
+writers refuse the optional schema. No initialization CLI, public route, new
+configuration flag or runtime selection was added.
+
+Atomic recording requires the actual typed settled-v7 transport receipt, exact
+original RUNNING device scope, ordered ACKs and original live owner/epoch/group/
+version/sequence claim and ACK audits. Validate original attempt/delegation and
+complete source root; recheck the same lease before/after insertion. Retain a
+conservative local post-receipt settlement time rather than guessing from remote
+output. Missing ACK/cleanup proof, v5/v6 audit, foreign/expired lease, damaged root,
+wrong/duplicate/reordered scope and capacity exhaustion refuse without partial
+ledger writes. No receipt replay replaces an existing terminal session.
+
+Classification uses one typed complete same-device snapshot started strictly
+after settlement, finished by now and started within 120 seconds. Retain its ID,
+times, SHA-256 of the full sorted packed-address set and exact present member
+ordinals. Shared snapshot identity requires identical device/times/content.
+The first observation is immutable; exact fresh replay writes nothing. Partial,
+stale, future, foreign and pre-settlement/overlapping reads classify nothing.
+Restart inspection exposes AWAITING_CONFIRMATION, OBSERVED_PRESENT or
+CONFIRMED_ABSENT as evidence labels only, never original creation provenance,
+verified progress, automatic unknown resolution or retry permission.
+
+Original jobs/attempts/requests, standing authority, protection/cancellation waits,
+events, occurrences and leases are unchanged by record/classify. RUNNING still
+blocks release. Tests explicitly preserve cancellation/protection behavior;
+RUNNING import cancellation keeps its original ordered wait (it does not instantly
+retire the target), while enabled protection retires matching authority. Corrected
+an initially overbroad test expectation of immediate retirement for both paths;
+no existing behavior was changed to satisfy it. A test-only v7 audit producer is
+not a relaxation of the real grouped queue's v5/v6 guard.
+
+Initial final ledger suite: **55 passed in 6.55s**. Earlier focused scope passed
+267 checks before the shared-snapshot identity/final three test cases; final
+focused and full regression are running, not yet claimed. A preliminary full run
+was deliberately interrupted at 371 passed to complete those final checks.
+Ruff/compileall/diff pass. Synthetic tests exercise restart/read classification,
+immutable/retained scope, initial/final lease checks, atomic rollback, capacity,
+source/audit corruption, profile refusal, cancellation/protection preservation
+and coexistence with existing recovery/reconciliation/extended marker profiles.
+
+No lab schema/profile, `.env`, service image, credentials/trust/network, original
+import/authority, recovery decision or test device command changed. Read-only
+16:08:00Z lab check: integrity ok, original nine fingerprints and all eleven
+unknown rows unchanged; normal epoch 2631 active/LEASED, not global idleness.
+Current API remains 52e05efca40d with the v6 agent/Web runtime described above.
+Queue/attempt awaiting-state transitions, safe actual-settlement lease release,
+current-policy/backoff fresh admission, UI and priority/protection/cancellation
+integration remain unfinished. Do not enable v7 or install the source-only
+ledger in the live database before that compatible worker contract is complete.
+This is not live deferred confirmation, a speedup or whole-import acceptance.
+
+### Final focused validation and unchanged-runtime comparison
+
+Final-source focused persistence/transport/protection/cancellation/lease set:
+**270 passed in 70.15s**. Ruff/compileall/diff pass. Clean final full regression
+is still running. Read-only 16:14:19Z comparison against the pre-change baseline:
+integrity ok, all nine original authority/protection/inventory/recovery fingerprints
+and all eleven unknown rows unchanged. Normal epoch 2633 LEASED/active; no hold
+release or inferred global idleness. At 16:14:36Z API status ready/no error,
+execution recovery running, zero unresolved attention; same original task
+**15,793 VERIFIED/32,425**, ten reviewed/present unknowns, 16,622 outstanding.
+SQLite catalog confirms zero `managed_bulk_pending_*` objects in the lab.
+No service image/agent/Web/profile was replaced by this source-only increment.
+
+### Full regression result and corrected old-reader simulation
+
+Full regression finished **3378 passed /1 failed in 516.83s**. The sole failure
+was `test_old_expected_profile_refuses_extended_marker_and_damaged_marker_still_blocks`:
+its simulated older reader used `args[:-1]`. After adding the pending option,
+that no longer removed the earlier extended-profile option, so it accidentally
+simulated a reader that supported the very marker it should refuse. Changed the
+test to explicitly use the nine pre-extended options (`args[:9]`), preserving
+the refusal assertion and production guards. The corrected compatibility test
+and all 55 new ledger cases pass together: **56 passed in 7.73s**. No second
+clean full run is claimed. Final Ruff/compileall/diff checks pass. Two isolated
+non-escalated async test attempts were interrupted after they stopped making
+progress in restricted execution; no pass is claimed for them. The reported
+corrected run used the same normal local async/
+socket permissions as the full suite. No laboratory fault was induced.
+
+## 2026-11-09 — Fresh deferred queue states and atomic settled-session handoff
+
+Added source-only `PendingExecution`, an explicit fresh-empty execution profile
+and default-disabled internal hooks over the original pending evidence ledger.
+Job/attempt/captured cancellation-result schemas recognize AWAITING_CONFIRMATION,
+OBSERVED_PRESENT and CONFIRMED_ABSENT without relabelling old failures/unknowns
+or claiming created occurrences/interfaces/import origins. Exact job schema,
+immutable profile marker, original member links and SQL transition guards are
+validated. Current coordinator refuses this profile before agent calls; current
+configuration/high-level client/grouped queue/agent still refuse selecting v7.
+
+Initialization requires existing evidence/device profiles, paused mutations,
+quiescence and empty execution/history tables. It replaces only those checked
+empty queue/attempt/result layouts in one transaction; no copy/conversion/delete
+of retained data. Even VERIFIED history refuses. There is no startup/GET DDL,
+new configuration selector, public route or operator initialization CLI. New
+execution does not yet compose with ordered-removal/offline recovery profiles;
+the standalone ledger's older recovery combinations remain unchanged. This is
+not a converter or permission to reset/reimport the original 32,425-pair lab DB.
+
+`await_confirmation()` atomically validates/stores the exact original settled-v7
+receipt/root/delegation/claim/ACK scope, changes the whole group and original
+attempts, emits original-identity queue/attempt audits and releases the same live
+lease. Added caller-owned connection composition to existing evidence and private
+lease release, retaining their default standalone transaction contracts. Failure
+at evidence, audit, release or final deadline rolls back everything. No remote
+command is retried; other unresolved device work refuses this handoff. Restart
+cannot see new awaiting state with its old unreleased owner after a successful
+commit. Old RUNNING/UNVERIFIED work without this proof remains fenced.
+
+`confirm()` requires a live current same-device visit and its first complete read
+started after original settlement. Read verdict, exact queue/attempt results,
+request closure, real-identity audits and captured cancellation settlement commit
+together. Original delegation expiry does not forbid read-only confirmation and
+never grants another write. Exact immutable first-read replay adds no events or
+results. Cancellation before/after handoff waits; known presence keeps applied
+policy and known absence retires only the exact cancelled target without error
+attention. Enabled protection permanently retires matching policy; neither a
+later observation nor disabling protection re-enables it.
+
+Queue reads expose awaiting state without success. Import progress counts
+awaiting confirmation and known-absence `awaiting_retry` as outstanding, observed
+presence as `present`, never `verified`. Retention preserves all original ledger-
+linked jobs/requests/results. Ordinary discovery explicitly refuses deferred
+terminal outcomes until capped-backoff/current-policy fresh-attempt admission is
+implemented. No automatic unknown retry or end-to-end new mode is claimed.
+
+New synthetic suite: **36 passed in 5.41s**. Final focused state/ledger/protection/
+cancellation/progress/lease/group/uncertainty set: **249 passed in 25.17s**.
+Ruff/compileall/diff pass; full regression is running, not yet claimed. Tests cover
+initialization rollback/idempotence/history refusal, actual state+lease atomicity,
+original token fencing, invalid reads, unknown work, raw state laundering, audit/
+deadline rollback, protection/cancellation ordering, restart after old delegation
+expiry, no automatic fresh job, pending progress and retained terminal evidence.
+An initial test used the wrong conflict subclass; corrected it to expect the
+existing ManagedConflict instead of altering the guard. One restricted async
+focused attempt stopped making progress and was interrupted; no pass is claimed
+for it. The reported final focused run uses normal local async/socket permissions.
+
+No live schema/profile, images, `.env`, credentials/trust/network, original import/
+authority, recovery decision or test device command changed. Read-only 17:38:34Z
+comparison: integrity ok, all nine original authority/protection/inventory/recovery
+fingerprints and all eleven historical unknown rows unchanged. Normal epoch 2657
+was active/LEASED, not globally idle. The same v6 API/agent/Web and original import
+continue. Next implement new-attempt backoff/current authority and matched worker/
+priority/UI/ordered-removal behavior, then separately scoped fresh lab acceptance;
+do not enable v7 or install this fresh profile into the running historical DB.
+
+### Clean final regression and unchanged laboratory runtime
+
+Clean full-source Python suite: **3415 passed in 544.57s**, no failures. This
+also covers the earlier corrected pre-extended-schema simulation. Final focused
+249 checks and new 36-case suite are recorded above; Ruff/compileall/diff pass.
+No Rust/browser run is claimed for this Python-only increment.
+
+Final read-only 17:46:29Z DB comparison: integrity ok, all nine original authority/
+protection/inventory/recovery fingerprints and all eleven historical unknown rows
+unchanged. Normal epoch 2660 active/LEASED, not global idleness. Exact unchanged
+containers/images are API `7d82c196f5cc` / `52e05efca40d...`, agent `ea9085b90bf5` /
+`e8cdc9925a8d...`, Web `f42288374e68` / `b86fac92f284...`, all running. API status
+at 17:42:29Z ready/no error, recovery running, zero unresolved attention; same
+original task **16,643 VERIFIED/32,425**, ten reviewed/present unknowns, 15,772
+outstanding. SQLite catalog shows zero pending-schema objects. No new profile,
+device test command, recovery receipt or authority was applied. The runtime
+still uses v6; synthetic fresh-profile handoff is not live v7 or throughput
+acceptance. Next current-policy/backoff fresh attempts and matched worker/
+priority/ordered-removal/UI integration before a new bounded lab validation.
+
+## 2026-11-09 — Confirmed-absence fresh jobs with bounded backoff
+
+**Status:** Source-only internal composition; current lab and original import
+remain on v6, without live DDL/deployment or configured retry activation.
+
+Added default-disabled `PendingRetries.admit()` on the explicit fresh-empty
+deferred execution profile. A 1–16-member transaction creates fresh job/attempt/
+execution-request IDs after exact settled CONFIRMED_ABSENT predecessors, retaining
+original outcomes, standing intent and immutable predecessor/origin/read/owner/
+epoch/audit provenance. It composes the existing shared queue's original full-root,
+current intent/generation/authorization/revision, protection/cancellation/device,
+pause, serialization, uncertainty, capacity and fresh-evidence checks. Claims
+recheck current permission; revocation cancels unstarted children, not old evidence.
+Original expired delegation stays expired; new requests have their own bounded
+900-second execution lifetime under unchanged standing consent.
+
+Backoff is 5/10/20/40/60 seconds capped; at most 12 fresh retry admissions per
+device/IP/rolling hour across origins. `RetryDeferred.retry_at` is a typed UTC
+scheduling wait, not failure/attention or permission to extend a read deadline.
+The first confirming read may be reused only with identical device/ID/times/full
+address-set digest and existing 120-second freshness/current visit. New evidence
+starts strictly after the predecessor result. Shared read IDs cannot change
+content between admissions. Only same-origin known absence is exempted from its
+own result-time barrier; unrelated history retains causal checks. Existing
+ordinary admission retains its previous churn limits.
+
+Another child blocks replacement unless CANCELLED and never claimed. Claimed
+even if subsequently deferred-before-write, pending/sent/failed/unknown children
+never gain automatic replacement. Later absent children use their own first-read
+proof. OBSERVED_PRESENT does not authorize this first-confirmation retry path.
+Original-key replay reads retained history after revocation without renewing
+authority, deadline, lease or a remote command. Partial scope, stale/foreign/
+changed evidence, late lease expiry and mixed ineligible portions roll back all
+new jobs/provenance/audits atomically.
+
+Extended queue and audit retention to preserve pending members and retry children
+(including cancelled never-claimed jobs), execution requests, all associated
+request events and referenced DEVICE_LEASE_CLAIMED audits. Full retained binding
+validation precedes pruning outside intermediate result transactions; missing
+admission audit or request/job link refuses all deletion. Unrelated expired
+events still purge. This also fixes the evidence ledger's claim/ACK foreign-key
+conflict with ordinary event retention; evidence is retained rather than deleted
+or converted into apparent nonexecution.
+
+Updated normative design, manual index/contract, working plan and agent/status
+records. No initializer CLI/public route, schema conversion, configured v7
+selector, worker loop, live deployment, original import reset/reimport, new consent,
+recovery decision, credentials/trust/network change or test device command.
+Matched worker/priority/removal/UI, later confirmed-presence disappearance
+restoration and bounded separate-fresh-DB lab acceptance remain next.
+
+Final validation is recorded in the follow-up below. One initial focused
+command referenced nonexistent `tests/test_history.py` and collected no tests;
+it was corrected to the real store/history modules. Two intermediate full runs
+were deliberately interrupted after 454 passes each when strengthening retention
+bindings and then bidirectional shared-read identity validation. No clean full
+pass is claimed for those superseded runs. The final focused profile/retry/store/
+history set passes **144 tests in 19.20s**. Read-identity coverage includes a later
+confirmation attempting to reuse an already-bound retry-read UUID with different
+times/content: the observation transaction refuses, leaving the original verdict
+and new awaiting group intact. Ruff/compileall/diff pass; final full regression
+is running.
+
+### Current-data compatibility check, no activation
+
+Created a new private consistent SQLite backup through the running API with its
+original DB opened read-only. Docker archive copy could not see the temporary
+tmpfs file; transferred that already-created copy through exec instead. An initial
+in-memory restore refused its WAL header; normalized **only the temporary copy**
+to DELETE journal mode, then restored it into the separate private target
+`/tmp/ftd-fresh-retry-check-20261109.yVn63L/runtime.db`. No live journal/configuration
+or source data was changed. Copy integrity is ok.
+
+The current candidate Python source opened that target in `mode=ro`/query-only,
+validated the exact existing composite profile and all **four full import roots /
+32,430 members**. Integrity ok, total_changes=0, pending-schema objects=0. No
+initializer, scheduling/admission/claim callback, agent connection or device command
+ran. This validates compatibility with the retained current-data profile, not
+activation, throughput or unknown recovery. The copy is private temporary evidence,
+not a new authority receipt or a stale-DB runtime rollback plan.
+
+Read-only live comparison at 18:10:58Z: integrity ok, all nine original fingerprints
+and all eleven original unknown rows unchanged; normal epoch 2667 active/LEASED.
+At 18:14:17Z API ready/no error, recovery running, zero unresolved queue attention,
+retention_error null; same original task **16,937 VERIFIED/32,425**, ten reviewed/
+present unknowns and 15,478 outstanding. Exact API/agent/Web IDs/images remain
+unchanged and running. No lab deployment or test device command was submitted.
+
+### Final read-only laboratory checkpoint
+
+At 18:25:40Z: integrity ok, all nine original authority/protection/inventory/
+recovery fingerprints and all eleven historical unknown rows unchanged. Normal
+epoch 2671 active/LEASED, not global idleness. At 18:25:46Z: same original task
+**17,050 VERIFIED/32,425**, ten reviewed/present unknowns, 15,365 outstanding;
+ready/no error, recovery running, zero unresolved attention, retention_error null
+and zero pending-schema objects. No live profile, service/image, gate, original
+authority, unknown outcome or recovery decision changed. This observation does
+not establish deferred-mode execution or a throughput improvement.
+
+### Clean final regression
+
+Final-source complete Python suite **3451 passed in 574.10s**, no failures.
+Final focused profile/retry/store/history set **144 passed in 19.20s**, including
+36 new retry cases. Ruff/compileall/diff pass. No Rust/browser run is claimed for
+this Python-only slice. No deployment or activation followed these checks.
+Next matched worker/priority/removal/UI and later confirmed-presence disappearance
+restoration before bounded live acceptance with fresh labelled authority in a
+separate clean store; preserve the original v6 import and all retained evidence.
+
+## 2026-11-09 — Explicit deferred per-visit worker and command-boundary priority
+
+**Status:** Source-only internal opt-in; not configured startup, live v7 mode or
+the continuous retry daemon. Current v6 laboratory import/runtime are unchanged.
+
+Added `DeferredParallelSynchronizer` and separate fresh-profile v7 queue/session
+subclasses. Ordinary grouped queue/session version admission stays v5/v6. Matching
+strict tracked client capabilities, exact fresh storage, fixed device inventory/
+concurrency and settlement are checked; construction/startup never initializes or
+converts storage. No public configuration/client/agent v7 selector was enabled.
+
+Factored a common complete-read processing hook in the existing collector and
+grouped session. Ordinary paths retain publication then discovery. The deferred
+worker creates one evidence identity, confirms at most 16 prior groups in one
+current-lease BEGIN IMMEDIATE transaction, then publishes that same read and
+admits fresh retry/ordinary work. Any failed classification rolls back all groups
+and publishes nothing. Optional caller-owned confirmation transaction preserves
+the original standalone checks/semantics. Internal retry selection checks at most
+64 candidates/admitting up to 16 per complete read within the device window;
+each real admission still checks current full authority/protection/cancellation/
+uncertainty/capacity/time. Advisory cursors and wait metadata are not authority.
+
+Intermediate groups retain strict verified result-before-snapshot settlement and
+fresh cutoff renewal. Only the final nonempty acknowledged group calls actual
+END_PENDING, requires actual terminal completion and commits its exact original
+handoff/lease release. No final read, publication/freshness callback or verified-
+progress increment is invented. The old visit checks its retained handoff rather
+than releasing again or touching a possible successor lease. Empty/read-only
+visits keep strict normal END/release. Synthetic 64-attempt visits verify three
+16-member groups and leave only the last 16 awaiting a later complete read.
+
+Refresh demand, priority REMOVE and enabled protection flush the current group
+at a command boundary before proceeding in the same serialized SSH session.
+Stop/pause/import cancellation can settle the final group awaiting observation.
+Next-read cancellation/protection retirement remains original; caller cancellation
+drains the actual RPC and required terminal evidence. Lost ACK/terminal evidence,
+mismatched original scope, absent settlement and failed local handoff keep original
+unknowns/fences; no old RPC, completion journal or generic presence permits replay.
+NOOP preflight is excluded from pending creation scope.
+
+The new internal status reports awaiting counts, confirmation outcomes and bounded
+retry counts/next eligible UTC waits. This is not public UI wiring or a timer
+that initiates visits. Continuous scheduling/public transport/configuration/UI,
+ordered managed/fleet cleanup, compatible deferred recovery, later OBSERVED_PRESENT
+disappearance restoration and claimed/pre-write-deferred retry-child replacement
+remain unfinished before bounded fresh-store lab activation.
+
+Validation: **31 new synthetic worker tests pass in 13.37s**; final focused shared
+worker/queue/pending/parallel/continuous/timing **245 pass in 62.62s**. Ruff/
+compileall/diff pass; full final-source regression is running. Tests cover restart
+read-before-publication, automatic fresh admission on later visits, typed waits,
+64-attempt visits, lost stage ACK/terminal proof, foreign/reordered scope, local
+handoff rollback, successor lease protection, priority/protection ordering, caller
+drain, cancellation retirement, multi-device overlap and all-group observation
+rollback. Initial checks caught one obsolete error-text assertion and a two-device
+test race: remote cleanup precedes local DB handoff. The test now explicitly waits
+for the real committed state instead of treating the remote signal as commit proof;
+no product guard was weakened. An initial patch-format error made no file change.
+
+No live DDL/deployment, `.env`, inventory, credential/trust/network change, original
+task reset/reimport/new authority/recovery decision or test device command. Synthetic
+visits are not live Cisco throughput, 100,000-list or production acceptance.
+
+### Unchanged laboratory runtime
+
+Read-only comparison at 18:53:05Z: integrity ok, all nine original authority/
+protection/inventory/recovery fingerprints and all eleven historical unknown rows
+unchanged; normal epoch 2679 active/LEASED, not global idleness. At 18:55:20Z
+the same original task has **17,324 VERIFIED/32,425**, ten reviewed/present
+unknowns and 15,091 outstanding. API ready/no error, recovery running, zero
+unresolved queue attention, retention_error null and zero pending-schema objects.
+
+Exact unchanged images/containers remain running: API `52e05efca40d...` /
+`7d82c196f5cc`, agent `e8cdc9925a8d...` / `ea9085b90bf5`, Web `b86fac92f284...` /
+`f42288374e68`. All three lab overlays/current v6 selection remain intact. No
+new profile, authority, recovery decision, fixture or test FTD command was applied.
+
+### Clean final regression
+
+Final-source complete Python suite **3482 passed in 575.63s**, no failures.
+Focused shared orchestration/queue/pending/parallel/continuous/timing **245 passed
+in 62.62s**; new worker suite **31 passed in 13.37s**. Ruff/compileall/diff pass.
+No Rust/browser run is claimed for this Python-only slice. No deployment or live
+activation followed the checks. Next continuous confirmation/retry-wait timing,
+public status/UI/configuration and remaining removal/recovery/restoration contracts
+before a new labelled bounded fresh-store lab validation; keep the original v6
+task, authority, protection, unknown history and all recovery evidence intact.
+
+## 2026-11-09 — Continuous deferred confirmation/retry scheduling and neutral Queue UI
+
+### Scope and implementation
+
+Added explicit internal/default-disabled `DeferredContinuousDispatcher` over the
+existing continuous scheduler and strict fresh-profile worker. A settled pending
+group requests another causal complete read without a periodic-interval wait;
+read-only confirmation remains allowed during mutation pause. Require the next
+millisecond after stored settlement. A rotating bounded 64-candidate advisory
+scan shares retry backoff/rolling-hour arithmetic with admission and requests new
+read evidence when eligible. The timer grants no authority, renews no delegation,
+replays no RPC and never sleeps inside an SSH session. Existing original root/
+current intent/protection/cancellation/lease/uncertainty checks, pool/priorities
+and scheduler backoffs remain. Ordered-promotion composition refuses explicitly.
+
+Added narrow base scheduler composition/read hooks with unchanged ordinary
+defaults. Already settling/awaiting terminal sessions retain refresh demand for
+the next actual read, rather than pretending END_PENDING refreshed anything.
+Status exposes bounded per-device sampled eligibility, not a total or successful
+outcome. BFF projection preserves that metadata. Existing Queue popup recognizes
+neutral awaiting confirmation and known observation/absence outcomes, plus absence
+retry eligibility; awaiting jobs remain active without running animation or a
+queued-job cancel control. Whole-import labels distinguish waits. Real unknowns,
+errors, protected-policy semantics and authentication/CSRF boundaries are unchanged.
+
+### Validation and limits
+
+Initial new coordinator tests corrected fixture expectations (existing profile
+concurrency, field names, error type and pre-start callback setup). The lost-END
+test checks the actual retained non-IDLE fence, not an invented immediate
+ATTENTION transition. No product guard was weakened. Eight initial end-to-end
+tests passed in 9.64s. The final new scheduler set has ten cases, including strict
+ms causality and a synthetic bounded-selection rotation with zero admitted work.
+Focused shared scheduler/worker/queue/retry/parallel **190 pass in 66.15s**;
+browser/Node **88 pass in 114.97s**, including actual production templates/JS
+against a local synthetic BFF. Ruff/compileall/diff pass. Complete Python
+regression is running; final results will be recorded below.
+
+No live DDL, profile selection, deployment/restart, `.env`/inventory/secret/trust/
+network change, original task reset/reimport/renewed authority/recovery decision
+or test FTD command. Current configured API/client/agent still refuse v7, and the
+original v6 import continues. No Rust change/run or live v7/large-list throughput
+acceptance is claimed. Next finish ordered managed/fleet cleanup, compatible
+deferred recovery, later confirmed-presence disappearance restoration and
+claimed/deferred retry-child replacement, followed by deliberate fresh-store
+configuration and bounded lab acceptance. Updated architecture/manual/plan/status
+and agent handoff records; no legacy development converter is a release gate.
+
+### Read-only laboratory observations
+
+At 19:18:44Z, integrity is ok, all nine original authority/protection/inventory/
+recovery fingerprints and all eleven historical unknown rows match the preceding
+worker checkpoint. Normal epoch 2687 is active/LEASED, not globally idle. Exact
+API `52e05efca40d...` / `7d82c196f5cc`, agent `e8cdc9925a8d...` / `ea9085b90bf5`
+and Web `b86fac92f284...` / `f42288374e68` remain running, all three overlays.
+No deferred-schema objects were added.
+
+At 19:18:00Z the original import has 17,550 VERIFIED/32,425 plus ten reviewed/
+present unknowns and 14,865 outstanding; ready, recovery running and zero
+unresolved queue attention. The status also reported `OperationalError: database
+is locked`. Retained diagnostics show numeric scheduling SQLITE_BUSY/automatic
+recovery and a maintenance expiry contention error; settled epoch 2686 completed
+with continued VERIFIED results. No intervention, induced failure, new recovery
+decision or claim that contention is eliminated follows from these observations.
+
+At 19:22:18Z status is ready, `last_error` null, recovery running, zero unresolved
+queue attention/retention error and zero pending-schema objects. Original task
+17,583 VERIFIED/32,425 plus ten reviewed/present unknowns, 14,832 outstanding.
+This is a bounded healthy continuation observation, not a new deployment or proof
+that every storage-contention path is resolved. Final new scheduler suite:
+**10 passed in 10.69s**, including read-only BFF projection.
+
+### Final regression
+
+Clean complete Python regression **3492 passed in 559.54s**, no failures. Focused
+shared set **190 passed in 66.15s**, final scheduler set **10 passed in 10.69s**,
+browser/Node **88 passed in 114.97s**. Ruff/compileall/Node syntax/diff checks pass.
+No deployment or live v7 acceptance followed these checks. Source-only mode stays
+default disabled; current v6 task, unknowns and authority remain intact.
+
+## 2026-11-10 — Deferred managed restoration and ready device/fleet cleanup
+
+### Implementation
+
+The explicit fresh deferred profile now treats OBSERVED_PRESENT as a known
+terminal observation, not permanent restoration inhibition or service-creation
+proof. A later causal complete absence read can admit a new ordinary managed
+attempt under current exact intent/generation/authorization/revision. Normal
+300-second pair backoff/three admissions per rolling hour remain. In this exact
+profile only, later validated VERIFIED/NOOP/OBSERVED_PRESENT can supersede strictly
+earlier known absence in that same scope for scheduling. Original results/audits
+stay unchanged. Newer known absence keeps the explicit fresh-retry contract;
+unknowns, protection/retirement/suspension, current roots, lease/freshness and all
+original admission/claim gates remain. No old RPC is replayed or delegation renewed.
+
+Ready-only admission now explicitly rejects AWAITING_CONFIRMATION before any
+policy retirement/queue mutation. Ordered inspection and its strict BFF validator
+recognize ADD_AWAITING_CONFIRMATION as BLOCKED, not READY or a waitable RUNNING
+predecessor. The actual review template gives readable refresh/review guidance
+without creating a token. After confirmation, existing fresh frozen ready consent
+can atomically retire the entire selected device/fleet scope and enqueue one
+shared REMOVE request. Verified cleanup does not later re-add the address. No
+ordered pending capture/promotion or new schema/configuration selector is implied.
+
+### Verification
+
+New disposable strict-v7 lifecycle set **23 passed in 11.94s**. Coverage includes
+disappearance/restoration, repeated known-absence/presence chains, strict VERIFIED
+and NOOP retry results, normal backoff/churn, cross-generation and causal-read
+refusal, protection retirement even after disable, policy revocation/pause/device
+scope, retained applied policy after import cancellation, unknown preservation,
+pending/stale removal refusal, exact-key replay, whole-fleet cleanup and late
+audit rollback. The blocked-review test renders the real template and checks that
+no confirmation token exists. Initial fixture errors were corrected to use the
+actual Store/ProtectedPolicy methods and required suspended standing admission;
+no product guard was weakened. Focused shared dispatch/discovery/removal/retry/
+worker/scheduler/Web set **342 passed in 85.16s**. Browser/Node **88 passed in
+147.93s**; Ruff/compileall/diff pass. Full regression is running; final results
+will be recorded below. No Rust change/run or live v7 acceptance is claimed.
+
+### Unchanged runtime and newly observed lab hold
+
+No deployment/restart, live DDL, selector/default/`.env`/inventory/credential/trust/
+network change, original task reset/reimport/new authority/recovery decision or
+test FTD write was performed. Current lab remains the original v6 runtime.
+
+Read-only 10:02:21Z comparison: integrity ok, all nine original authority/
+protection/inventory/recovery fingerprints and eleven historical unknown rows
+unchanged; zero pending-schema objects. Original import is **25,092 VERIFIED /
+32,425**, ten reviewed/present unknowns, 7,323 outstanding. Status is ready but
+reports device attention; normal scheduling is running, unresolved queue counts
+zero, retention error null. This is **not healthy import progress**: device 1 is
+held at ATTENTION epoch 2921 since 08:47:54.981Z, before this development turn.
+
+Original audit has 33 claims: 32 VERIFIED and one exact same-owner/epoch v6
+SHUN_OPERATION_DEFERRED with write_sent=false. That job
+`d9203d0e-c518-53be-810b-bc8a69d07cc4` / attempt
+`1da27139-6f0f-5063-8d69-de69843ac1b9` returned to QUEUED at 08:46:33Z and became
+CANCELLED at 09:01:33Z after its original delegation expired. Agent diagnostics
+report final full-read send failure (`could not send fixed Cisco command to FTD
+shell`), zero pending additions, protocol v6/session
+`41530116d06b45ccaa7239ac6db01851`; API reports unsettled final cycle. Logs alone
+do not release the fence. The exact retained claim/defer/results, not generic
+observed presence, identify this narrower failed case.
+
+Existing extended recovery covers VERIFIED/NOOP or reviewed unknowns, not a
+claimed/deferred/CANCELLED member. No tool/guard/row/receipt was changed to force
+this scope to fit, and no recovery or restart was attempted. Next implement a
+compatible proof-based recovery contract for this exact mixed scope, preserving
+all current authority, unknowns and original outcomes. Also finish deferred
+ordered capture/recovery/claimed-child replacement and deliberate configured
+fresh-store lab acceptance; current source is not an enabled v7 product mode.
+
+### Final regression and handoff
+
+Clean full Python regression **3515 passed in 613.08s**, no failures. Focused
+shared set **342 passed in 85.16s**; browser/Node **88 passed in 147.93s**;
+Ruff/compileall/diff pass. Exact current API `52e05efca40d...` / `7d82c196f5cc`,
+agent `e8cdc9925a8d...` / `ea9085b90bf5` and Web `b86fac92f284...` /
+`f42288374e68` were checked running and unchanged. These checks did not deploy
+new source, release epoch 2921 or resume the held import. Keep its exact evidence;
+compatible mixed VERIFIED/pre-write-DEFER recovery is the next practical task.
+
+## 2026-11-10 — Exact cancelled pre-write-DEFER recovery
+
+Implemented separate explicit `--extended-v6 --prewrite-defer` offline recovery
+for 17–64 original system ADD claims, exactly one final expired/cancelled typed
+pre-write DEFER and otherwise VERIFIED/NOOP. Full original owner/epoch/version/
+source/action/claim/requeue/defer/cancellation/job/attempt/request evidence is
+required; no ACK, subsequent claim, uncertainty or generic CANCELLED interpretation.
+Equal timestamps use queue sequence instead of UUID order; original requeue is
+selected by exact typed reason, not arbitrary ordering among equal timestamps.
+
+The distinct compact profile retains the original 16-KiB receipt bound and adds
+immutable `managed_bulk_prewrite_recovery` proof/full-scope count/digest. Existing
+recovery/reconciliation receipts and modes remain unchanged. Exact SQL marker
+guards, full current root checks, actual executor-stop assertion, five-minute
+whole-DB review, exclusive checked backup and post-receipt read barrier remain.
+No startup/GET DDL, old job replay/outcome change, authority renewal or v7 mode.
+Retention preserves original proof and refuses missing/corrupt bindings. Old
+readers refuse the new exact schema rather than silently ignoring the marker.
+
+Focused recovery/history **116 passed in 45.42s**; Ruff/compileall/diff pass.
+Actual-copy rehearsal on the 203,100,160-byte consistent private SQLite copy
+passed: all 33 claims, 32 VERIFIED/one CANCELLED, zero jobs retried. Eleven
+original data tables and every prior recovery receipt match the checked pre-
+rehearsal backup; integrity/profile valid. Rehearsal key
+`d70c8d93-3549-4d78-9cff-88656c729097` is consumed on that copy only and must never
+authorize the original DB. Private artifacts are under
+`/tmp/ftd-prewrite-rehearsal-20261110.Z2dIib`; API/agent epoch-2921 diagnostics were
+retained there as private logs. Docker cp could not access the API tmpfs artifact;
+explicit tar transfer to the private directory succeeded, without changing source DB.
+
+API candidate `20be29303cc7...` built successfully, all four relevant source
+hashes match the image and configured non-executing preflight passes. Existing
+API `52e05efca40d...` is archived as `ftd-shun-api:lab-pre-prewrite-20261110`, not
+a post-profile rollback. Compatible candidate tag:
+`ftd-shun-api:lab-prewrite-recovery-20261110`. Full Python regression is running;
+no live recovery/deployment or v7 activation yet. Actual apply/acceptance, if
+performed, will be appended below with fresh key and process-stop evidence.
+
+### Final validation, actual offline apply and bounded continuation
+
+Clean complete Python regression **3537 passed in 614.88s**, no failures. Final
+focused recovery/history **116 passed in 45.42s**; Ruff/compileall/diff pass. No
+new Rust/browser run or live v7 acceptance is claimed. Four exact source hashes
+and configured non-executing preflight match the candidate image.
+
+Actual API `7d82c196f5cc` and Web `f42288374e68` exited 0, then agent
+`ea9085b90bf5` exited 0 with actual drain; restart counts zero. Fresh stopped
+review at 11:57:12.520Z covered all 33 claims of ATTENTION epoch 2921, owner
+`41530116-d06b-45cc-aa72-39ac6db01851`; stopped baseline at 11:57:31Z had integrity
+ok, original nine fingerprints/eleven unknowns unchanged, no RUNNING/QUEUED jobs.
+New decision `5d4551f5-609e-45f8-9587-b06d352e9e66` applied at 11:58:02.571Z under
+real `maintenance:lab-prewrite-recovery-20261110` identity. Exclusive checked
+0600 backup in private 0700 directory:
+`/var/lib/ftd-shun-manager/prewrite-recovery-20261110-epoch2921/before-prewrite-recovery.db`.
+Receipt, distinct proof marker/audit and exact same-epoch IDLE release committed;
+jobs retried zero. After apply, before restart, all eleven original data tables
+and all three prior receipts matched the stopped baseline/backup. No original
+job/request/attempt outcome, authority, protection or unknown history changed.
+Private host review/receipt and original failure diagnostics remain under the
+rehearsal directory above; its key was never used for the live apply.
+
+Started the same agent first, then new API `20be29303cc7...` / `6e9af86250a3`,
+then same Web. Agent image `e8cdc9925a8d...` and Web `b86fac92f284...` unchanged;
+all three overlays/current managed-v2 DB/private v6 selection retained. No v7,
+new import/consent, credentials/trust/network change or stale data restore.
+Complete read at 11:59:13Z is strictly after the receipt. Actual epoch 2922,
+owner `c56e5dbe-2e07-461a-b0ac-387fc43fb9e1`, claimed at 11:59:03.933Z and
+released at 12:02:27.965Z. Its 24 ADDs are VERIFIED, with real final settlement
+and agent pending count zero, not merely ACKs. API diagnostic elapsed 203.869s,
+local work 107.729s; this small continuation sample is not speedup/capacity proof.
+Original deferred job `d9203d0e-c518-53be-810b-bc8a69d07cc4` remains CANCELLED;
+fresh job `6b2d2f43-ce5c-555e-b4d7-b3be5a741da0` became VERIFIED at 12:00:21.706Z.
+Original request expiry/attempt/cancellation evidence is retained unchanged.
+
+At 12:03:03Z DB integrity ok, eight original authority/protection/inventory hashes
+and all eleven unknown rows unchanged. Recovery receipts four (expected new
+decision), normal successor epoch 2923 LEASED, not global idleness. At 12:03:32Z
+original task **25,116 VERIFIED/32,425**, ten reviewed/present unknowns, 7,299
+outstanding, zero unresolved attention. Web health 200/anonymous 401 checked.
+One coordinator-local numeric BUSY recovered; maintenance expiry also reported
+contention and status retained database-lock last_error. Import continuation is
+real, but SQLite contention is not fixed. Old image
+`ftd-shun-api:lab-pre-prewrite-20261110` is now forensic/pre-apply only: it refuses
+the new exact profile. Use compatible `lab-prewrite-recovery-20261110`, never
+remove the marker or restore old authority to downgrade. This key cannot release
+a successor epoch. Deferred-v7 ordered pending capture/recovery, claimed-child
+replacement and deliberate fresh-store configuration/acceptance remain next.
+
+## 2026-11-10 — Fresh replacement of proved pre-write cancelled retry children
+
+### Implementation
+
+The source-only fresh deferred-v7 retry path now accepts a cancelled child only
+when never claimed under the old contract, or after one exact original tracked-v7
+pre-write DEFER. The latter validates original system identity/target/group/owner/
+epoch/visit, literal write_sent=false, all original requeue/cancellation/claim
+evidence and unchanged job/attempt/request binding. ACKs, pending membership,
+multiple/missing/foreign claims/DEFERs, legacy versions and unknown results refuse.
+No old RPC is retried, outcome relabelled, execution request renewed or fence
+released. New admission/claim require a causal full absence read after all replaced
+children, still-current full original root/scope/protection/cancellation/device/
+pause/lease/freshness, original exponential/hourly limits and new IDs. Existing
+immutable retry provenance is reused; no new schema. Historical validation of
+earlier admissions does not incorrectly consume later sibling outcomes. Advisory
+selection now includes cancelled candidates; it never supplies authority.
+
+Audit retention preserves actual original claim-visit openings even when the
+claim occurred after a separate admission visit. Replacement proof is revalidated
+before retention; corruption refuses both pruners without deletion. Source-only,
+default disabled, no selector/configuration/deployment/live DDL, device test,
+new authority/receipt/reset/reimport or change to the original v6 dataset.
+
+### Validation and newly observed laboratory hold
+
+Focused retry set **62 passed in 14.23s** (26 new), covering later claim visits,
+expired/stale cancellation, original outcome/request preservation, fresh IDs/key
+replay, negative literal/identity/version/claim/ACK/requeue/cancellation proof,
+causal reads, retained proof and synthetic end-to-end worker discovery followed
+by actual deferred observation. Initial new negative fixtures had the wrong
+audit-column count; corrected those fixtures, not guards. Original ordinary/
+non-v7 claim refusal test remains valid. Restricted async runner stalled; it was
+interrupted and the same suite completed outside that restriction. Ruff/diff pass;
+full Python regression running, final outcome will be appended. No new Rust/
+browser run or live v7/throughput acceptance is claimed.
+
+Read-only lab 13:07:59Z reports original import **25,162 VERIFIED/32,425**, ten
+reviewed/present unknowns, one new unverified, 7,252 outstanding/one attention.
+At 13:08:18Z integrity ok and all nine post-recovery fingerprints unchanged,
+but device 1 is **ATTENTION epoch 2925**, owner
+`7756ce5a-1816-4af2-9447-a42cc81eb7e2`, held since 12:09:58.763Z. New job
+`68dbe319-361b-509c-b557-6698ff9961c6` / 151.230.131.112 started 12:08:32.479Z,
+UNVERIFIED at 12:08:33.677Z; total unknowns twelve. Agent diagnostics show the
+preceding 16 ADDs/group read, then fixed-command shell-send failure during target
+read, sequence 18, 17 attempted mutations/35 CLI commands, zero pending additions.
+Logs are diagnostic, not proof of nonexecution or permission to reinterpret the
+unknown. API reports one unresolved item; last successful read 12:08:27Z. Existing
+epoch-2921 decision does not cover the successor. No restart/recovery/relabel/replay
+was performed; retain original task/unknown/evidence for compatible separate review.
+
+Shared final-source retry/ledger/queue/worker/scheduler/lifecycle/dispatch/recovery
+set **343 passed in 104.69s**. Ruff/compileall/diff pass. Two preliminary focused
+commands named nonexistent retention test files and collected nothing; the
+corrected existing-file selection above completed successfully. Private original
+epoch-2925 timestamped diagnostics and exact read-only integrity/hash/unknown
+inspection were retained mode 0600 under
+`/tmp/ftd-deferred-child-20261110.7ZBcXO` (directory 0700). No live state changed.
+
+### Clean full regression and separate epoch-2925 reconciliation
+
+Clean complete Python regression **3563 passed in 631.10s**, no failures;
+focused 62/shared 343 pass, Ruff/compileall/diff pass. No new Rust/browser run.
+The source-only deferred replacement code was not deployed or activated.
+
+The original FPR was reachable in a bounded direct read-only `list_shuns` probe
+(25,173 entries); that read was not published or used to resolve uncertainty.
+The first probe named a nonexistent client keyword and issued no RPC; corrected
+to existing `large_snapshots=True`. Existing read-only extended reconciliation
+inspection accepts the exact current 17-claim scope, not all-verified recovery.
+
+Announced a separate controlled offline reconciliation using existing matched
+runtime code. Actual same API/Web exited 0, then same agent exited 0; restart
+counts zero. Private-copy rehearsal under
+`reconciliation-20261110-epoch2925/rehearsal.db` passed all 17 claims, eleven
+original tables/four old receipts unchanged, integrity/FKs/profile valid, zero
+jobs retried. Rehearsal key `9dcce1a5-97db-4f95-9926-456bf9bd9c91` is consumed
+on that copy only; separate checked backup `before-rehearsal.db` retained.
+Stopped baseline at 13:19:24Z had integrity ok, ATTENTION 2925, no QUEUED/RUNNING
+jobs, all twelve original unknowns retained. Fresh whole-DB review at
+13:19:38.914Z used digest
+`a8fb3c943de9a1c19c6cd84ef9df761a2d025c876eb5a84b4bf04a34a2ff9f18`.
+
+New live decision `921ebe04-5283-42be-9d1a-9eab92915739`, real
+`maintenance:lab-epoch2925-20261110`, applied at **13:20:14.995Z**. Exclusive
+checked 0600 backup in private 0700 directory:
+`/var/lib/ftd-shun-manager/reconciliation-20261110-epoch2925/before-live-reconciliation.db`.
+It retains 16 VERIFIED/one UNVERIFIED original outcomes and records exactly that
+reviewed unknown; original policy is unchanged and old jobs retried zero. Before
+restart, comparison to backup proves schema and eleven original tables unchanged,
+all four prior receipts unchanged, integrity/FKs/profile valid and exact IDLE
+epoch 2925. All twelve unknown jobs remain unknown. Same exact original API
+`20be29303cc7...` / `6e9af86250a3`, agent `e8cdc9925a8d...` / `ea9085b90bf5`
+and Web `b86fac92f284...` / `f42288374e68` restarted, agent first; no rebuild,
+new schema/profile, v7, new import/consent, secret/trust/network change or reset.
+Post-receipt fresh read and actual productive settlement will be recorded below.
+Neither this nor the epoch-2921 key may release a later epoch. Keep all three
+overlays and original dataset; a future failure requires its own evidence/review.
+
+## 2026-11-10 — Shared SSH transport idle budget and repeated hold
+
+### Reproduction and bounded fix
+
+Post-epoch-2925 recovery did obtain fresh read 13:21:25Z and new verified work,
+but **did not achieve productive terminal settlement**. Old agent failed again
+at the next target read after one 16-member verified group, sequence 18. New job
+`e644f850-d2df-5ed7-bbda-a14c8a20ff0a` / 151.231.148.59 became UNVERIFIED at
+13:23:27.638Z; epoch 2926/owner `b7fbd060-ba96-4510-9a9c-3baff39fac6e` entered
+ATTENTION at 13:24:47.421Z. It is not excused by either prior receipt. Timestamped
+diagnostics are retained as `epoch2926.log` in the private host directory above.
+
+Inspection found fixed 15-second `russh` client inactivity, independent of API
+local result persistence/root validation. The locked russh source explicitly
+returns InactivityTimeout on that timer. Actual in-memory pinned SSH test proves
+old 15s client closes during 16s with no traffic, while new cycle configuration
+remains usable and echoes subsequent data. No real SSH credentials, listener,
+keepalive or FTD command in this test. Initial fixture public-key comment did
+not match wire encoding; removed that fixture comment, not host-key validation.
+This reproduces a real local premature-disconnect defect consistent with the
+lab failure pattern, not proof of every prior outage's sole cause.
+
+Private cycle opening now selects transport inactivity from the existing hard
+visit budget: v1–v5 120s, v6/v7 240s. Standalone operations retain 15s. Shared
+duration arithmetic is unchanged. Opening/CLI/IPC/step/overall deadlines,
+mutation/command/sequence limits, pinning/credentials/gates unchanged. No wire,
+network settings, keepalive/reconnect/resend, old-result interpretation or v7
+activation. New manual documents the independent timer layers and deployment.
+
+Validation: actual SSH test plus all Rust **97 unit/7 configuration/4 shutdown**
+pass, locked release/all-target Clippy/fmt pass. Final-source Python wire/session
+**96 passed in 15.77s**; prior complete Python **3563 passed in 631.10s**, shared
+343/retry 62 pass. No Python functional change after that full run; later source
+change is Rust-only. No new browser run. Agent candidate built as
+`8d9f196ceea14937d17b049e9010530ce3e1ad12306a484e13d8c37c0e1df5c7`; configured
+`--check-config` exits 0 with existing v6/one-device settings, no SSH/socket.
+Old compatible agent retained as `ftd-shun-agent:lab-pre-ssh-idle-20261110`.
+
+### Quiescence, ordinary obsolete-work cleanup and distinct decision
+
+Actual API/Web then old agent exited 0 (restart counts zero). Stopped 13:31:24Z
+baseline: integrity ok, ATTENTION 2926, 15 QUEUED/zero RUNNING/13 UNVERIFIED.
+Preliminary consistent copy at `reconciliation-20261110-epoch2926/rehearsal.db`
+correctly refused recovery because of those QUEUED jobs; no key/receipt was
+applied on that copy. Preserve it as pre-maintenance archive, never overwrite.
+Confirmed its integrity and exact original twelve-table equality with the live
+stopped DB. All 15 jobs are device-1 ADDs with no original claim/start/dispatch.
+Existing product `OperationQueue.cancel_obsolete_policy()` then cancelled exactly
+these stale, now-ineligible execution jobs, retaining all nine standing/protection/
+inventory/recovery tables, thirteen unknowns and exact ATTENTION fence. No force
+expiry, direct SQL outcome edits, policy retirement or old command replay. The
+private `obsolete-cleanup.json` lists exact IDs. Their original rows/audits remain.
+
+Fresh post-cleanup copy `reconciliation-20261110-epoch2926-ready/rehearsal.db`
+passed 17 claims, 16 VERIFIED/one UNVERIFIED, zero jobs retried, eleven original
+post-maintenance tables and five prior receipts unchanged. Its consumed rehearsal
+key is `eefda9d8-08a1-4b03-9444-78fa53ca4536`, never live authority; checked
+`before-rehearsal.db` retained. Fresh stopped review at 13:34:31.728Z, digest
+`aa626cad7d285b2fe4865940dfda149999b27cd09a06fa5655123b23319f1283`.
+New live key `b106cc46-8d9f-4704-8644-3bdf671e2262`, real maintenance actor
+`maintenance:lab-ssh-idle-2926-20261110`, applied at **13:35:16.073Z**. Checked
+exclusive backup:
+`/var/lib/ftd-shun-manager/reconciliation-20261110-epoch2926-ready/before-live-reconciliation.db`.
+Comparison before restart proves unchanged schema/eleven post-maintenance tables/
+five prior receipts, integrity/FKs/profile valid, exact IDLE epoch 2926. All
+thirteen old unknown outcomes remain unknown. This records desired-state review,
+never proof the old command did/did not execute; no old key releases later epochs.
+
+### Agent-only rollout; acceptance pending
+
+Replaced only cleanly stopped old agent with `8d9f196ceea1...`, container
+`4b2aa4744e96`, then restarted same API `20be29303cc7...` / `6e9af86250a3` and
+Web `b86fac92f284...` / `f42288374e68`. All three overlays, original managed-v2
+DB/import/standing authority/protection/private v6 settings retained. No API/Web
+rebuild, source-only retry deployment, new import/consent, reset/reimport, trust/
+credential/network change or v7 activation. Actual post-fix read, multi-group
+write results and terminal settlement are being observed and will be appended.
+Do not claim success from mere startup/ACK, or that SQLite contention/all outages
+and large-list throughput are fixed.
+
+### Actual post-fix continuation and final integrity
+
+New complete read **13:36:26Z** is strictly after the 13:35:16.073Z receipt.
+Epoch **2927**, owner `fa37922c-5776-4998-bad4-95ccfe17fbfe`, claimed at
+13:36:16.374Z and actually released at **13:39:53.445Z**. Original audit has
+29 claims: **28 VERIFIED ADDs**, groups 16/12, and one exact pre-write DEFER.
+Same SSH session resumed after the first group/local persistence interval and
+crossed the formerly failing sequence-18 boundary. Agent actually completed with
+zero pending, 59 CLI commands, no CLI error and 201.594s including opening. API
+reported actual settlement and 216.921s total, local 115.915s (claims 58.947s,
+group persistence 21.174s). Read-only epoch 2928 subsequently settled at
+13:40:11.114Z. This is bounded idle-fix continuation, not large-import speedup.
+
+Fresh job `c5b49bb2-f331-5609-9752-1301852a5911` / attempt
+`0ca9137b-790b-558d-8ede-90343d2b1030` became VERIFIED at 13:38:09.813Z for
+151.231.148.59. Original `e644f850-d2df-5ed7-bbda-a14c8a20ff0a` remains
+UNVERIFIED; no retrospective creation proof or original command replay.
+At **13:40:46Z**, integrity ok, eight original authority/protection/inventory
+fingerprints and every original thirteen unknown row unchanged. Six recovery
+receipts are expected; all earlier receipts were checked unchanged before restart.
+Normal successor epoch 2929 LEASED, not global idleness; zero pending-schema
+objects. At **13:40:53Z**, original task **25,206 VERIFIED/32,425**, ten reviewed/
+present, **7,209 outstanding**, ready/last_error null/zero unresolved attention.
+Web health 200/anonymous 401 checked; exact new agent/unchanged API/Web images
+and no process restart verified. One local scheduling BUSY recovered in this
+sample; SQLite contention is still real, not eliminated by the transport fix.
+
+Final source checks Ruff/compileall/diff/fmt pass. Complete Python 3563/shared
+343/final wire-session 96, Rust 97+7+4, locked release/all-target Clippy and
+configured built-image non-executing preflight pass. No new browser run, full-list/
+production/v7 acceptance, release/tag or claimed stable throughput. Next finish
+ordered pending/deferred recovery and explicit fresh-store activation for the
+source-only cross-session confirmation mode. Preserve original import and all
+authority/protection/unknown/recovery evidence; never reuse consumed keys.
+
+## 2026-11-10 — Bounded Shuns pages instead of whole-list browser rendering
+
+The operator reported browser lockup with the long observed-Shuns list. Added
+read-only `/api/v1/shuns-page?page=N` and BFF server-side pagination of 100 device/
+IP/interface observations. SQL limits before hydration; provenance loads only
+selected occurrences, retaining one representative and exact coalesced count.
+Count, selection and provenance share one read transaction. Protected/newest
+ordering gains a deterministic final device-ID tie; positive out-of-range pages
+clamp to the current last page. The old full-list API remains internal-compatible,
+never a browser fallback. Navigation retains the query; global IP search remains
+independent of the page. Existing live replacement retains the current page and
+does not append old rows. No schema, policy, agent, execution, secret/trust or
+network change; no fixture/authority/reimport/reset or device command submitted.
+
+Focused Python **38 passed**, including 100,000 synthetic observations, selected
+provenance with coalesced origins, concurrent removal and authenticated BFF/no
+admission checks. Browser/Node **89 passed**, including 100-row initial rendering,
+live replacement and page navigation. An initial candidate's real-profile local
+check returned 503 because the continuous API allowlist lacked the new GET route;
+fixed the exact read-only route and added explicit no-state-change coverage.
+Final continuous/policy/page set **80 passed**. Ruff/compileall/diff pass.
+The full run recorded **3566 passed / one failure in 681.76s**: the initial
+continuous allowlist omission caused a BFF workspace-navigation 503. It ran with
+the pre-fix module already imported. The exact failing suite and all affected
+tests are being rerun on corrected source; no second clean full run is claimed.
+Corrected built-image non-executing configured preflight passed. Actual local
+read-only composition against **25,466** observations returned 100/100/66 rows
+for first/second/clamped-last pages, **28,247/28,238/18,603 bytes** in
+**0.076/0.052/0.063s**. No lifespan/worker/SSH/admission was started by this check.
+Final affected suites, including the exact full-run failure, now have **153
+passed in 35.69s**. Final Ruff/compileall/diff pass. No second full run is claimed.
+
+### API/Web lab deployment and retained evidence
+
+Archived compatible old images as `ftd-shun-{api,web}:lab-pre-shun-pages-20261110`.
+Actual old API/Web exit 0, stopped epoch **2947 IDLE** at **14:17:12.089Z**,
+zero RUNNING; integrity ok, all nine original authority/protection/inventory/
+recovery fingerprints and thirteen original unknown rows unchanged. Deployed
+API **968a8fa02ff2... / 7ba324a61af1**, Web **b21d4d1d6e79... / 4246878c51cd**.
+Agent **8d9f196ceea1... / 4b2aa4744e96** stayed running and unchanged; original
+DB/import/all three overlays/v6 selection retained, v7 still source-only.
+
+Real UDS page checks against **25,484** active observations returned **100/100/84**
+rows, **28,255/28,235/23,660 bytes**; initial request **1.206s**, subsequent
+**0.054/0.060s**. Invalid page 0 returns 422; responses remain no-store. Web
+health 200 and anonymous root 401; template/JS hashes match source. No trusted
+Web identity was invented. Existing browser tabs need one reload. These are
+bounded local checks, not an end-to-end production/load guarantee.
+
+Post-deployment integrity, all nine fingerprints and original thirteen unknowns
+remain unchanged. Normal epoch **2948 LEASED** with current work, not global
+idleness. One startup scheduling SQLITE_BUSY retried and actually recovered;
+retained audit/logs show new original-task VERIFIED ADDs. No failure clearing,
+receipt reuse, task reset/reimport or new fixture/consent was performed. Private
+before/drained/after checks: `/tmp/ftd-shun-pages-20261110.Tye2fY` (not committed).
+Do not restore stale DB state for rollback; drain the compatible API/Web pair.
+
+Synthetic capacity tests do not prove live 100,000-IP FTD throughput. Pagination
+is a moving list, not a frozen export; rows may move after new detections/removals.
+Original lab import and all uncertainty/recovery evidence remain in scope for
+preservation. See [Operations](manual/operations.md#browsing-long-shuns-lists).
+
+## 2026-11-10 — Keep IP action panels usable during live refresh
+
+The operator could not use the bottom-of-page IP actions before refresh closed
+them. Managed retirement/ready-removal/ordered-removal disclosures lacked IDs,
+so generic expansion restoration skipped them. Equivalent form replacement
+also destroys native select popups and summary/button focus. Added stable IDs
+and an explicit `data-live-editor` marker for non-authoritative review preparation.
+If old/new server markup matches after stripping only local details open state,
+leave the actual region DOM intact. Target choices, hidden values, disabled
+controls, form actions and capability removal remain meaningful differences:
+refresh them normally, restore matching drafts/open state, never retain an action
+the server removed. Legacy review preparation gets the same treatment. No global
+refresh pause, frozen-confirmation mutation, Python/backend, authority, CSRF/CAS,
+schema, policy, agent, credential/trust/network or device-work change.
+
+**Validation:** affected Python UI suites **119 passed in 31.52s**; browser/Node
+**90 passed**, full Chromium parent 134.36s. New browser regression opens all
+three panels, verifies same connected controls/draft/summary-select-button focus
+across three real result updates, then verifies changed target options replace
+controls without closing disclosures, and revoked capabilities remove actions.
+No demand/admission counter increases. Ruff/compileall/diff pass. A broader
+Python run was interrupted after **302 passed in 86.79s** to scope this JS/template-
+only validation appropriately; no complete full regression is claimed.
+
+**Deployment:** archived prior Web as
+`ftd-shun-web:lab-pre-stable-ip-editors-20261110`, rebuilt/deployed only Web
+**f8c36b7aeaeb... / 3457285a8c0d** with all three existing overlays. API
+**968a8fa02ff2... / 7ba324a61af1** and agent
+**8d9f196ceea1... / 4b2aa4744e96** remained running unchanged; no worker restart,
+new fixture/task/consent, DB operation, reset/reimport or recovery invocation.
+Web health 200, anonymous `/managed-shuns` 401. Served JS hash and both managed
+templates match source. No Web identity spoofing or device mutation for checks.
+Existing tabs need one reload. True server-side scope/capability changes still
+update controls; this is interaction preservation, not a permission reservation.
+
+## 2026-11-10 — Recover held import and provide explicit recovery assistance
+
+The operator reported thirteen unverified rows and no way forward from Queue.
+Read-only inspection found a new **ATTENTION epoch 3044**, not merely old warnings.
+Agent timed out waiting for the FTD prompt during target read 13, with twelve
+staged ADDs lacking final observation. All thirteen new outcomes remained unknown
+(26 raw total); diagnostics are not retrospective proof of sent/not-sent writes.
+Failure evidence and authority snapshots were retained privately under
+`/tmp/ftd-queue-attention-3044-20261110.0mIV7h`.
+
+### Explicit existing-tool recovery
+
+Operator explicitly approved lab recovery and a product recovery workflow. Actual
+API/Web/agent exited 0. Existing 1–16-claim reconciliation was rehearsed on a copy
+of the real data: 13 UNVERIFIED, all eleven original data/outcome/authority tables,
+original schema and six old receipts unchanged, integrity/FKs/profile valid.
+Fresh live review and checked exclusive backup preceded new exact decision
+**8dcf8343-c491-43d1-b5a1-01d7ceb493af** at **18:04:24.967Z**. Backup:
+`reconciliation-20261110-epoch3044/before-live-reconciliation.db`.
+All 26 unknowns remain unchanged; no old job replay, authority renewal, reset or
+reimport. Same agent/API/Web images restarted. New complete reads preceded current
+standing work; actual epoch **3045** settled **28 VERIFIED ADDs**, followed by
+settled read-only **3046**. At **18:08:59Z**, fresh read/no error/zero unresolved
+attention. This decision covers only epoch 3044 and does not fix the FTD timeout
+or intermittent local SQLite contention.
+
+### Product workflow and security boundary
+
+Added read-only `GET /api/v1/queue-recovery`, authenticated `/queue-recovery`
+guidance/report download, and Queue attention's **Check and resume import** link.
+Inspection reuses exact existing default/extended review contracts but never
+initializes a ledger, releases a hold or sends a device command. Unsupported
+state explains refusal; eligible scope is not permission to replay unknowns.
+
+Current workflow is explicitly **host-assisted**, not one-click online recovery.
+Web/API receive no Docker socket, host-control access or new privilege. A separately
+invoked `python -m ftd_shun_manager.lab_recovery` requires the known single-device
+lab, exact epoch, explicit lab confirmation, real maintenance label, all three
+overlays and matching API images. It retains private logs/review/container IDs,
+verifies actual clean API/Web then agent exits, rehearses a copy, obtains fresh
+review/backup and applies the existing offline tool with a fresh decision, retaining
+all original outcomes/authority/receipts. Changed inventory/epoch/image, stop
+failure/timeout, missing proof and recovery failures refuse; after-stop failures
+stay stopped. Restart means pending a fresh complete read, never verified import
+completion. True online recovery remains separate coordinator work.
+
+### Validation and actual API/Web rollout
+
+Full regression **3578 passed in 659.43s**; final focused **114 passed in 26.50s**,
+new helper **12 passed**, browser/Node **91 passed**. Final focused tests include
+image pinning and stop-failure/timeout checks added after the broad run collected;
+no second full-source run is claimed. Tests cover actual disposable-copy control,
+old unknown preservation, read-only report/no initialization, authenticated BFF/
+download, exact route allowlisting, host refusal/order and no automatic restart.
+Ruff/compileall/diff and final configured non-executing image preflight pass.
+New bundled control/report also rehearsed on a separate copy of the real archived
+13-unknown data; live DB/archive untouched. A stale real epoch-3044 invocation
+refused before stop, and original container start times were unchanged. No new
+live failure was induced; the new whole host helper has not run on a live hold.
+
+Rollback tags: `ftd-shun-{api,web}:lab-pre-recovery-assistance-20261110`.
+Old API/Web actually exited 0, stopped **3053 IDLE/no RUNNING** at
+**18:22:13.386Z**; unchanged agent stayed running. API
+**3713153a0892... / 56b8447c125b** and Web
+**b65f21e7776d... / e94577e7a389** deployed with all three overlays/same original
+managed DB/import/v6 selection. No agent/protocol/gate/trust/credential/network
+change or new device fixture. At **18:23:41Z**, integrity ok, all nine post-recovery
+fingerprints and all 26 unknown rows unchanged, normal **3054 LEASED**. Fresh read
+**18:23:11Z**, no error/zero unresolved attention, reviewed history 26. New private
+report returns 200/read-only; Web health 200, anonymous recovery/download 401 and
+new template/CSS hashes match source. No spoofed Web identity was used. Existing
+tabs need one reload. Preserve seven receipts and original unknowns; never restore
+stale data or reuse the consumed decision for later uncertainty.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

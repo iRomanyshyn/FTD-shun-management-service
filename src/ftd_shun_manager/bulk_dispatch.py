@@ -82,7 +82,7 @@ def authority_valid(db, attempt, now):
     return _authority_valid(db, attempt, now, _state(db))
 
 
-def _authority_valid(db, attempt, now, state):
+def _authority_valid(db, attempt, now, state, *, retry_parent=None):
     """Internal same-transaction check; caller already validated the whole profile."""
     if not db.in_transaction:
         raise ValueError('Validated authority checks require a caller-owned transaction.')
@@ -91,6 +91,36 @@ def _authority_valid(db, attempt, now, state):
     from .device_leases import device_uncertain
     from .device_reconciliation import unresolved
     from .device_recovery import fresh_after_recovery
+    from .pending_retries import context as retry_context
+    from .pending_retries import present as retry_profile_present
+
+    try:
+        retry = retry_context(db, attempt, now, predecessor_id=retry_parent)
+    except QueueConflict:
+        if retry_parent is not None:
+            raise
+        return False  # Revoked/obsolete queued retry is cancelled, never replayed.
+    origin = retry['origin_id'] if retry else None
+    excluded_history = ('''(id=? OR EXISTS(SELECT 1 FROM managed_bulk_pending_retries h
+        WHERE h.attempt_id=managed_bulk_attempts.id AND h.origin_id=?))''' if retry else '0')
+    history_parameters = (origin, origin) if retry else ()
+    # A known later presence under this exact standing scope permits ordinary
+    # restoration after a NEW causal absence read. Earlier known absences are
+    # retained, not replayed/relabelled; newer absence and every unknown still
+    # block. The exact profile above validates pending observation/lineage proof.
+    known_presence = None
+    if retry_profile_present(db):
+        known_presence = db.execute('''SELECT MAX(completed_at) FROM managed_bulk_attempts
+            WHERE device_id=? AND ip=? AND id!=? AND intent_id=? AND generation=?
+              AND authorization_request_id=? AND target_revision=?
+              AND state IN ('VERIFIED','NOOP','OBSERVED_PRESENT')''',
+            (attempt['device_id'], attempt['ip'], attempt['id'], attempt['intent_id'], attempt['generation'],
+             attempt['authorization_request_id'], attempt['target_revision'])).fetchone()[0]
+    if known_presence is not None:
+        excluded_history = '(' + excluded_history + ''' OR (intent_id=? AND generation=?
+            AND authorization_request_id=? AND target_revision=? AND completed_at<?))'''
+        history_parameters += (attempt['intent_id'], attempt['generation'], attempt['authorization_request_id'],
+                               attempt['target_revision'], known_presence)
 
     if not fresh_after_recovery(db, attempt['device_id'], attempt['snapshot_started_at']):
         return False
@@ -112,10 +142,13 @@ def _authority_valid(db, attempt, now, state):
                           (attempt['device_id'], attempt['ip'])).fetchone()
             or device_uncertain(db, attempt['device_id'])
             or db.execute('''SELECT 1 FROM managed_bulk_attempts WHERE device_id=? AND ip=?
-                AND id!=? AND state IN ('QUEUED','RUNNING','FAILED','UNVERIFIED') AND ''' + unresolved(db, 'job_id'),
-                (attempt['device_id'], attempt['ip'], attempt['id'])).fetchone()
+                AND id!=? AND (state IN ('QUEUED','RUNNING','AWAITING_CONFIRMATION','FAILED','UNVERIFIED')
+                    OR (state='CONFIRMED_ABSENT' AND intent_id=? AND generation=?
+                        AND authorization_request_id=? AND NOT (''' + excluded_history + '''))) AND ''' + unresolved(db, 'job_id'),
+                (attempt['device_id'], attempt['ip'], attempt['id'], attempt['intent_id'], attempt['generation'],
+                 attempt['authorization_request_id'], *history_parameters)).fetchone()
             or db.execute('''SELECT 1 FROM operation_jobs WHERE device_id=? AND ip=? AND id!=?
-                AND state IN ('QUEUED','RUNNING','UNVERIFIED') AND ''' + unresolved(db, 'id'),
+                AND state IN ('QUEUED','RUNNING','AWAITING_CONFIRMATION','UNVERIFIED') AND ''' + unresolved(db, 'id'),
                 (attempt['device_id'], attempt['ip'], attempt['job_id'])).fetchone()
             or db.execute('''SELECT 1 FROM operation_jobs j WHERE device_id=? AND ip=? AND id!=? AND action='ADD'
                 AND NOT EXISTS(SELECT 1 FROM managed_bulk_attempts a WHERE a.job_id=j.id)''',
@@ -125,7 +158,8 @@ def _authority_valid(db, attempt, now, state):
         AND id!=? AND state IN ('VERIFIED','NOOP')''',
         (attempt['device_id'], attempt['ip'], attempt['job_id'])).fetchone()[0]
     retained = db.execute('''SELECT MAX(completed_at) FROM managed_bulk_attempts
-        WHERE device_id=? AND ip=? AND id!=?''', (attempt['device_id'], attempt['ip'], attempt['id'])).fetchone()[0]
+        WHERE device_id=? AND ip=? AND id!=? AND NOT (state='CONFIRMED_ABSENT' AND ''' + excluded_history + ')',
+        (attempt['device_id'], attempt['ip'], attempt['id'], *history_parameters)).fetchone()[0]
     return all(value is None or value < attempt['snapshot_started_at'] for value in (latest, retained))
 
 
@@ -173,6 +207,12 @@ class BulkDispatch:
     def admit(self, snapshot, candidates, owner, managed_revision, protected_revision, *,
               enabled=False, addition_device_ids=frozenset(), connection=None):
         """One all-or-nothing portion, no RPC. Original-key retries are historical."""
+        return self._admit(snapshot, candidates, owner, managed_revision, protected_revision,
+                           enabled=enabled, addition_device_ids=addition_device_ids, connection=connection)
+
+    def _admit(self, snapshot, candidates, owner, managed_revision, protected_revision, *,
+               enabled=False, addition_device_ids=frozenset(), connection=None, retry_parents=None):
+        """Explicit deferred admission supplies validated predecessor IDs, not an exemption list."""
         if type(enabled) is not bool:
             raise ValueError('Bulk admission capability must be boolean.')
         if not enabled:
@@ -210,6 +250,10 @@ class BulkDispatch:
             for candidate, key, job_id in identities:
                 old = db.execute('SELECT * FROM managed_bulk_attempts WHERE id=?', (key,)).fetchone()
                 if old is not None:
+                    if retry_parents is not None:
+                        from .pending_retries import replay
+
+                        replay(db, key, retry_parents[key], snapshot)
                     expected = (job_id, candidate.device_id, candidate.ip.packed, candidate.intent_id,
                                 candidate.generation, candidate.authorization_request_id, candidate.target_revision,
                                 snapshot.id, started, completed)
@@ -239,11 +283,12 @@ class BulkDispatch:
                            'authorization_request_id': candidate.authorization_request_id,
                            'target_revision': candidate.target_revision, 'snapshot_id': snapshot.id,
                            'snapshot_started_at': started, 'snapshot_at': completed, 'requested_at': timestamp}
-                if not _authority_valid(db, attempt, now, state):
+                parent = retry_parents[key] if retry_parents is not None else None
+                if not _authority_valid(db, attempt, now, state, retry_parent=parent):
                     raise QueueConflict('Current authority, protection, device or fresh absence evidence changed.')
                 history = db.execute('''SELECT MAX(requested_at),SUM(requested_at>?) FROM managed_bulk_attempts
                     WHERE device_id=? AND ip=?''', (_stamp(now - timedelta(hours=1)), candidate.device_id, candidate.ip.packed)).fetchone()
-                if (history[0] is not None and history[0] > _stamp(now - timedelta(seconds=300))) or (history[1] or 0) >= 3:
+                if parent is None and ((history[0] is not None and history[0] > _stamp(now - timedelta(seconds=300))) or (history[1] or 0) >= 3):
                     raise QueueConflict('Bulk pair backoff/churn limit reached; original evidence retained.')
                 for identity in (key, job_id):
                     _key_free(db, identity)
@@ -261,6 +306,10 @@ class BulkDispatch:
                 job = db.execute('SELECT * FROM operation_jobs WHERE id=?', (job_id,)).fetchone()
                 row = db.execute('SELECT * FROM managed_bulk_attempts WHERE id=?', (key,)).fetchone()
                 validate_binding(db, row, job)
+                if parent is not None:
+                    from .pending_retries import retain
+
+                    retain(db, row, parent, snapshot, owner, self.queue)
                 from .managed_restoration import _event
 
                 _event(db, self.store, row, 'QUEUED', timestamp)
@@ -268,7 +317,7 @@ class BulkDispatch:
             _lease(db, self.queue, owner, snapshot.device_id)
             state = _state(db)  # Revalidate all inserted evidence before committing the portion.
             if any(not _authority_valid(db, db.execute('SELECT * FROM managed_bulk_attempts WHERE id=?', (a['attempt_id'],)).fetchone(),
-                                        self.queue._now(), state) for a in attempts):
+                                        self.queue._now(), state, retry_parent=retry_parents[a['attempt_id']] if retry_parents is not None else None) for a in attempts):
                 raise QueueConflict('Evidence expired during portion admission.')
             self.queue._bump(db)
             return {'attempts': attempts, 'replayed': False, 'device_work_sent': False}

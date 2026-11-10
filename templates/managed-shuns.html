@@ -60,10 +60,10 @@
 <button type="submit">Review standing maintenance</button>
 </form></details>
 {% endif %}
-<section id="managed-retirement-preparation" data-live-region>
+<section id="managed-retirement-preparation" data-live-region data-live-editor>
 {% set maintained = managed.entries | selectattr('enabled') | list %}
 {% if managed.initialized and maintained and ('Operator' in identity.roles or 'Administrator' in identity.roles) %}
-<details><summary>Turn off auto-restore only — leave device unchanged</summary>
+<details id="managed-retirement-options"><summary>Turn off auto-restore only — leave device unchanged</summary>
 <p>Prepare a frozen policy-only review. Existing shuns and already submitted one-time jobs are not removed or cancelled. Missing, disabled-device and protected targets can still be retired.</p>
 <form method="post" action="/managed-shuns/retirement-review" class="import-confirm-form">
 <input type="hidden" name="csrf" value="{{ csrf_token }}">
@@ -78,7 +78,7 @@
 </form></details>
 {% endif %}
 </section>
-<section id="managed-removal-preparation" data-live-region>
+<section id="managed-removal-preparation" data-live-region data-live-editor>
 {% if managed.initialized and managed.entries and ('Operator' in identity.roles or 'Administrator' in identity.roles) %}
 <h2>Prepare a single-target removal review</h2>
 <p>Preparation reads local policy only. It does not stop maintenance, create a job or remove a shun.</p>

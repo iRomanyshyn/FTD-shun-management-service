@@ -62,7 +62,7 @@ synchronizer is constructed/started for this composition.
 | Operation group | Current support |
 | --- | --- |
 | Status and refresh demand | Existing GET status and POST refresh-hint, per-device revision/countdown contract. |
-| Observations and history | Shun list/detail, history/page/detail and IP search. |
+| Observations and history | Shun list/detail, bounded `/api/v1/shuns-page?page=N` (100 observations), history/page/detail and whole-dataset IP search. |
 | Protected IPs | Existing exact-IP list/CRUD, real BFF actor, revision/typed-delete checks and atomic permanent managed retirement. |
 | Import preview | Existing local non-executable classification and device list; no durable import admission. |
 | V2 durable import preparation | Fixed create/list/page/proposal/cancel-preparation routes on existing exact journal, correct bulk classifier and shared UTC clock; local non-authoritative drafts only, full retained-scope integrity and no confirmation/dispatch. |

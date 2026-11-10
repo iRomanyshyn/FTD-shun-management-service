@@ -1039,6 +1039,17 @@ def create_app(
     def list_shuns() -> list[dict[str, object]]:
         return [_serialize(shun) for shun in store.list_active_shuns()]
 
+    @app.get('/api/v1/shuns-page')
+    def active_shuns_page(page: Annotated[int, Query(ge=1, le=2**31 - 1)] = 1) -> dict:
+        result = store.active_shuns_page(page)
+        return {**result, 'items': [_serialize(shun) for shun in result['items']]}
+
+    @app.get('/api/v1/queue-recovery')
+    def queue_recovery_report() -> dict:
+        from .queue_recovery import report
+
+        return report(store)
+
     @app.get("/api/v1/import-devices")
     def import_devices() -> list[dict]:
         return [{"id": device.id, "hostname": device.hostname, "enabled": device.enabled}

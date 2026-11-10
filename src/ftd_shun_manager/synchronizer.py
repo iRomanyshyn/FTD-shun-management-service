@@ -382,6 +382,11 @@ class Synchronizer:
     async def _publish_complete_snapshot(self, device_id, snapshot):
         await self._local_call(self._publish_snapshot, device_id, snapshot)
 
+    async def _process_complete_snapshot(self, device_id, snapshot, started, completed):
+        """One complete read boundary; deferred workers confirm before publication."""
+        await self._publish_complete_snapshot(device_id, snapshot)
+        await self._local_call(self._discover_snapshot, device_id, snapshot, started, completed)
+
     def _has_pending(self, device_id: int | None = None) -> bool:
         if self.queue.has_pending(device_id, addition_device_ids=self.addition_device_ids,
                                   managed_restoration_enabled=self.managed_restoration_enabled,
@@ -434,8 +439,7 @@ class Synchronizer:
                 else:
                     snapshot = await self._agent_call(self.agent.list_shuns, device.id)
                 read_completed = self.queue._now()
-                await self._publish_complete_snapshot(device.id, snapshot)
-                await self._local_call(self._discover_snapshot, device.id, snapshot, read_started, read_completed)
+                await self._process_complete_snapshot(device.id, snapshot, read_started, read_completed)
             except (AgentUnavailable, OSError, ValueError, sqlite3.Error) as error:
                 if cycle is not None:
                     cycle.abort()
@@ -575,8 +579,7 @@ class Synchronizer:
                             print(json.dumps({"event": "queue.priority_refresh.deferred",
                                               "device_id": device_id, "joining_final_snapshot": True}), flush=True)
                             break
-                        await self._publish_complete_snapshot(device_id, snapshot)
-                        await self._local_call(self._discover_snapshot, device_id, snapshot, read_started, read_completed)
+                        await self._process_complete_snapshot(device_id, snapshot, read_started, read_completed)
                         if self._mutations_blocked:
                             break
                         allowed = await self._local_call(self.policy.enabled_ips)
@@ -640,8 +643,7 @@ class Synchronizer:
             read_started = self.queue._now()
             snapshot = await self._finish_session(cycle)
             read_completed = self.queue._now()
-            await self._publish_complete_snapshot(device_id, snapshot)
-            await self._local_call(self._discover_snapshot, device_id, snapshot, read_started, read_completed)
+            await self._process_complete_snapshot(device_id, snapshot, read_started, read_completed)
             self._priority_pending = False
             self._device_cycle.update(action="completed", priority_state="satisfied")
             return self._mutations_blocked

@@ -213,9 +213,9 @@ class BulkRemovals:
             _require_ready_fence(db, row['device_id'], now)
             if not row['device_enabled']:
                 raise QueueConflict('Every target must be enabled; use policy-only retirement separately.')
-            if (db.execute("SELECT 1 FROM operation_jobs WHERE device_id=? AND ip=? AND state IN ('QUEUED','RUNNING') LIMIT 1",
+            if (db.execute("SELECT 1 FROM operation_jobs WHERE device_id=? AND ip=? AND state IN ('QUEUED','RUNNING','AWAITING_CONFIRMATION') LIMIT 1",
                            (row['device_id'], ip.packed)).fetchone()
-                    or db.execute("SELECT 1 FROM managed_bulk_attempts WHERE device_id=? AND ip=? AND state IN ('QUEUED','RUNNING','FAILED','UNVERIFIED') AND " + unresolved(db, 'job_id') + ' LIMIT 1',
+                    or db.execute("SELECT 1 FROM managed_bulk_attempts WHERE device_id=? AND ip=? AND state IN ('QUEUED','RUNNING','AWAITING_CONFIRMATION','FAILED','UNVERIFIED') AND " + unresolved(db, 'job_id') + ' LIMIT 1',
                                   (row['device_id'], ip.packed)).fetchone()
                     or db.execute("SELECT 1 FROM operation_jobs WHERE device_id=? AND ip=? AND action='ADD' AND state='FAILED' LIMIT 1",
                                   (row['device_id'], ip.packed)).fetchone()

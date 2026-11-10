@@ -28,16 +28,31 @@ enum Step {
     StageAdd(Ipv4Addr),
     VerifyAdds,
     VerifyEnd,
+    EndPending,
     End,
 }
 
 pub(super) fn max_sequence(version: u8) -> u8 {
-    if version == batch_addition::MULTI_GROUP_VERSION {
+    if matches!(
+        version,
+        batch_addition::MULTI_GROUP_VERSION | batch_addition::PENDING_END_VERSION
+    ) {
         130
     } else if batch_addition::supported(version) {
         batch_addition::MAX_SEQUENCE
     } else {
         18
+    }
+}
+
+pub(super) fn max_duration(version: u8) -> Duration {
+    if matches!(
+        version,
+        batch_addition::MULTI_GROUP_VERSION | batch_addition::PENDING_END_VERSION
+    ) {
+        Duration::from_secs(240)
+    } else {
+        MAX_DURATION
     }
 }
 
@@ -68,7 +83,7 @@ fn after_cleanup(
     if !matches!(
         begin,
         BEGIN | BEGIN_SETTLED | BEGIN_RECOVERABLE | sessions::BEGIN
-    ) || !matches!(version, 1..=6)
+    ) || !matches!(version, 1..=7)
         || (batch_addition::supported(version) && begin != sessions::BEGIN)
         || !(1..=max_sequence(version)).contains(&sequence)
     {
@@ -91,7 +106,7 @@ pub(super) fn finish_result(
     mutation_steps: u8,
 ) -> Result<Option<[u8; 4]>> {
     if matches!(begin, BEGIN_RECOVERABLE | sessions::BEGIN)
-        && matches!(version, 1..=6)
+        && matches!(version, 1..=7)
         && (!batch_addition::supported(version) || begin == sessions::BEGIN)
         && result.is_err()
         && cleanup.is_ok()
@@ -109,7 +124,7 @@ pub(super) fn finish_result(
 }
 
 fn decode_step(packet: &[u8], expected: u8, version: u8) -> Result<Step> {
-    if !matches!(version, 1..=6)
+    if !matches!(version, 1..=7)
         || packet.len() < 3
         || packet[1] != version
         || packet[2] != expected
@@ -120,6 +135,9 @@ fn decode_step(packet: &[u8], expected: u8, version: u8) -> Result<Step> {
     match (packet[0], packet.len()) {
         (SNAPSHOT, 3) => Ok(Step::Snapshot),
         (END, 3) => Ok(Step::End),
+        (batch_addition::END_PENDING, 3) if version == batch_addition::PENDING_END_VERSION => {
+            Ok(Step::EndPending)
+        }
         (REMOVE, 7) => Ok(Step::Remove(Ipv4Addr::new(
             packet[3], packet[4], packet[5], packet[6],
         ))),
@@ -238,15 +256,14 @@ impl<C: Console> Cycle<C> {
     }
 
     fn max_duration(&self) -> Duration {
-        if self.version == batch_addition::MULTI_GROUP_VERSION {
-            Duration::from_secs(240)
-        } else {
-            MAX_DURATION
-        }
+        max_duration(self.version)
     }
 
     fn max_mutations(&self) -> u8 {
-        if self.version == batch_addition::MULTI_GROUP_VERSION {
+        if matches!(
+            self.version,
+            batch_addition::MULTI_GROUP_VERSION | batch_addition::PENDING_END_VERSION
+        ) {
             64
         } else {
             MAX_REMOVALS
@@ -254,7 +271,10 @@ impl<C: Console> Cycle<C> {
     }
 
     fn max_commands(&self) -> usize {
-        if self.version == batch_addition::MULTI_GROUP_VERSION {
+        if matches!(
+            self.version,
+            batch_addition::MULTI_GROUP_VERSION | batch_addition::PENDING_END_VERSION
+        ) {
             256
         } else {
             MAX_COMMANDS
@@ -290,7 +310,10 @@ impl<C: Console> Cycle<C> {
     async fn execute(&mut self, packet: &[u8]) -> Result<(Vec<Vec<u8>>, bool)> {
         let step = decode_step(packet, self.sequence, self.version)?;
         if !self.pending_additions.is_empty()
-            && !matches!(step, Step::StageAdd(_) | Step::VerifyAdds | Step::VerifyEnd)
+            && !matches!(
+                step,
+                Step::StageAdd(_) | Step::VerifyAdds | Step::VerifyEnd | Step::EndPending
+            )
         {
             bail!("pending additions require explicit group verification before other operations");
         }
@@ -310,6 +333,14 @@ impl<C: Console> Cycle<C> {
                 Ok((self.snapshot(SNAPSHOT, seq).await?, false))
             }
             Step::End => Ok((self.snapshot(END, seq).await?, true)),
+            Step::EndPending => Ok((
+                vec![batch_addition::pending_end(
+                    &self.pending_additions,
+                    seq,
+                    self.version,
+                )?],
+                true,
+            )),
             Step::Remove(ip) => {
                 if self.removals + self.additions >= self.max_mutations() {
                     bail!("cycle combined mutation count exceeded");
@@ -508,7 +539,7 @@ pub(super) fn handle(
     if batch_addition::supported(version) && !agent.batch_additions_enabled {
         bail!("batch additions are disabled pending worker integration and validation");
     }
-    if version == batch_addition::MULTI_GROUP_VERSION && agent.batch_session_version != version {
+    if version >= batch_addition::MULTI_GROUP_VERSION && agent.batch_session_version != version {
         bail!("multi-group session version is not explicitly enabled");
     }
     let device = agent
@@ -538,7 +569,13 @@ pub(super) fn handle(
     // timeout drops the opening future before a failure record can escape.
     let opening_started = Instant::now();
     let opened = runtime
-        .block_on(timeout(step_timeout, agent.connect_device(device_id)))
+        // Local root checks/result persistence can leave SSH silent longer
+        // than a single CLI call. The transport idle timer must not pre-empt
+        // this visit's unchanged hard wall-clock/IPC/step deadlines.
+        .block_on(timeout(
+            step_timeout,
+            agent.connect_device_with_idle(device_id, max_duration(version)),
+        ))
         .context("SSH session opening timed out")
         .and_then(|result| result);
     let opening_ms = opening_started.elapsed().as_millis();

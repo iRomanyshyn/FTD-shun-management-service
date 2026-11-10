@@ -102,7 +102,8 @@ def _initialize(db):
 
 @lru_cache(maxsize=18)
 def _expected(cancellation=False, attempts=False, waits=False, dispatch=False, devices=False, ordered=False, promotions=False,
-              recovery=False, reconciliation=False):
+              recovery=False, reconciliation=False, extended_recovery=False, pending_confirmation=False, pending_execution=False,
+              prewrite_recovery=False):
     with closing(sqlite3.connect(':memory:')) as db:
         db.execute('BEGIN')
         _initialize(db)
@@ -144,6 +145,18 @@ def _expected(cancellation=False, attempts=False, waits=False, dispatch=False, d
             from .device_reconciliation import DDL
 
             execute_schema(db, DDL)
+        if extended_recovery:
+            from .extended_recovery import DDL
+            execute_schema(db, DDL)
+        if prewrite_recovery:
+            from .prewrite_recovery import DDL
+            execute_schema(db, DDL)
+        if pending_confirmation:
+            from .pending_confirmation import DDL
+            execute_schema(db, DDL)
+        if pending_execution:
+            from .pending_execution import DDL
+            execute_schema(db, DDL)
         return _objects(db)
 
 
@@ -164,10 +177,20 @@ def _state(db):
     promotions = any(name.startswith('managed_bulk_ordered_promotion') for _, name, _, _ in objects)
     recovery = any(name.startswith('managed_bulk_device_recovery') for _, name, _, _ in objects)
     reconciliation = any(name.startswith('managed_bulk_reconciled') for _, name, _, _ in objects)
+    extended_recovery = any(name.startswith('managed_bulk_extended_recovery') for _, name, _, _ in objects)
+    prewrite_recovery = any(name.startswith('managed_bulk_prewrite_recovery') for _, name, _, _ in objects)
+    pending_confirmation = any(name.startswith('managed_bulk_pending_') or table.startswith('managed_bulk_pending_')
+                               for _, name, table, _ in objects)
+    pending_execution = any(table == 'managed_bulk_pending_execution' for _, _, table, _ in objects)
     if ((attempts and not cancellation) or (waits and not attempts) or (dispatch and not waits)
             or (devices and not dispatch) or (ordered and not devices)
             or (promotions and not ordered) or (recovery and not devices) or (reconciliation and not recovery)
-            or objects != _expected(cancellation, attempts, waits, dispatch, devices, ordered, promotions, recovery, reconciliation)):
+            or (extended_recovery and not recovery)
+            or (prewrite_recovery and (not recovery or not extended_recovery))
+            or (pending_confirmation and not devices)
+            or (pending_execution and (not pending_confirmation or ordered or recovery))
+            or objects != _expected(cancellation, attempts, waits, dispatch, devices, ordered, promotions, recovery,
+                                    reconciliation, extended_recovery, pending_confirmation, pending_execution, prewrite_recovery)):
         raise BulkUnavailable('Exact version-2 storage is required; legacy/partial/optional state was not converted.')
     row = db.execute('SELECT revision,restoration_suspended,format_version FROM managed_bulk_registry WHERE id=1').fetchone()
     if (row is None or type(row[0]) is not int or row[0] < 0 or row[2] != 2
@@ -234,6 +257,14 @@ def _state(db):
         from .device_reconciliation import validate as validate_reconciliation
 
         validate_reconciliation(db)
+    if pending_confirmation:
+        from .pending_confirmation import validate as validate_pending_confirmation
+
+        validate_pending_confirmation(db)
+    if pending_execution:
+        from .pending_execution import validate as validate_pending_execution
+
+        validate_pending_execution(db)
     return {'revision': row[0], 'restoration_suspended': bool(row[1])}
 
 
@@ -320,7 +351,7 @@ def _quiescent(db):
 
     if devices_present(db) and db.execute("SELECT 1 FROM managed_bulk_device_executors WHERE state!='IDLE'").fetchone():
         raise ManagedConflict('Settle every device lease/attention before offline bulk storage changes.')
-    if db.execute("SELECT 1 FROM operation_jobs WHERE state IN ('QUEUED','RUNNING','UNVERIFIED') AND " + unresolved(db, 'id') + ' LIMIT 1').fetchone():
+    if db.execute("SELECT 1 FROM operation_jobs WHERE state IN ('QUEUED','RUNNING','AWAITING_CONFIRMATION','UNVERIFIED') AND " + unresolved(db, 'id') + ' LIMIT 1').fetchone():
         raise ManagedConflict('Pending or uncertain work remains; bulk storage never resolves it.')
     from .bulk_attempts import present as attempts_present
     from .bulk_attempts import validate_held_jobs

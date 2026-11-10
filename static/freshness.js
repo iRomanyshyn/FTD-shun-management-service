@@ -17,6 +17,16 @@
   };
   const count = (value) => Number.isSafeInteger(value) && value >= 0 ? value : 0;
   const compactCount = (value) => value > 99 ? "99+" : String(value);
+  const deferredRetryWait = (status) => {
+    const seconds = Object.values(status.deferred_confirmation || {})
+      .filter((row) => row && row.held === false && row.mutations_paused === false
+        && Number.isFinite(row.retry_in_seconds) && row.retry_in_seconds >= 0)
+      .map((row) => row.retry_in_seconds);
+    if (!seconds.length) return '';
+    const next = Math.min(...seconds);
+    return next > 0 ? `Next absence check eligible in ${duration(next)}.`
+      : 'Absence check eligible; waiting for an available device session.';
+  };
   const queueAttentionCounts = (queue) => {
     const raw = queue.counts || {}, attention = queue.attention_counts, reviewed = queue.reviewed_history;
     // Older/malformed metadata must not hide unresolved outcomes. The API
@@ -93,9 +103,11 @@
   const queuePresentation = (status, submitting = false, localError = "") => {
     const counts = status.queue?.counts || {};
     const running = count(counts.RUNNING), queued = count(counts.QUEUED);
+    const awaiting = count(counts.AWAITING_CONFIRMATION);
+    const retryWait = deferredRetryWait(status);
     const imports = status.queue?.imports;
     const importWaiting = (imports?.tasks || []).some((task) => count(task.outstanding));
-    const deviceError = Boolean((running || queued || importWaiting)
+    const deviceError = Boolean((running || queued || awaiting || importWaiting)
       && Object.values(status.devices || {}).some((device) => device.state === 'error' || device.last_error));
     const attentionCounts = queueAttentionCounts(status.queue || {});
     const attention = Math.max(count(attentionCounts.FAILED) + count(attentionCounts.UNVERIFIED),
@@ -105,12 +117,14 @@
     const stopped = recovery?.state === 'stopped';
     const problem = Boolean(attention || deviceError || paused || stopped || recovery?.state === 'retrying'
       || localError || status.managed_removal_worker_error || status.managed_restoration_error);
-    const total = running + queued;
-    return { activity: running ? "busy" : paused || stopped ? "paused" : queued || submitting || importWaiting ? "waiting" : "idle",
+    const total = running + queued + awaiting;
+    return { activity: running ? "busy" : paused || stopped ? "paused" : queued || awaiting || retryWait || submitting || importWaiting ? "waiting" : "idle",
       attention: problem,
-      badge: [total ? compactCount(total) : submitting || importWaiting ? "…" : paused ? "Paused" : "",
+      badge: [total ? compactCount(total) : submitting || importWaiting || retryWait ? "…" : paused ? "Paused" : "",
         attention ? `!${compactCount(attention)}` : problem ? "!" : ""].filter(Boolean).join(" · "),
       description: `Queue: ${running} running; ${queued} queued; ${attention} need attention.`
+        + (awaiting ? ` ${awaiting} awaiting a complete device read; not yet confirmed.` : '')
+        + (retryWait ? ` ${retryWait}` : '')
         + (importWaiting ? ' An import has addresses waiting for rolling dispatch.' : '')
         + (deviceError ? ' Some device work needs attention; open Status. Healthy devices can continue.' : '')
         + (paused ? " Device mutations are paused; monitoring continues." : "")
@@ -179,6 +193,7 @@
       label.textContent = known
         ? `${request.processed} / ${request.total} jobs processed (${Math.floor(100 * request.processed / request.total)}%). `
           + `${counts.RUNNING || 0} running; ${counts.QUEUED || 0} queued.`
+          + (counts.AWAITING_CONFIRMATION ? ` ${counts.AWAITING_CONFIRMATION} awaiting confirmation.` : '')
         : "Progress totals are not available yet.";
       if (known) {
         progress.max = request.total;
@@ -188,7 +203,9 @@
       const outcomes = document.createElement("p");
       outcomes.textContent = `${counts.VERIFIED || 0} verified; ${counts.NOOP || 0} no-op; `
         + `${counts.FAILED || 0} failed; ${counts.UNVERIFIED || 0} unverified; `
-        + `${counts.CANCELLED || 0} cancelled; ${counts.RECONCILED_ABSENT || 0} reconciled absent.`;
+        + `${counts.CANCELLED || 0} cancelled; ${counts.RECONCILED_ABSENT || 0} reconciled absent.`
+        + (counts.OBSERVED_PRESENT ? ` ${counts.OBSERVED_PRESENT} observed present (not creation proof).` : '')
+        + (counts.CONFIRMED_ABSENT ? ` ${counts.CONFIRMED_ABSENT} confirmed absent; eligible work retries automatically.` : '');
       card.append(title, progress, label, outcomes);
       list.append(card);
     });
@@ -211,6 +228,7 @@
     const names = { verified: 'verified additions', noop: 'verified already present', adopted: 'adopted',
       unchanged: 'already managed', present: 'observed present (not service-created proof)',
       pending: 'waiting for dispatch', queued: 'queued', running: 'running', failed: 'failed',
+      awaiting_confirmation: 'awaiting confirmation', awaiting_retry: 'waiting for a fresh attempt',
       unverified: 'unverified', unknown: 'missing evidence', stopped: 'stopped', superseded: 'superseded' };
     tasks.forEach((task) => {
       if (!/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/.test(task.id)) return;
@@ -276,6 +294,18 @@
   // Hidden security fields come from fresh forms except saved CAS revisions:
   // a dirty acknowledgement must never silently acquire a newer policy scope.
   const replaceRegion = (oldRegion, nextRegion) => {
+    // Review preparation grants no authority. Keep identical editor DOM alive:
+    // even replacing a focused select with an equivalent copy closes its native
+    // popup. Ignore only the user's details state, not server controls/options,
+    // hidden fields or capabilities. Changed/removed forms still refresh below.
+    if (oldRegion.hasAttribute("data-live-editor") && nextRegion.hasAttribute("data-live-editor")) {
+      const markup = (region) => {
+        const copy = region.cloneNode(true);
+        copy.querySelectorAll("details").forEach((element) => element.removeAttribute("open"));
+        return copy.innerHTML;
+      };
+      if (markup(oldRegion) === markup(nextRegion)) return;
+    }
     const values = new Map();
     const fieldKey = (field) => `${field.form?.getAttribute("action") || ""}:${field.form?.dataset.policyIp || ""}:${field.name}:${field.type}`;
     oldRegion.querySelectorAll("input, textarea, select").forEach((field) => {
@@ -488,13 +518,16 @@
         const actions = { opening_session: "Opening session", remove_and_verify: "Removing and verifying",
           add_and_verify: "Adding and verifying",
           stage_addition: "Adding · awaiting batch verification", verify_addition_batch: "Verifying added addresses",
+          settling_pending_additions: "Closing session · confirmation pending",
+          awaiting_confirmation: "Awaiting a complete device read",
           priority_snapshot: "Reading priority snapshot", final_snapshot: "Reading final snapshot",
           completed: "Cycle completed", failed: "Cycle failed" };
         progress.textContent = status.refresh_schedule_mode === "per_device"
           ? Object.entries(status.device_cycles || {}).filter(([id]) => status.devices?.[id]?.active).map(([id, phase]) =>
             `${status.devices[id].hostname}: ${actions[phase.action] || phase.action || "Opening session"}`
             + `${phase.ip ? ` ${phase.ip}` : ""}; ${phase.completed || 0} items completed.`
-            + `${phase.pending_verification ? ` ${phase.pending_verification} awaiting verification.` : ""}`).join(" ")
+            + `${phase.pending_verification ? ` ${phase.pending_verification} awaiting verification.` : ""}`
+            + `${phase.awaiting_confirmation ? ` ${phase.awaiting_confirmation} awaiting confirmation.` : ""}`).join(" ")
           : status.session_cycles_enabled && cycle?.device_id
           ? `${status.devices?.[String(cycle.device_id)]?.hostname || cycle.device_id}: `
             + `${actions[cycle.action] || cycle.action}${cycle.ip ? ` ${cycle.ip}` : ""}. `
@@ -509,9 +542,9 @@
       const reviewedHistory = attentionCounts === queue.attention_counts ? queue.reviewed_history : null;
       const reviewedItems = (reviewedHistory?.items || []).slice(0, 20);
       const reviewedIds = new Set(reviewedItems.map((item) => item.id));
-      const activeStates = new Set(["QUEUED", "RUNNING"]);
+      const activeStates = new Set(["QUEUED", "RUNNING", "AWAITING_CONFIRMATION"]);
       const attentionStates = new Set(["FAILED", "UNVERIFIED"]);
-      const completedStates = new Set(["VERIFIED", "NOOP", "CANCELLED", "RECONCILED_ABSENT"]);
+      const completedStates = new Set(["VERIFIED", "NOOP", "CANCELLED", "RECONCILED_ABSENT", "OBSERVED_PRESENT", "CONFIRMED_ABSENT"]);
       const items = queue.items || [];
       const activeItems = items.filter((item) => activeStates.has(item.state)).slice(0, 100);
       const attentionItems = items.filter((item) => attentionStates.has(item.state)).slice(0, 20);
@@ -537,9 +570,11 @@
         ? ` Next eligible cycle: ${formatTime(queue.next_eligible_at)}.` : "";
       panel.querySelector("[data-queue-summary]").textContent =
         activeTotal ? `${counts.RUNNING || 0} running; ${counts.QUEUED || 0} queued. `
+          + (counts.AWAITING_CONFIRMATION ? `${counts.AWAITING_CONFIRMATION} awaiting confirmation. ` : '')
           + `Showing ${activeItems.length} of ${activeTotal} active operations.${next}`
           : queue.imports?.tasks?.some((task) => count(task.outstanding))
-            ? 'Import work is waiting for rolling dispatch. See whole-import progress below.' : "Queue is empty.";
+            ? 'Import work is waiting for rolling dispatch. See whole-import progress below.'
+            : deferredRetryWait(status) || "Queue is empty.";
       const activeTable = panel.querySelector("[data-queue-active-table]");
       if (activeTable) activeTable.hidden = !activeItems.length;
       const attentionRows = panel.querySelector("[data-queue-attention]");
@@ -558,7 +593,9 @@
         panel.querySelector("[data-queue-completed-note]").textContent =
           `Showing the latest ${completedItems.length} of ${completedTotal} retained results. `
           + `${counts.VERIFIED || 0} verified; ${counts.NOOP || 0} no-op; `
-          + `${counts.CANCELLED || 0} cancelled; ${counts.RECONCILED_ABSENT || 0} reconciled absent.`;
+          + `${counts.CANCELLED || 0} cancelled; ${counts.RECONCILED_ABSENT || 0} reconciled absent.`
+          + (counts.OBSERVED_PRESENT ? ` ${counts.OBSERVED_PRESENT} observed present (not creation proof).` : '')
+          + (counts.CONFIRMED_ABSENT ? ` ${counts.CONFIRMED_ABSENT} confirmed absent; eligible work retries automatically.` : '');
       }
       const reviewedSection = panel.querySelector('#queue-reviewed-details');
       const reviewedRows = panel.querySelector('[data-queue-reviewed]');
@@ -584,7 +621,8 @@
         const requests = item.requests || [];
         [ `${item.hostname} / ${item.ip}`,
           reviewedIds.has(item.id) ? 'Reviewed unknown' : item.action === "ADD" && item.state === "QUEUED" && item.execution_enabled !== true
-            ? "Held" : item.state,
+            ? "Held" : ({ AWAITING_CONFIRMATION: 'Awaiting confirmation', OBSERVED_PRESENT: 'Observed present',
+              CONFIRMED_ABSENT: 'Confirmed absent' }[item.state] || item.state),
           requests.map((request) => `${request.actor_display_name} (${request.source}`
             + `${activeStates.has(item.state) && request.state !== "ACTIVE" ? `, ${request.state}` : ""})`).join(", "),
           reviewedIds.has(item.id) ? `Original outcome: ${item.state}. Reviewed: ${formatTime(item.reviewed_at)}. ${item.reason || ''}`

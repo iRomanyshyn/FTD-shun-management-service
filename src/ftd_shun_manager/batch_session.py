@@ -16,8 +16,10 @@ from .operation_queue import ClaimNotSubmitted
 
 
 class BatchSession:
+    _session_versions = (5, 6)
+
     def __init__(self, worker, device_id, cycle, snapshot):
-        if (not worker.batch_additions_enabled or cycle.version not in (5, 6)
+        if (not worker.batch_additions_enabled or cycle.version not in self._session_versions
                 or not isinstance(worker.queue, BatchDeviceOperationQueue)):
             raise ValueError('Grouped execution requires the explicit matching fenced grouped worker.')
         self.worker, self.device, self.cycle = worker, device_id, cycle
@@ -30,8 +32,7 @@ class BatchSession:
     async def publish(self, snapshot, started, completed):
         self.snapshot = snapshot
         w = self.worker
-        await w._publish_complete_snapshot(self.device, snapshot)
-        await w._local_call(w._discover_snapshot, self.device, snapshot, started, completed)
+        await w._process_complete_snapshot(self.device, snapshot, started, completed)
 
     async def flush(self, *, final=False):
         if not self.queue.pending:
@@ -54,7 +55,7 @@ class BatchSession:
         # Result-before-publication is essential: otherwise reconciliation could
         # create an occurrence and cause the verified ADD's origin to be refused.
         await self.publish(list(result.snapshot), started, completed)
-        if self.cycle.version == 6 and not final:
+        if self.cycle.version >= 6 and not final:
             # No pending writes remain. New jobs require this fresh read and
             # current authority; old delegations/deadlines are never extended.
             w._cycle_cutoff = await w._local_call(self.queue.cutoff)
@@ -146,7 +147,7 @@ class BatchSession:
         w = self.worker
         w._device_cycle['pending_verification'] = 0
         try:
-            if self.cycle.version == 6:
+            if self.cycle.version >= 6:
                 # The caller published and discovered the complete initial read.
                 # Freeze this segment only; each claim retains its evidence age.
                 w._cycle_cutoff = await w._local_call(self.queue.cutoff)

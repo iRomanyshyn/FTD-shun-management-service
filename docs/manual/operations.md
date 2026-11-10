@@ -1,5 +1,41 @@
 # Operations Manual
 
+## Interrupted imports and unverified operations
+
+Open **Queue → Needs attention → Check and resume import** for current recovery
+evidence and [host-assisted recovery](queue-recovery.md). This is not retry-all:
+unknown outcomes remain in history, with a separate exact recovery decision and
+a new complete read before current missing-target work can continue. Current
+browser controls only inspect/prepare guidance; host quiescence remains required.
+
+## Using IP actions while information updates
+
+The action panels at the bottom of **Managed shuns** stay open during automatic
+updates. Unchanged review-preparation forms retain their actual controls, so
+the IP selector, typed reason and keyboard focus are not reset by device polling.
+Status, Queue and observed results continue updating. If the server changes the
+available targets or capabilities, controls still update or disappear; opening
+a panel does not reserve permission. Review and confirmation remain separate.
+
+## Browsing long Shuns lists
+
+**Shuns** displays 100 active observations per page, with **Previous 100**,
+**Next 100**, a page-number field and **Newest shuns**. The total counts device/
+IP/interface observations, not distinct IP addresses. Protected-IP matches stay
+first; the remaining order is newest current detection first.
+
+Automatic updates replace the open page without growing its table or returning
+to page 1. New detections/removals can move entries between pages; if the last
+page disappears, the next update shows the new last page. Use **IP search** to
+find an address across the whole retained dataset, not just the displayed page.
+Navigation retains the search query; starting a new search starts on page 1.
+This local browsing issues no Cisco commands or queue admissions.
+
+Deploy API and Web together: Web needs `GET /api/v1/shuns-page?page=N` from the
+matching API. No database migration or agent update is required. Existing tabs
+need one reload to receive the bounded rendering. API restarts may continue
+already admitted work; preserve the current database, policy and recovery evidence.
+
 ## Current queue increment and planned extensions
 
 Manual and trusted-policy removals now use the durable shared SQLite queue.

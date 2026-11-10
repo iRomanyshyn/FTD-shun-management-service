@@ -44,6 +44,19 @@ class VerifiedAdditionBatch:
     snapshot: tuple[ObservedShun, ...]
 
 
+@dataclass(frozen=True)
+class SettledPendingAdditions:
+    """Transport-only ACK/closed-session evidence, NOT presence or creation.
+
+    No current queue/runtime accepts this as a terminal job or release proof.
+    """
+
+    device_id: int
+    session_id: bytes
+    sequence: int
+    acknowledgements: tuple[PendingAddition, ...]
+
+
 class Operation(IntEnum):
     LIST_SHUNS = 0x01
     GET_SHUN = 0x02
@@ -66,28 +79,29 @@ class CycleOperation(IntEnum):
     STAGE_ADD = 0x1a
     VERIFY_ADDS = 0x1b
     VERIFY_END = 0x1c
+    END_PENDING = 0x1d
 
 
 SESSION_LOOKUP = 0x19
 
 
 def max_cycle_sequence(version: int) -> int:
-    return 130 if version == 6 else 34 if version in (4, 5) else MAX_CYCLE_REMOVALS + 2
+    return 130 if version in (6, 7) else 34 if version in (4, 5) else MAX_CYCLE_REMOVALS + 2
 
 
 def max_cycle_mutations(version: int) -> int:
-    return 64 if version == 6 else MAX_CYCLE_REMOVALS
+    return 64 if version in (6, 7) else MAX_CYCLE_REMOVALS
 
 
 def max_pending_additions(version: int) -> int:
-    if type(version) is not int or version not in (4, 5, 6):
+    if type(version) is not int or version not in (4, 5, 6, 7):
         raise ValueError('Pending additions require a grouped cycle version.')
     return 8 if version == 4 else MAX_PENDING_ADDITIONS
 
 
 def encode_session_request(operation: int, version: int, device_id: int, session_id: bytes):
     if (type(operation) is not int or operation not in (0x18, SESSION_LOOKUP)
-            or type(version) is not int or version not in (1, 2, 3, 4, 5, 6)
+            or type(version) is not int or version not in (1, 2, 3, 4, 5, 6, 7)
             or type(device_id) is not int or not 1 <= device_id <= 65535
             or type(session_id) is not bytes or len(session_id) != 16 or not any(session_id)):
         raise ValueError('Invalid exact session binding.')
@@ -104,17 +118,19 @@ def decode_session_lookup(packet: bytes, version: int, device_id: int, session_i
 def encode_cycle_request(operation: CycleOperation, sequence: int, *,
                          device_id: int | None = None, ip: IPv4Address | None = None,
                          version: int = CYCLE_VERSION) -> bytes:
-    if type(version) is not int or version not in (1, 2, 3, 4, 5, 6):
+    if type(version) is not int or version not in (1, 2, 3, 4, 5, 6, 7):
         raise ValueError("invalid cycle version")
     operation = CycleOperation(operation)
+    if operation == CycleOperation.END_PENDING and version != 7:
+        raise ValueError('Pending-only end requires tracked cycle version 7')
     if operation == CycleOperation.ADD and version != 3:
         raise ValueError("ADD requires cycle version 3")
-    if operation in {CycleOperation.STAGE_ADD, CycleOperation.VERIFY_ADDS} and version not in (4, 5, 6):
-        raise ValueError("Batch additions require cycle version 4, 5 or 6")
-    if operation == CycleOperation.VERIFY_END and version not in (5, 6):
-        raise ValueError('Combined verification/end requires cycle version 5 or 6')
+    if operation in {CycleOperation.STAGE_ADD, CycleOperation.VERIFY_ADDS} and version not in (4, 5, 6, 7):
+        raise ValueError("Batch additions require a tracked grouped cycle version")
+    if operation == CycleOperation.VERIFY_END and version not in (5, 6, 7):
+        raise ValueError('Combined verification/end requires a shared-end cycle version')
     if operation in {CycleOperation.BEGIN, CycleOperation.BEGIN_SETTLED, CycleOperation.BEGIN_RECOVERABLE}:
-        if version in (4, 5, 6):
+        if version in (4, 5, 6, 7):
             raise ValueError("Batch cycles require tracked BEGIN")
         if sequence != 0 or device_id is None or not 1 <= device_id <= 65535 or ip is not None:
             raise ValueError("invalid cycle begin fields")
@@ -132,15 +148,17 @@ def encode_cycle_request(operation: CycleOperation, sequence: int, *,
 
 def decode_cycle_response(packet: bytes, operation: CycleOperation, sequence: int, *,
                           version: int = CYCLE_VERSION, target: IPv4Address | None = None):
-    if type(version) is not int or version not in (1, 2, 3, 4, 5, 6):
+    if type(version) is not int or version not in (1, 2, 3, 4, 5, 6, 7):
         raise ValueError("invalid cycle version")
     operation = CycleOperation(operation)
+    if operation == CycleOperation.END_PENDING:
+        raise ValueError('Pending-only end requires its separate non-success decoder')
     if operation == CycleOperation.ADD and version != 3:
         raise ValueError("ADD requires cycle version 3")
-    if operation in {CycleOperation.STAGE_ADD, CycleOperation.VERIFY_ADDS} and version not in (4, 5, 6):
-        raise ValueError("Batch additions require cycle version 4, 5 or 6")
-    if operation == CycleOperation.VERIFY_END and version not in (5, 6):
-        raise ValueError('Combined verification/end requires cycle version 5 or 6')
+    if operation in {CycleOperation.STAGE_ADD, CycleOperation.VERIFY_ADDS} and version not in (4, 5, 6, 7):
+        raise ValueError("Batch additions require a tracked grouped cycle version")
+    if operation == CycleOperation.VERIFY_END and version not in (5, 6, 7):
+        raise ValueError('Combined verification/end requires a shared-end cycle version')
     begin = operation in {CycleOperation.BEGIN, CycleOperation.BEGIN_SETTLED, CycleOperation.BEGIN_RECOVERABLE, CycleOperation.BEGIN_TRACKED}
     if (begin and sequence != 0) or (
         not begin and not 1 <= sequence <= max_cycle_sequence(version)
@@ -187,8 +205,8 @@ def decode_cycle_response(packet: bytes, operation: CycleOperation, sequence: in
 
 def decode_cycle_settlement(packet: bytes, sequence: int, *, version: int, begin=CycleOperation.BEGIN_SETTLED):
     """Local completed-handler receipt, never mutation/recovery authority."""
-    if (type(version) is not int or version not in (1, 2, 3, 4, 5, 6)
-            or (version in (4, 5, 6) and begin != CycleOperation.BEGIN_TRACKED)
+    if (type(version) is not int or version not in (1, 2, 3, 4, 5, 6, 7)
+            or (version in (4, 5, 6, 7) and begin != CycleOperation.BEGIN_TRACKED)
             or begin not in (CycleOperation.BEGIN_SETTLED, CycleOperation.BEGIN_RECOVERABLE, CycleOperation.BEGIN_TRACKED)
             or type(sequence) is not int or not 1 <= sequence <= max_cycle_sequence(version)
             or packet != bytes([0, version, begin, sequence])):
@@ -197,8 +215,8 @@ def decode_cycle_settlement(packet: bytes, sequence: int, *, version: int, begin
 
 def decode_cycle_open_failure(packet: bytes, *, version: int, begin=CycleOperation.BEGIN_RECOVERABLE):
     """Exact terminal proof that opening ended before any Cisco command."""
-    if (type(version) is not int or version not in (1, 2, 3, 4, 5, 6)
-            or (version in (4, 5, 6) and begin != CycleOperation.BEGIN_TRACKED)
+    if (type(version) is not int or version not in (1, 2, 3, 4, 5, 6, 7)
+            or (version in (4, 5, 6, 7) and begin != CycleOperation.BEGIN_TRACKED)
             or begin not in (CycleOperation.BEGIN_RECOVERABLE, CycleOperation.BEGIN_TRACKED)
             or packet != bytes([3, version, begin, 0])):
         raise ValueError('Missing or invalid exact cycle opening-failure receipt.')
@@ -206,8 +224,8 @@ def decode_cycle_open_failure(packet: bytes, *, version: int, begin=CycleOperati
 
 def decode_cycle_read_failure(packet: bytes, operation: CycleOperation, sequence: int, *, version: int):
     """Terminal failed-read proof, never a snapshot or mutation success."""
-    if (type(version) is not int or version not in (1, 2, 3, 4, 5, 6)
-            or (version in (4, 5, 6) and operation == CycleOperation.BEGIN_RECOVERABLE)
+    if (type(version) is not int or version not in (1, 2, 3, 4, 5, 6, 7)
+            or (version in (4, 5, 6, 7) and operation == CycleOperation.BEGIN_RECOVERABLE)
             or type(sequence) is not int
             or not ((operation in (CycleOperation.BEGIN_RECOVERABLE, CycleOperation.BEGIN_TRACKED) and sequence == 0)
                     or (operation in (CycleOperation.SNAPSHOT, CycleOperation.END)
@@ -216,11 +234,32 @@ def decode_cycle_read_failure(packet: bytes, operation: CycleOperation, sequence
         raise ValueError('Missing or invalid exact cycle read-failure receipt.')
 
 
+def decode_pending_end(packet: bytes, sequence: int, pending: tuple[PendingAddition, ...], *, version: int):
+    """Exact status-06 scope only; caller still must receive terminal settlement."""
+    if (type(version) is not int or version != 7 or type(sequence) is not int
+            or not 1 <= sequence <= max_cycle_sequence(version)
+            or type(pending) is not tuple or not 1 <= len(pending) <= max_pending_additions(version)):
+        raise ValueError('Invalid pending-only end binding or capacity.')
+    seen, previous = set(), 0
+    for item in pending:
+        if (type(item) is not PendingAddition or type(item.ip) is not IPv4Address
+                or type(item.sequence) is not int or not previous < item.sequence < sequence
+                or item.ip in seen):
+            raise ValueError('Pending-only end requires exact ordered original acknowledgements.')
+        previous = item.sequence
+        seen.add(item.ip)
+    expected = bytes([6, version, CycleOperation.END_PENDING, sequence, len(pending)]) + b''.join(
+        item.ip.packed for item in pending)
+    if type(packet) is not bytes or packet != expected:
+        raise ValueError('Pending-only end receipt differs from the original pending scope.')
+    return pending
+
+
 def decode_addition_batch(packet: bytes, sequence: int, pending: tuple[IPv4Address, ...], *,
                           version: int = 4, operation: CycleOperation = CycleOperation.VERIFY_ADDS):
     """Decode only the proof header; a complete matching snapshot is also required."""
     if (operation not in (CycleOperation.VERIFY_ADDS, CycleOperation.VERIFY_END)
-            or (operation == CycleOperation.VERIFY_END and version not in (5, 6))
+            or (operation == CycleOperation.VERIFY_END and version not in (5, 6, 7))
             or type(sequence) is not int or not 1 <= sequence <= max_cycle_sequence(version)
             or not 1 <= len(pending) <= max_pending_additions(version) or len(set(pending)) != len(pending)
             or any(type(ip) is not IPv4Address for ip in pending)

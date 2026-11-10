@@ -178,6 +178,23 @@ class Store:
             )
 
     def list_active_shuns(self, ip: IPv4Address | None = None) -> list[Shun]:
+        with self._connection() as db:
+            db.execute('BEGIN')
+            return self._active_shuns(db, ip)
+
+    def active_shuns_page(self, page: int = 1) -> dict:
+        """One bounded live page; count, ordering and origins share one read snapshot."""
+        if type(page) is not int or not 1 <= page < 2**31:
+            raise ValueError('page must be an integer between 1 and 2147483647')
+        with self._connection() as db:
+            db.execute('BEGIN')
+            total = db.execute('SELECT COUNT(*) FROM shun_state WHERE active=1').fetchone()[0]
+            pages = max(1, (total + 99) // 100)
+            page = min(page, pages)
+            return {'items': self._active_shuns(db, limit=100, offset=(page - 1) * 100),
+                    'page': page, 'pages': pages, 'total': total, 'page_size': 100}
+
+    def _active_shuns(self, db, ip: IPv4Address | None = None, *, limit=None, offset=0) -> list[Shun]:
         query = """
           SELECT s.device_id, d.hostname AS device_hostname, s.ip, s.interface,
                  s.first_seen_at, s.last_seen_at, s.active,
@@ -186,45 +203,49 @@ class Store:
           LEFT JOIN protected_ips AS p ON p.ip = s.ip
           WHERE s.active = 1
         """
-        parameters: tuple[bytes, ...] = ()
+        parameters: tuple[bytes | int, ...] = ()
         if ip:
             query += " AND s.ip = ?"
             parameters = (ip.packed,)
         # Both enabled and disabled policy matches need attention while shunned.
         # last_changed_at is the current appearance, not each polling timestamp.
-        query += " ORDER BY (p.ip IS NOT NULL) DESC, s.last_changed_at DESC, s.ip, d.hostname, s.interface"
-        with self._connection() as db:
-            db.execute("BEGIN")
-            rows = db.execute(query, parameters).fetchall()
-            origins: dict[str, list[dict]] = {}
-            origin_counts: dict[str, int] = {}
+        query += " ORDER BY (p.ip IS NOT NULL) DESC, s.last_changed_at DESC, s.ip, d.hostname, s.interface, s.device_id"
+        if limit is not None:
+            query += ' LIMIT ? OFFSET ?'
+            parameters += (limit, offset)
+        rows = db.execute(query, parameters).fetchall()
+        origins: dict[str, list[dict]] = {}
+        origin_counts: dict[str, int] = {}
+        selected = []
+        # Fetch provenance ONLY for displayed occurrences, in bounded SQL chunks.
+        # Never scan/serialize every import origin just to render a 100-row page.
+        occurrence_ids = [row['occurrence_id'] for row in rows if row['occurrence_id']]
+        for start in range(0, len(occurrence_ids), 500):
+            group = occurrence_ids[start:start + 500]
             # One representative plus exact total per occurrence: coalesced
             # actors remain fully audited without multiplying large API bodies.
             origin_query = """SELECT o.occurrence_id,MIN(o.rowid) AS representative,COUNT(*) AS n
                 FROM shun_import_origins o
                 JOIN shun_state s ON s.occurrence_id=o.occurrence_id AND s.active=1
-                WHERE s.device_id=o.device_id AND s.ip=o.ip AND s.interface=o.interface"""
-            if ip:
-                origin_query += " AND s.ip=?"
-            selected = db.execute("""SELECT o.*,live.n FROM (""" + origin_query + """
+                WHERE s.device_id=o.device_id AND s.ip=o.ip AND s.interface=o.interface
+                AND o.occurrence_id IN (""" + ','.join('?' for _ in group) + ')'
+            selected.extend(db.execute("""SELECT o.*,live.n FROM (""" + origin_query + """
                 GROUP BY o.occurrence_id) AS live JOIN shun_import_origins o ON o.rowid=live.representative""",
-                parameters).fetchall()
-            batches = {}
-            batch_ids = sorted({row["batch_id"] for row in selected})
-            # Decode each canonical batch once, not its potentially 1000-target
-            # payload once per origin/active row. Bound SQL variable/body peaks.
-            for offset in range(0,len(batch_ids),500):
-                group = batch_ids[offset:offset+500]
-                for batch in db.execute("SELECT * FROM manual_import_batches WHERE id IN (" + ",".join("?" for _ in group) + ")",group):
-                    payload = json.loads(batch["payload_json"])
-                    batches[batch["id"]] = {"actor_subject":batch["actor_subject"],
-                        "actor_display_name":batch["actor_display_name"],"label":payload["label"],"reason":payload["reason"]}
-            for origin in selected:
-                origin_counts[origin["occurrence_id"]] = origin["n"]
-                origins.setdefault(origin["occurrence_id"], []).append({
-                    "source": "manual_import", "batch_id": origin["batch_id"], "operation_id": origin["job_id"],
-                    **batches[origin["batch_id"]], "verified_at": origin["verified_at"],
-                })
+                group).fetchall())
+        batches = {}
+        batch_ids = sorted({row["batch_id"] for row in selected})
+        for start in range(0, len(batch_ids), 500):
+            group = batch_ids[start:start + 500]
+            for batch in db.execute("SELECT * FROM manual_import_batches WHERE id IN (" + ",".join("?" for _ in group) + ")",group):
+                payload = json.loads(batch["payload_json"])
+                batches[batch["id"]] = {"actor_subject":batch["actor_subject"],
+                    "actor_display_name":batch["actor_display_name"],"label":payload["label"],"reason":payload["reason"]}
+        for origin in selected:
+            origin_counts[origin["occurrence_id"]] = origin["n"]
+            origins.setdefault(origin["occurrence_id"], []).append({
+                "source": "manual_import", "batch_id": origin["batch_id"], "operation_id": origin["job_id"],
+                **batches[origin["batch_id"]], "verified_at": origin["verified_at"],
+            })
         return [
             Shun(
                 row["device_id"], row["device_hostname"], IPv4Address(row["ip"]),
@@ -594,6 +615,11 @@ class Store:
         with self._connection() as db:
             from .bulk_ordered_waits import present as ordered_present
             from .bulk_ordered_waits import validate_held_predecessors
+            from .bulk_policy import _state as bulk_state
+            from .pending_confirmation import present as pending_present
+            from .pending_retries import present as retries_present
+            from .pending_retries import validate_retained_jobs
+            from .prewrite_recovery import present as prewrite_present
 
             db.execute('BEGIN IMMEDIATE')
             preserve = ''
@@ -602,6 +628,37 @@ class Store:
                 preserve = ''' AND NOT EXISTS (SELECT 1 FROM managed_bulk_ordered_members m
                     WHERE m.claim_event_id=shun_events.id OR (shun_events.event_type='SHUN_OPERATION_DEFERRED'
                         AND shun_events.request_id=json_extract(m.predecessor_json,'$.request_id')))'''
+            if pending_present(db):
+                bulk_state(db)  # Missing/corrupt retained evidence must refuse all deletion.
+                preserve += ''' AND NOT EXISTS (SELECT 1 FROM managed_bulk_pending_members m
+                    WHERE m.attempt_id=shun_events.request_id)
+                    AND NOT EXISTS (SELECT 1 FROM managed_bulk_pending_sessions s
+                        WHERE shun_events.event_type='DEVICE_LEASE_CLAIMED' AND s.device_id=shun_events.device_id
+                        AND s.owner=json_extract(shun_events.details_json,'$.owner')
+                        AND s.epoch=json_extract(shun_events.details_json,'$.epoch'))'''
+            if retries_present(db):
+                validate_retained_jobs(db)
+                preserve += ''' AND NOT EXISTS (SELECT 1 FROM managed_bulk_pending_retries r
+                    WHERE r.attempt_id=shun_events.request_id)
+                    AND NOT EXISTS (SELECT 1 FROM managed_bulk_pending_retries r
+                        JOIN managed_bulk_attempts a ON a.id=r.attempt_id
+                        WHERE shun_events.event_type='DEVICE_LEASE_CLAIMED' AND a.device_id=shun_events.device_id
+                        AND r.owner=json_extract(shun_events.details_json,'$.owner')
+                        AND r.epoch=json_extract(shun_events.details_json,'$.epoch'))
+                    AND NOT EXISTS (SELECT 1 FROM managed_bulk_pending_retries r
+                        JOIN shun_events claim ON claim.request_id=r.attempt_id AND claim.event_type='SHUN_OPERATION_RUNNING'
+                        WHERE shun_events.event_type='DEVICE_LEASE_CLAIMED' AND claim.device_id=shun_events.device_id
+                        AND json_extract(claim.details_json,'$.device_executor.owner')=json_extract(shun_events.details_json,'$.owner')
+                        AND json_extract(claim.details_json,'$.device_executor.epoch')=json_extract(shun_events.details_json,'$.epoch'))'''
+            if prewrite_present(db):
+                bulk_state(db)
+                preserve += ''' AND NOT EXISTS(SELECT 1 FROM managed_bulk_prewrite_recovery p
+                    JOIN managed_bulk_attempts a ON a.job_id=p.job_id WHERE a.id=shun_events.request_id)
+                    AND NOT EXISTS(SELECT 1 FROM managed_bulk_prewrite_recovery p
+                        JOIN managed_bulk_device_recovery r ON r.id=p.recovery_id
+                        WHERE shun_events.event_type='DEVICE_LEASE_CLAIMED' AND r.device_id=shun_events.device_id
+                        AND r.owner=json_extract(shun_events.details_json,'$.owner')
+                        AND r.epoch=json_extract(shun_events.details_json,'$.epoch'))'''
             origins_deleted = db.execute("""DELETE FROM shun_import_origins WHERE verified_at<?
                 AND NOT EXISTS (SELECT 1 FROM shun_state s WHERE s.occurrence_id=shun_import_origins.occurrence_id
                   AND s.active=1)""", (cutoff,)).rowcount

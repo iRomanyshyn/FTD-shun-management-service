@@ -37,6 +37,18 @@
 
 <section id="active-shuns" data-live-region aria-labelledby="active-shuns-heading">
 <h2 id="active-shuns-heading">Current active shuns</h2>
+{% if shun_pagination %}
+<nav class="history-pagination" aria-label="Shuns pagination">
+<p data-shun-page-summary>Page {{ shun_pagination.page }} of {{ shun_pagination.pages }} · {{ shun_pagination.total }} active shuns · 100 per page</p>
+<div class="pagination-controls">
+{% if shun_pagination.page > 1 %}<a rel="prev" href="/?page={{ shun_pagination.page - 1 }}{% if search_query %}&amp;q={{ search_query | urlencode }}{% endif %}">Previous 100</a>{% else %}<span aria-disabled="true">Previous</span>{% endif %}
+{% if shun_pagination.page < shun_pagination.pages %}<a rel="next" href="/?page={{ shun_pagination.page + 1 }}{% if search_query %}&amp;q={{ search_query | urlencode }}{% endif %}">Next 100</a>{% else %}<span aria-disabled="true">Next</span>{% endif %}
+{% if shun_pagination.pages > 1 %}<form method="get" action="/" class="history-page-form"><label for="shun-page">Page</label><input id="shun-page" name="page" type="number" min="1" max="{{ shun_pagination.pages }}" value="{{ shun_pagination.page }}" required>{% if search_query %}<input type="hidden" name="q" value="{{ search_query }}">{% endif %}<button type="submit">Go</button></form>{% endif %}
+<a href="/">Newest shuns</a>
+</div>
+<p class="muted">Live list: new detections and removals may move entries between pages. IP search checks the whole retained dataset, not just this page.</p>
+</nav>
+{% endif %}
 {% if shuns %}
 <p class="muted">Protected IPs (including disabled) first; newest detections first. Times reflect service observations, not device creation.</p>
 <table><thead><tr><th>IP address</th><th>Device hostname</th><th>Interface</th><th>Observed since</th><th>Last seen</th><th>Action</th></tr></thead>

@@ -31,6 +31,7 @@ pub(super) fn encode_versioned(
             | batch_addition::VERSION
             | batch_addition::SHARED_END_VERSION
             | batch_addition::MULTI_GROUP_VERSION
+            | batch_addition::PENDING_END_VERSION
     ) || (opcode == 7 && version != VERSION)
         || (batch_addition::supported(version)
             && matches!(

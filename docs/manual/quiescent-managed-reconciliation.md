@@ -7,6 +7,10 @@ VERIFIED/NOOP. Manual commands, uncertain REMOVE, FAILED attempts, other owned
 devices, foreign uncertainty and unsettled cleanup refuse. Do not use the
 separate verified-epoch tool to force this case through.
 
+For 17–64 original tracked-v6 system ADD claims use the separately selected
+[extended offline profile](extended-session-recovery.md). Do not raise the default
+limit, truncate a review or reuse another epoch's receipt.
+
 ## What changes
 
 The original unknown job, system attempt, delegation, terminal audit and policy

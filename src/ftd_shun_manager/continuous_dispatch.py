@@ -57,6 +57,8 @@ class ContinuousDispatcher:
     initializes schema, grants/resumes policy or activates the lab.
     """
 
+    _runner_type = ParallelSynchronizer
+
     def __init__(self, store, agent, *, clock=monotonic, history_retention_days=366,
                  ordered_promotion_enabled=False, **configuration):
         if type(ordered_promotion_enabled) is not bool:
@@ -64,7 +66,7 @@ class ContinuousDispatcher:
         if configuration.get('settled_cycles_required', True) is not True:
             raise ValueError('Continuous dispatch cannot disable required cycle settlement.')
         configuration['settled_cycles_required'] = True
-        self.runner = ParallelSynchronizer(store, agent, **configuration)
+        self.runner = self._runner_type(store, agent, **configuration)
         self.ordered_promotion_enabled = ordered_promotion_enabled
         from .bulk_ordered_promotion import BulkOrderedPromoter
 
@@ -388,7 +390,8 @@ class ContinuousDispatcher:
         due = demand.manual_due(self.runner.configuration['interactive_min_interval_seconds'])
         worker = self.runner._workers.get(device)
         if (due is not None and due <= current and worker is not None and not worker._priority_used
-                and worker._device_cycle.get('action') not in {'final_snapshot', 'completed', 'failed'}):
+                and worker._device_cycle.get('action') not in {'final_snapshot', 'completed', 'failed',
+                    'settling_pending_additions', 'awaiting_confirmation'}):
             worker._priority_pending = True
             worker._device_cycle['priority_state'] = 'waiting_for_checkpoint'
 
@@ -522,6 +525,8 @@ class ContinuousDispatcher:
                 continue
             if self._retry_after.get(device.id, 0) > current:
                 continue
+            if not self._read_ready(device.id, current):
+                continue
             demand = self._demands[device.id]
             manual = demand.manual_due(self.runner.configuration['interactive_min_interval_seconds'])
             manual_due = manual is not None and manual <= current
@@ -529,7 +534,8 @@ class ContinuousDispatcher:
             policy_due = self._policy_scan_due(device.id)
             policy_due = policy_due is not None and policy_due < current
             pending = self._pending(device.id)
-            if not (manual_due or baseline_due or pending or policy_due or device.id in self._work_hints):
+            if not (manual_due or baseline_due or pending or policy_due or device.id in self._work_hints
+                    or self._scheduled_read_due(device.id, current)):
                 continue
             priority = 0 if manual_due else 1 if pending and self._pending(device.id, removals_only=True) else 2 if baseline_due else 3
             ready.append((priority, self._last_dispatch.get(device.id, -1), device.id, device))
@@ -541,3 +547,9 @@ class ContinuousDispatcher:
             self._active[device_id] = task
             task.add_done_callback(lambda _: self._wake.set())
             self._revision += 1
+
+    def _read_ready(self, device, current):
+        return True
+
+    def _scheduled_read_due(self, device, current):
+        return False

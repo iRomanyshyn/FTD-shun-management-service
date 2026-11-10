@@ -40,11 +40,7 @@ class _DeviceWorker(Synchronizer):
         self._timing = SessionTiming()
 
     def bind(self, token, lease_seconds, *, priority_removals=False):
-        from .batch_queue import BatchDeviceOperationQueue
-
-        queue_type = BatchDeviceOperationQueue if self.batch_additions_enabled and self.device_id in self.addition_device_ids else DeviceOperationQueue
-        options = {'version': self.batch_session_version} if queue_type is BatchDeviceOperationQueue else {}
-        self.queue = queue_type(self.store, token, priority_removals=priority_removals, **options)
+        self.queue = self._bound_queue(token, priority_removals)
         self.instance_id = token.owner
         self._lease_seconds = lease_seconds
         # Preserve non-authoritative keyset hints across rounds, never authority.
@@ -65,6 +61,16 @@ class _DeviceWorker(Synchronizer):
         self._cycle_outcome = 'running'
         self._device_cycle = {}  # Never expose progress from a previous visit.
         self._timing = SessionTiming()
+
+    def _bound_queue(self, token, priority_removals):
+        from .batch_queue import BatchDeviceOperationQueue
+
+        queue_type = BatchDeviceOperationQueue if self.batch_additions_enabled and self.device_id in self.addition_device_ids else DeviceOperationQueue
+        options = {'version': self.batch_session_version} if queue_type is BatchDeviceOperationQueue else {}
+        return queue_type(self.store, token, priority_removals=priority_removals, **options)
+
+    def _release_completed_visit(self):
+        self.queue.finish_cycle(self.instance_id, 0)
 
     def _collection_devices(self):
         return [device for device in self.store.list_devices() if device.id == self.device_id]
@@ -204,6 +210,8 @@ class ParallelSynchronizer:
     step. A round reuses Synchronizer's bounded sessions and shared job queue.
     """
 
+    _worker_type = _DeviceWorker
+
     def __init__(self, store, agent, *, enabled=False, agent_concurrency=1,
                  operation_timeout_seconds=125, poll_interval_seconds=300,
                  interactive_min_interval_seconds=60, addition_device_ids=frozenset(),
@@ -260,6 +268,7 @@ class ParallelSynchronizer:
     def _configured_devices(self):
         profile = self.leases.status()  # Exact profile validation, never initialize/repair.
         from .bulk_ordered_promotion import present as promotion_present
+        self._validate_execution_storage()
 
         if not self.settled_cycles_required:
             with self.store._connection() as db:
@@ -278,6 +287,13 @@ class ParallelSynchronizer:
         discovery = BulkDiscovery(self.store, self.queue, enabled=self.configuration['bulk_dispatch_enabled'],
                                   addition_device_ids=self.configuration['addition_device_ids'])
         return profile, discovery.ordered_devices(devices)
+
+    def _validate_execution_storage(self):
+        from .pending_execution import present as pending_execution_present
+
+        with self.store._connection() as db:
+            if pending_execution_present(db):
+                raise QueueConflict('Pending execution storage requires its explicit deferred worker.')
 
     async def sweep(self):
         if not self.enabled:
@@ -336,7 +352,7 @@ class ParallelSynchronizer:
             return
         worker = self._workers.get(device.id)
         if worker is None:
-            worker = self._workers[device.id] = _DeviceWorker(
+            worker = self._workers[device.id] = self._worker_type(
                 self.store, self.agent, device.id, **self.configuration)
         timing_bound = False
         try:
@@ -375,7 +391,7 @@ class ParallelSynchronizer:
                 if self.settled_cycles_required and not worker.session_settled:
                     worker.rpc_failed = True
                 else:
-                    worker.queue.finish_cycle(token.owner, 0)
+                    worker._release_completed_visit()
             self._results[str(device.id)] = {
                 'state': 'retrying' if worker.request_not_submitted or worker.opening_failed or worker.read_failed or worker.receipt_recovered else
                          'held' if worker.rpc_failed else worker._cycle_outcome,

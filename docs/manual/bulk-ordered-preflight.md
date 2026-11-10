@@ -66,6 +66,7 @@ ADD deadline or proves a remote command has stopped.
 
 | Code | Meaning |
 | --- | --- |
+| `ADD_AWAITING_CONFIRMATION` | Source-only deferred ADD has settled but awaits a complete read; request refresh and review again. Not READY or a waitable RUNNING predecessor. |
 | `MUTATIONS_PAUSED` | Global durable mutation pause; independent policy controls remain unchanged. |
 | `DEVICE_DISABLED` | Target is retained but disabled. |
 | `DEVICE_OUTSIDE_EXECUTOR_SCOPE` | Target is not in the sealed device executor profile. |

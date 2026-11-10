@@ -31,19 +31,19 @@
 <a href="/managed-shuns">Current policy</a></div></nav>
 {% endif %}
 </section>
-<section id="managed-retirement-preparation" data-live-region>
+<section id="managed-retirement-preparation" data-live-region data-live-editor>
 {% if not managed.changed and refresh.managed_policy_retirement_available and ('Operator' in identity.roles or 'Administrator' in identity.roles) %}
 {% set maintained = managed.entries | selectattr('enabled') | list %}{% if maintained %}
-<details><summary>Turn off auto-restore only — leave device unchanged</summary>
+<details id="managed-retirement-options"><summary>Turn off auto-restore only — leave device unchanged</summary>
 <p>This does not unblock the address or automatically remove future FTD-created blocks. Use Protected IPs for automatic unblocking.</p>
 <form method="post" action="/managed-shuns/retirement-review" class="import-confirm-form">
 <input type="hidden" name="csrf" value="{{ csrf_token }}"><label for="retirement-target">Exact target on this page</label><select id="retirement-target" name="target" required><option value="">Choose one device/IP</option>{% for entry in maintained %}<option value="{{ entry.device_id }}:{{ entry.ip }}">{{ entry.hostname }} — {{ entry.ip }}</option>{% endfor %}</select>
 <label for="retirement-reason">Reason (optional)</label><input id="retirement-reason" name="reason" maxlength="500"><button type="submit">Review turning off auto-restore</button></form>
 </details>{% endif %}{% endif %}
 </section>
-<section id="ready-removal-preparation" data-live-region>
+<section id="ready-removal-preparation" data-live-region data-live-editor>
 {% if refresh.ready_removal_review_available is sameas true and ('Operator' in identity.roles or 'Administrator' in identity.roles) %}
-<details><summary>Turn off auto-restore and remove block</summary>
+<details id="ready-removal-options"><summary>Turn off auto-restore and remove block</summary>
 <p>Review first, then confirm. This option requires no conflicting work on the selected addresses. Disabled devices or unresolved operations block the whole request; nothing is silently skipped.</p>
 {% if not managed.changed and managed.entries %}
 <form method="post" action="/managed-shuns/v2/removal-review" class="import-confirm-form">
@@ -57,9 +57,9 @@
 <label for="ready-fleet-reason">Reason (optional)</label><input id="ready-fleet-reason" name="reason" maxlength="500"><button type="submit">Review complete fleet scope</button></form>
 </details>{% endif %}
 </section>
-<section id="ordered-removal-preparation" data-live-region>
+<section id="ordered-removal-preparation" data-live-region data-live-editor>
 {% if refresh.ordered_removal_review_available is sameas true and ('Operator' in identity.roles or 'Administrator' in identity.roles) %}
-<details><summary>Remove after an addition already in progress</summary>
+<details id="ordered-removal-options"><summary>Remove after an addition already in progress</summary>
 <p>Stop maintaining and wait for the current addition to finish before removing the block. This needs separate confirmation. An unknown result stops the removal for attention; it is not retried automatically. Reviewing changes nothing.</p>
 {% if not managed.changed and managed.entries %}<form method="post" action="/managed-shuns/v2/ordered-removal-review" class="import-confirm-form">
 <input type="hidden" name="csrf" value="{{ csrf_token }}"><label for="ordered-removal-target">One exact target on this page</label>

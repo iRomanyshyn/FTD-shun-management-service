@@ -90,7 +90,7 @@ def test_api_construction_gets_and_refused_workflows_do_not_initialize_or_mutate
                 response = await client.request(method, path, json={})
                 assert response.status_code == 503 and response.headers['cache-control'] == 'no-store'
                 assert 'no request was admitted' in response.json()['detail']
-            for path in ['/api/v1/shuns', '/api/v1/history', '/api/v1/history-page', '/api/v1/protected-ips']:
+            for path in ['/api/v1/shuns', '/api/v1/shuns-page', '/api/v1/queue-recovery', '/api/v1/history', '/api/v1/history-page', '/api/v1/protected-ips']:
                 assert (await client.get(path)).status_code == 200
     asyncio.run(scenario())
     assert dump(store) == before and not agent.seen

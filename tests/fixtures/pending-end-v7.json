@@ -1,0 +1,23 @@
+{
+  "version": 7,
+  "purpose": "Transport foundation only: settled acknowledgements are not verified creation or retry authority.",
+  "device_id": 7,
+  "session_id": "00000000000000000000000000000001",
+  "targets": [
+    "198.51.100.251",
+    "198.51.100.252"
+  ],
+  "begin": "1807000700000000000000000000000000000001",
+  "stage_first": "1a0701c63364fb",
+  "ack_first": "05071a01",
+  "stage_second": "1a0703c63364fc",
+  "ack_second": "05071a03",
+  "end_pending": "1d0704",
+  "receipt": "06071d0402c63364fbc63364fc",
+  "settled": "00071804",
+  "last_end_pending": "1d0782",
+  "duration_seconds": 240,
+  "mutation_attempts": 64,
+  "commands": 256,
+  "pending_capacity": 16
+}

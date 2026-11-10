@@ -86,7 +86,7 @@ def validate_held_jobs(db):
     from .managed_restoration import validate_binding
 
     _state(db)
-    rows = db.execute("SELECT * FROM managed_bulk_attempts WHERE state IN ('QUEUED','RUNNING','UNVERIFIED')")
+    rows = db.execute("SELECT * FROM managed_bulk_attempts WHERE state IN ('QUEUED','RUNNING','AWAITING_CONFIRMATION','UNVERIFIED')")
     held = 0
     while chunk := rows.fetchmany(100):
         for attempt in chunk:

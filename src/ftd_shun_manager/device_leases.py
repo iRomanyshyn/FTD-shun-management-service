@@ -240,8 +240,8 @@ class DeviceLeases:
         """Exact bound agent lookup, never old held-state or mutation recovery."""
         self._release(token, opening_event='READ_RECEIPT_RECOVERED')
 
-    def _release(self, token, *, opening_event):
-        with schema_connection(self.store) as db, _atomic(db):
+    def _release(self, token, *, opening_event, connection=None):
+        with schema_connection(self.store, connection) as db, _atomic(db):
             previous = self.check(db, token)
             if db.execute("SELECT 1 FROM operation_jobs WHERE device_id=? AND state='RUNNING'", (token.device_id,)).fetchone():
                 raise QueueConflict('Settle RUNNING work before releasing a device lease.')

@@ -20,6 +20,7 @@ form { display: inline; } li form { margin-left: .75rem; }
 table { border-collapse: collapse; width: 100%; }
 th, td { border-bottom: 1px solid #8886; text-align: left; padding: .7rem .6rem; vertical-align: top; overflow-wrap: anywhere; }
 .table-scroll { overflow-x: auto; }
+.recovery-command { max-width: 100%; white-space: pre-wrap; overflow-wrap: anywhere; }
 /* Keep atomic status labels readable; explanations and other cell text wrap. */
 .status-label { display: inline-block; white-space: nowrap; overflow-wrap: normal; }
 .current-state, .historical-state, .state-badge, .protected-ip-badge, .preview-state-badge { white-space: nowrap; overflow-wrap: normal; }

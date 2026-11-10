@@ -5,6 +5,7 @@ from __future__ import annotations
 import hmac
 import os
 import secrets
+import shlex
 from dataclasses import dataclass
 from ipaddress import IPv4Address
 from pathlib import Path
@@ -229,6 +230,7 @@ def refresh_metadata(refresh: object) -> dict[str, object]:
         "addition_device_count",
         "device_cycle",
         "device_cycles",
+        "deferred_confirmation",
         "maintenance",
         "history_retention_days",
         "last_retention_purge",
@@ -322,15 +324,36 @@ def create_app(settings: Settings | None = None, *, ready_removal_admission_enab
     def healthz() -> dict[str, str]:
         return {"status": "ok"}
 
+    @app.get('/queue-recovery', response_class=HTMLResponse)
+    def queue_recovery(request: Request, download: bool = False):
+        identity = identity_from_request(request, settings.development_auth)
+        try:
+            with api_client(settings) as client:
+                response = client.get('/api/v1/queue-recovery')
+                response.raise_for_status()
+        except httpx.HTTPError:
+            return render(request, 'error.html', {'message': 'Recovery inspection is unavailable. No recovery was submitted.'}, 503)
+        report = response.json()
+        if download:
+            return JSONResponse(report, headers={'Content-Disposition': 'attachment; filename="queue-recovery.json"'})
+        for device in report['devices']:
+            args = ['python', '-m', 'ftd_shun_manager.lab_recovery', '--device', str(device['id']),
+                    '--expect-epoch', str(device['epoch']), '--actor', identity.subject, '--confirm-lab']
+            if device['extended_v6']:
+                args.append('--extended-v6')
+            device['command'] = shlex.join(args)
+        return render(request, 'queue-recovery.html', {'identity': identity, 'report': report,
+                      'active_page': 'shuns', 'auto_request': False})
+
     @app.get("/", response_class=HTMLResponse)
-    def index(request: Request, q: str = "") -> HTMLResponse:
+    def index(request: Request, q: str = "", page: Annotated[int, Query(ge=1, le=2**31 - 1)] = 1) -> HTMLResponse:
         identity = identity_from_request(request, settings.development_auth)
         search_query = q.strip()
         with api_client(settings) as client:
             # Capture the revision before state reads. If reconciliation occurs
             # during rendering, the next poll will fetch the newer revision.
             refresh_status = client.get("/api/v1/status")
-            response = client.get("/api/v1/shuns")
+            response = client.get('/api/v1/shuns-page', params={'page': page})
             search_response = (
                 client.get("/api/v1/search", params={"ip": search_query})
                 if search_query
@@ -341,12 +364,14 @@ def create_app(settings: Settings | None = None, *, ready_removal_admission_enab
         if search_response is not None and search_response.status_code != 200:
             return render(request, "error.html", {"message": "IP search is invalid or unavailable."}, 422)
         refresh = refresh_status.json() if refresh_status.status_code == 200 else None
+        shun_page = response.json()
         return render(
             request,
             "index.html",
             {
                 "identity": identity,
-                "shuns": response.json(),
+                "shuns": shun_page['items'],
+                "shun_pagination": shun_page,
                 "refresh": refresh,
                 "trusted_policy_ips": protected_policy_ips(refresh),
                 "disabled_policy_ips": protected_policy_ips(refresh, enabled=False),

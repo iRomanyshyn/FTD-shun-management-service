@@ -21,7 +21,7 @@ from .managed_safety import (
 from .safety import mutations_suspended
 from .store import Store
 
-ACTIVE = ("QUEUED", "RUNNING")
+ACTIVE = ("QUEUED", "RUNNING", "AWAITING_CONFIRMATION")
 
 
 class QueueConflict(ValueError):
@@ -147,7 +147,7 @@ class OperationQueue:
     def _pending_count(self, db) -> int:
         from .bulk_ordered_waits import held_targets
 
-        count = db.execute("SELECT COUNT(*) FROM operation_jobs WHERE state IN ('QUEUED','RUNNING')").fetchone()[0]
+        count = db.execute("SELECT COUNT(*) FROM operation_jobs WHERE state IN ('QUEUED','RUNNING','AWAITING_CONFIRMATION')").fetchone()[0]
         count += held_targets(db)
         if self._handoffs_present(db):
             count += db.execute("SELECT COUNT(*) FROM managed_removal_handoffs WHERE state='WAITING_ADD'").fetchone()[0]
@@ -360,7 +360,7 @@ class OperationQueue:
             if device is None or not device["enabled"]:
                 raise ValueError("unknown or disabled target device")
             job = db.execute("""SELECT * FROM operation_jobs WHERE device_id=? AND ip=?
-                AND state IN ('QUEUED','RUNNING')""", (device_id, ip.packed)).fetchone()
+                AND state IN ('QUEUED','RUNNING','AWAITING_CONFIRMATION')""", (device_id, ip.packed)).fetchone()
             coalesced = job is not None
             if job is not None and attempt_for_job(db, job["id"]):
                 raise QueueConflict("System restoration cannot coalesce with independent one-time work.")
@@ -418,7 +418,7 @@ class OperationQueue:
     def has_target(self, device_id: int, ip: IPv4Address) -> bool:
         with self.store._connection() as db:
             return db.execute("""SELECT 1 FROM operation_jobs WHERE device_id=? AND ip=?
-                AND state IN ('QUEUED','RUNNING')""", (device_id, ip.packed)).fetchone() is not None
+                AND state IN ('QUEUED','RUNNING','AWAITING_CONFIRMATION')""", (device_id, ip.packed)).fetchone() is not None
 
     def expire_requests(self) -> None:
         from .bulk_ordered_waits import expire as expire_ordered
@@ -772,6 +772,11 @@ class OperationQueue:
 
             self._executor(db, owner, job['device_id'])
 
+    def _commit_addition(self, write):
+        with self.store._connection() as db:
+            db.execute('BEGIN IMMEDIATE')
+            return write(db)
+
     def finish_addition(self, job_id: str, owner: str, result: AdditionResult | str, *, reason: str | None = None) -> str:
         """Commit an exact worker result; return persisted state, not assumed success."""
         from .managed_restoration import SOURCE, attempt_for_job
@@ -788,8 +793,7 @@ class OperationQueue:
             state = result
         else:
             raise ValueError("invalid addition result")
-        with self.store._connection() as db:
-            db.execute("BEGIN IMMEDIATE")
+        def persist(db, state=state, reason=reason):
             job = db.execute("SELECT * FROM operation_jobs WHERE id=?", (job_id,)).fetchone()
             executor = self._executor(db, owner, job['device_id'] if job else None)
             current = stamp(self._now())
@@ -825,6 +829,8 @@ class OperationQueue:
                     self._event(db, "SHUN_ADD_NOOP", request, job, {"created": False})
             self._finish(db, job, state, reason, restoration_attempt=restoration)
             self._executor(db, owner, job['device_id'])
+            return state, source, job
+        state, source, job = self._commit_addition(persist)
         print(json.dumps({"event": "queue.addition.completed", "operation_id": job_id,
                           "source": source, "state": state, "device_id": job["device_id"],
                           "ip": str(IPv4Address(job["ip"])), "interface": interface if state == "VERIFIED" else None}), flush=True)
@@ -841,7 +847,7 @@ class OperationQueue:
                 ON l.job_id=j.id WHERE l.request_id=?""", (request_id,)).fetchall()
             if request["state"] == "CANCELLED":
                 return
-            if any(job["state"] == "RUNNING" for job in jobs):
+            if any(job["state"] in {"RUNNING", "AWAITING_CONFIRMATION"} for job in jobs):
                 raise QueueConflict("operation is already running; cancellation was not applied")
             if not any(job["state"] == "QUEUED" for job in jobs):
                 raise QueueConflict("operation is already completed")
@@ -893,11 +899,11 @@ class OperationQueue:
             attention_counts = {'FAILED': counts.get('FAILED', 0),
                                 'UNVERIFIED': counts.get('UNVERIFIED', 0) - reviewed_count}
             base = "SELECT j.*,d.hostname FROM operation_jobs j JOIN devices d ON d.id=j.device_id "
-            rows = db.execute(base + """WHERE j.state IN ('QUEUED','RUNNING')
+            rows = db.execute(base + """WHERE j.state IN ('QUEUED','RUNNING','AWAITING_CONFIRMATION')
                 ORDER BY CASE WHEN j.state='RUNNING' THEN 0 ELSE 1 END,j.seq LIMIT 100""").fetchall()
             rows += db.execute(base + f"""WHERE j.state IN ('FAILED','UNVERIFIED') AND {attention_filter}
                 ORDER BY j.completed_at DESC,j.seq DESC LIMIT 20""").fetchall()
-            rows += db.execute(base + """WHERE j.state IN ('VERIFIED','NOOP','CANCELLED','RECONCILED_ABSENT')
+            rows += db.execute(base + """WHERE j.state IN ('VERIFIED','NOOP','CANCELLED','RECONCILED_ABSENT','OBSERVED_PRESENT','CONFIRMED_ABSENT')
                 ORDER BY j.completed_at DESC,j.seq DESC LIMIT 20""").fetchall()
             review_rows = db.execute("""SELECT j.*,d.hostname,r.recovered_at AS reviewed_at,r.id AS review_id
                 FROM managed_bulk_reconciled_jobs m JOIN operation_jobs j ON j.id=m.job_id
@@ -959,7 +965,7 @@ class OperationQueue:
                     FROM operation_links l JOIN operation_jobs j ON j.id=l.job_id
                     WHERE l.request_id=? GROUP BY j.state""", (request["id"],))}
                 total = sum(outcomes.values())
-                processed = total - outcomes.get("QUEUED", 0) - outcomes.get("RUNNING", 0)
+                processed = total - sum(outcomes.get(state, 0) for state in ACTIVE)
                 view = dict(request)
                 request_progress.append({**view, "total": total, "processed": processed,
                                          "counts": outcomes})
@@ -999,6 +1005,23 @@ class OperationQueue:
                 validate_held_jobs(db)
                 preserve += """ AND NOT EXISTS (SELECT 1 FROM managed_bulk_attempts a
                     WHERE a.job_id=operation_jobs.id AND a.state IN ('QUEUED','RUNNING','UNVERIFIED'))"""
+            from .pending_confirmation import present as pending_present
+            from .pending_retries import present as retries_present
+            from .pending_retries import validate_retained_jobs
+            from .prewrite_recovery import present as prewrite_present
+
+            if pending_present(db):
+                bulk_state(db)
+                preserve += """ AND NOT EXISTS (SELECT 1 FROM managed_bulk_pending_members m
+                    WHERE m.job_id=operation_jobs.id)"""
+            if retries_present(db):
+                validate_retained_jobs(db)
+                preserve += """ AND NOT EXISTS (SELECT 1 FROM managed_bulk_pending_retries r
+                    JOIN managed_bulk_attempts a ON a.id=r.attempt_id WHERE a.job_id=operation_jobs.id)"""
+            if prewrite_present(db):
+                bulk_state(db)
+                preserve += """ AND NOT EXISTS(SELECT 1 FROM managed_bulk_prewrite_recovery p
+                    WHERE p.job_id=operation_jobs.id)"""
             if ordered_present(db):
                 validate_held_predecessors(db)
                 preserve += """ AND NOT EXISTS (SELECT 1 FROM managed_bulk_ordered_members m

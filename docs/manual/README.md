@@ -25,7 +25,10 @@ not a runbook or permission to change gates, initialize schemas or run new fixtu
 | [Operations](operations.md) | Roles, removal workflow, logs, backup, health, and incident response. |
 | [Imports — Operator Guide](imports.md) | Paste/review/confirm, whole-task progress/cancellation, shared SSH batches, saved drafts and truthful held-device state in the managed runtime. |
 | [Operation Queue](operation-queue.md) | Queued removal, progress/cancellation, limits, lease recovery, migration, backup restore, and rollback. |
+| [Check and Resume Import](queue-recovery.md) | Read-only recovery report and explicit trusted-host lab orchestration, preserving unknown outcomes without Web host privileges. |
 | [Execution Recovery](execution-recovery.md) | Automatic local scheduling-contention retry, visible retry/stopped states and evidence-based operator recovery without reimport. |
+| [Local Result Storage Retry](result-storage-retry.md) | Bounded grouped ACK/result persistence after proved SQLite rollback, without repeating device commands. |
+| [SSH Session Idle Budget](ssh-session-idle.md) | Keep bounded shared visits alive during local persistence/root checks without extending CLI/session deadlines or replaying commands. |
 | [Offline Recovery](recovery.md) | Checked backup, durable mutation pause, composite queue/policy suspension and reviewed ordinary resume. |
 | [Verified Held-Session Recovery](verified-epoch-recovery.md) | Offline, backup/review-bound release of an exactly evidenced fully verified epoch; original hold/claims retained, no unknown-write replay. |
 | [Quiescent Managed-ADD Reconciliation](quiescent-managed-reconciliation.md) | Explicit offline desired-state decision retaining unknown outcomes; exact receipt-bound scope and a new complete read before future work. |
@@ -92,6 +95,9 @@ not a runbook or permission to change gates, initialize schemas or run new fixtu
 | [Large Snapshots](large-snapshots.md) | Default-off versioned multi-frame reads, complete-snapshot checks, console/transfer budgets and lab rollout/rollback. |
 | [Grouped Additions](batch-additions.md) | Default-off v5 shared final verification (retained v4 transport), fenced pending queue, priority/drain/failure behavior and rollout limits. |
 | [Multi-group Import Sessions](multi-group-sessions.md) | Explicit matched v6, up to 64 attempts in 240 seconds, fresh bounded refill between verified groups, retained priority/cancellation and uncertainty. |
+| [Deferred First Confirmation](deferred-confirmation.md) | Source-only v7 evidence, handoff, fresh retries, continuous scheduling, later disappearance restoration and ready cleanup; no unknown replay, configured mode or live activation. |
+| [Extended Session Recovery](extended-session-recovery.md) | Explicit offline 17–64-claim v6 review, compact immutable receipts, unknown preservation, quiescence/backup and profile-aware restart. |
+| [Exact Pre-write-DEFER Recovery](prewrite-epoch-recovery.md) | Separate offline v6 proof for one final expired/cancelled pre-write claim, immutable full-scope marker, no outcome change or replay. |
 | [FTD Laboratory Validation](ftd-lab-validation.md) | Controlled agent, snapshot, and parser-fixture validation. |
 | [Addition Readiness](addition-lab-validation.md) | Current snapshot-capacity blocker and staged Basic-account, one-address direct-CLI validation before ADD design. |
 | [Addition Contract](addition-contract.md) | Default-off agent/transport cycle v3, explicit creation profile, exact ADD verification, shared budgets and remaining admission/lab gates; no executable import. |

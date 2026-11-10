@@ -9,6 +9,54 @@ const initial = () => ({ refresh_schedule_mode: "per_device", refresh_enabled: t
   devices: { "1": { state: "ready", active: false, refresh_pending: false } }, device_cycles: {} });
 const timing = (baseline = 270, interactive = 30) => (key) => ({ baseline, interactive })[key] ?? null;
 
+test('pending confirmation is neutral waiting, not a failed or completed write', () => {
+  const view = queuePresentation({ queue: { counts: { AWAITING_CONFIRMATION: 16 } } });
+  assert.equal(view.activity, 'waiting');
+  assert.equal(view.attention, false);
+  assert.equal(view.badge, '16');
+  assert.match(view.description, /16 awaiting a complete device read; not yet confirmed/);
+});
+
+test('known observation outcomes do not masquerade as running or failed work', () => {
+  const view = queuePresentation({ queue: { counts: { OBSERVED_PRESENT: 16, CONFIRMED_ABSENT: 2 } } });
+  assert.equal(view.activity, 'idle');
+  assert.equal(view.attention, false);
+  assert.equal(view.badge, '');
+});
+
+test('a sampled absence timer requests another check, never promises a successful write', () => {
+  const status = { deferred_confirmation: { '1': { held: false, mutations_paused: false, retry_in_seconds: 4.1 } },
+    queue: { counts: { CONFIRMED_ABSENT: 16 } } };
+  const view = queuePresentation(status);
+  assert.equal(view.activity, 'waiting');
+  assert.equal(view.attention, false);
+  assert.equal(view.badge, '…');
+  assert.match(view.description, /absence check eligible in 5s/);
+  status.deferred_confirmation['1'].retry_in_seconds = 0;
+  assert.match(queuePresentation(status).description, /waiting for an available device session/);
+  status.deferred_confirmation['1'].held = true;
+  assert.doesNotMatch(queuePresentation(status).description, /Absence check eligible/);
+});
+
+test('a device error is still visible during pending confirmation', () => {
+  const view = queuePresentation({ devices: { '1': { state: 'error' } },
+    queue: { counts: { AWAITING_CONFIRMATION: 16 } } });
+  assert.equal(view.attention, true);
+  assert.match(view.description, /open Status/);
+});
+
+test('pending settlement is not a fresh read or a refresh completion', () => {
+  for (const action of ['settling_pending_additions', 'awaiting_confirmation']) {
+    const status = { ...initial(), pending_refresh_device_count: 1, refresh_in_progress: true,
+      devices: { '1': { state: 'refreshing', active: true, refresh_pending: true } },
+      device_cycles: { '1': { action, awaiting_confirmation: 16 } } };
+    const view = refreshPresentation(status, timing(270, 0));
+    assert.equal(view.activity, 'waiting');
+    assert.notEqual(view.phase, 'reading');
+    assert.match(view.timing, /current device operation/);
+  }
+});
+
 test('reviewed historical unknowns do not warn or change an idle queue icon', () => {
   const view = queuePresentation({ queue: { counts: { VERIFIED: 15, UNVERIFIED: 1 },
     attention_counts: { FAILED: 0, UNVERIFIED: 0 }, reviewed_history: { total: 1, items: [] } } });
