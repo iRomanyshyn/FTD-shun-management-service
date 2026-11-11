@@ -19,10 +19,13 @@ not a runbook or permission to change gates, initialize schemas or run new fixtu
 | [Development](development.md) | Local setup, test commands, and mock agent boundaries. |
 | [Fresh Working-Version Lab](fresh-development.md) | Non-overwriting clean v2 setup, configured managed API/Web, lab Compose cutover, usage and rollback. |
 | [Working-Version Plan](../working-version-plan.md) | Agreed product behavior, working-version priorities, implementation gaps and deferred SMTP notifications; not yet an operating procedure. |
-| [Versioning](versioning.md) | Single version source, manual release numbering, pre-1.0 compatibility and planned build identity. |
+| [Versioning](versioning.md) | Mandatory delivery increments, public source-build identity, footer/package checks and release boundary. |
+| [Operator Workspace](operator-workspace.md) | Compact tables, intact IP/badge labels, action shortcuts, reference disclosures and responsive layouts. |
+| [Import and Restoration Pauses](managed-addition-pauses.md) | Two independent operator controls; retained blocks, ongoing protection and fresh evidence after Resume. |
 | [Deployment](deployment.md) | Caddy, Authelia, Unix sockets, secrets, and container layout. |
 | [Per-Device Credentials](per-device-credentials.md) | Agent-only ID/login/secret mapping, configuration check, opt-in Compose migration and rollback; legacy compatibility retained. |
 | [Operations](operations.md) | Roles, removal workflow, logs, backup, health, and incident response. |
+| [Shuns and Maintenance](shuns-and-maintenance.md) | All-observed/Unmanaged/Managed views, bounded browsing, honest maintenance labels and policy-aware removal reviews. |
 | [Imports — Operator Guide](imports.md) | Paste/review/confirm, whole-task progress/cancellation, shared SSH batches, saved drafts and truthful held-device state in the managed runtime. |
 | [Operation Queue](operation-queue.md) | Queued removal, progress/cancellation, limits, lease recovery, migration, backup restore, and rollback. |
 | [Check and Resume Import](queue-recovery.md) | Read-only recovery report and explicit trusted-host lab orchestration, preserving unknown outcomes without Web host privileges. |

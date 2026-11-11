@@ -193,6 +193,22 @@ class BulkOrderedPromoter:
             return 0
         _integer(limit, 1, 8, 'ordered promotion sweep limit')
         self.waits._existing()
+        # Scheduling calls this even during an unrelated active import. Do not
+        # reserve SQLite's sole writer for an empty promotion sweep. Validate
+        # the full profile/tickets first; any real work still repeats every
+        # existing check inside its original write transaction below.
+        with self.store._connection() as db:
+            db.execute('BEGIN')
+            _state(db)
+            if not present(db):
+                raise BulkUnavailable('Existing promotion storage is required; nothing was initialized.')
+            if db.execute("SELECT 1 FROM managed_bulk_ordered_promotions WHERE state='ADMITTING' LIMIT 1").fetchone():
+                raise BulkUnavailable('An incomplete admission ticket cannot be resumed automatically.')
+            if not db.execute('''SELECT 1 FROM managed_bulk_ordered_roots r
+                WHERE r.state='WAITING_ADD' AND r.expires_at>? AND NOT EXISTS (
+                    SELECT 1 FROM managed_bulk_ordered_promotions p WHERE p.root_id=r.id) LIMIT 1''',
+                (stamp(self.queue._now()),)).fetchone():
+                return 0
         logs, changed = [], 0
         with schema_connection(self.store) as db, _atomic(db):
             _state(db)
@@ -317,6 +333,11 @@ class BulkOrderedPromoter:
                     raise QueueConflict('Captured ADD failed or remains unknown.')
                 if job['state'] == 'RUNNING':
                     waiting = True
+                elif job['state'] in {'AWAITING_CONFIRMATION', 'OBSERVED_PRESENT', 'CONFIRMED_ABSENT'}:
+                    from .pending_execution import ordered_predecessor_confirmed
+
+                    if not ordered_predecessor_confirmed(db, member, evidence, job, stamp(now)):
+                        waiting = True
                 elif job['state'] in {'QUEUED', 'CANCELLED'}:
                     _deferral(db, evidence, member, now)
                     if job['dispatch_kind'] is not None or job['started_at'] is not None:
@@ -329,11 +350,11 @@ class BulkOrderedPromoter:
                     raise QueueConflict('Captured executor epoch regressed.')
                 if fence['epoch'] == evidence['executor_epoch'] and fence['state'] != 'IDLE':
                     waiting = True
-            if db.execute("""SELECT 1 FROM operation_jobs WHERE device_id=? AND ip=? AND state IN ('QUEUED','RUNNING')
+            if db.execute("""SELECT 1 FROM operation_jobs WHERE device_id=? AND ip=? AND state IN ('QUEUED','RUNNING','AWAITING_CONFIRMATION')
                     AND (? IS NULL OR id!=?) LIMIT 1""", (device, root['ip'], member['job_id'], member['job_id'])).fetchone():
                 raise QueueConflict('Independent pending work changed the frozen scope.')
             if (db.execute("""SELECT 1 FROM managed_bulk_attempts WHERE device_id=? AND ip=?
-                    AND state IN ('QUEUED','RUNNING','FAILED','UNVERIFIED') AND (? IS NULL OR job_id!=?) AND """ + unresolved(db, 'job_id') + ' LIMIT 1',
+                    AND state IN ('QUEUED','RUNNING','AWAITING_CONFIRMATION','FAILED','UNVERIFIED') AND (? IS NULL OR job_id!=?) AND """ + unresolved(db, 'job_id') + ' LIMIT 1',
                     (device, root['ip'], member['job_id'], member['job_id'])).fetchone()
                     or db.execute("""SELECT 1 FROM operation_jobs WHERE device_id=? AND ip=? AND action='ADD'
                         AND state='FAILED' AND (? IS NULL OR id!=?) LIMIT 1""",

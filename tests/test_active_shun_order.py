@@ -143,7 +143,7 @@ def test_api_and_bff_preserve_active_order_and_current_appearance_timestamp(stat
             shuns = response.json()
             assert [s["ip"] for s in shuns] == ["198.51.100.1", "198.51.100.2"]
             assert [s["active_since_at"] for s in shuns] == [OLD, RECENT]
-            assert (await api.get("/api/v1/shuns/198.51.100.1")).json() == [shuns[0]]
+            assert (await api.get("/api/v1/shuns/198.51.100.1")).json() == [{**shuns[0], 'maintained': False}]
             refresh = (await api.get("/api/v1/status")).json()
 
         def internal(request):

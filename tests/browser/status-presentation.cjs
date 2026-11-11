@@ -9,6 +9,24 @@ const initial = () => ({ refresh_schedule_mode: "per_device", refresh_enabled: t
   devices: { "1": { state: "ready", active: false, refresh_pending: false } }, device_cycles: {} });
 const timing = (baseline = 270, interactive = 30) => (key) => ({ baseline, interactive })[key] ?? null;
 
+test('operator ADD pause is neutral and does not hide real attention', () => {
+  const status = { managed_addition_controls: { available: true, imports: { paused: true }, restoration: { paused: true } }, queue: { counts: { QUEUED: 16 } } };
+  const view = queuePresentation(status);
+  assert.equal(view.activity, 'paused');
+  assert.equal(view.attention, false);
+  assert.equal(view.badge, 'ADD paused');
+  assert.match(view.description, /Monitoring, removals and Protected-IP unblocking continue/);
+  status.managed_addition_controls.restoration.paused = false;
+  assert.equal(queuePresentation(status).badge, 'Imports paused');
+  status.managed_addition_controls.imports.paused = false;
+  status.managed_addition_controls.restoration.paused = true;
+  assert.equal(queuePresentation(status).badge, 'Restore paused');
+  status.queue.counts.UNVERIFIED = 1;
+  assert.equal(queuePresentation(status).attention, true);
+  status.queue.counts.RUNNING = 1;
+  assert.equal(queuePresentation(status).activity, 'busy');
+});
+
 test('pending confirmation is neutral waiting, not a failed or completed write', () => {
   const view = queuePresentation({ queue: { counts: { AWAITING_CONFIRMATION: 16 } } });
   assert.equal(view.activity, 'waiting');
@@ -81,18 +99,34 @@ test('missing or inconsistent review metadata retains the original unknown warni
   }
 });
 
-test('storage retry displays automatic recovery instead of a misleading periodic timer', () => {
-  const status = { ...initial(), execution_recovery: { state: 'retrying', retry_at: 'interactive' } };
+test('brief storage retry is neutral; persistent retry and device errors remain actionable', () => {
+  const status = { ...initial(), execution_recovery: { state: 'retrying', attempts: 1, retry_at: 'interactive' } };
   const view = refreshPresentation(status, timing());
   assert.equal(view.phase, 'recovering');
   assert.equal(view.activity, 'waiting');
-  assert.equal(view.attention, true);
+  assert.equal(view.attention, false);
   assert.equal(view.timing, 'in 30s');
   assert.match(view.description, /retrying automatically/);
   assert.doesNotMatch(view.timing, /4m/);
   const queue = queuePresentation({ ...status, queue: { counts: { QUEUED: 2 } } });
-  assert.equal(queue.attention, true);
+  assert.equal(queue.attention, false);
   assert.match(queue.description, /import is retained/);
+  status.execution_recovery.reason = 'Storage busy';
+  status.last_error = 'Storage busy';
+  assert.equal(refreshPresentation(status, timing()).attention, false);
+  status.execution_recovery.attempts = 3;
+  assert.equal(refreshPresentation(status, timing()).attention, true);
+  assert.equal(queuePresentation(status).attention, true);
+  status.execution_recovery.attempts = 1;
+  status.last_error = 'Different genuine error';
+  assert.equal(refreshPresentation(status, timing()).attention, true);
+  status.last_error = 'Storage busy';
+  status.devices['1'].last_error = 'Device timeout';
+  assert.equal(refreshPresentation(status, timing()).attention, true);
+  assert.equal(queuePresentation({ ...status, queue: { counts: { QUEUED: 2 } } }).attention, true);
+  delete status.devices['1'].last_error;
+  delete status.execution_recovery.attempts;
+  assert.equal(refreshPresentation(status, timing()).attention, true, 'Missing retry metadata never hides warnings');
 });
 
 test('stopped execution gives operator guidance without pretending monitoring continues', () => {
@@ -133,7 +167,7 @@ test('authentication and action errors keep their actual explanation', () => {
 });
 
 test('a whole import remains visible while its rolling device queue is temporarily empty', () => {
-  const status = { queue: { counts: {}, imports: { tasks: [{ outstanding: 32000, attention: 0 }] } } };
+  const status = { queue: { counts: {}, imports: { tasks: [{ active: true, outstanding: 32000, attention: 0 }] } } };
   const view = queuePresentation(status);
   assert.equal(view.activity, 'waiting');
   assert.equal(view.badge, '…');
@@ -146,9 +180,20 @@ test('whole-import attention is independent of materialized jobs', () => {
   assert.match(view.badge, /!1/);
 });
 
+test('inactive import history does not keep the queue waiting or erase unresolved attention', () => {
+  const task = { active: false, outstanding: 32000, attention: 0 };
+  const status = { queue: { counts: { VERIFIED: 5000 }, imports: { tasks: [task] } } };
+  assert.equal(queuePresentation(status).activity, 'idle');
+  assert.equal(queuePresentation(status).badge, '');
+  assert.doesNotMatch(queuePresentation(status).description, /rolling dispatch/);
+  task.attention = 1;
+  assert.equal(queuePresentation(status).attention, true);
+  assert.match(queuePresentation(status).badge, /!1/);
+});
+
 test('a held device marks pending import work for attention instead of pretending it is only waiting', () => {
   const view = queuePresentation({ devices: { '1': { state: 'error', last_error: 'Retained device hold' } },
-    queue: { counts: {}, imports: { tasks: [{ outstanding: 32000, attention: 0 }] } } });
+    queue: { counts: {}, imports: { tasks: [{ active: true, outstanding: 32000, attention: 0 }] } } });
   assert.equal(view.attention, true);
   assert.match(view.badge, /!/);
   assert.match(view.description, /open Status/);

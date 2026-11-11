@@ -82,14 +82,25 @@ def register_ordered_removal_web(app, settings, *, enabled, render, identity_for
                 raise HTTPException(409, 'Scope is empty or changed; nothing was submitted.')
             if response.status_code != 200:
                 raise httpx.RequestError('Ordered inspection unavailable')
-            inspection = inspect_ordered(response.json(), ip, device_id=device_id)
+            inspection = response.json()
+        except ReviewUnavailable as error:
+            raise HTTPException(409, str(error)) from error
+        except (httpx.HTTPError, ValueError, TypeError, KeyError) as error:
+            raise HTTPException(503, 'Ordered inspection is invalid or unavailable; nothing was submitted.') from error
+        return inspect_review(request, identity, ip, device_id, reason, state, inspection)
+
+    def inspect_review(request, identity, ip, device_id, reason, state, inspection):
+        if not compatible(state):
+            raise HTTPException(503, 'Compatible unblock inspection is unavailable; nothing was submitted.')
+        try:
+            inspection = inspect_ordered(inspection, ip, device_id=device_id)
             review = reviews.prepare(identity.subject, request.cookies.get('ftd_shun_csrf', ''), inspection, ip,
                 device_id=device_id, ttl_seconds=min(900, settings.sensitive_action_max_age_seconds), reason=reason
                 ) if inspection['disposition'] == 'WAITING_ADD' else None
         except ReviewUnavailable as error:
             raise HTTPException(409, str(error)) from error
-        except (httpx.HTTPError, ValueError, TypeError, KeyError) as error:
-            raise HTTPException(503, 'Ordered inspection is invalid or unavailable; nothing was submitted.') from error
+        except (ValueError, TypeError, KeyError) as error:
+            raise HTTPException(503, 'Unblock inspection is invalid or unavailable; nothing was submitted.') from error
         return review_view(request, identity, inspection, review, state=state)
 
     @app.post('/managed-shuns/v2/ordered-removal-confirm')
@@ -203,3 +214,5 @@ def register_ordered_removal_web(app, settings, *, enabled, render, identity_for
                              if result else 'Waiting revocation outcome is unknown. Inspect or retry only this same original request.'), 503
             value = None
         return status_view(request, identity, key, value, message=message, cancellation=result, code=code)
+
+    return inspect_review

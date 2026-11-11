@@ -2,7 +2,17 @@
 
 Security-focused internal service for monitoring and managing Cisco Secure Firewall Threat Defense (FTD) `shun` entries across multiple devices.
 
-The governing specification is the [Architecture and Security Design](docs/architecture-and-security-design.md). The repository now contains the first Web/BFF and internal-state API increment, together with deployment assets and operational manuals.
+The governing specification is the [Architecture and Security Design](docs/architecture-and-security-design.md). The repository contains an executable laboratory Web/BFF, internal state API, Rust SSH agent, deployment assets and structured operator manuals. Consult [Project Status](docs/project-status.md) for actual deployed capabilities and limitations; this is not yet a production release.
+
+The main views distinguish observations from policy:
+
+- **Shuns**: all currently observed device blocks, with Managed/Unmanaged badges.
+- **Unmanaged**: observed blocks without active service maintenance; their creator is not inferred.
+- **Managed shuns**: maintenance policy, including targets currently absent or with auto-restore turned off.
+
+Shuns/Unmanaged use bounded 100-row pages. Removal buttons open the applicable
+review instead of bypassing managed maintenance. See
+[Shuns and Maintenance](docs/manual/shuns-and-maintenance.md).
 
 Development stage: this is an unreleased internal project, currently used only
 with the operator's desk FPR1010 test device, not in production. We prioritize a
@@ -88,9 +98,13 @@ Current imports remain one-time and all ADD gates stay
 disabled in the lab. Old imports are not auto-adopted and no live migration
 initializes the new registry yet.
 
-The page footer displays the package version (currently `v0.1.0`) from the same
-source used for build metadata; it does not imply production readiness. See
-[Versioning](docs/manual/versioning.md) for how the number is assigned and changed.
+The footer displays the installed package version (source version `v0.2.5`) and a short public
+application-source build ID. Every material lab delivery advances the version;
+neither identifier implies production readiness. See [Versioning](docs/manual/versioning.md).
+Source-only increments do not update running containers; consult
+[Project Status](docs/project-status.md) for the actual laboratory version.
+Managed shuns has independent [import/restoration pauses](docs/manual/managed-addition-pauses.md):
+existing blocks stay, while monitoring, removals and Protected-IP unblocking continue.
 
 ## Design goals
 

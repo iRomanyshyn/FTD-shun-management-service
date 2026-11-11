@@ -39,6 +39,8 @@ class Shun:
     active_since_at: str
     manual_imports: tuple[dict, ...] = ()
     manual_import_count: int = 0
+    # None means classification was not requested, not unmanaged or unknown creation.
+    maintained: bool | None = None
 
 
 class HistoryWindowExpired(ValueError):
@@ -177,24 +179,38 @@ class Store:
                 (device.id, device.hostname, device.management_ip.packed, ssh_host_key, int(device.enabled)),
             )
 
-    def list_active_shuns(self, ip: IPv4Address | None = None) -> list[Shun]:
+    def list_active_shuns(self, ip: IPv4Address | None = None, *, classify_maintenance=False) -> list[Shun]:
+        from .shun_ownership import classify, policy_present
+
         with self._connection() as db:
             db.execute('BEGIN')
-            return self._active_shuns(db, ip)
+            has_policy = policy_present(db) if classify_maintenance else False
+            rows = self._active_shuns(db, ip)
+            return classify(db, rows, has_policy) if classify_maintenance else rows
 
-    def active_shuns_page(self, page: int = 1) -> dict:
+    def active_shuns_page(self, page: int = 1, *, ownership: str = 'all') -> dict:
         """One bounded live page; count, ordering and origins share one read snapshot."""
+        from .shun_ownership import UNMANAGED_FILTER, classify, policy_present
+
         if type(page) is not int or not 1 <= page < 2**31:
             raise ValueError('page must be an integer between 1 and 2147483647')
+        if type(ownership) is not str or ownership not in {'all', 'unmanaged'}:
+            raise ValueError('ownership must be all or unmanaged')
         with self._connection() as db:
             db.execute('BEGIN')
-            total = db.execute('SELECT COUNT(*) FROM shun_state WHERE active=1').fetchone()[0]
+            has_policy = policy_present(db)
+            exclude = has_policy and ownership == 'unmanaged'
+            total = db.execute('SELECT COUNT(*) FROM shun_state s WHERE s.active=1'
+                               + (UNMANAGED_FILTER if exclude else '')).fetchone()[0]
             pages = max(1, (total + 99) // 100)
             page = min(page, pages)
-            return {'items': self._active_shuns(db, limit=100, offset=(page - 1) * 100),
+            rows = self._active_shuns(db, limit=100, offset=(page - 1) * 100, exclude_maintained=exclude)
+            return {'items': classify(db, rows, has_policy), 'ownership': ownership,
                     'page': page, 'pages': pages, 'total': total, 'page_size': 100}
 
-    def _active_shuns(self, db, ip: IPv4Address | None = None, *, limit=None, offset=0) -> list[Shun]:
+    def _active_shuns(self, db, ip: IPv4Address | None = None, *, limit=None, offset=0, exclude_maintained=False) -> list[Shun]:
+        from .shun_ownership import UNMANAGED_FILTER
+
         query = """
           SELECT s.device_id, d.hostname AS device_hostname, s.ip, s.interface,
                  s.first_seen_at, s.last_seen_at, s.active,
@@ -207,6 +223,8 @@ class Store:
         if ip:
             query += " AND s.ip = ?"
             parameters = (ip.packed,)
+        if exclude_maintained:
+            query += UNMANAGED_FILTER
         # Both enabled and disabled policy matches need attention while shunned.
         # last_changed_at is the current appearance, not each polling timestamp.
         query += " ORDER BY (p.ip IS NOT NULL) DESC, s.last_changed_at DESC, s.ip, d.hostname, s.interface, s.device_id"

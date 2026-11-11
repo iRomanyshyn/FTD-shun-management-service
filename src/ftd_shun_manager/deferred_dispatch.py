@@ -2,6 +2,7 @@
 
 from datetime import datetime, timedelta
 
+from .bulk_policy import BulkUnavailable
 from .continuous_dispatch import ContinuousDispatcher
 from .deferred_worker import DeferredParallelSynchronizer
 from .device_leases import device_uncertain
@@ -22,11 +23,14 @@ class DeferredContinuousDispatcher(ContinuousDispatcher):
     _runner_type = DeferredParallelSynchronizer
 
     def __init__(self, *args, ordered_promotion_enabled=False, **kwargs):
-        if ordered_promotion_enabled is not False:
-            raise ValueError('Deferred execution does not yet support ordered promotion storage.')
-        super().__init__(*args, ordered_promotion_enabled=False, **kwargs)
+        super().__init__(*args, ordered_promotion_enabled=ordered_promotion_enabled, **kwargs)
         self._deferred_samples = {}
         self._deferred_cursors = {}
+
+    async def start(self):
+        if self.runner.enabled and not self.runner.store.path.is_file():
+            raise BulkUnavailable('Existing explicit deferred storage is required; nothing was initialized.')
+        await super().start()
 
     def _read_ready(self, device, current):
         now = self.runner.queue._now()

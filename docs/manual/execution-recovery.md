@@ -38,6 +38,24 @@ guarantee. `dispatcher.storage.retry`, `dispatcher.storage.recovered` and
 `dispatcher.stopped` logs contain bounded diagnostics without job/IP/CLI content.
 No new public mutation/restart endpoint or schema is introduced.
 
+### Contention and presentation
+
+An empty ordered-removal promotion sweep uses a validated read-only snapshot,
+not `BEGIN IMMEDIATE`. It still checks the complete existing profile and rejects
+incomplete admission tickets. Real candidate work repeats every original check
+inside the original writer transaction; work arriving after an empty snapshot
+waits for the next sweep. No authority or eligibility result is cached. This
+removes an unnecessary competing writer during imports, not SQLite's single-
+writer constraint or every possible storage failure.
+
+The first two typed scheduling retries show neutral automatic waiting in Status
+and Queue; attempt three and later warn. Only the matching coordinator reason is
+quieted: independent device errors, stale data, stopped execution, unknown results
+and action-submission failures remain actionable. Short GET network/timeouts or
+HTTP 502/503/504 responses retry quietly while retaining displayed data; repeated
+or sustained failures escalate. These are presentation rules, never permission
+to replay a mutation, release an epoch or mark observations current.
+
 ## Resuming a stopped executor
 
 Do not cancel/reimport just to get past an error. Inspect Status and service logs,

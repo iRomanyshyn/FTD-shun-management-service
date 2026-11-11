@@ -51,9 +51,11 @@ Use a separate disposable database for development. **Do not delete/reset the
 live DB, reimport its original task or use this as a legacy-dev converter.**
 The current lab and original import stay on v6. Older writers refuse the new
 schema, and the current coordinator explicitly refuses it before any agent call.
-The fresh execution profile does not yet support ordered-removal or offline
-recovery profiles; the separate evidence-only ledger still supports its original
-recovery-profile combinations.
+The fresh execution profile may now be explicitly extended with the existing
+ordered reservation/promotion schemas as described below. Initialize the empty
+deferred execution layout first; its initializer still refuses pre-existing
+ordered/recovery storage. Offline recovery profiles remain unsupported; the
+separate evidence-only ledger retains its original recovery combinations.
 
 The new job and attempt states are distinct from old success/failure/unknowns:
 
@@ -84,7 +86,8 @@ presence keeps already applied policy; confirmed absence settles without
 attention and retires the exact cancelled target. Enabled protection permanently
 retires its matching policy; observation/disabled protection never re-enables it.
 Interactive refresh/ordinary priority removal and ready managed/fleet cleanup
-are composed below; ordered pending capture/promotion remain unfinished.
+are composed below. Reservations captured while RUNNING may now survive the
+pending handoff; initial capture of an already-awaiting target remains unfinished.
 Original cancellation identities remain.
 
 Queue reads expose awaiting jobs. Import progress counts awaiting confirmation
@@ -267,7 +270,8 @@ journal entry as read-only recovery.
 `DeferredContinuousDispatcher` is a separate default-disabled internal composition,
 not a configuration selector or automatic initializer. It uses the exact fresh
 execution profile and matching tracked-v7 client. Ordinary `ContinuousDispatcher`
-still refuses that profile. Ordered-promotion composition refuses explicitly.
+still refuses that profile. Ordered promotion is independently default-off;
+explicit internal composition requires the existing exact ordered storage below.
 
 After actual handoff, a new visit confirms outstanding groups without waiting
 for the five-minute periodic interval. Reads start after the stored settlement
@@ -333,6 +337,46 @@ retirement/admission; exact-key replay never re-enables policy. Confirmed cleanu
 does not later re-add the address. Enabled protection remains permanent policy
 retirement even when subsequently disabled.
 
+## Captured ordered cleanup across handoff (source-only, 2026-11-11)
+
+The explicit fresh execution profile now recognizes the exact existing ordered
+reservation and promotion layouts together with its original pending schemas.
+No tables, wire fields or stored consent format are added. Empty deferred setup
+must precede explicit paused/quiescent ordered initialization; startup/GET never
+extends a profile. Old images reject the new combination. Ordinary workers and
+public runtime selectors still refuse deferred execution.
+
+An existing exact RUNNING-ADD reservation can survive this sequence:
+
+1. Acceptance retires matching maintenance and freezes original scope, claim,
+   executor identity and deadline, as before. Admission still requires the
+   original qualifying RUNNING state and existing exclusivity checks.
+2. Actual settled-v7 handoff may change that captured job to
+   AWAITING_CONFIRMATION. Promotion waits without creating false attention or
+   queueing REMOVE merely because the original lease is now IDLE.
+3. The next complete causal read produces OBSERVED_PRESENT or CONFIRMED_ABSENT.
+   Promotion binds the same ledger member/claim, original owner/epoch and first
+   observation. Its verdict must match the immutable present-ordinal evidence.
+4. Only then can the existing whole-scope transaction delegate ordinary REMOVE,
+   retaining original consent/deadline, current protection/inventory/fences,
+   policy retirement, priority and queue capacity. Device execution is serialized
+   and separately verified; neither observation proves original service creation.
+
+`DeferredContinuousDispatcher(..., ordered_promotion_enabled=True)` composes this
+internally, without initializing storage or selecting v7 in configuration. A
+captured first ADD in a synthetic 12-address batch waits through the complete
+handoff/observation and then gets urgent cleanup without another ADD. Lost
+settlement remains UNVERIFIED/held; expiry/revocation never resumes maintenance;
+late fleet failure rolls back all cleanup. Status accepts deferred states only
+for captured ADDs, never as REMOVE success, and labels them in plain language.
+
+This does **not** authorize initial capture of an already-AWAITING_CONFIRMATION
+job, omit independent pending work, relax multiple-RUNNING preflight checks,
+recover an unknown mutation, or activate a configured/lab mode. Such an initial
+inspection still requests a refresh and a new review. Compatible deferred
+recovery, remaining capture/composition and bounded fresh-store lab acceptance
+are still required before activation.
+
 ## Not implemented or activated
 
 No configured service consumes these hooks. Only the explicit fresh-profile
@@ -350,10 +394,10 @@ Next implementation steps, under the approved working-version behavior:
 1. Connect the explicit continuous worker to a matching configured transport
    and deliberate fresh-store initialization.
    Do not merely widen existing v5/v6 settings or replay original lab authority.
-2. Complete ordered pending managed/fleet capture/promotion, compatible deferred recovery and
-   claimed/pre-write-deferred retry-child replacement without weakening unknown
-   holds. Ready cleanup and later confirmed-presence restoration are implemented
-   above, not yet enabled in the lab.
+2. Complete initial already-pending managed/fleet capture and compatible deferred
+   recovery without weakening unknown holds. Captured RUNNING-to-pending cleanup,
+   proved pre-write child replacement, ready cleanup and later confirmed-presence
+   restoration are implemented above, not yet enabled in the lab.
 3. Run new labelled bounded fresh-store lab acceptance, including the implemented
    awaiting/confirmed/waiting UI without false attention or freshness resets,
    before enabling the mode.
@@ -367,7 +411,7 @@ not a throughput improvement or a completed cross-session retry workflow.
 Run the disposable profile, retry and retention checks with:
 
 ```bash
-python3 -m pytest -q tests/test_pending_end.py tests/test_pending_confirmation.py tests/test_pending_execution.py tests/test_pending_retries.py tests/test_deferred_worker.py tests/test_deferred_dispatch.py tests/test_deferred_lifecycle.py tests/test_store.py tests/test_history_pagination.py
+python3 -m pytest -q tests/test_pending_end.py tests/test_pending_confirmation.py tests/test_pending_execution.py tests/test_pending_retries.py tests/test_deferred_worker.py tests/test_deferred_dispatch.py tests/test_deferred_lifecycle.py tests/test_deferred_ordered.py tests/test_store.py tests/test_history_pagination.py
 node --test tests/browser/status-presentation.cjs tests/browser/freshness.cjs
 ```
 

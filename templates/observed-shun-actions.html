@@ -1,0 +1,17 @@
+{% macro removal(shun, identity, refresh, csrf_token, new_operation_key) %}
+{% if 'Operator' in identity.roles or 'Administrator' in identity.roles %}
+{% if (refresh or {}).managed_policy_format == 2 %}
+{% if refresh.ready_removal_review_available is sameas true %}
+<form method="post" action="/managed-shuns/v2/removal-review" class="observed-removal-review"><input type="hidden" name="csrf" value="{{ csrf_token }}"><input type="hidden" name="target" value="{{ shun.device_id }}:{{ shun.ip }}"><button>{{ 'Review stop restoring and remove' if shun.maintained is sameas true else 'Review removal from this device' }}</button></form>
+{% else %}<span class="muted">Removal unavailable</span>{% endif %}
+{% elif shun.maintained is sameas true %}
+<form method="post" action="/managed-shuns/removal-review" class="observed-removal-review"><input type="hidden" name="csrf" value="{{ csrf_token }}"><input type="hidden" name="target" value="{{ shun.device_id }}:{{ shun.ip }}"><button>Review stop restoring and remove</button></form>
+{% elif shun.maintained is sameas false and (refresh or {}).manual_mutations_available is not sameas false %}
+<form method="post" action="/devices/{{ shun.device_id }}/shuns/{{ shun.ip }}/remove" data-queue-form><input type="hidden" name="csrf" value="{{ csrf_token }}"><input type="hidden" name="request_id" value="{{ new_operation_key() }}"><button>Queue removal from this device</button></form>
+{% else %}<a href="/shuns/{{ shun.ip }}">View IP details</a>{% endif %}
+{% else %}Read-only{% endif %}
+{% endmacro %}
+
+{% macro badge(shun) %}
+{% if shun.maintained is sameas true %}<span class="state-badge maintenance-enabled" title="The service maintains this device/IP block and restores it after disappearance. This is not proof of who originally created it.">Managed</span>{% elif shun.maintained is sameas false %}<span class="state-badge maintenance-unmanaged" title="No active service maintenance for this device/IP. Its creator is not inferred from observation.">Unmanaged</span>{% else %}<span class="state-badge">Maintenance not classified</span>{% endif %}
+{% endmacro %}

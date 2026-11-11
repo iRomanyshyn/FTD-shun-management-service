@@ -19,3 +19,4 @@ __pycache__/
 
 # Rust build output for the isolated FTD agent.
 agent/target/
+/build-info.json

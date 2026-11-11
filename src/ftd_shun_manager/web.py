@@ -22,10 +22,12 @@ from fastapi.templating import Jinja2Templates
 from starlette.concurrency import run_in_threadpool
 
 from . import __version__
+from .build_info import load_build
 from .bulk_cancellation_web import register_bulk_cancellation_web
 from .bulk_confirmation_web import register_bulk_confirmation_web
 from .bulk_ordered_web import register_ordered_removal_web
 from .bulk_preparation_web import register_bulk_preparation_web
+from .bulk_removal_review import validate_ready_inspection
 from .bulk_removal_web import register_ready_removal_web
 from .config import Settings
 from .import_preview import (
@@ -44,6 +46,7 @@ from .managed_import_web import register_import_web
 from .managed_retirement_review import ManagedRetirementReviews
 from .managed_review import ManagedRemovalReviews, validate_removal_receipt
 from .managed_selection import require_selection
+from .unblock_web import register_unblock_web
 
 PROJECT_ROOT = Path(os.environ.get("FTD_SHUN_ASSET_ROOT", Path(__file__).resolve().parents[2]))
 templates = Jinja2Templates(directory=str(PROJECT_ROOT / "templates"))
@@ -51,6 +54,8 @@ templates.env.globals["new_operation_key"] = lambda: str(uuid4())
 templates.env.globals["import_text_limit"] = MAX_TEXT_BYTES
 templates.env.globals["import_text_mib"] = MAX_TEXT_BYTES // (1024 * 1024)
 templates.env.globals["product_version"] = __version__
+templates.env.globals['product_build'] = load_build(PROJECT_ROOT)
+templates.env.globals['page_url'] = lambda base, page, params: base + '?' + urlencode({'page': page, **params})
 
 
 @dataclass(frozen=True)
@@ -207,6 +212,7 @@ def refresh_metadata(refresh: object) -> dict[str, object]:
         "bulk_policy_receipts_available",
         "bulk_policy_concurrent_enabled",
         "managed_execution_suspended",
+        "managed_addition_controls",
         "bulk_import_cancellation_available",
         "managed_policy_retirement_available",
         "ready_removal_review_available",
@@ -345,15 +351,18 @@ def create_app(settings: Settings | None = None, *, ready_removal_admission_enab
         return render(request, 'queue-recovery.html', {'identity': identity, 'report': report,
                       'active_page': 'shuns', 'auto_request': False})
 
+    @app.get('/unmanaged', response_class=HTMLResponse)
     @app.get("/", response_class=HTMLResponse)
     def index(request: Request, q: str = "", page: Annotated[int, Query(ge=1, le=2**31 - 1)] = 1) -> HTMLResponse:
         identity = identity_from_request(request, settings.development_auth)
         search_query = q.strip()
+        unmanaged = request.url.path == '/unmanaged'
+        parameters = {'page': page, **({'ownership': 'unmanaged'} if unmanaged else {})}
         with api_client(settings) as client:
             # Capture the revision before state reads. If reconciliation occurs
             # during rendering, the next poll will fetch the newer revision.
             refresh_status = client.get("/api/v1/status")
-            response = client.get('/api/v1/shuns-page', params={'page': page})
+            response = client.get('/api/v1/shuns-page', params=parameters)
             search_response = (
                 client.get("/api/v1/search", params={"ip": search_query})
                 if search_query
@@ -365,6 +374,10 @@ def create_app(settings: Settings | None = None, *, ready_removal_admission_enab
             return render(request, "error.html", {"message": "IP search is invalid or unavailable."}, 422)
         refresh = refresh_status.json() if refresh_status.status_code == 200 else None
         shun_page = response.json()
+        if unmanaged and (shun_page.get('ownership') != 'unmanaged'
+                          or any(row.get('maintained') is not False for row in shun_page['items'])):
+            return render(request, 'error.html', {'identity': identity,
+                          'message': 'Unmanaged classification requires a matching API; no unfiltered list was substituted.'}, 503)
         return render(
             request,
             "index.html",
@@ -377,6 +390,9 @@ def create_app(settings: Settings | None = None, *, ready_removal_admission_enab
                 "disabled_policy_ips": protected_policy_ips(refresh, enabled=False),
                 "search_query": search_query,
                 "search_results": search_response.json() if search_response is not None else None,
+                'unmanaged_view': unmanaged,
+                'shun_path': '/unmanaged' if unmanaged else '/',
+                'active_page': 'unmanaged' if unmanaged else 'shuns',
             },
         )
 
@@ -593,7 +609,8 @@ def create_app(settings: Settings | None = None, *, ready_removal_admission_enab
                 raise HTTPException(503, "Managed policy page is incomplete. No policy was changed.") from error
         if format_two:
             return render(request, 'bulk-managed-shuns.html', {'identity': identity, 'managed': managed,
-                'refresh': refresh.json(), 'active_page': 'managed', 'auto_request': False})
+                'refresh': refresh.json(), 'active_page': 'managed', 'auto_request': False,
+                'control_request_ids': {kind: str(uuid4()) for kind in ('imports', 'restoration')}})
         cleanup, fleet_cleanup = None, None
         try:
             with api_client(settings) as client:
@@ -624,6 +641,20 @@ def create_app(settings: Settings | None = None, *, ready_removal_admission_enab
             "fleet_cleanup": fleet_cleanup,
             "active_page": "managed", "auto_request": False,
         })
+
+    @app.post('/managed-additions/{kind}/{action}')
+    def managed_addition_control(request: Request, kind: Literal['imports', 'restoration'], action: Literal['pause', 'resume'],
+                                 revision: Annotated[int, Form(ge=0)], request_id: Annotated[UUID, Form()],
+                                 csrf: str = Form(...)):
+        require_csrf(request, csrf)
+        identity = identity_from_request(request, settings.development_auth)
+        try:
+            with api_client(settings) as client:
+                response = client.post('/api/v2/managed-additions/control', headers={'Idempotency-Key': str(request_id)},
+                                       json={'actor': identity.__dict__, 'kind': kind, 'action': action.upper(), 'revision': revision})
+        except httpx.HTTPError as error:
+            raise HTTPException(503, 'Pause status is unknown. Check Managed shuns; retry only the same request key.') from error
+        return queued_result(request, response, '/managed-shuns')
 
     def require_managed_operator(identity):
         if not {"Operator", "Administrator"}.intersection(identity.roles):
@@ -1142,7 +1173,7 @@ def create_app(settings: Settings | None = None, *, ready_removal_admission_enab
                                    confirm_ip=str(review.ip), status_code=code)
 
     @app.get("/protected-ips", response_class=HTMLResponse)
-    def protected_ips(request: Request) -> HTMLResponse:
+    def protected_ips(request: Request, ip: IPv4Address | None = None) -> HTMLResponse:
         identity = identity_from_request(request, settings.development_auth)
         try:
             with api_client(settings) as client:
@@ -1155,6 +1186,7 @@ def create_app(settings: Settings | None = None, *, ready_removal_admission_enab
         return render(request, "protected-ips.html", {
             "identity": identity, "refresh": refresh.json(), "policy": policy.json(),
             "active_page": "protected", "auto_request": False,
+            "target_ip": str(ip) if ip is not None else "",
         })
 
     @app.post("/protected-ips/{action}")
@@ -1240,6 +1272,20 @@ def create_app(settings: Settings | None = None, *, ready_removal_admission_enab
         if response.status_code != 200 or history.status_code != 200:
             return render(request, "error.html", {"message": "State API is unavailable."}, 503)
         refresh = refresh_status.json() if refresh_status.status_code == 200 else None
+        if refresh is not None and not isinstance(refresh, dict):
+            return render(request, 'error.html', {'message': 'State API returned invalid status.'}, 503)
+        ip_scope, ip_scope_error = None, None
+        if (refresh or {}).get('managed_policy_format') == 2 and (refresh or {}).get('ready_removal_review_available') is True:
+            try:
+                with api_client(settings) as client:
+                    scoped = client.get(f'/api/v2/managed-removal-scope/{ip}')
+                if scoped.status_code == 409:
+                    ip_scope_error = 'No actionable device scope is available. It may be empty or exceed the ten-device limit. No policy state is inferred.'
+                else:
+                    scoped.raise_for_status()
+                    ip_scope = validate_ready_inspection(scoped.json(), ip)
+            except (httpx.HTTPError, ValueError, TypeError, KeyError):
+                ip_scope_error = 'Device actions could not be loaded. Observations below are not a substitute for managed policy; no change was submitted.'
         policy_ips = protected_policy_ips(refresh)
         return render(
             request,
@@ -1250,6 +1296,8 @@ def create_app(settings: Settings | None = None, *, ready_removal_admission_enab
                 "shuns": response.json(),
                 "events": history.json(),
                 "refresh": refresh,
+                "ip_scope": ip_scope,
+                "ip_scope_error": ip_scope_error,
                 "is_trusted_policy_ip": str(ip) in policy_ips,
                 "is_disabled_policy_ip": str(ip) in protected_policy_ips(refresh, enabled=False),
             },
@@ -1306,12 +1354,15 @@ def create_app(settings: Settings | None = None, *, ready_removal_admission_enab
 
     register_import_web(app, settings, render=render, identity_for=identity_from_request,
                         client_for=lambda config: api_client(config), form_for=preview_form, csrf_for=require_csrf)
-    register_ready_removal_web(app, settings, enabled=ready_removal_admission_enabled, render=render,
+    ready_review = register_ready_removal_web(app, settings, enabled=ready_removal_admission_enabled, render=render,
         identity_for=identity_from_request, operator_for=require_managed_operator,
         client_for=lambda config: api_client(config), form_for=preview_form, csrf_for=require_csrf)
-    register_ordered_removal_web(app, settings, enabled=ordered_removal_admission_enabled, render=render,
+    ordered_review = register_ordered_removal_web(app, settings, enabled=ordered_removal_admission_enabled, render=render,
         identity_for=identity_from_request, operator_for=require_managed_operator,
         client_for=lambda config: api_client(config), form_for=preview_form, csrf_for=require_csrf)
+    register_unblock_web(app, settings, identity_for=identity_from_request, operator_for=require_managed_operator,
+        client_for=lambda config: api_client(config), form_for=preview_form, csrf_for=require_csrf,
+        ready_review=ready_review, ordered_review=ordered_review)
     register_bulk_preparation_web(app, settings, render=render, identity_for=identity_from_request,
         operator_for=require_managed_operator, client_for=lambda config: api_client(config),
         form_for=preview_form, csrf_for=require_csrf)

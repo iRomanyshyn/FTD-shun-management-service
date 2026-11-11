@@ -1,0 +1,32 @@
+{% macro device_actions(device_id, hostname, maintained, observed, enabled=true) %}
+<article class="ip-device-card" data-ip-device="{{ device_id }}">
+<h3>{{ hostname }}</h3>
+<div class="ip-device-state"><span class="state-badge {{ 'maintenance-enabled' if observed else '' }}">{{ 'Block observed' if observed else 'No block observed' }}</span><span class="state-badge">{{ 'Auto-restore on' if maintained is sameas true else 'Auto-restore off' if maintained is sameas false else 'Maintenance unknown' }}</span></div>
+{% if not enabled %}<p class="preview-error">Device disabled. Unblocking cannot execute; stopping auto-restoration remains available.</p>{% endif %}
+{% if 'Operator' in identity.roles or 'Administrator' in identity.roles %}
+<div class="ip-device-actions">
+{% if (refresh or {}).managed_policy_format == 2 and refresh.ready_removal_review_available is sameas true %}
+<form method="post" action="/ip-actions/unblock"><input type="hidden" name="csrf" value="{{ csrf_token }}"><input type="hidden" name="target" value="{{ device_id }}:{{ ip }}"><button type="submit"{% if not enabled %} disabled{% endif %}>Unblock…</button></form>
+{% elif maintained is sameas true %}<form method="post" action="/managed-shuns/removal-review"><input type="hidden" name="csrf" value="{{ csrf_token }}"><input type="hidden" name="target" value="{{ device_id }}:{{ ip }}"><button type="submit">Unblock…</button></form>
+{% elif maintained is sameas false and (refresh or {}).manual_mutations_available is not sameas false %}<form method="post" action="/devices/{{ device_id }}/shuns/{{ ip }}/remove" data-queue-form><input type="hidden" name="csrf" value="{{ csrf_token }}"><input type="hidden" name="request_id" value="{{ new_operation_key() }}"><button type="submit">Queue unblock</button></form>{% endif %}
+{% if maintained is sameas true and (refresh or {}).managed_policy_retirement_available is sameas true %}<form method="post" action="/managed-shuns/retirement-review"><input type="hidden" name="csrf" value="{{ csrf_token }}"><input type="hidden" name="target" value="{{ device_id }}:{{ ip }}"><button type="submit" class="secondary-action">Stop restoring…</button></form>{% endif %}
+</div>
+{% if maintained is sameas true %}<p class="preview-help"><strong>Unblock</strong> removes the block and turns off auto-restore. <strong>Stop restoring</strong> keeps the current block, but will not restore it if it disappears.</p>{% endif %}
+{% else %}<p class="preview-help">Read-only. Operator access is required for device actions.</p>{% endif %}
+</article>
+{% endmacro %}
+<section id="ip-actions" data-live-region data-live-editor aria-labelledby="ip-actions-heading" class="ip-workspace">
+<div class="section-heading"><h2 id="ip-actions-heading">Manage {{ ip }}</h2><div class="ip-entry-actions">
+{% if (refresh or {}).bulk_import_preparation_available is sameas true and ('Operator' in identity.roles or 'Administrator' in identity.roles) %}<a class="outline-action" href="/managed-imports/v2?ip={{ ip }}">Block on devices…</a>{% endif %}
+<a class="outline-action" href="/protected-ips?ip={{ ip }}#{{ 'edit-policy-' ~ ip if is_trusted_policy_ip or is_disabled_policy_ip else 'add-protected-ip' }}">{{ 'Edit protection' if is_trusted_policy_ip or is_disabled_policy_ip else 'Protect IP…' }}</a>
+</div></div>
+<p class="preview-help">Choose a device below. You will review changes before confirming. Protected IPs are automatically unblocked.</p>
+{% if ip_scope_error %}<p class="policy-warning" role="status">{{ ip_scope_error }} <a href="/managed-shuns">Open Managed shuns</a>.</p>{% endif %}
+<div class="ip-device-grid">
+{% if ip_scope %}{% for target in ip_scope.targets %}{{ device_actions(target.device_id, target.hostname, target.maintenance_enabled, target.observed_present, target.device_enabled) }}{% endfor %}
+{% else %}{% for device in shuns | groupby('device_id') %}{% set row = device.list[0] %}{{ device_actions(row.device_id, row.device_hostname, row.maintained, true) }}{% else %}<p>No observed blocks. Saved managed policy may still restore a missing block; <a href="/managed-shuns">inspect Managed shuns</a>.</p>{% endfor %}{% endif %}
+</div>
+{% if ip_scope and ip_scope.targets | length > 1 and ('Operator' in identity.roles or 'Administrator' in identity.roles) %}
+<div class="ip-fleet-actions"><form method="post" action="/ip-actions/unblock-everywhere"><input type="hidden" name="csrf" value="{{ csrf_token }}"><input type="hidden" name="ip" value="{{ ip }}"><button type="submit" class="secondary-action">Unblock everywhere…</button></form><span class="preview-help">Review all {{ ip_scope.targets | length }} devices together.</span></div>
+{% endif %}
+</section>

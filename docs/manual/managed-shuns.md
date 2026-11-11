@@ -1,5 +1,9 @@
 # Managed Shuns — Standing Policy and Gated Restoration
 
+Current operator controls: [Import and Automatic-Restoration Pauses](managed-addition-pauses.md)
+documents two independent scheduling pauses. These retain existing blocks/rules,
+monitoring and Protected-IP unblocking, unlike retirement or recovery holds.
+
 ## Operator guide: observed blocks, auto-restoration and protection
 
 Current UI terminology, 2026-11-02. The configured managed lab is described in
@@ -35,7 +39,12 @@ in history after a later verified removal; it is not a current block or pending 
 Timestamps retain local formatting and timezone. Open history/activity disclosures
 are preserved during local status updates while their entries remain in scope.
 
-Actions are explicit and still require the existing frozen confirmation:
+Actions are explicit and still require the existing frozen confirmation. In the
+IP workspace, **Unblock…** checks current local scheduling state and prepares the
+appropriate confirmation before consent; there is no separate execution-mode
+choice. A running addition produces a wait-then-unblock explanation, while an
+idle target goes directly to the ordinary review. Blockers and unknown outcomes
+are not bypassed. See [Operator Workspace](operator-workspace.md#actions-and-help).
 
 - **Turn off auto-restore only — leave device unchanged:** retire this rule, not
   an unblock. Already running additions and independent queued operations may

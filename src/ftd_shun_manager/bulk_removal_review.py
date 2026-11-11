@@ -39,21 +39,27 @@ class ReadyRemovalReview:
 
 class ReadyRemovalReviews(ManagedRemovalReviews):
     def prepare(self, subject, cookie, inspection, ip, *, device_id=None, ttl_seconds=900, reason=''):
-        if (type(inspection) is not dict or set(inspection) != _FIELDS | {
+        scope = validate_ready_inspection(inspection, ip, device_id=device_id)
+        payload, digest = canonical_removal(scope, ttl_seconds, reason)
+        return self._save(ReadyRemovalReview, subject, cookie, payload_json=payload, digest=digest)
+
+
+def validate_ready_inspection(inspection, ip, *, device_id=None):
+    """Validate a bounded local read without creating a review token or consent."""
+    if (type(inspection) is not dict or set(inspection) != _FIELDS | {
                 'scope_digest', 'read_only', 'execution_available', 'device_work_admitted'}
                 or inspection['read_only'] is not True or inspection['execution_available'] is not False
                 or inspection['device_work_admitted'] is not False or type(ip) is not IPv4Address):
-            raise ValueError('A complete readonly version-2 removal inspection is required.')
-        scope = {field: inspection[field] for field in _FIELDS}
-        _, scope_digest = canonical_scope(scope)
-        supplied = inspection['scope_digest']
-        if (type(supplied) is not str or not supplied.isascii() or not hmac.compare_digest(supplied, scope_digest)
+        raise ValueError('A complete readonly version-2 removal inspection is required.')
+    scope = {field: inspection[field] for field in _FIELDS}
+    _, scope_digest = canonical_scope(scope)
+    supplied = inspection['scope_digest']
+    if (type(supplied) is not str or not supplied.isascii() or not hmac.compare_digest(supplied, scope_digest)
                 or scope['ip'] != str(ip) or scope['scope'] != ('device' if device_id is not None else 'fleet')
                 or (device_id is not None and (type(device_id) is not int
                     or [row['device_id'] for row in scope['targets']] != [device_id]))):
-            raise ValueError('Inspection was substituted or does not match the requested exact mode/target.')
-        payload, digest = canonical_removal(scope, ttl_seconds, reason)
-        return self._save(ReadyRemovalReview, subject, cookie, payload_json=payload, digest=digest)
+        raise ValueError('Inspection was substituted or does not match the requested exact mode/target.')
+    return scope
 
 
 def validate_ready_receipt(review, value):

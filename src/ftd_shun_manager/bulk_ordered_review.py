@@ -17,6 +17,7 @@ BLOCKERS = {'DEVICE_DISABLED', 'DEVICE_OUTSIDE_EXECUTOR_SCOPE', 'DEVICE_FENCE_AT
     'DEVICE_CLOCK_REVERSED', 'DEVICE_FENCE_EXPIRED', 'DEVICE_OUTCOME_UNKNOWN',
     'PAIR_ADD_ATTENTION', 'PENDING_REMOVE', 'ADD_NOT_RUNNING', 'ADD_BINDING_UNAVAILABLE', 'ADD_AWAITING_CONFIRMATION'}
 JOB_STATES = {'QUEUED', 'RUNNING', 'VERIFIED', 'NOOP', 'FAILED', 'UNVERIFIED', 'CANCELLED', 'EXPIRED', 'RECONCILED_ABSENT'}
+ADD_STATES = JOB_STATES | {'AWAITING_CONFIRMATION', 'OBSERVED_PRESENT', 'CONFIRMED_ABSENT'}
 
 
 def _equal(left, right):
@@ -145,7 +146,7 @@ def validate_ordered_status(key, value):
         _uuid(row['job_id'])
         if (previous not in devices or not next(target['maintenance_enabled'] for target in value['scope']['targets'] if target['device_id'] == previous)
                 or row['job_id'] in identities or row['missing_evidence'] is not False
-                or type(row['state']) is not str or row['state'] not in JOB_STATES):
+                or type(row['state']) is not str or row['state'] not in ADD_STATES):
             raise ValueError('Missing or inconsistent original ADD evidence.')
         identities.add(row['job_id'])
     phase, decision, jobs = value['state'], value['decision'], value['cleanup_jobs']

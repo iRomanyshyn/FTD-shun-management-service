@@ -549,7 +549,7 @@ def test_private_admission_wakes_only_eligible_new_work_and_reports_device_capab
                 ]
             status = (await client.get("/api/v1/status")).json()
             assert status["addition_device_count"] == 1 and status["import_execution_enabled"]
-            assert [item["execution_enabled"] for item in status["queue"]["items"]] == [True, False]
+            assert {item['device_id']: item['execution_enabled'] for item in status['queue']['items']} == {1: True, 2: False}
             assert signals == ["work"] and agent.calls == []
 
     asyncio.run(scenario())

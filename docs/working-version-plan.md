@@ -3,6 +3,39 @@
 Agreed with the operator: 2026-10-20.
 Status: approved target behavior and delivery plan; not a deployment procedure.
 
+Deferred cleanup increment, 2026-11-11 (source-only0.2.5): an accepted qualifying
+RUNNING-ADD reservation now waits across settled-v7 handoff and the next complete
+causal observation, then promotes exact urgent cleanup without another ADD.
+Whole-scope/current-policy/uncertainty guards and original deadline remain;
+initial already-awaiting capture, compatible deferred recovery and fresh-store
+configured activation are still unfinished. Current lab remains0.2.4 Web/v6.
+See manual/deferred-confirmation.md and status/log for actual validation.
+
+IP usability refinement, 2026-11-11: one Unblock entry chooses ordinary or
+wait-after-current-add review from complete local preflight **before consent**.
+Blockers/invalid inspection never fall back, and confirmed/uncertain requests
+never switch mode or key. Stop restoring remains policy-only. Hide redundant
+single-device fleet controls; show operational consequences before technical
+details. See [Operator Workspace](manual/operator-workspace.md#actions-and-help)
+and status/log for actual validation and deployment.
+
+Operator alignment, 2026-11-11: introduce independent import and automatic-
+restoration pauses. Existing blocks/monitoring/removals/Protected-IP unblocking
+continue; already claimed commands settle. Resume requires fresh relevant read
+evidence and never clears recovery holds. Deliver version 0.2.0, mandatory future
+delivery increments and a separate public application-source build ID; common
+100-row top/bottom pagers and newest-first Queue presentation (FIFO execution
+unchanged). Follow status/log for actual validation/deployment, not this plan.
+
+Observed ownership increment, 2026-11-11: Shuns now annotates current maintenance
+per device/IP, with a separately paginated **Unmanaged** view. Classification is
+not detection/creation attribution, and historical imports do not imply enabled
+maintenance. V2 observed rows/IP details prepare the existing frozen device-removal
+review, not legacy immediate queue admission. Final consent and all execution
+guards remain. This delivers the separate view, not rolling 24-hour correlation,
+new adoption authority, Emergency Purge or deferred-v7 activation. See status/log
+and manual/shuns-and-maintenance.md for validation/deployment scope.
+
 Recovery UX increment, 2026-11-10: add explicit **Check and resume import**
 inspection/guidance and known-lab host orchestration instead of an unactionable
 unknown warning. Old outcomes remain unknown, a fresh complete read precedes

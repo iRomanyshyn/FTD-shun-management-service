@@ -61,11 +61,20 @@ def test_status_independently_bounds_active_attention_and_completed_work(queue):
     assert result["display_limits"] == {"active": 100, "attention": 20, "completed": 20}
     assert len(result["items"]) == 140
     assert result["items"][0]["id"] == "running"
-    assert [item["id"] for item in result["items"][1:100]] == [f"queued-{index}" for index in range(99)]
+    assert [item["id"] for item in result["items"][1:100]] == [f"queued-{index}" for index in range(104, 5, -1)]
     assert [item["id"] for item in result["items"][100:120]] == [f"attention-{index}" for index in range(24, 4, -1)]
     assert [item["id"] for item in result["items"][120:]] == [f"completed-{index}" for index in range(24, 4, -1)]
     with queue.store._connection() as db:
         assert db.execute("SELECT COUNT(*) FROM operation_jobs").fetchone()[0] == 156
+
+
+def test_newest_first_display_does_not_reverse_fifo_claims(queue):
+    enqueue(queue, ip='198.51.100.1')
+    enqueue(queue, ip='198.51.100.2')
+    assert [item['ip'] for item in queue.status()['items']] == ['198.51.100.2', '198.51.100.1']
+    assert queue.claim_cycle('test-display-order', 135)
+    job = queue.claim_removal(1, 'test-display-order', queue.cutoff())
+    assert job['ip'] == IPv4Address('198.51.100.1').packed
 
 
 def test_status_counts_and_groups_share_one_snapshot_during_concurrent_completion(queue, monkeypatch):

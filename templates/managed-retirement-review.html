@@ -28,7 +28,7 @@
 <input type="hidden" name="review" value="{{ review.token }}">
 <label for="confirm-retirement-ip">Type {{ review.ip }} to turn off auto-restoration for this device/IP only</label>
 <input id="confirm-retirement-ip" name="confirm_ip" value="{{ confirm_ip }}" autocomplete="off" inputmode="decimal" required>
-<button type="submit">Turn off auto-restore — leave device unchanged</button>
+<button type="submit">Confirm stop restoring</button>
 </form>
 {% endif %}
 <p class="preview-help">This frozen review is bound to your subject and CSRF cookie, expires within ten minutes and is lost on Web restart. It cannot authorize creation, re-enable, removal or resumption of restoration.</p>

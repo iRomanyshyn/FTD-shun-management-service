@@ -1,6 +1,15 @@
 # Version-2 Ordered Removal in the Web Interface
 
-Status: implemented with independent default-off Web/API capabilities. **Not
+Current IP workspace, 2026-11-11: one **Unblock…** action chooses the appropriate
+review from a validated complete preflight **before consent**. A running addition
+prepares the waiting contract described here; an idle target prepares the ordinary
+contract. Blocked/invalid preflight does not fall back, and an existing confirmed
+or unknown request never changes mode/key. Old explicit ordered READY inspection
+offers a new **Review unblock**, not a red execution-unavailable dead end.
+See [Operator Workspace](operator-workspace.md#actions-and-help) and
+[Project Status](../project-status.md) for actual lab capabilities/deployment.
+
+Historical component checkpoint: implemented with independent default-off Web/API capabilities. **Not
 migrated, enabled or deployed in the lab.** This workflow does not authorize new
 fixtures, optional migrations, runtime selection or device mutations. Read
 [Private Ordered API](ordered-removal-api.md),

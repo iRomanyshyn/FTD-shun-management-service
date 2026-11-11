@@ -155,8 +155,10 @@ class ContinuousApiRuntime:
             state = _state(db)
             if state is None:
                 raise QueueConflict('Existing version-2 policy is required.')
+            from .managed_addition_controls import read as read_controls
             return {'managed_policy_available': True, 'managed_policy_initialized': True,
                     'managed_policy_revision': state['revision'], 'managed_policy_format': 2,
+                    'managed_addition_controls': read_controls(db),
                     'managed_execution_suspended': bool(state['restoration_suspended'])}
 
     def supports(self, method, path):
@@ -169,7 +171,7 @@ class ContinuousApiRuntime:
                         or re.fullmatch(r'/api/v2/managed-ordered-removal-scope/[^/]+', path)
                         or re.fullmatch(r'/api/v2/managed-ordered-removals/[0-9a-f-]{36}', path))
         if method == 'POST':
-            return bool(path in {'/api/v1/refresh-hint', '/api/v1/import-preview',
+            return bool(path in {'/api/v2/managed-additions/control', '/api/v1/refresh-hint', '/api/v1/import-preview',
                                  '/api/v2/managed-shuns/selection', '/api/v2/managed-shuns/retire',
                                  '/api/v2/managed-imports/prepare', '/api/v2/managed-imports/preparations',
                                  '/api/v2/managed-imports/preparation', '/api/v2/managed-imports/proposal',

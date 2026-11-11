@@ -6,6 +6,9 @@
 <summary><span class="utility-icon" aria-hidden="true"></span><span>Status</span><span class="utility-badge" data-menu-badge data-status-indicator aria-hidden="true"></span><span class="utility-alert" data-menu-alert aria-hidden="true" hidden>!</span></summary>
 <div class="utility-panel">
 <h2 id="refresh-heading">Refresh status</h2>
+{% set controls = refresh.managed_addition_controls | default({}) %}
+<p class="preview-help" data-additions-pause-notice{% if not controls.available or (not controls.imports.paused and not controls.restoration.paused) %} hidden{% endif %}><span data-additions-pause-label>Managed work is paused.</span> Monitoring, removals and Protected-IP automatic unblocking continue. <a href="/managed-shuns">Manage pauses</a>.</p>
+<p class="loading-note" data-read-retry hidden role="status"></p>
 <p data-runtime-notice{% if refresh.runtime_mode | default('legacy') != 'continuous-observation' %} hidden{% endif %}>Continuous observation profile: {% if refresh.managed_policy_view_available %}managed policy viewing is available; {% endif %}{% if refresh.managed_policy_retirement_available %}stop-maintaining is available; {% endif %}{% if refresh.ordered_removal_admission_enabled is sameas true %}ordered removal API admission is available with separate Web confirmation; ADD/import admission remains unavailable.{% elif refresh.ready_removal_admission_enabled is sameas true %}ready-only removal API admission is available with separate Web confirmation; ADD/import admission remains unavailable.{% else %}ADD/import admission and device-removal admission are unavailable.{% endif %} Protected-IP policy and its automatic removal remain active under the existing safety checks.</p>
 <p class="refresh-status">Data last confirmed: <time class="last-successful-refresh" datetime="{{ refresh.last_successful_refresh or '' }}">{{ refresh.last_successful_refresh or "not yet available" }}</time>. <span data-refresh-timing-label>Next periodic check</span>: <span class="baseline-countdown">{{ refresh.next_baseline_refresh or "not scheduled" }}</span>.</p>
 <p class="preview-help" data-refresh-timing-help>Periodic timing is recalculated after a successful device read. A requested refresh may run sooner. Eligibility is not completion.</p>
@@ -46,24 +49,16 @@
 <div data-request-progress></div>
 </section>
 <table class="operation-queue" data-queue-active-table hidden><thead><tr><th>Device / IP</th><th>State</th><th>Requested by</th><th>Details / action</th></tr></thead><tbody data-operation-queue></tbody></table>
-<details id="queue-results-details" hidden>
-<summary data-queue-completed-summary>Completed operations</summary>
-<p data-queue-completed-note></p>
-<p>These are retained results, not pending work. Full audit history is available on each IP's detail page.</p>
-<table class="operation-queue"><thead><tr><th>Device / IP</th><th>Outcome</th><th>Requested by</th><th>Details</th></tr></thead><tbody data-queue-completed></tbody></table>
-</details>
-<details id="queue-reviewed-details" hidden>
-<summary data-queue-reviewed-summary>Reviewed history</summary>
-<p data-queue-reviewed-note></p>
-<table class="operation-queue"><thead><tr><th>Device / IP</th><th>Outcome</th><th>Requested by</th><th>Review / original details</th></tr></thead><tbody data-queue-reviewed></tbody></table>
-</details>
+<p class="preview-help queue-history-links"><a href="/history">Audit history</a>{% if refresh.bulk_import_preparation_available is sameas true %} · <a href="/managed-imports/v2">Saved imports</a>{% elif refresh.managed_workflows_available is not sameas false and ('Operator' in identity.roles or 'Administrator' in identity.roles) %} · <a href="/managed-imports">Saved imports</a>{% endif %}</p>
 </div></details>
 </div>
 <div class="service-notices" aria-label="Service alerts">
 {% set safety_pause = (refresh.queue | default({})).mutations_suspended | default(false) %}
 <p class="refresh-error" data-recovery-warning{% if not safety_pause and not refresh.managed_removal_worker_error and not refresh.managed_restoration_error %} hidden{% endif %} role="status">{% if safety_pause %}Recovery safety pause: device mutations and new jobs are suspended. Monitoring continues; offline review is required before resuming.{% elif refresh.managed_removal_worker_error %}{{ refresh.managed_removal_worker_error }}{% elif refresh.managed_restoration_error %}{{ refresh.managed_restoration_error }}{% endif %}</p>
 <p class="refresh-error" data-action-warning hidden role="alert"></p>
-<p class="refresh-error" data-refresh-warning{% if not refresh.last_error %} hidden{% endif %} role="status">{{ refresh.last_error or '' }}</p>
+{% set recovery = refresh.execution_recovery | default({}) %}
+{% set brief_retry = recovery.state == 'retrying' and recovery.attempts is integer and 0 < recovery.attempts < 3 and recovery.reason == refresh.last_error %}
+<p class="refresh-error" data-refresh-warning{% if not refresh.last_error or brief_retry %} hidden{% endif %} role="status">{{ refresh.last_error or '' }}</p>
 <p class="refresh-error" data-queue-warning hidden role="status"></p>
 </div>
 </section>

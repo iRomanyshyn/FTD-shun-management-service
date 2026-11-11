@@ -48,7 +48,7 @@ if p.get("submitted"):
         addresses=[dict(ip=ip,protected=ip=="198.51.100.10",devices=[dict(id=1,hostname="lab-ftd",already_shunned=ip=="203.0.113.20")]) for ip in parsed["ips"]])), p.get("page", 1))
 shun = dict(ip="198.51.100.10", device_id=1, device_hostname="lab-ftd FIXTURE_EVENT_" + str(p["generation"]), interface="outside",
             first_seen_at="2026-10-14T10:00:00Z", active_since_at="2026-10-15T10:00:00Z", last_seen_at="2026-10-15T10:00:00Z",
-            manual_imports=p.get("shun_origins", []))
+            manual_imports=p.get("shun_origins", []), maintained=p.get("maintained", False))
 event = dict(timestamp="2026-10-15T10:00:00Z", event_type="FIXTURE_EVENT_" + str(p["generation"]),
              device_hostname="lab-ftd", actor_display_name="Test Operator", actor_subject="test", ip=shun["ip"])
 review = ImportReviews().prepare("test", "fixture-token", preview, p.get("label", ""), "Fixture only") if p["template"] == "import-confirm.html" else None
@@ -92,7 +92,7 @@ if p["template"] in ("bulk-removal-review.html", "bulk-ordered-review.html", "bu
             jobs = [dict(device_id=i,job_id=f"9999999{i}-9999-4999-8999-999999999999",state="VERIFIED" if phase=="VERIFIED" else "QUEUED") for i in (1,2)] if admitted else []
             ordered_status = dict(operation_id=ordered_key,intent_format=2,action="STOP_AND_REMOVE_ORDERED",owner_subject="test",predecessor_count=1,
                 scope=scope,requested_at="2026-10-21T12:00:02.000Z",expires_at="2026-10-21T12:15:02.000Z",
-                state="ADMITTED" if admitted else phase,predecessors=[dict(device_id=1,job_id=predecessor["job_id"],state="NOOP" if admitted else "FAILED" if phase=="ATTENTION" else "RUNNING",missing_evidence=False)],
+                state="ADMITTED" if admitted else phase,predecessors=[dict(device_id=1,job_id=predecessor["job_id"],state=p["refresh"].get("fixture_ordered_add_state", "NOOP" if admitted else "FAILED" if phase=="ATTENTION" else "RUNNING"),missing_evidence=False)],
                 cleanup_jobs=jobs,verified_removal=phase=="VERIFIED",cleanup_reserved=not admitted,read_only=True,device_work_admitted=admitted,
                 attention=phase=="ATTENTION",decision=dict(jobs=[dict(device_id=j["device_id"],job_id=j["job_id"]) for j in jobs],requested_at="2026-10-21T12:00:02.000Z",expires_at="2026-10-21T12:15:02.000Z") if admitted else dict(reason="ADMISSION_CONFLICT") if phase=="ATTENTION" else None)
             validate_ordered_status(ordered_key,ordered_status)
@@ -210,8 +210,11 @@ print(templates.get_template(p["template"]).render(identity=Identity("test", "Te
     page=1, pages=2, page_targets=review.targets[:100] if p["template"] == "managed-batch-review.html" else [],
     confirm_count="", acknowledged=False, import_text_limit=MAX_TEXT_BYTES,
     managed=p.get("managed"), handoffs=p.get("handoffs"), fleet_cleanup=p.get("fleet_cleanup"),
-    csrf_token="fixture-token", shuns=[dict(shun, ip=str(IPv4Address(0xC6120000 + (p["bulk_page"]-1)*100 + i))) for i in range(100)] if p.get("large_shuns") else [shun],
+    control_request_ids=dict(imports="11111111-1111-4111-8111-111111111111",restoration="22222222-2222-4222-8222-222222222222"),
+    csrf_token="fixture-token", shuns=[] if p["refresh"].get("fixture_no_shuns") or p.get("unmanaged") and shun["maintained"] else [dict(shun, ip=str(IPv4Address(0xC6120000 + (p["bulk_page"]-1)*100 + i))) for i in range(100)] if p.get("large_shuns") else [shun],
+    ip_scope=p["refresh"].get("fixture_ip_scope"), ip_scope_error=None, target_ip=p.get("target_ip", ""),
     shun_pagination=dict(page=p["bulk_page"],pages=1000,total=100000,page_size=100) if p.get("large_shuns") else None,
+    unmanaged_view=p.get("unmanaged",False),shun_path="/unmanaged" if p.get("unmanaged") else "/",
     refresh=p["refresh"], search_query=p["query"],
     search_results=None, trusted_policy_ips=enabled_ips, disabled_policy_ips=disabled_ips, recent_events=p.get("history", {}).get("events", [event]),
     pagination=p.get("history", {}), anchored_history=bool(p.get("anchor")),
@@ -220,7 +223,7 @@ print(templates.get_template(p["template"]).render(identity=Identity("test", "Te
     source_text=p.get("source_text", ""), batch_label=p.get("label", ""), batch_reason=p.get("reason", ""),
     selected_devices=[1] if p.get("submitted") else [], preview=preview, preview_error=None,
     devices=[dict(id=1,hostname="lab-ftd",enabled=True),dict(id=2,hostname="disabled-ftd",enabled=False)],
-    active_page="managed" if p["template"].startswith("bulk-ordered-") or p["template"] in ("managed-shuns.html", "bulk-managed-shuns.html", "managed-remove-review.html", "bulk-removal-review.html", "managed-retirement-review.html", "managed-grant-review.html", "managed-batch-form.html", "managed-batch-review.html") else "imports" if p["template"] in ("import-preview.html", "bulk-confirmation-review.html", "bulk-policy-receipt.html", "bulk-cancellation-review.html", "bulk-cancellation-status.html") or p["template"].startswith("bulk-import-") else "protected" if p["template"] == "protected-ips.html" else "history" if p["template"] == "history.html" else "shuns",
+    active_page="unmanaged" if p.get("unmanaged") else "managed" if p["template"].startswith("bulk-ordered-") or p["template"] in ("managed-shuns.html", "bulk-managed-shuns.html", "managed-remove-review.html", "bulk-removal-review.html", "managed-retirement-review.html", "managed-grant-review.html", "managed-batch-form.html", "managed-batch-review.html") else "imports" if p["template"] in ("import-preview.html", "bulk-confirmation-review.html", "bulk-policy-receipt.html", "bulk-cancellation-review.html", "bulk-cancellation-status.html") or p["template"].startswith("bulk-import-") else "protected" if p["template"] == "protected-ips.html" else "history" if p["template"] == "history.html" else "shuns",
     auto_request=p["template"] not in ("protected-ips.html", "history.html", "import-preview.html", "import-confirm.html", "bulk-import-workspace.html", "bulk-import-report.html", "bulk-confirmation-review.html", "bulk-policy-receipt.html", "bulk-cancellation-review.html", "bulk-cancellation-status.html", "managed-shuns.html", "bulk-managed-shuns.html", "managed-remove-review.html", "bulk-removal-review.html", "bulk-ordered-review.html", "bulk-ordered-status.html", "managed-retirement-review.html", "managed-grant-review.html", "managed-batch-form.html", "managed-batch-review.html")))
 `;
 
@@ -280,7 +283,9 @@ async function connectPage(debugOrigin, url, readySelector = "[data-refresh-requ
   await call("Runtime.enable");
   await call("Emulation.setFocusEmulationEnabled", { enabled: true });
   await call("Page.navigate", { url });
-  await until(`Boolean(document.querySelector(${JSON.stringify(readySelector)}))`);
+  // A server-rendered refresh button can exist before the rest of the document
+  // or deferred controllers are ready. Do not race their initial render.
+  await until(`document.readyState === 'complete' && Boolean(document.querySelector(${JSON.stringify(readySelector)}))`);
   return { call, evaluate, until, errors, close: async () => {
     assert.deepEqual(errors, [], "No browser JavaScript exceptions");
     await fetch(`${debugOrigin}/json/close/${target.id}`);
@@ -288,12 +293,13 @@ async function connectPage(debugOrigin, url, readySelector = "[data-refresh-requ
   } };
 }
 
-test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
+test("refresh interaction in real Chromium", { timeout: 240000 }, async (t) => {
   let status = initial();
   let generation = 1;
   let failStatus = false;
   let failPost = false;
   let holdStatus = null;
+  let holdNavigation = null;
   let postCount = 0;
   let executionCount = 0;
   let pageReads = 0;
@@ -336,6 +342,9 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
     if (url.pathname === "/static/app.css") {
       response.setHeader("Content-Type", "text/css");
       response.end(fs.readFileSync(path.join(root, "static/app.css")));
+    } else if (url.pathname === "/static/navigation.js") {
+      response.setHeader("Content-Type", "text/javascript");
+      response.end(fs.readFileSync(path.join(root, "static/navigation.js")));
     } else if (url.pathname === "/static/freshness.js") {
       response.setHeader("Content-Type", "text/javascript");
       response.end(fs.readFileSync(path.join(root, "static/freshness.js")));
@@ -345,7 +354,7 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
     } else if (url.pathname === "/refresh-status") {
       if (holdStatus) await holdStatus;
       response.setHeader("Content-Type", "application/json");
-      response.statusCode = failStatus ? 503 : 200;
+      response.statusCode = failStatus === true ? 503 : failStatus || 200;
       response.end(JSON.stringify(stamp()));
     } else if (url.pathname === "/refresh" && request.method === "POST") {
       let body = "";
@@ -398,6 +407,17 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
       status.queue.revision += 1;
       status.status_revision += 1;
       response.setHeader("Content-Type", "application/json");
+      response.end(JSON.stringify(stamp()));
+    } else if (/^\/managed-additions\/(imports|restoration)\/(pause|resume)$/.test(url.pathname) && request.method === 'POST') {
+      let body = '';
+      for await (const chunk of request) body += chunk;
+      assert.match(body, /fixture-token/);
+      const [, , kind, action] = url.pathname.split('/');
+      const control = status.managed_addition_controls[kind];
+      control.paused = action === 'pause';
+      control.revision += 1;
+      status.status_revision += 1;
+      response.setHeader('Content-Type', 'application/json');
       response.end(JSON.stringify(stamp()));
     } else if (url.pathname.startsWith("/protected-ips/") && request.method === "POST") {
       let body = "";
@@ -460,8 +480,9 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
       confirmationPosts += 1;
       response.setHeader("Content-Type", "text/html");
       response.end("<p>Fixture admission received; no device work</p>");
-    } else if (["/", "/history", "/protected-ips", "/imports", "/imports/review", "/managed-imports/review", "/managed-shuns", "/managed-shuns/removal-review", "/managed-shuns/fleet-removal-review", "/managed-shuns/v2/removal-review", "/managed-shuns/v2/ordered-removal-review", "/managed-shuns/retirement-review", "/managed-shuns/grant-review", "/managed-shuns/bulk", "/managed-shuns/bulk-review"].includes(url.pathname) || url.pathname.startsWith("/shuns/") || url.pathname.startsWith("/managed-shuns/v2/ordered-removals/") || url.pathname.startsWith("/managed-imports/v2")) {
+    } else if (["/", "/unmanaged", "/history", "/protected-ips", "/imports", "/imports/review", "/managed-imports/review", "/managed-shuns", "/managed-shuns/removal-review", "/managed-shuns/fleet-removal-review", "/managed-shuns/v2/removal-review", "/managed-shuns/v2/ordered-removal-review", "/managed-shuns/retirement-review", "/managed-shuns/grant-review", "/managed-shuns/bulk", "/managed-shuns/bulk-review"].includes(url.pathname) || url.pathname.startsWith("/shuns/") || url.pathname.startsWith("/managed-shuns/v2/ordered-removals/") || url.pathname.startsWith("/managed-imports/v2")) {
       pageReads += 1;
+      if (holdNavigation && request.method === 'GET' && url.pathname === '/history') await holdNavigation;
       let previewFields = {};
       if (url.pathname === "/imports/review") previewFields = {
         submitted: true, source_text: "192.0.2.30", label: "<b>Review fixture</b>", page: 1,
@@ -496,14 +517,14 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
             entries: managed.entries.slice((current - 1) * 100, current * 100) };
       }
       const payload = { refresh: stamp(), generation, query: url.searchParams.get("q") || "", shun_origins: shunOrigins,
-        large_shuns: largeShuns,
+        large_shuns: largeShuns, unmanaged: url.pathname === '/unmanaged', maintained: status.fixture_maintained || false,
         bulk_page: Number(url.searchParams.get("page") || 1), bulk_review: url.pathname.endsWith("/review"),
         import_kind: url.searchParams.get("kind"),
         fleet_review: url.pathname === "/managed-shuns/fleet-removal-review",
         ordered_wait: url.searchParams.get("ordered") === "yes", all_devices_enabled: url.searchParams.get("enabled") === "all",
         history, anchor: url.searchParams.get("anchor"),
         ...previewFields,
-        policy, managed: managedView, handoffs, fleet_cleanup: fleetCleanup, template: url.pathname === "/" ? "index.html" : url.pathname === "/history" ? "history.html"
+        policy, managed: managedView, handoffs, fleet_cleanup: fleetCleanup, template: ["/", "/unmanaged"].includes(url.pathname) ? "index.html" : url.pathname === "/history" ? "history.html"
           : url.pathname === "/protected-ips" ? "protected-ips.html" : url.pathname === "/imports" ? "import-preview.html"
             : url.pathname === "/imports/review" ? "import-confirm.html" : url.pathname === "/managed-imports/review" ? "managed-import-review.html"
               : url.pathname === "/managed-imports/v2/confirmation-review" ? "bulk-confirmation-review.html"
@@ -551,6 +572,46 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
     });
     const debugOrigin = websocket.replace(/^ws:/, "http:").split("/devtools/")[0];
     const wake = (page) => page.evaluate("document.dispatchEvent(new Event('visibilitychange'))");
+    const screenshot = async (page, name) => {
+      if (!process.env.FTD_UI_SCREENSHOTS) return;
+      const capture = await page.call('Page.captureScreenshot', { format: 'png' });
+      fs.writeFileSync(path.join(process.env.FTD_UI_SCREENSHOTS, name + '.png'), Buffer.from(capture.data, 'base64'));
+    };
+
+    await t.test("native tab navigation paints a quiet loading indicator and resets on arrival", async () => {
+      status = initial();
+      const page = await connectPage(debugOrigin, `${origin}/protected-ips`);
+      const hints = postCount;
+      let release;
+      try {
+        await page.until("document.readyState==='complete'");
+        await page.call('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
+        await page.evaluate(`new MutationObserver(() => {
+          const loading = document.querySelector('[data-navigation-loading]');
+          if (!loading.hidden) sessionStorage.setItem('navigation-observed', JSON.stringify({
+            message: loading.textContent, busy: document.querySelector('main').getAttribute('aria-busy'),
+            quiet: document.querySelector('[data-action-warning]').hidden,
+            animation: getComputedStyle(document.querySelector('.navigation-loading-bar')).animationName,
+          }));
+        }).observe(document.querySelector('[data-navigation-loading]'), { attributes: true, attributeFilter: ['hidden'] })`);
+        const before = pageReads;
+        holdNavigation = new Promise(resolve => { release = resolve; });
+        await page.evaluate("document.querySelector('.primary-nav a[href=\"/history\"]').click()");
+        // Chromium can suspend CDP evaluation while a native navigation is
+        // pending. Inspect the pre-navigation observation after real arrival.
+        for (let i = 0; pageReads === before && i < 60; i += 1) await delay(50);
+        assert.ok(pageReads > before);
+        release(); holdNavigation = null;
+        await page.until("location.pathname==='/history' && document.querySelector('[data-navigation-loading]')?.hidden");
+        const observed = JSON.parse(await page.evaluate("sessionStorage.getItem('navigation-observed')"));
+        assert.match(observed.message, /Loading History/);
+        assert.equal(observed.busy, 'true');
+        assert.equal(observed.quiet, true);
+        assert.equal(observed.animation, 'none');
+        assert.equal(await page.evaluate("document.querySelector('main').hasAttribute('aria-busy')"), false);
+        assert.equal(postCount, hints, 'Navigation never requests device work');
+      } finally { release?.(); holdNavigation = null; await page.close(); }
+    });
 
     await t.test("status labels stay on one line while explanations wrap and tables scroll on mobile", async () => {
       status = initial();
@@ -563,7 +624,7 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
       try {
         await page.until("document.querySelector('[data-device-status] .status-label')?.textContent==='Not yet confirmed'");
         assert.deepEqual(await page.evaluate(`Array.from(document.querySelectorAll('.operation-queue .status-label'), e => e.textContent)`),
-          ['UNVERIFIED', 'Held', 'VERIFIED']);
+          ['UNVERIFIED', 'Held']);
         assert.ok(await page.evaluate("document.querySelector('[data-operation-queue]').textContent.includes('Held — ADD execution disabled')"));
         await page.evaluate(`(() => {
           const host = document.createElement('section'); host.id = 'nowrap-fixture';
@@ -616,7 +677,216 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
       } finally { await page.close(); largeShuns = false; status = initial(); }
     });
 
+    await t.test("Unmanaged keeps bounded pages and its own route through live changes", async () => {
+      status = initial();
+      largeShuns = true;
+      const before = removalKeys.length;
+      const page = await connectPage(debugOrigin, `${origin}/unmanaged?page=3&q=198.18`);
+      try {
+        assert.equal(await page.evaluate("document.querySelector('.primary-nav [aria-current]').textContent"), 'Unmanaged');
+        assert.equal(await page.evaluate("document.querySelectorAll('#active-shuns tbody tr').length"), 100);
+        assert.equal(await page.evaluate("document.querySelectorAll('#active-shuns .maintenance-unmanaged').length"), 100);
+        assert.match(await page.evaluate("document.querySelector('[rel=next]').getAttribute('href')"), /^\/unmanaged\?page=4&q=198.18/);
+        assert.equal(await page.evaluate("document.querySelector('.universal-search-form').getAttribute('action')"), '/unmanaged');
+        complete(); await wake(page);
+        await page.until(`document.querySelector('#active-shuns').textContent.includes('FIXTURE_EVENT_${generation}')`);
+        assert.equal(await page.evaluate("location.pathname+location.search"), '/unmanaged?page=3&q=198.18');
+        assert.equal(await page.evaluate("document.querySelectorAll('#active-shuns tbody tr').length"), 100);
+        status.fixture_maintained = true;
+        complete(); await wake(page);
+        await page.until("document.querySelector('#active-shuns').textContent.includes('No current unmanaged shuns')");
+        assert.equal(await page.evaluate("document.querySelectorAll('#active-shuns tbody tr').length"), 0);
+        assert.equal(removalKeys.length, before, 'Browsing never admits removal work');
+      } finally { largeShuns = false; await page.close(); }
+    });
+
+    await t.test("observed v2 rows and IP details offer frozen review instead of legacy queue submission", async () => {
+      status = initial();
+      Object.assign(status, { managed_policy_format: 2, ready_removal_review_available: true,
+        manual_mutations_available: false, fixture_maintained: true });
+      const before = removalKeys.length;
+      const page = await connectPage(debugOrigin, origin);
+      try {
+        const action = "document.querySelector('#active-shuns .table-action')";
+        assert.equal(await page.evaluate(`${action}.getAttribute('href')`), '/shuns/198.51.100.10#ip-actions');
+        assert.equal(await page.evaluate(`${action}.textContent`), 'Manage IP');
+        const managedColor = await page.evaluate("getComputedStyle(document.querySelector('#active-shuns .maintenance-enabled')).color");
+        assert.equal(await page.evaluate("Boolean(document.querySelector('#active-shuns [data-queue-form]'))"), false);
+        status.fixture_maintained = false;
+        complete(); await wake(page);
+        await page.until("Boolean(document.querySelector('#active-shuns .maintenance-unmanaged'))");
+        assert.notEqual(await page.evaluate("getComputedStyle(document.querySelector('#active-shuns .maintenance-unmanaged')).color"), managedColor);
+        assert.equal(await page.evaluate(`${action}.textContent`), 'Manage IP');
+        await page.call('Page.navigate', { url: `${origin}/shuns/198.51.100.10` });
+        await page.until("Boolean(document.querySelector('#ip-actions form[action=\"/ip-actions/unblock\"]'))");
+        assert.equal(await page.evaluate("document.querySelector('#ip-actions [name=target]').value"), '1:198.51.100.10');
+        assert.equal(await page.evaluate("Boolean(document.querySelector('[data-queue-form]'))"), false);
+        assert.equal(removalKeys.length, before);
+      } finally { await page.close(); }
+    });
+
+    await t.test('IP workspace exposes actions without disclosures, including absent managed blocks', async () => {
+      status = { ...initial(), runtime_mode: 'continuous-managed', managed_policy_format: 2,
+        ready_removal_review_available: true, ordered_removal_review_available: true,
+        managed_policy_retirement_available: true, bulk_import_preparation_available: true,
+        fixture_no_shuns: true, fixture_ip_scope: { targets: [{ device_id: 1, hostname: 'Synthetic FTD',
+          maintenance_enabled: true, observed_present: false, device_enabled: true }] } };
+      const hints = postCount, executions = executionCount;
+      const page = await connectPage(debugOrigin, `${origin}/shuns/198.51.100.10`);
+      try {
+        assert.match(await page.evaluate("document.querySelector('#ip-actions').innerText"), /No block observed.*Auto-restore on/s);
+        assert.equal(await page.evaluate("document.querySelectorAll('#ip-actions button').length"), 2);
+        assert.equal(await page.evaluate("document.querySelector('#ip-actions').textContent.includes('Unblock after current work')"), false);
+        assert.equal(await page.evaluate("document.querySelector('#ip-actions').textContent.includes('Unblock everywhere')"), false);
+        assert.equal(await page.evaluate("[...document.querySelectorAll('#ip-actions button')].some(button=>button.closest('details'))"), false);
+        assert.equal(await page.evaluate("document.querySelector('#ip-actions a[href^=\"/managed-imports/v2\"]').getAttribute('href')"), '/managed-imports/v2?ip=198.51.100.10');
+        assert.equal(await page.evaluate("document.querySelector('#ip-actions a[href^=\"/protected-ips\"]').getAttribute('href')"), '/protected-ips?ip=198.51.100.10#add-protected-ip');
+        const stop = "document.querySelector('#ip-actions form[action=\"/managed-shuns/retirement-review\"] button')";
+        await page.evaluate(`${stop}.focus()`);
+        status.data_revision++; status.status_revision++;
+        await wake(page);
+        await delay(300);
+        assert.equal(await page.evaluate(`document.activeElement===${stop}`), true);
+        for (const width of [1440, 375]) {
+          await page.call('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: width === 375 });
+          for (const theme of ['light', 'dark']) {
+            await page.call('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: theme }] });
+            assert.equal(await page.evaluate('document.documentElement.scrollWidth<=innerWidth'), true);
+            assert.equal(await page.evaluate(`getComputedStyle(${stop}).display!=='none' && ${stop}.getBoundingClientRect().width>80`), true);
+            await screenshot(page, `ip-workspace-${width}-${theme}`);
+          }
+        }
+        status.fixture_ip_scope.targets[0].device_enabled = false;
+        status.data_revision++; status.status_revision++;
+        await wake(page);
+        await page.until("document.querySelector('#ip-actions').textContent.includes('Device disabled')");
+        assert.equal(await page.evaluate("document.querySelector('#ip-actions form[action=\"/ip-actions/unblock\"] button').disabled"), true);
+        assert.equal(await page.evaluate(`${stop}.disabled`), false);
+        assert.equal(postCount, hints); assert.equal(executionCount, executions);
+      } finally { await page.close(); status = initial(); }
+    });
+
+    await t.test('independent pause buttons update in place and show neutral queue state', async () => {
+      const previousManaged = managed;
+      status = { ...initial(), runtime_mode: 'continuous-managed', managed_policy_format: 2,
+        managed_addition_controls: { available: true, imports: { paused: false, revision: 0 }, restoration: { paused: false, revision: 0 } } };
+      managed = { initialized: true, intent_format: 2, revision: 0, entries: [], limit: 200000,
+        restoration_suspended: false, attempt_ledger_initialized: true };
+      const page = await connectPage(debugOrigin, `${origin}/managed-shuns`);
+      try {
+        const controls = "document.querySelector('#managed-addition-control')";
+        for (const width of [1920, 1440, 960, 375]) {
+          await page.call('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: width === 375 });
+          assert.equal(await page.evaluate(`(() => {
+            return [...document.querySelectorAll('.managed-control-item')].every(item => {
+              const label=item.querySelector('h3').getBoundingClientRect();
+              const button=item.querySelector('button').getBoundingClientRect();
+              const sameRow=Math.abs(label.top+label.height/2-button.top-button.height/2)<3;
+              return parseFloat(getComputedStyle(item).borderTopWidth)>0 && (sameRow
+                ? button.left-label.right>=0 && button.left-label.right<20
+                : button.top>=label.bottom && button.top-label.bottom<20);
+            }) && document.documentElement.scrollWidth<=innerWidth;
+          })()`), true, `${width}px: each pause button stays with its own label`);
+          if (width === 1920) await screenshot(page, 'grouped-pause-controls');
+        }
+        await page.evaluate(`${controls}.querySelector('[action="/managed-additions/imports/pause"] button').click()`);
+        await page.until("Boolean(document.querySelector('[action=\"/managed-additions/imports/resume\"]'))");
+        assert.equal(await page.evaluate("Boolean(document.querySelector('[action=\"/managed-additions/restoration/pause\"]'))"), true);
+        assert.equal(await page.evaluate("document.querySelector('[data-queue-indicator]').textContent"), 'Imports paused');
+        await page.evaluate(`${controls}.querySelector('[action="/managed-additions/restoration/pause"] button').click()`);
+        await page.until("Boolean(document.querySelector('[action=\"/managed-additions/restoration/resume\"]'))");
+        assert.equal(await page.evaluate("document.querySelector('[data-queue-indicator]').textContent"), 'ADD paused');
+        await page.evaluate(`${controls}.querySelector('[action="/managed-additions/imports/resume"] button').click()`);
+        await page.until("Boolean(document.querySelector('[action=\"/managed-additions/imports/pause\"]'))");
+        assert.equal(await page.evaluate("document.querySelector('[data-queue-indicator]').textContent"), 'Restore paused');
+        assert.equal(await page.evaluate("document.querySelector('#queue-menu').dataset.attention"), 'false');
+        assert.equal(await page.evaluate("document.querySelectorAll('[data-pagination-position=top]').length"), 1);
+        assert.equal(await page.evaluate("document.querySelectorAll('[data-pagination-position=bottom]').length"), 1);
+      } finally { await page.close(); managed = previousManaged; status = initial(); }
+    });
+    await t.test('compact observation workspace keeps IP and badges together without hiding actions', async () => {
+      status = { ...initial(), fixture_maintained: true, managed_policy_format: 2,
+        ready_removal_review_available: true, bulk_import_preparation_available: true };
+      largeShuns = true;
+      shunOrigins = [{ batch_id: 'compact-fixture', actor_display_name: 'Test Operator', label: 'Synthetic import' }];
+      const page = await connectPage(debugOrigin, origin);
+      try {
+        for (const width of [1440, 960, 375]) {
+          await page.call('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: width === 375 });
+          for (const theme of ['light', 'dark']) {
+            await page.call('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: theme }] });
+            const layout = await page.evaluate(`(() => {
+              const row = document.querySelector('#active-shuns tbody tr');
+              const group = row.querySelector('.ip-summary');
+              const nodes = [group.querySelector('a'), ...group.querySelectorAll('.state-badge')];
+              const centers = nodes.map(node => { const r = node.getBoundingClientRect(); return r.top + r.height / 2; });
+              const oneLine = nodes.every(node => { const r = document.createRange(); r.selectNodeContents(node);
+                return new Set([...r.getClientRects()].map(box => Math.round(box.top))).size === 1; });
+              return { oneLine, aligned: Math.max(...centers) - Math.min(...centers) < 3,
+                fits: document.documentElement.scrollWidth <= innerWidth,
+                compact: row.getBoundingClientRect().height < 85,
+                tableTop: document.querySelector('.shuns-table').getBoundingClientRect().top,
+                helpClosed: !document.querySelector('#shuns-page-help').open,
+                action: Boolean(row.querySelector('.table-action')),
+                bounded: document.querySelectorAll('#active-shuns tbody tr').length === 100,
+                localScroll: getComputedStyle(document.querySelector('#active-shuns .table-scroll')).overflowX === 'auto' };
+            })()`);
+            assert.equal(layout.oneLine, true, `${width}px ${theme}: atomic IP/tag`);
+            assert.equal(layout.aligned, true, `${width}px ${theme}: IP and tags share one row`);
+            assert.equal(layout.fits, true, `${width}px ${theme}: only the table may scroll`);
+            assert.equal(layout.compact, true, `${width}px ${theme}: compact row`);
+            assert.equal(layout.helpClosed && layout.action && layout.bounded && layout.localScroll, true);
+            if (width === 1440) assert.ok(layout.tableTop < 420, `Working table starts at ${layout.tableTop}px`);
+            if (width !== 960) await screenshot(page, `compact-shuns-${width}-${theme}`);
+          }
+        }
+      } finally { await page.close(); status = initial(); largeShuns = false; shunOrigins = []; }
+    });
+    await t.test('protected cards use a compact grid while dangerous confirmation stays explicit', async () => {
+      const savedPolicy = policy;
+      status = initial();
+      policy = { revision: 1, limit: 1000, entries: [10, 11].map((n) => ({ ip: `198.51.100.${n}`,
+        name: 'Office address', comment: 'Synthetic policy', enabled: n === 10, active_devices: n === 11 ? 1 : 0,
+        last_auto_removed_at: null })) };
+      const page = await connectPage(debugOrigin, `${origin}/protected-ips`);
+      try {
+        await page.call('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
+        assert.equal(await page.evaluate(`(() => { const r = [...document.querySelectorAll('.policy-card')].map(n => n.getBoundingClientRect()); return Math.abs(r[0].top-r[1].top)<2; })()`), true);
+        assert.equal(await page.evaluate("document.querySelector('#protected-page-help').open"), false);
+        assert.equal(await page.evaluate("getComputedStyle(document.querySelector('.disabled-protection-summary')).display !== 'none'"), true);
+        await screenshot(page, 'compact-protected-desktop');
+        await page.call('Emulation.setDeviceMetricsOverride', { width: 375, height: 900, deviceScaleFactor: 1, mobile: true });
+        assert.equal(await page.evaluate("document.documentElement.scrollWidth<=innerWidth"), true);
+        await page.evaluate("document.getElementById('delete-policy-198.51.100.10').open=true");
+        assert.equal(await page.evaluate("document.querySelector('[name=confirm_ip]').required"), true);
+        assert.equal(await page.evaluate("document.querySelector('[name=confirm_ip]').form.checkValidity()"), false);
+      } finally { await page.close(); policy = savedPolicy; status = initial(); }
+    });
+    await t.test('managed action shortcuts open and focus existing editors without submission', async () => {
+      const savedManaged = managed;
+      status = { ...initial(), runtime_mode: 'continuous-managed', ready_removal_review_available: true,
+        managed_addition_controls: { available: true, imports: { paused: false, revision: 0 }, restoration: { paused: false, revision: 0 } } };
+      managed = { initialized: true, intent_format: 2, revision: 0, entries: [], limit: 200000,
+        restoration_suspended: false, attempt_ledger_initialized: true };
+      const page = await connectPage(debugOrigin, `${origin}/managed-shuns`);
+      const before = executionCount;
+      try {
+        await page.call('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
+        await screenshot(page, 'compact-managed-desktop');
+        await page.evaluate("document.querySelector('#managed-action-menu').open=true; document.querySelector('[data-open-details][href=\"#ready-removal-options\"]').click()");
+        assert.equal(await page.evaluate("document.querySelector('#ready-removal-options').open"), true);
+        assert.equal(await page.evaluate("document.activeElement===document.querySelector('#ready-removal-options > summary')"), true);
+        assert.equal(await page.evaluate("document.querySelector('#managed-action-menu').open"), false);
+        assert.equal(executionCount, before);
+        await page.evaluate("document.querySelector('#managed-action-menu').open=true");
+        await page.call('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape' });
+        assert.equal(await page.evaluate("document.querySelector('#managed-action-menu').open"), false);
+      } finally { await page.close(); managed = savedManaged; status = initial(); }
+    });
     await t.test("one click; slow status; partial updates preserve fields and open status menu", async () => {
+      status = initial();
+      generation = 1;
+      postCount = executionCount = 0;
       const page = await connectPage(debugOrigin, `${origin}/?q=198.51.100`);
       try {
         await page.until("document.querySelector('[data-refresh-request]').textContent.includes('Request refresh (')");
@@ -664,7 +934,8 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
         assert.equal(await page.evaluate("document.activeElement.name"), "confirm_ip");
         failStatus = true;
         await wake(page);
-        await page.until("document.querySelector('[data-refresh-message]').textContent.includes('unavailable')");
+        await page.until("!document.querySelector('[data-read-retry]').hidden");
+        assert.equal(await page.evaluate("document.querySelector('[data-action-warning]').hidden"), true);
         failStatus = false;
         status = initial();
         status.instance_id = "instance-2";
@@ -716,7 +987,7 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
     await t.test("queued admission survives lost reply and DOM refresh; cancellation updates progress", async () => {
       status = initial();
       status.instance_id = "instance-4";
-      const page = await connectPage(debugOrigin, origin);
+      const page = await connectPage(debugOrigin, `${origin}/shuns/198.51.100.10`);
       try {
         failQueueReply = true;
         await page.evaluate("document.querySelector('[data-queue-form]').requestSubmit()");
@@ -732,9 +1003,9 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
         assert.equal(removalKeys.length, 2);
         assert.equal(removalKeys[0], removalKeys[1]);
         await page.evaluate("document.querySelector('[data-operation-cancel]').click()");
-        await page.until("document.querySelector('[data-queue-completed]').textContent.includes('CANCELLED')");
+        await page.until("document.querySelector('[data-queue-summary]').textContent==='Queue is empty.'");
         assert.equal(await page.evaluate("document.querySelectorAll('[data-operation-queue] tr').length"), 0);
-        assert.equal(await page.evaluate("document.querySelector('#queue-results-details').open"), false);
+        assert.equal(await page.evaluate("document.querySelector('#queue-results-details')"), null);
         assert.equal(await page.evaluate("document.querySelectorAll('[data-operation-cancel]').length"), 0);
       } finally { await page.close(); }
     });
@@ -873,7 +1144,8 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
       status = initial();
       Object.assign(status, { refresh_schedule_mode: "per_device", active_device_count: 0,
         pending_refresh_device_count: 0, device_cycles: {},
-        execution_recovery: { state: "retrying", attempts: 2, retry_at: future(20) },
+        execution_recovery: { state: "retrying", attempts: 2, retry_at: future(20),
+          reason: "SQLite storage is busy; scheduling will retry automatically." },
         last_error: "SQLite storage is busy; scheduling will retry automatically." });
       const hints = postCount, executions = executionCount;
       const page = await connectPage(debugOrigin, `${origin}/history`);
@@ -882,7 +1154,12 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
         assert.match(await page.evaluate("document.querySelector('[data-status-summary]').textContent"), /retrying automatically/);
         assert.equal(await page.evaluate("document.querySelector('[data-refresh-timing-label]').textContent"), "Scheduling retry");
         assert.equal(await page.evaluate("document.querySelector('[data-refresh-request]').disabled"), false);
-        assert.equal(await page.evaluate("document.querySelector('#queue-menu').dataset.attention"), "true");
+        assert.equal(await page.evaluate("document.querySelector('#queue-menu').dataset.attention"), "false");
+        assert.equal(await page.evaluate("document.querySelector('#status-menu').dataset.attention"), "false");
+        assert.equal(await page.evaluate("document.querySelector('[data-refresh-warning]').hidden"), true);
+        status.execution_recovery.attempts = 3;
+        await wake(page);
+        await page.until("document.querySelector('#queue-menu').dataset.attention==='true'");
         status.execution_recovery = { state: "stopped", operator_action: "Inspect retained outcomes; do not cancel or reimport." };
         status.refresh_enabled = false;
         status.status_revision += 1;
@@ -1107,7 +1384,7 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
         assert.equal(await page.evaluate("document.querySelector('#managed-restoration-off-history').open"), false);
         assert.equal(await page.evaluate("document.querySelector('main').innerText.includes('198.51.100.202')"), false);
         assert.equal(await page.evaluate("document.querySelector('main').innerText.includes('Past verified addition:')"), false);
-        assert.equal(await page.evaluate("document.querySelector('main').innerText.includes('not automatic unblocking')"), true);
+        assert.equal(await page.evaluate("document.querySelector('main').innerText.includes('auto-restore off does not unblock')"), true);
         assert.equal(await page.evaluate("document.querySelector('main').innerText.includes('block is still observed')"), true);
         assert.equal(await page.evaluate("document.querySelector('main').innerText.includes('unknown outcome — needs attention')"), true);
         assert.equal(await page.evaluate("document.querySelectorAll('#managed-shun-state b').length"), 0);
@@ -1151,6 +1428,8 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
       try {
         assert.equal(await page.evaluate("document.querySelectorAll('table[aria-label=\"Frozen removal scope\"] tbody tr').length"), 2);
         assert.equal(await page.evaluate("document.querySelector('.import-confirm-form button').disabled"), false);
+        assert.equal(await page.evaluate("document.querySelector('#unblock-technical-details').open"), false);
+        assert.equal(await page.evaluate("Boolean(document.querySelector('.import-confirm-form').closest('details'))"), false);
         assert.equal(await page.evaluate("document.querySelectorAll('td b').length"), 0);
         assert.equal(await page.evaluate("document.querySelector('.import-confirm-form').checkValidity()"), false);
         const key = await page.evaluate("document.querySelector('input[name=review]').value");
@@ -1169,6 +1448,7 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
           await page.call("Emulation.setDeviceMetricsOverride", { width, height: 800, deviceScaleFactor: 1, mobile: width === 375 });
           assert.equal(await page.evaluate("document.documentElement.scrollWidth<=window.innerWidth"), true);
           assert.ok(await page.evaluate("document.querySelector('.import-confirm-form button').getBoundingClientRect().top>document.querySelector('#confirm-ready-ip').getBoundingClientRect().bottom"));
+          await screenshot(page, `unblock-ready-${width}`);
         }
         assert.equal(postCount, hints);
         assert.equal(executionCount, executions);
@@ -1188,6 +1468,9 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
       const page = await connectPage(debugOrigin, `${origin}/managed-shuns/v2/ordered-removal-review`);
       try {
         assert.equal(await page.evaluate("document.querySelectorAll('table[aria-label=\"Frozen ordered removal scope\"] tbody tr').length"), 2);
+        assert.equal(await page.evaluate("document.querySelector('#unblock-technical-details').open"), false);
+        assert.match(await page.evaluate("document.querySelector('main').innerText"), /An addition is already running/);
+        assert.equal(await page.evaluate("Boolean(document.querySelector('.import-confirm-form').closest('details'))"), false);
         assert.equal(await page.evaluate("document.querySelector('.import-confirm-form button').disabled"), false);
         assert.equal(await page.evaluate("document.querySelectorAll('td b').length"), 0);
         assert.equal(await page.evaluate("document.querySelector('.import-confirm-form').checkValidity()"), false);
@@ -1205,6 +1488,7 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
           await page.call("Emulation.setDeviceMetricsOverride", { width, height: 800, deviceScaleFactor: 1, mobile: width === 375 });
           assert.equal(await page.evaluate("document.documentElement.scrollWidth<=window.innerWidth"), true);
           assert.ok(await page.evaluate("document.querySelector('.import-confirm-form button').getBoundingClientRect().top>document.querySelector('#confirm-ordered-ip').getBoundingClientRect().bottom"));
+          await screenshot(page, `unblock-waiting-${width}`);
         }
         assert.equal(postCount, hints);
         assert.equal(executionCount, executions);
@@ -1244,6 +1528,28 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
         assert.equal(executionCount, executions);
       } finally { await page.close(); }
     });
+    await t.test('ordered cleanup shows deferred confirmation as waiting, never verified creation or a REMOVE outcome', async () => {
+      status = { ...initial(), runtime_mode: 'continuous-observation', managed_policy_format: 2,
+        ordered_removal_review_available: true, fixture_ordered_phase: 'WAITING_ADD',
+        fixture_ordered_add_state: 'AWAITING_CONFIRMATION' };
+      const hints = postCount, executions = executionCount;
+      const page = await connectPage(debugOrigin, `${origin}/managed-shuns/v2/ordered-removals/88888888-8888-4888-8888-888888888888`);
+      try {
+        const scope = "document.querySelector('#ordered-removal-state')";
+        assert.match(await page.evaluate(`${scope}.innerText`), /Awaiting confirmation/);
+        assert.match(await page.evaluate(`${scope}.innerText`), /waiting for a complete device check/);
+        assert.match(await page.evaluate(`${scope}.innerText`), /Not delegated/);
+        for (const [outcome, label] of [['OBSERVED_PRESENT', 'Observed present'], ['CONFIRMED_ABSENT', 'Confirmed absent']]) {
+          status.fixture_ordered_add_state = outcome;
+          status.data_revision++;
+          await wake(page);
+          await page.until(`${scope}.innerText.includes('${label}')`);
+          assert.match(await page.evaluate(`${scope}.innerText`), /not proof of service creation/);
+          assert.match(await page.evaluate("document.querySelector('[data-ordered-phase]').innerText"), /not confirmed/);
+        }
+        assert.equal(postCount, hints); assert.equal(executionCount, executions);
+      } finally { await page.close(); }
+    });
     await t.test("v2 draft workspace preserves pasted text and device choices without automatic creation", async () => {
       status = initial();
       Object.assign(status, { runtime_mode: "continuous-observation", managed_policy_format: 2,
@@ -1275,6 +1581,13 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
           await page.call("Emulation.setDeviceMetricsOverride", { width, height: 800, deviceScaleFactor: 1, mobile: width === 360 });
           assert.equal(await page.evaluate("document.documentElement.scrollWidth<=window.innerWidth"), true);
           assert.equal(await page.evaluate("document.querySelector('#bulk-draft-form button').getBoundingClientRect().top>=document.querySelector('.import-device-selection').getBoundingClientRect().bottom"), true);
+          assert.equal(await page.evaluate("document.querySelector('#bulk-format-help').open"), false);
+          assert.equal(await page.evaluate(`(() => {
+            const source=document.querySelector('.import-source-pane').getBoundingClientRect();
+            const settings=document.querySelector('.import-settings-pane').getBoundingClientRect();
+            return ${width > 900 ? 'settings.left>=source.right && Math.abs(settings.top-source.top)<2' : 'settings.top>=source.bottom'};
+          })()`), true, `${width}px: responsive import panes`);
+          if (width === 1100) await screenshot(page, 'compact-import-desktop');
         }
         await page.evaluate(`(() => { const input=document.querySelector('#bulk-source');
           input.value=Array.from({length:95081},(_,i)=>'shun (outside_907) '+[198,18+(i>>16),(i>>8)&255,i&255].join('.')+' 0.0.0.0 0 0 0').join(String.fromCharCode(10));
@@ -1418,7 +1731,7 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
         const next = await page.evaluate("document.querySelector('a[rel=next]').getAttribute('href')");
         await page.call("Page.navigate", { url: origin + next });
         await page.until("document.querySelectorAll('table[aria-label=\"Historical policy members\"] tbody tr').length===2");
-        assert.equal(await page.evaluate("document.querySelector('nav.history-pagination').textContent.includes('Page 2 / 2')"), true);
+        assert.equal(await page.evaluate("document.querySelector('nav.history-pagination').textContent.includes('Page 2 of 2')"), true);
         for (const width of [1100, 375]) {
           await page.call("Emulation.setDeviceMetricsOverride", { width, height: 800, deviceScaleFactor: 1, mobile: width === 375 });
           assert.equal(await page.evaluate("document.documentElement.scrollWidth<=window.innerWidth"), true);
@@ -1524,7 +1837,7 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
         const next = await page.evaluate("document.querySelector('nav[aria-label=\"Cancellation pages\"] a[rel=next]').getAttribute('href')");
         await page.call("Page.navigate", { url: origin + next });
         await page.until("document.querySelectorAll('table[aria-label=\"Current cancellation members\"] tbody tr').length===1");
-        assert.equal(await page.evaluate("document.querySelector('nav[aria-label=\"Cancellation pages\"]').textContent.includes('Page 2 / 2')"), true);
+        assert.equal(await page.evaluate("document.querySelector('nav[aria-label=\"Cancellation pages\"]').textContent.includes('Page 2 of 2')"), true);
         for (const width of [1100, 375]) {
           await page.call("Emulation.setDeviceMetricsOverride", { width, height: 800, deviceScaleFactor: 1, mobile: width === 375 });
           assert.equal(await page.evaluate("document.documentElement.scrollWidth<=window.innerWidth"), true);
@@ -1533,7 +1846,7 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
         assert.equal(executionCount, executions);
       } finally { await page.close(); }
     });
-    await t.test("completed results collapse, errors remain separate, and long histories stay bounded", async () => {
+    await t.test("queue shows active work and unresolved attention, never completed history", async () => {
       status = initial();
       status.instance_id = "grouped-queue-instance";
       const job = (id, state) => ({ id, state, hostname: "lab-ftd", device_id: 1,
@@ -1550,12 +1863,10 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
         assert.equal(await page.evaluate("document.querySelectorAll('[data-operation-queue] tr').length"), 2);
         assert.equal(await page.evaluate("document.querySelectorAll('[data-queue-attention] tr').length"), 2);
         assert.equal(await page.evaluate("document.querySelector('[data-queue-attention-section]').hidden"), false);
-        assert.equal(await page.evaluate("document.querySelectorAll('[data-queue-completed] tr').length"), 20);
-        assert.equal(await page.evaluate("document.querySelector('#queue-results-details').open"), false);
-        assert.ok(await page.evaluate("document.querySelector('[data-queue-completed-note]').textContent.includes('20 of 225')"));
+        assert.equal(await page.evaluate("document.querySelector('[data-queue-completed], #queue-results-details')"), null);
         assert.equal(await page.evaluate("document.querySelector('[data-cycle-progress]').hidden"), true);
-        assert.equal(await page.evaluate("document.querySelector('[data-queue-completed] a').getAttribute('href')"), "/shuns/198.51.100.10");
-        await page.evaluate("document.querySelector('#queue-results-details').open=true");
+        assert.equal(await page.evaluate("document.querySelector('.queue-history-links a').getAttribute('href')"), '/history');
+        assert.equal(await page.evaluate("document.querySelector('.queue-panel [data-operation-id=\"done-0\"]')"), null);
         status.queue.items[0].state = "VERIFIED";
         status.queue.items[1].state = "VERIFIED";
         status.queue.counts = { FAILED: 1, UNVERIFIED: 1, VERIFIED: 227 };
@@ -1566,8 +1877,9 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
         await page.until("document.querySelector('[data-queue-summary]').textContent==='Queue is empty.'");
         assert.equal(await page.evaluate("document.querySelector('[data-queue-active-table]').hidden"), true);
         assert.equal(await page.evaluate("document.querySelectorAll('[data-operation-queue] tr').length"), 0);
-        assert.equal(await page.evaluate("document.querySelector('#queue-results-details').open"), true);
-        assert.equal(await page.evaluate("document.querySelectorAll('[data-queue-completed] tr').length"), 20);
+        assert.equal(await page.evaluate("document.querySelectorAll('[data-queue-attention] tr').length"), 2);
+        assert.equal(await page.evaluate("document.querySelector('[data-queue-warning]').hidden"), false);
+        assert.equal(await page.evaluate("document.querySelector('.queue-panel [data-operation-id=\"pending\"]')"), null);
       } finally { await page.close(); }
     });
     await t.test("deferred confirmation stays visible without false success, attention or running animation", async () => {
@@ -1589,10 +1901,9 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
         status.queue.items = [job('OBSERVED_PRESENT'), { ...job('CONFIRMED_ABSENT'), id: 'absent' }];
         status.queue.revision++; status.status_revision++;
         await wake(page);
-        await page.until("document.querySelectorAll('[data-queue-completed] tr').length===2");
+        await page.until("document.querySelector('[data-queue-summary]').textContent==='Queue is empty.'");
         assert.equal(await page.evaluate("document.querySelectorAll('[data-operation-queue] tr').length"), 0);
-        assert.match(await page.evaluate("document.querySelector('[data-queue-completed-note]').textContent"), /15 observed present \(not creation proof\)/);
-        assert.match(await page.evaluate("document.querySelector('[data-queue-completed-note]').textContent"), /1 confirmed absent/);
+        assert.equal(await page.evaluate("document.querySelector('.queue-panel [data-operation-id]')"), null);
         assert.equal(await page.evaluate("document.querySelector('#queue-menu').dataset.attention"), 'false');
         assert.equal(postCount, hints); assert.equal(executionCount, executions);
       } finally { await page.close(); }
@@ -1608,15 +1919,14 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
       const hints = postCount, executions = executionCount;
       const page = await connectPage(debugOrigin, `${origin}/history`);
       try {
-        await page.until("document.querySelector('#queue-reviewed-details').hidden===false");
+        await page.until("document.querySelector('[data-queue-summary]').textContent==='Queue is empty.'");
         assert.equal(await page.evaluate("document.querySelector('[data-queue-warning]').hidden"), true);
         assert.equal(await page.evaluate("document.querySelector('[data-queue-attention-section]').hidden"), true);
         assert.equal(await page.evaluate("document.querySelector('#queue-menu').dataset.attention"), 'false');
         assert.equal(await page.evaluate("document.querySelector('[data-queue-indicator]').textContent"), '');
-        assert.equal(await page.evaluate("document.querySelector('#queue-reviewed-details').open"), false);
-        await page.evaluate("document.querySelector('#queue-menu').open=true;document.querySelector('#queue-reviewed-details').open=true");
-        assert.match(await page.evaluate("document.querySelector('[data-queue-reviewed]').textContent"), /Reviewed unknown.*Original outcome: UNVERIFIED/s);
-        assert.match(await page.evaluate("document.querySelector('[data-queue-reviewed-note]').textContent"), /No action is needed/);
+        assert.equal(await page.evaluate("document.querySelector('#queue-reviewed-details, [data-queue-reviewed]')"), null);
+        await page.evaluate("document.querySelector('#queue-menu').open=true");
+        assert.equal(await page.evaluate("document.querySelector('.queue-panel').textContent.includes('Original lost reply')"), false);
         status.queue.counts.UNVERIFIED = 2;
         status.queue.attention_counts.UNVERIFIED = 1;
         status.queue.items = [{ ...reviewed, id: 'new-unknown', reason: 'A separate new lost reply' }];
@@ -1627,8 +1937,15 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
         assert.equal(await page.evaluate("document.querySelector('#queue-menu').dataset.attention"), 'true');
         assert.equal(await page.evaluate("document.querySelector('[data-queue-indicator]').textContent"), '!1');
         assert.match(await page.evaluate("document.querySelector('[data-queue-attention]').textContent"), /A separate new lost reply/);
-        assert.equal(await page.evaluate("document.querySelectorAll('[data-queue-reviewed] tr').length"), 1);
-        assert.equal(await page.evaluate("document.querySelector('#queue-reviewed-details').open"), true);
+        assert.equal(await page.evaluate("document.querySelector('.queue-panel [data-operation-id=\"old-reviewed\"]')"), null);
+        // Inconsistent review metadata must never hide unknown operations.
+        status.queue.attention_counts.UNVERIFIED = 0;
+        status.queue.items.push(reviewed);
+        status.queue.revision++; status.status_revision++;
+        await wake(page);
+        await page.until("document.querySelectorAll('[data-queue-attention] tr').length===2");
+        assert.equal(await page.evaluate("document.querySelector('#queue-menu').dataset.attention"), 'true');
+        assert.match(await page.evaluate("document.querySelector('[data-queue-attention]').textContent"), /Original lost reply/);
         assert.ok(await page.evaluate("document.querySelector('[data-queue-attention-section]').getBoundingClientRect().top < document.querySelector('[data-import-progress-section]').getBoundingClientRect().top || document.querySelector('[data-import-progress-section]').hidden"));
         assert.equal(postCount, hints);
         assert.equal(executionCount, executions);
@@ -1677,9 +1994,16 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
         task.counts = { verified: 1022, stopped: 31403 };
         status.queue.counts = {}; status.queue.revision++; status.status_revision++;
         await wake(page);
-        await page.until("document.querySelector('[data-import-progress] details')!==null");
-        assert.equal(await page.evaluate("document.querySelector('[data-import-progress] details').open"), false);
-        assert.ok(await page.evaluate("document.querySelector('[data-import-progress]').textContent.includes('already applied/adopted blocks remain')"));
+        await page.until("document.querySelector('[data-import-progress-section]').hidden");
+        assert.equal(await page.evaluate("document.querySelector('[data-import-progress]').childElementCount"), 0);
+        assert.equal(await page.evaluate("document.querySelector('[data-queue-summary]').textContent"), 'Queue is empty.');
+        // An inactive import with unresolved attention must still be visible.
+        task.attention = 1; task.counts.unverified = 1;
+        status.queue.revision++; status.status_revision++;
+        await wake(page);
+        await page.until("!document.querySelector('[data-import-progress-section]').hidden");
+        assert.equal(await page.evaluate("document.querySelector('[data-import-id]').dataset.warning"), 'true');
+        assert.match(await page.evaluate("document.querySelector('[data-import-progress]').textContent"), /already applied\/adopted blocks remain/);
         assert.equal(postCount, hints);
         assert.equal(executionCount, executions);
       } finally { await page.close(); }
@@ -1923,7 +2247,7 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
         await wake(page);
         await page.until("document.querySelector('[data-operation-queue]').textContent.includes('Held — ADD execution disabled')");
         await page.evaluate("document.querySelector('[data-operation-cancel]').click()");
-        await page.until("document.querySelector('[data-queue-completed]').textContent.includes('CANCELLED')");
+        await page.until("document.querySelector('[data-queue-summary]').textContent==='Queue is empty.'");
         await page.call("Page.navigate", { url: `${origin}/shuns/198.51.100.10` });
         await page.until("document.querySelector('#device-shuns').textContent.includes('Import provenance')");
         assert.equal(await page.evaluate("document.querySelectorAll('#device-shuns img,#device-shuns script').length"), 0);
@@ -1998,6 +2322,13 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
           }
           failStatus = true;
           await wake(page);
+          await page.until("!document.querySelector('[data-read-retry]').hidden");
+          assert.equal(await page.evaluate("document.querySelector('[data-action-warning]').hidden"), true);
+          assert.equal(await position(), baseline, "Brief retry is neutral without moving content");
+          await wake(page);
+          await page.until("!document.querySelector('[data-read-retry]').hidden");
+          await delay(150);
+          await wake(page);
           await page.until("!document.querySelector('[data-action-warning]').hidden");
           assert.ok(await page.evaluate("document.querySelector('[data-action-warning]').getBoundingClientRect().height>0"));
           assert.equal(await position(), baseline, "Network error is visible without moving content");
@@ -2005,6 +2336,24 @@ test("refresh interaction in real Chromium", { timeout: 180000 }, async (t) => {
           await wake(page);
           await page.until("document.querySelector('[data-action-warning]').hidden");
         }
+      } finally { failStatus = false; await page.close(); }
+    });
+    await t.test("authentication failures never receive quiet retry grace", async () => {
+      status = initial();
+      const page = await connectPage(debugOrigin, `${origin}/history`);
+      try {
+        failStatus = 401;
+        await wake(page);
+        await page.until("document.querySelector('[data-action-warning]').textContent.includes('Authentication is required')");
+        assert.equal(await page.evaluate("document.querySelector('[data-action-warning]').hidden"), false);
+        assert.equal(await page.evaluate("document.querySelector('[data-read-retry]').hidden"), true);
+        failStatus = true;
+        await wake(page);
+        await page.until("document.querySelector('[data-action-warning]').textContent.includes('temporarily unavailable')");
+        assert.equal(await page.evaluate("document.querySelector('[data-action-warning]').hidden"), false);
+        failStatus = false;
+        await wake(page);
+        await page.until("document.querySelector('[data-action-warning]').hidden");
       } finally { failStatus = false; await page.close(); }
     });
     await t.test("import preview is non-executable, escaped and preserved through metadata updates", async () => {

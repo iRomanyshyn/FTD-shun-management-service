@@ -80,6 +80,28 @@ def writes(calls):
     return [(path, json.loads(body)) for method, path, body in calls if method == 'POST' and path in {API + 'prepare', API + 'cancel-preparation'}]
 
 
+def test_ip_links_prefill_editors_without_saving_or_selecting_devices(composition, surface):
+    store, agent = composition[1:3]
+    before = dump(store)
+
+    async def scenario():
+        async with surface() as (client, calls, _):
+            response = await client.get(WEB + '?ip=198.51.100.77')
+            assert response.status_code == 200
+            assert '>198.51.100.77</textarea>' in response.text
+            assert 'name="device_ids" value="1" checked' not in response.text
+            assert not writes(calls)
+            response = await client.get('/protected-ips?ip=198.51.100.77')
+            assert response.status_code == 200
+            assert 'id="add-protected-ip" class="policy-editor" open' in response.text
+            assert 'name="ip" value="198.51.100.77"' in response.text
+            for path in (WEB, '/protected-ips'):
+                assert (await client.get(path + '?ip=not-an-ip')).status_code == 422
+            assert not writes(calls)
+    asyncio.run(scenario())
+    assert dump(store) == before and not agent.seen
+
+
 def test_navigation_creation_private_actor_frozen_report_proposal_and_cancel(composition, surface):
     store, agent = composition[1:3]
     before = outside(store)

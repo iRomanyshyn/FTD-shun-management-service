@@ -1,5 +1,36 @@
 # Operations Manual
 
+## Observations versus maintenance
+
+Use **Shuns** for all observed blocks, **Unmanaged** for observed device/IPs
+without enabled service maintenance, and **Managed shuns** for saved restoration
+policy (including absent targets/off history). A Managed badge is not verified
+creation; an Unmanaged badge does not identify the block's creator. Current v2
+row actions prepare the existing frozen removal review, including retirement
+when maintenance is enabled, rather than posting to the legacy queue endpoint.
+See [Shuns and Maintenance](shuns-and-maintenance.md) for scope, paging and consent.
+
+## Loading tabs and temporary waits
+
+Primary tabs show a slim **Loading …** indicator while their normal page request
+is pending. Existing content stays visible until arrival; reduced-motion settings
+disable the animation. Navigation does not request device writes or replay forms.
+
+A brief background-read interruption keeps the last displayed data and shows
+**Loading latest information…** with retry details in **Status**, rather than
+immediately raising a red notification. Three consecutive failed reads or a
+failure still present after 30 seconds becomes a warning on the next attempt.
+Authentication errors and unsuccessful action submissions remain immediate
+warnings. A successful read clears only the local connection warning, not device
+errors or unresolved queue outcomes. Last-confirmed timestamps remain unchanged
+until real device evidence arrives.
+
+The first two automatic SQLite scheduling retries are a neutral waiting state
+in **Status/Queue**. Continued contention warns from the third attempt; unrelated
+device errors and unknown operations always remain visible. See
+[Execution Recovery](execution-recovery.md). Do not cancel or reimport merely
+because scheduling is waiting for storage.
+
 ## Interrupted imports and unverified operations
 
 Open **Queue → Needs attention → Check and resume import** for current recovery

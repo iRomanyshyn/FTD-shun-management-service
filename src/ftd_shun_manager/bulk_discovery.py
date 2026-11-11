@@ -89,14 +89,24 @@ class BulkDiscovery:
                     raise BulkUnavailable('Bulk refill requires the exact existing dispatch profile.')
                 _lease(db, self.queue, owner, snapshot.device_id)
                 hold = 'suspended' if state['restoration_suspended'] else 'recovery_pause' if mutations_suspended(db) else None
+                from .managed_addition_controls import (
+                    effective_barrier,
+                    paused_for,
+                    restoration_sql,
+                )
+                from .managed_addition_controls import read as read_controls
+                control = read_controls(db)
+                if hold is None and control['available'] and all(control[kind]['paused'] for kind in ('imports', 'restoration')):
+                    hold = 'operator_paused'
                 from .device_leases import device_uncertain
 
                 if hold is None and device_uncertain(db, snapshot.device_id):
                     hold = 'device_uncertain'
                 if hold is None and (not self.remaining or self.checked >= self.check_limit):
                     hold = 'cycle_budget'
-                pending = db.execute("SELECT COUNT(*) FROM operation_jobs WHERE device_id=? AND state IN ('QUEUED','RUNNING')",
-                                     (snapshot.device_id,)).fetchone()[0]
+                pending = sum(job['action'] != 'ADD' or job['state'] == 'RUNNING' or not paused_for(db, job)
+                              for job in db.execute("SELECT * FROM operation_jobs WHERE device_id=? AND state IN ('QUEUED','RUNNING')",
+                                                    (snapshot.device_id,)))
                 room = min(self.remaining, DEVICE_WINDOW - pending)
                 if hold is None and room <= 0:
                     hold = 'window_full'
@@ -105,7 +115,9 @@ class BulkDiscovery:
                     return 0
                 protected_revision = db.execute('SELECT revision FROM protected_policy WHERE id=1').fetchone()[0]
                 barrier = db.execute('SELECT dispatch_resume_after FROM managed_bulk_registry WHERE id=1').fetchone()[0]
-                epoch = (state['revision'], protected_revision, barrier)
+                barrier = effective_barrier(db, barrier)
+                epoch = (state['revision'], protected_revision, barrier,
+                         tuple(control[kind]['revision'] for kind in ('imports', 'restoration')) if control['available'] else ())
                 old_epoch, cursor = self._cursors.get(snapshot.device_id, (None, b''))
                 if epoch != old_epoch:
                     cursor = b''
@@ -114,11 +126,15 @@ class BulkDiscovery:
                 # spend hours walking an applied prefix while the queue is empty.
                 # This is never absence proof: snapshot membership/current guards
                 # below remain authoritative, including when observations lag.
+                pause_filter = ''
+                if control['available'] and control['imports']['paused'] != control['restoration']['paused']:
+                    # Filter before LIMIT: a paused import prefix must not starve restorations (or vice versa).
+                    pause_filter = ' AND ' + ('' if control['imports']['paused'] else 'NOT ') + restoration_sql()
                 rows = db.execute('''SELECT t.* FROM managed_shun_targets t
                     WHERE t.device_id=? AND t.enabled=1 AND t.ip>?
                     AND NOT EXISTS (SELECT 1 FROM shun_state s
                         WHERE s.device_id=t.device_id AND s.ip=t.ip AND s.active=1)
-                    ORDER BY t.ip LIMIT ?''', (snapshot.device_id, cursor, self.check_limit - self.checked + 1)).fetchall()
+                    ''' + pause_filter + ' ORDER BY t.ip LIMIT ?', (snapshot.device_id, cursor, self.check_limit - self.checked + 1)).fetchall()
                 candidates = []
                 for row in rows[:self.check_limit - self.checked]:
                     if len(candidates) >= room:

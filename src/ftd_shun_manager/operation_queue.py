@@ -410,9 +410,10 @@ class OperationQueue:
             if not addition_device_ids:
                 return db.execute("""SELECT 1 FROM operation_jobs WHERE state='QUEUED'
                     AND action='REMOVE' AND (? IS NULL OR device_id=?) LIMIT 1""", (device_id, device_id)).fetchone() is not None
-            return any(row["action"] == "REMOVE" or (row["device_id"] in addition_device_ids
+            from .managed_addition_controls import paused_for
+            return any(row["action"] == "REMOVE" or (row["device_id"] in addition_device_ids and not paused_for(db, row)
                        and _system_enabled(db, attempt_for_job(db, row['id']), managed_restoration_enabled, bulk_dispatch_enabled))
-                       for row in db.execute("""SELECT id,action,device_id FROM operation_jobs
+                       for row in db.execute("""SELECT id,action,device_id,ip FROM operation_jobs
                            WHERE state='QUEUED' AND (? IS NULL OR device_id=?)""", (device_id, device_id)))
 
     def has_target(self, device_id: int, ip: IPv4Address) -> bool:
@@ -611,6 +612,9 @@ class OperationQueue:
                 (device_id, action, action, cutoff, priority, priority)).fetchall()
             for job in jobs:
                 job_action = job["action"]
+                from .managed_addition_controls import paused_for
+                if job_action == 'ADD' and paused_for(db, job):
+                    continue  # Scheduling pause: no retirement, resend or removal hold.
                 restoration = attempt_for_job(db, job["id"])
                 if restoration:
                     validate_binding(db, restoration, job)
@@ -900,7 +904,7 @@ class OperationQueue:
                                 'UNVERIFIED': counts.get('UNVERIFIED', 0) - reviewed_count}
             base = "SELECT j.*,d.hostname FROM operation_jobs j JOIN devices d ON d.id=j.device_id "
             rows = db.execute(base + """WHERE j.state IN ('QUEUED','RUNNING','AWAITING_CONFIRMATION')
-                ORDER BY CASE WHEN j.state='RUNNING' THEN 0 ELSE 1 END,j.seq LIMIT 100""").fetchall()
+                ORDER BY CASE WHEN j.state='RUNNING' THEN 0 ELSE 1 END,j.seq DESC LIMIT 100""").fetchall()
             rows += db.execute(base + f"""WHERE j.state IN ('FAILED','UNVERIFIED') AND {attention_filter}
                 ORDER BY j.completed_at DESC,j.seq DESC LIMIT 20""").fetchall()
             rows += db.execute(base + """WHERE j.state IN ('VERIFIED','NOOP','CANCELLED','RECONCILED_ABSENT','OBSERVED_PRESENT','CONFIRMED_ABSENT')

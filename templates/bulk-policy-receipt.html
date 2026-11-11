@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "import-ui.html" import classification %}
+{% from "pagination-ui.html" import pager %}
 {% block content %}
 <h1>Import confirmation</h1>
 {% if refresh %}{% include "refresh-panel.html" %}{% endif %}
@@ -12,12 +13,13 @@
 <p>{{ receipt.result.accepted_pairs }} accepted pairs / {{ receipt.manifest.pair_count }} classified pairs · {{ receipt.result.changed_targets }} changed policy targets.</p>
 <p>Protected exclusions: {{ receipt.manifest.classification_counts.EXCLUDED_PROTECTED }}. Already-managed targets preserve original authority; adoption is not proof of prior service creation. Draft expiry/pruning does not delete this receipt or its membership.</p>
 {% if 'Operator' in identity.roles or 'Administrator' in identity.roles %}<details id="bulk-import-cancellation"><summary>Cancel uncompleted import work</summary><p>Already applied, adopted and previously managed targets stay maintained. This does not unblock any IP.</p><form method="post" action="/managed-imports/v2/{{ receipt.operation_id }}/cancellation-review" class="import-confirm-form"><input type="hidden" name="csrf" value="{{ csrf_token }}"><button type="submit">Review whole-import cancellation</button></form><p><a href="/managed-imports/v2/cancellations/{{ receipt.operation_id }}">Inspect original cancellation status</a></p></details>{% endif %}
+{% set page_base = '/managed-imports/v2/receipts/' ~ receipt.operation_id %}
+{% set page_summary = 'Page ' ~ receipt.page ~ ' of ' ~ receipt.pages ~ ' · At most 100 original members per page' %}
+{{ pager(receipt.page, receipt.pages, page_base, {}, page_summary, 'Historical policy receipt pages', 'top', 'receipt-page') }}
 <div class="table-scroll"><table aria-label="Historical policy members"><thead><tr><th>Original device / IP</th><th>Class</th><th>Assigned original authority</th></tr></thead><tbody>
 {% for target in receipt.targets %}<tr{% if target.classification == 'EXCLUDED_PROTECTED' %} class="protected-shun"{% endif %}><td>{{ target.device_id }} / {{ target.ip }}</td><td>{{ classification(target.classification) }}</td><td>{% if target.intent_id %}<details><summary>Maintenance reference</summary><code>{{ target.intent_id }}</code><br>Generation {{ target.generation }}</details>{% else %}Excluded — no authority{% endif %}</td></tr>{% endfor %}
 </tbody></table></div>
-<nav class="history-pagination" aria-label="Historical policy receipt pages"><p>Page {{ receipt.page }} / {{ receipt.pages }} · at most 100 original members per page</p><div class="pagination-controls">
-{% if receipt.page > 1 %}<a rel="prev" href="/managed-imports/v2/receipts/{{ receipt.operation_id }}?page={{ receipt.page - 1 }}">Previous 100</a>{% endif %}
-{% if receipt.page < receipt.pages %}<a rel="next" href="/managed-imports/v2/receipts/{{ receipt.operation_id }}?page={{ receipt.page + 1 }}">Next 100</a>{% endif %}</div></nav>
+{{ pager(receipt.page, receipt.pages, page_base, {}, page_summary, 'Historical policy receipt pages', 'bottom', 'receipt-page') }}
 {% else %}<p>Original retained receipt is unavailable, not successful execution or an empty import.</p>{% endif %}
 <p><a href="/managed-imports/v2">Back to Imports</a></p>
 <script src="/static/freshness.js" defer></script>

@@ -1,0 +1,24 @@
+{% macro pager(page, pages, base, params, summary, label, position, id_prefix='list-page', summary_key='', latest_url='', latest_label='Latest', latest_key='') %}
+<nav class="history-pagination list-pagination" aria-label="{{ label }}" data-pagination-position="{{ position }}">
+<p{% if summary_key %} data-{{ summary_key }}{% endif %}>{{ summary }}</p>
+<div class="pagination-controls">
+{% if page > 1 %}<a href="{{ page_url(base, 1, params) }}">First</a><a rel="prev" href="{{ page_url(base, page - 1, params) }}">Previous 100</a>{% else %}<span aria-disabled="true">First</span><span aria-disabled="true">Previous</span>{% endif %}
+{% if page < pages %}<a rel="next" href="{{ page_url(base, page + 1, params) }}">Next 100</a><a href="{{ page_url(base, pages, params) }}">Last</a>{% else %}<span aria-disabled="true">Next</span><span aria-disabled="true">Last</span>{% endif %}
+{% if pages > 1 %}{% set input_id = id_prefix if position == 'top' else id_prefix ~ '-bottom' %}
+<form method="get" action="{{ base }}" class="history-page-form">
+{% for key, value in params.items() %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}
+<label for="{{ input_id }}">Page</label><input id="{{ input_id }}" name="page" type="number" min="1" max="{{ pages }}" value="{{ page }}" required><button type="submit">Go</button>
+</form>{% endif %}
+{% if latest_url %}<a href="{{ latest_url }}"{% if latest_key %} data-{{ latest_key }}{% endif %}>{{ latest_label }}</a>{% endif %}
+</div></nav>
+{% endmacro %}
+
+{% macro post_pager(page, pages, form_id, action, label, position, preview=false) %}
+<nav class="history-pagination list-pagination{% if preview %} preview-pagination{% endif %}" aria-label="{{ label }}" data-pagination-position="{{ position }}">
+<p>Page {{ page }} of {{ pages }} · 100 per page</p><div class="pagination-controls">
+<button type="submit" form="{{ form_id }}" formaction="{{ action }}" formnovalidate name="page" value="1"{% if page <= 1 %} disabled{% endif %}>First</button>
+<button type="submit" form="{{ form_id }}" formaction="{{ action }}" formnovalidate name="page" value="{{ page - 1 }}"{% if page <= 1 %} disabled{% endif %}>Previous 100</button>
+<button type="submit" form="{{ form_id }}" formaction="{{ action }}" formnovalidate name="page" value="{{ page + 1 }}"{% if page >= pages %} disabled{% endif %}>Next 100</button>
+<button type="submit" form="{{ form_id }}" formaction="{{ action }}" formnovalidate name="page" value="{{ pages }}"{% if preview %} data-preview-last{% endif %}{% if page >= pages %} disabled{% endif %}>Last</button>
+</div></nav>
+{% endmacro %}

@@ -1,5 +1,6 @@
 """Owner-bound v2 draft workspace, frozen reports and pure proposal inspection."""
 
+from ipaddress import IPv4Address
 from typing import Annotated
 
 import httpx
@@ -81,8 +82,9 @@ def register_bulk_preparation_web(app, settings, *, render, identity_for, operat
         return key
 
     @app.get(WEB)
-    def index(request: Request):
-        return workspace(request, identity_for(request, settings.development_auth))
+    def index(request: Request, ip: IPv4Address | None = None):
+        return workspace(request, identity_for(request, settings.development_auth),
+                         fields={'text': [str(ip)]} if ip is not None else None)
 
     @app.post(WEB + '/prepare')
     async def prepare(request: Request):

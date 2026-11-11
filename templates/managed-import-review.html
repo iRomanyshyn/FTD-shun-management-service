@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "pagination-ui.html" import post_pager %}
 {% block content %}
 <h1>{{ 'Confirm recurring managed import' if review.kind == 'confirm' else 'Stop uncompleted import work' }}</h1>
 {% if review.kind == 'confirm' %}<p class="policy-warning">This saves recurring maintenance for the exact accepted pairs, including restoration after disappearance until explicitly stopped. Observed unmanaged pairs are adopted without another ADD. Protected/invalid inputs are excluded visibly. It does not enable dispatch or confirm device creation.</p>
@@ -9,7 +10,11 @@
 <p>Exact accepted scope: <strong>{{ review.payload().accepted_count }} device/IP pairs</strong>.</p>
 <p>Session review expires <time class="local-timestamp" datetime="{{ review.expires_at }}">{{ review.expires_at }}</time>. Backend preparation/cancellation expiry also applies.</p>
 {% if result %}<section aria-label="Import action receipt"><h2>{{ 'Standing policy recorded' if review.kind == 'confirm' else 'Cancellation decision recorded' }}</h2><p>{{ 'Original request replayed; no new action.' if result.replayed else 'The exact reviewed request was recorded.' }} This is not device execution progress.</p></section>{% endif %}
-{% if report %}{% set mode = 'preparation' if review.kind == 'confirm' else 'receipt' %}{% include "managed-import-members.html" %}{% else %}<p>The frozen report is temporarily unavailable. The original request/key is still retained; do not create a new import.</p>{% endif %}
+{% if report %}{% set mode = 'preparation' if review.kind == 'confirm' else 'receipt' %}
+{% if not result %}{{ post_pager(report.page, report.pages, 'prepared-import-confirm', '/managed-imports/review-page', 'Frozen import pages', 'top') }}{% endif %}
+{% include "managed-import-members.html" %}
+{% if not result %}{{ post_pager(report.page, report.pages, 'prepared-import-confirm', '/managed-imports/review-page', 'Frozen import pages', 'bottom') }}{% endif %}
+{% else %}<p>The frozen report is temporarily unavailable. The original request/key is still retained; do not create a new import.</p>{% endif %}
 {% if not result %}
 {% if review.kind == 'confirm' and not admission_enabled %}<p class="policy-warning">Standing admission is disabled or unavailable. Inspect any earlier receipt; this does not disprove a previous outcome.</p>{% endif %}
 <form method="post" action="/managed-imports/submit" class="import-confirm-form managed-grant-form" id="prepared-import-confirm">
@@ -19,7 +24,6 @@
 {% if review.kind == 'confirm' %}<label class="policy-checkbox"><input type="checkbox" name="maintain_present" value="yes"{% if acknowledged %} checked{% endif %} required> I authorize recurring maintenance for all {{ review.payload().accepted_count }} accepted pairs until explicitly stopped.</label>{% endif %}
 <button type="submit"{% if review.kind == 'confirm' and not admission_enabled %} disabled{% endif %}>{{ 'Save recurring maintenance' if review.kind == 'confirm' else 'Stop only uncompleted work' }}</button>
 <button name="page" value="{{ report.page if report else 1 }}" formaction="/managed-imports/review-page" formnovalidate>Reload frozen review</button>
-{% if report and report.pages > 1 %}<div class="pagination-controls" aria-label="Frozen import pages"><button name="page" value="{{ report.page-1 }}" formaction="/managed-imports/review-page" formnovalidate{% if report.page == 1 %} disabled{% endif %}>Previous 100</button><button name="page" value="{{ report.page+1 }}" formaction="/managed-imports/review-page" formnovalidate{% if report.page == report.pages %} disabled{% endif %}>Next 100</button></div>{% endif %}
 </form>
 <p class="preview-help">If a reply is lost, inspect the saved receipt/status and explicitly retry this same review. Never generate a new import to work around an unknown result.</p>
 {% endif %}

@@ -3,6 +3,37 @@ import pytest
 from ftd_shun_manager.web import Identity, templates
 
 
+@pytest.mark.parametrize('format_two', [False, True])
+@pytest.mark.parametrize('maintained', [False, True])
+def test_observed_actions_use_policy_aware_review_not_bypassing_managed_consent(format_two, maintained):
+    module = templates.get_template('observed-shun-actions.html').module
+    shun = {'ip': '198.51.100.10', 'device_id': 2, 'maintained': maintained}
+    state = {'managed_policy_format': 2, 'ready_removal_review_available': True, 'manual_mutations_available': False} if format_two else {}
+    html = str(module.removal(shun, Identity('operator', 'Operator', ('Operator',)), state, 'csrf-fixture', lambda: 'unused'))
+    if format_two or maintained:
+        assert 'data-queue-form' not in html and '/devices/2/shuns/' not in html
+        assert 'name="target" value="2:198.51.100.10"' in html
+        assert 'name="csrf" value="csrf-fixture"' in html
+        assert 'action="/managed-shuns/' + ('v2/' if format_two else '') + 'removal-review"' in html
+    else:
+        assert 'data-queue-form' in html and 'Queue removal from this device' in html
+    if maintained:
+        assert 'Review stop restoring and remove' in html
+    for roles in ((), ('Viewer',)):
+        readonly = str(module.removal(shun, Identity('viewer', 'Viewer', roles), state, 'csrf', lambda: 'unused'))
+        assert '<form' not in readonly and 'Read-only' in readonly
+
+
+def test_observed_actions_never_assume_missing_classification_means_unmanaged():
+    module = templates.get_template('observed-shun-actions.html').module
+    shun = {'ip': '198.51.100.10', 'device_id': 2}
+    html = str(module.removal(shun, Identity('operator', 'Operator', ('Operator',)), {}, 'csrf', lambda: 'unused'))
+    assert '<form' not in html and 'View IP details' in html
+    unavailable = str(module.removal(shun, Identity('operator', 'Operator', ('Operator',)),
+                                    {'managed_policy_format': 2}, 'csrf', lambda: 'unused'))
+    assert '<form' not in unavailable and 'Removal unavailable' in unavailable
+
+
 @pytest.mark.parametrize("current_appearance", [None, "2026-10-16T11:00:00Z"])
 def test_active_shun_with_trusted_ip_is_visibly_marked(current_appearance) -> None:
     html = templates.get_template("index.html").render(

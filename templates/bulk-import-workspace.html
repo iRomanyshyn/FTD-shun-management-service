@@ -1,8 +1,9 @@
 {% extends "base.html" %}
 {% from "import-ui.html" import steps, draft_state %}
 {% block content %}
-<h1>Imports</h1>
+<div class="page-heading"><h1>Imports</h1>
 {% if refresh %}{% include "refresh-panel.html" %}{% endif %}
+</div>
 <p class="page-intro">Block addresses on selected devices and automatically restore their blocks if they disappear. Review the list before confirming; nothing is applied at this step.</p>
 {{ steps(1) }}
 {% if message %}<p class="preview-error" role="alert">{{ message }}</p>{% endif %}
@@ -13,12 +14,17 @@
 {% if creation_unknown %}<p class="policy-warning">The save result is unknown. Check Saved drafts below before opening a new form. This form is locked to avoid creating a duplicate.</p>{% endif %}
 <form method="post" action="/managed-imports/v2/prepare" class="import-form import-workspace-form" id="bulk-draft-form">
 <input type="hidden" name="csrf" value="{{ csrf_token }}">
+<div class="import-source-pane">
 <label for="bulk-source">Addresses to block</label><textarea id="bulk-source" name="text" rows="10" required spellcheck="false" autocapitalize="off" autocomplete="off" data-max-bytes="{{ import_text_limit }}" data-size-counter="bulk-paste-size" aria-describedby="bulk-paste-size bulk-source-help" placeholder="198.51.100.10&#10;shun (outside_907) 198.51.100.11 0.0.0.0 0 0 0">{{ source_text }}</textarea>
 <p id="bulk-paste-size" class="preview-help" role="status">Limit: {{ import_text_mib }} MiB UTF-8. Input is never silently truncated.</p>
+<details class="list-help" id="bulk-format-help"><summary>Formats and limits · up to 100,000 device/IP pairs</summary>
 <p id="bulk-source-help" class="preview-help">Up to 100,000 IPv4 addresses and 100,000 device/IP pairs on up to 10 selected devices (for example, 100,000 addresses on one device or 10,000 on ten). Paste addresses, text/comments or Cisco show shun output. For Cisco rows, only the source IP is imported, not the original interface, destination, ports or protocol. Invalid entries, duplicates and protected addresses are reported in the review. Limit: {{ import_text_mib }} MiB UTF-8 / 100,000 lines / 100,000 parsed rows. Raw pasted text is not saved.</p>
+</details></div>
+<div class="import-settings-pane">
+<fieldset class="import-device-selection"><legend>Devices to block on (choose up to 10)</legend>{% for device in devices %}<label class="device-choice"><input type="checkbox" name="device_ids" value="{{ device.id }}"{% if device.id | string in selected_devices %} checked{% endif %}{% if not device.enabled %} disabled{% endif %}> {{ device.hostname }}{% if not device.enabled %} — disabled{% endif %}</label>{% else %}<p>No configured devices are available.</p>{% endfor %}</fieldset>
 <label for="bulk-label">Label (optional)</label><input id="bulk-label" name="label" value="{{ draft_label }}" maxlength="100">
 <label for="bulk-reason">Reason (optional)</label><input id="bulk-reason" name="reason" value="{{ draft_reason }}" maxlength="500">
-<fieldset class="import-device-selection"><legend>Devices to block on (choose up to 10)</legend>{% for device in devices %}<label class="device-choice"><input type="checkbox" name="device_ids" value="{{ device.id }}"{% if device.id | string in selected_devices %} checked{% endif %}{% if not device.enabled %} disabled{% endif %}> {{ device.hostname }}{% if not device.enabled %} — disabled{% endif %}</label>{% else %}<p>No configured devices are available.</p>{% endfor %}</fieldset>
+</div>
 <div class="import-next-action"><button type="submit"{% if not drafts or not drafts.initialized or not operator or creation_unknown %} disabled{% endif %}>Save and review addresses</button><span class="preview-help">Saves a draft only. No blocks are added yet.</span></div>
 </form>
 <h2>Saved drafts</h2>

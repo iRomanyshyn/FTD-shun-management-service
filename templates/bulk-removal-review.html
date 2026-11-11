@@ -3,21 +3,38 @@
 {% set scope = review.scope %}
 {% set disabled_scope = scope.targets | rejectattr('device_enabled') | list %}
 {% set admission = ready_removal_local_enabled and refresh and refresh.ready_removal_admission_enabled is sameas true and not disabled_scope %}
-<h1>Turn off auto-restore and remove block</h1>
+<h1>Unblock {{ scope.ip }}</h1>
 {% if refresh %}{% include "refresh-panel.html" %}{% endif %}
-<p class="policy-warning"><strong>{{ 'Ready-only local admission — not verified removal.' if admission else 'Preparatory review — execution is unavailable.' }}</strong> Stop the exact reviewed maintenance and queue removal together, or change neither. Individual FTD results are separate; this does not promise atomic device changes.</p>
-<p>After verified removal, the service will not restore this block. If FTD blocks the address again independently, this action will not remove it automatically. Use Protected IPs for that.</p>
+{% if not admission %}<p class="policy-warning" role="status">New unblock submissions are currently unavailable. Check any earlier result below.</p>{% endif %}
 {% if message %}<p class="preview-error" role="alert">{{ message }}</p>{% endif %}
-<p>Frozen {{ scope.scope }} scope: <strong>{{ scope.targets | length }} device/IP target(s)</strong>. Local observations are not a fresh Cisco query or proof the service created a shun. Unmanaged targets are cleanup-only, never adopted.</p>
-<p><strong>Ready-only:</strong> pending work, failed/unknown ADD or an unresolved device fence rejects the entire action. No RUNNING command is interrupted, no ADD is replayed and no ordered waiting is inferred. Expiry or failure never resumes retired maintenance.</p>
+<p>Remove the block from <strong>{{ scope.targets | length }} device(s)</strong> below and <strong>turn off auto-restore</strong> for this address on those devices.{% if not result %} Nothing changes until you confirm.{% endif %}</p>
+<p class="preview-help">This does not add the address to Protected IPs. A future independent FTD block is still possible.</p>
 {% if disabled_scope %}<p class="preview-error" role="alert">Disabled devices are included, not skipped. The whole removal is blocked; policy-only stop-maintaining remains separate.</p>{% endif %}
-<div class="table-scroll"><table aria-label="Frozen removal scope"><thead><tr><th>Device / IP</th><th>Local observation</th><th>Desired policy</th><th>Original authority</th></tr></thead><tbody>
+<div class="table-scroll"><table aria-label="Frozen removal scope"><thead><tr><th>Device / IP</th><th>Current block</th><th>After confirmation</th></tr></thead><tbody>
 {% for target in scope.targets %}<tr>
 <td>{{ target.hostname }} ({{ target.device_id }})<br>{{ scope.ip }}<br><span class="state-badge {{ 'policy-enabled' if target.device_enabled else 'policy-disabled' }}">{{ 'Device enabled' if target.device_enabled else 'Device disabled — blocks removal' }}</span></td>
 <td><span class="status-label">{{ 'Observed present' if target.observed_present else 'Not currently observed' }}</span>{% if not target.observed_present %} — retained scope{% endif %}</td>
 <td><span class="status-label">{{ 'Auto-restore on' if target.maintenance_enabled else 'Auto-restore off' }}</span> — {{ 'will turn off' if target.maintenance_enabled else 'remove block only' }}</td>
-<td>{% if target.intent_id %}<code>{{ target.intent_id }}</code><br>Generation {{ target.generation }} · target revision {{ target.target_revision }}{% else %}No managed intent; no adoption{% endif %}</td>
 </tr>{% endfor %}</tbody></table></div>
+{% if not result %}<p class="preview-help">Confirmation queues the request; Queue shows the verified outcome. If the state changed or a previous operation is uncertain, the request is rejected without changing this scope. Turning off auto-restore is not undone by a later removal failure.</p>{% endif %}
+{% if result %}
+<section aria-label="Removal admission receipt"><h2>Removal queued — not verified removal</h2>
+<p>{{ result.target_count }} targets · {{ result.retired_targets }} maintenance targets retired · saved revision {{ result.managed_revision }}.</p>
+<p>{{ 'Original-key replay: no new work, deadline renewal or policy changes.' if result.replayed else 'One whole-scope request was admitted to the existing Queue.' }}</p>
+<p>Open Queue for the current result. This receipt confirms acceptance, not device removal.</p>
+</section>
+{% else %}
+<form method="post" action="/managed-shuns/v2/removal-confirm" class="import-confirm-form managed-grant-form">
+<input type="hidden" name="csrf" value="{{ csrf_token }}"><input type="hidden" name="review" value="{{ review.token }}">
+<label for="confirm-ready-ip">Type {{ scope.ip }} to confirm</label>
+<input id="confirm-ready-ip" name="confirm_ip" value="{{ confirm_ip }}" autocomplete="off" inputmode="decimal" required>
+<button type="submit"{% if not admission %} disabled{% endif %}>Confirm unblock{{ ' — unavailable' if not admission else '' }}</button>
+</form>
+{% endif %}
+<details id="unblock-technical-details"><summary>Technical details</summary>
+<p>Ready-only local admission — not verified removal. Stop the exact reviewed maintenance and queue removal together, or change neither. Individual FTD results are separate; this does not promise atomic device changes.</p>
+<p>Frozen {{ scope.scope }} scope. Local observations are not a fresh Cisco query or proof the service created a shun. Unmanaged targets are cleanup-only, never adopted. Pending work, failed/unknown ADD or an unresolved device fence rejects the entire action. No RUNNING command is interrupted, no ADD is replayed and no ordered waiting is inferred.</p>
+{% for target in scope.targets %}<p>{{ target.hostname }}: {% if target.intent_id %}<code>{{ target.intent_id }}</code> · Generation {{ target.generation }} · target revision {{ target.target_revision }}{% else %}No managed intent; no adoption{% endif %}</p>{% endfor %}
 <dl class="import-review-metadata">
 <dt>Removal scope</dt><dd>{{ scope.scope }}</dd>
 <dt>IPv4 address</dt><dd>{{ scope.ip }}</dd>
@@ -28,22 +45,11 @@
 <dt>Delegation lifetime</dt><dd>{{ review.payload().ttl_seconds }} seconds from original admission; retries never renew it.</dd>
 <dt>Request / retry key</dt><dd><code>{{ review.request_id }}</code></dd>
 </dl>
-{% if result %}
-<section aria-label="Removal admission receipt"><h2>Removal queued — not verified removal</h2>
-<p>{{ result.target_count }} targets · {{ result.retired_targets }} maintenance targets retired · saved revision {{ result.managed_revision }}.</p>
-<p>{{ 'Original-key replay: no new work, deadline renewal or policy changes.' if result.replayed else 'One whole-scope request was admitted to the existing Queue.' }}</p>
-<p>This is the original admission receipt, not current execution or current policy. Inspect Queue for verified, no-op, expired, failed or unknown outcomes. Pruned job history is unavailable, never inferred success.</p>
+{% if result %}<p>Pruned job history is unavailable, never inferred success.</p>
 <p>Original delegation expires: <time class="local-timestamp" datetime="{{ result.expires_at }}">{{ result.expires_at }}</time>.</p>
-</section>
-{% else %}
-<form method="post" action="/managed-shuns/v2/removal-confirm" class="import-confirm-form managed-grant-form">
-<input type="hidden" name="csrf" value="{{ csrf_token }}"><input type="hidden" name="review" value="{{ review.token }}">
-<label for="confirm-ready-ip">Type {{ scope.ip }} to confirm this exact {{ scope.scope }} scope</label>
-<input id="confirm-ready-ip" name="confirm_ip" value="{{ confirm_ip }}" autocomplete="off" inputmode="decimal" required>
-<button type="submit"{% if not admission %} disabled{% endif %}>Turn off auto-restore and queue removal{{ ' — unavailable' if not admission else '' }}</button>
-</form>
 {% endif %}
 <p class="preview-help">This immutable review is bound to your identity and CSRF cookie, expires within ten minutes and is lost on Web restart. Status updates cannot change its scope, key or typed IP. Web and API admission are independently default-off; DOM/status edits cannot enable a disabled local capability. After an unknown response, explicitly retry this same review/key only.</p>
-<a href="/managed-shuns">Back to Managed shuns</a>
+</details>
+<a href="/shuns/{{ scope.ip }}#ip-actions">Back to {{ scope.ip }}</a>
 {% if refresh %}<script src="/static/freshness.js" defer></script>{% endif %}
 {% endblock %}

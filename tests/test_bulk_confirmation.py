@@ -306,7 +306,7 @@ def test_maximum_whole_scope_confirmation_receipt_after_journal_prune(ten_device
             assert response.status_code == 200 and '100000 accepted pairs' in response.text
             key = operation_key(location.split('/')[-1])
             page = await client.get(WEB + '/receipts/' + key + '?page=1000')
-            assert page.status_code == 200 and 'Page 1000 / 1000' in page.text
+            assert page.status_code == 200 and 'Page 1000 of 1000' in page.text
             assert page.text.count('Generation 1') == 100
     asyncio.run(scenario())
     no_work(BulkPolicies(composition[1]))

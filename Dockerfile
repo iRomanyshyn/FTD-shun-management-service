@@ -8,4 +8,5 @@ COPY src ./src
 RUN pip install --no-cache-dir .
 COPY templates ./templates
 COPY static ./static
+RUN python -m ftd_shun_manager.build_info --root /app
 USER 10001:10001

@@ -6484,6 +6484,55 @@ show an unrelated periodic countdown as recovery progress or require cancelling
 an intact import to resume. No schema, new public mutation endpoint or device
 protocol change accompanies this scheduling-only recovery.
 
+### Observed maintenance classification and actions — 2026-11-11
+
+Keep all-observed Shuns and a separate 100-row Unmanaged view. Classification
+means current enabled service maintenance for the exact device/IP, never original
+creation, detector identity, verified ADD or absence of execution uncertainty.
+An off target with an old import origin is unmanaged if observed; protection is
+independent. A global execution pause does not disable standing maintenance.
+
+Validate the complete existing supported policy profile. Truly absent policy is
+unmanaged; malformed/partial policy refuses rather than becoming an empty managed
+set. Count, selected rows, provenance and maintenance flags share one read snapshot.
+Apply the unmanaged anti-join before LIMIT; hydrate only selected pairs. Preserve
+protection/newest order, exact device scope, universal search and live page/view.
+Older full-list responses may remain unclassified; do not invent false ownership.
+An older/unfiltered API response cannot satisfy an Unmanaged BFF page.
+
+Observed v2 device/IP rows and details prepare the existing CSRF/identity-bound
+frozen ready-removal review, with final explicit consent and independent existing
+gates. Maintained rows must not suggest ordinary removal that bypasses retirement;
+legacy maintained rows use their existing combined review. Missing classification
+never means ordinary unmanaged authority. No browsing, annotation or review button
+creates a new mutation, adoption, retirement or uncertainty-recovery capability.
+Current server checks still reject stale/conflicting scopes. No schema/protocol/
+timeout/secret/trust/network change follows. Multi-device correlation remains separate.
+
+### Quiet loading and empty-sweep contention — 2026-11-11
+
+Primary-tab loading is progressive enhancement of native GET navigation, with
+an accessible fixed indicator, reduced-motion support and no page/form replay.
+Keep displayed observations and their actual confirmation timestamps during a
+temporary GET failure. Only network/timeout or 502/503/504 GET failures receive
+a short neutral grace (fewer than three failures and less than 30 seconds).
+Persistent failures escalate on the next attempt; authentication and action
+failures never receive this grace or automatic mutation retry. A successful GET
+does not clear independent device errors or unresolved operations.
+
+Typed coordinator SQLite scheduling retries one and two are neutral waiting;
+later retries warn. Suppress only the exact matching coordinator reason, never
+independent stale/error/unknown evidence. Keep retry eligibility truthful and
+distinct from device verification. Do not hide storage failures from logs.
+
+An ordered-removal promotion sweep with no live candidate may return from one
+validated read-only snapshot without acquiring SQLite's writer. The complete
+existing profile and incomplete-ticket refusal remain mandatory. Any candidate
+requires the original write transaction and all fresh repeated checks; do not
+reuse a read decision as authority. Concurrent newly eligible work simply waits
+until the next scheduling pass. No schema, device protocol, lease, uncertainty,
+authority, mutation bound or storage-timeout relaxation accompanies this change.
+
 ### Queue attention versus reviewed history — 2026-11-04
 
 Queue attention counters, warning and badge must exclude only historical unknown
@@ -6565,3 +6614,132 @@ is never an alternative transport proof. All current authority, fresh absence,
 protection, lease, cancellation and unknown-write checks remain. No schema,
 protocol, new authority, activation or device mutation follows from this bound
 correction, and synthetic large-state tests do not certify real FTD capacity.
+
+### Independent operational pauses and delivery identity — 2026-11-11
+
+Operator-approved controls independently pause initial import application and
+automatic restoration. They retain existing blocks, observations, individual
+standing rules and imports. Monitoring, removals and Protected-IP automatic
+unblocking continue; an already claimed command finishes and settles normally.
+These are not the offline `restoration_suspended`/mutation-recovery controls and
+cannot release ATTENTION, relabel unknowns, revoke protection or enable gates.
+
+Use an explicitly initialized optional exact bulk/device profile with separate
+control rows, monotonic per-kind revisions/resume barriers and immutable bounded
+real-actor/idempotency history. Fresh development initialization may include it;
+startup/GET never upgrade existing state. Older writers must reject the profile.
+Existing-lab extension requires actual drain/quiescence, checked private backup,
+copy rehearsal and original-data preservation, not replay or a reset.
+
+Classify restoration by exact current device/IP/intent/generation scope: adopted
+presence, a known successful/current observation attempt, or retained observation
+at/after current consent. This is not service-creation proof. Check category and
+pause in admission and the pre-send claim transaction. Filter paused categories
+before bounded discovery LIMIT to avoid starvation; paused jobs do not consume
+the other category's refill window. Original total/time/session/root/protection/
+lease/uncertainty checks remain. A category's Resume sets its fresh-read barrier;
+earlier absence cannot authorize a later ADD. Other category/safety holds persist.
+
+Authenticated operator UI uses CSRF, exact action/kind/current revision and
+idempotency key, with no automatic mutating retry. Queue/Status show neutral
+pause state while keeping actual work/errors visible. See
+[Import and Restoration Pauses](manual/managed-addition-pauses.md).
+
+Every material delivered increment advances the product version, including lab
+deliveries. Build-time public Python/template/static/pyproject hashing yields a
+separate source ID for the footer, excluding Git/secrets/host/runtime data; no
+per-request source inspection. This is not a container digest or release/readiness
+claim. Common pagers retain existing frozen tokens/anchors/revisions and never
+rebase consent or issue mutation work. Newest-first Queue display does not change
+FIFO/priority execution. See [Versioning](manual/versioning.md).
+
+### Compact operator workspace — 2026-11-11
+
+Reference-only descriptions may use stable native disclosures; current errors,
+uncertainty, protection/current-block warnings and frozen-review consequences
+must remain visible in their operational context. Compact action shortcuts only
+open/focus existing editors; they do not submit, duplicate forms or alter their
+identity, CSRF, scope, revision, idempotency or consent contracts. Keep stable
+editor/live-region identifiers and preservation of open/dirty forms during updates.
+
+Observed IP/badge groups stay intact; bounded tables scroll locally rather than
+clipping identifiers, labels or actions. Existing page size, ordering, search,
+refresh scheduling and Queue execution are unchanged. This Web-only refinement
+adds no endpoint, schema, authority, device command, recovery or feature gate.
+See [Operator Workspace](manual/operator-workspace.md).
+
+Queue presentation is limited to active/pending work and unresolved attention;
+completed and validated reviewed history remain stored but are not rendered in
+the popup. Retain active import progress and inactive imports with unresolved
+attention. Removing historical UI must not change raw outcomes, attention
+validation/fallback, retention, authority, recovery fences or execution. Existing
+audit/IP-detail/import records remain separate from operational progress.
+
+### Captured ordered cleanup after deferred handoff — 2026-11-11
+
+The explicit fresh deferred execution profile may recognize the existing exact
+ordered reservation/promotion schemas, without changing their DDL or consent
+payload. Initialize the empty execution layout before explicit paused/quiescent
+ordered extensions. Recovery combinations remain refused; no startup/GET schema
+creation or public v7 runtime selector follows. Old writers reject the combination.
+
+An already accepted qualifying RUNNING-ADD reservation retains its original
+claim/owner/epoch/scope/key/deadline when actual settled-v7 handoff transitions the
+job to AWAITING_CONFIRMATION. IDLE or an ACK alone cannot promote it: wait for the
+same ledger member's first complete strictly post-settlement read. Promotion
+requires exact captured claim and original session identity, matching observation
+verdict and canonical causal times. OBSERVED_PRESENT/CONFIRMED_ABSENT are not
+verified creation, generic presence-based recovery or permission to retry ADD.
+
+After that proof, the existing atomic full-scope cleanup still checks current
+inventory/protection/policy/fences, independent pending/unknown work, capacity,
+original deadlines and serialized device execution. Include awaiting jobs in
+independent-work conflicts. Cancellation/expiry/failure cannot resume retirement;
+late persistence failure cannot leave partial REMOVE delegation. Explicit internal
+continuous composition may run the existing promoter only when enabled with exact
+storage. This does not admit already-awaiting targets, relax original multi-
+RUNNING capture checks, replay unknowns, settle current RPCs synthetically or
+enable the lab. Status may expose deferred predecessor states, never accept
+them as REMOVE outcomes. See [Deferred Confirmation](manual/deferred-confirmation.md).
+
+### Pre-consent unblock selection — 2026-11-11
+
+The IP workspace presents one Unblock action, not ready versus ordered execution
+choices. New POST-only Web preparation routes `/ip-actions/unblock` and
+`/ip-actions/unblock-everywhere` require the existing trusted operator identity,
+CSRF and exact canonical target. They only read API status and one complete local
+inspection; they do not submit a device operation or retire policy.
+
+When compatible ordered inspection is advertised, validate its complete scope,
+target identity, flags, target dispositions, predecessor bindings and digests.
+READY selects the ready review using that exact validated scope; WAITING_ADD
+selects the ordered review with the captured predecessors; BLOCKED cannot select
+ready and creates no token. If ordered inspection is not advertised, prepare only
+the existing ready review from its strict local inspection. A malformed, partial,
+unavailable or substituted advertised preflight never falls back to another read.
+
+This is an initial pre-consent classification, superseding earlier UI wording
+that required the operator to choose both modes explicitly. It is **not** a
+fallback after an existing review or submission: independent token registries,
+immutable full scopes, original keys/deadlines, purpose binding, status rechecks,
+admission/promotion gates and all uncertainty fences remain. No new authority is
+inferred from generic device presence, no unknown write is replayed, and a later
+state change rejects rather than converts a confirmation. Explicit old ordered
+READY inspection may offer a new preparation button but cannot confirm directly.
+
+### IP-centric operator actions — 2026-11-11
+
+Observed/managed list actions navigate to the IP workspace instead of repeating
+long removal controls. Visible device cards reuse existing retirement, ready and
+ordered review routes. The workspace's v2 read validates the existing complete
+local fleet-scope response: exact IP/mode, readonly/no-work flags, bounded literal
+targets and digest. Reuse the same pure inspection validation as frozen reviews,
+without creating a token/authority on GET. Include enabled managed targets even
+when no block is observed; read errors/empty-or-oversized scope must not become
+an empty policy claim. Actual review creation rereads its exact scope normally.
+
+Import/protection deep links may prefill one validated IPv4 and open its editor;
+they must not select devices, save a draft/policy or enqueue work. Existing final
+consent, identity/CSRF, revision, capability, disabled-device, uncertainty and
+no-replay contracts remain. Short button labels do not replace the review's
+visible consequences. No new API endpoint, schema, protocol or executor change.

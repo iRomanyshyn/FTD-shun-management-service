@@ -62,7 +62,8 @@ ADD, verified no-op, adoption/existing maintenance, merely observed presence,
 waiting/queued/running, stopped/superseded and failed/unverified/missing evidence.
 Processed does not mean successfully created. Observations never prove creation.
 The card describes initial application; recurring maintenance can continue after
-it finishes. Recent finished imports collapse; original receipts remain available.
+it finishes. Finished imports leave Queue unless they still need attention;
+their original receipts remain available under Saved imports.
 
 The original owner or an Administrator can choose **Cancel remaining import…**
 from this card. This opens the existing whole-import confirmation, not an instant

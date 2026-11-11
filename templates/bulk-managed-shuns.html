@@ -1,19 +1,49 @@
 {% extends "base.html" %}
 {% from "managed-policy-ui.html" import behavior_help, policy_table %}
+{% from "pagination-ui.html" import pager %}
 {% block content %}
-<h1>Managed shuns</h1>
+<div class="page-heading"><h1>Managed shuns</h1>
 {% include "refresh-panel.html" %}
-<p class="page-intro">Auto-restore rules tell the service which addresses to keep blocked. <strong>Auto-restore off means no future restoration — not automatic unblocking.</strong> The last device check shows whether a block was observed, independently of this setting.</p>
-<p class="preview-help">Turn off auto-restore only leaves the device unchanged. Turn off auto-restore and remove block also requests an unblock after confirmation. Neither interrupts a command already running.</p>
-{{ behavior_help() }}
+</div>
+{{ behavior_help(overview=true) }}
+<section id="managed-addition-control" class="managed-addition-control" data-live-region data-live-editor>
+{% set control = refresh.managed_addition_controls | default({}) %}
+{% if control.available is sameas true %}
+<div class="section-heading"><h2>Execution</h2><a class="text-action" href="/managed-imports/v2">Import addresses</a></div>
+<div class="managed-control-grid">
+{% for kind, title in [('imports', 'Imports'), ('restoration', 'Automatic restoration')] %}
+{% set selected = control[kind] %}
+<section class="managed-control-item"><h3>{{ title }} <span class="state-badge {{ 'policy-disabled' if selected.paused else 'policy-enabled' }}">{{ 'Paused' if selected.paused else 'Active' }}</span></h3>
+{% if refresh.runtime_mode == 'continuous-managed' and ('Operator' in identity.roles or 'Administrator' in identity.roles) %}
+<form method="post" action="/managed-additions/{{ kind }}/{{ 'resume' if selected.paused else 'pause' }}" data-managed-control-form>
+<input type="hidden" name="csrf" value="{{ csrf_token }}"><input type="hidden" name="request_id" value="{{ control_request_ids[kind] }}"><input type="hidden" name="revision" value="{{ selected.revision }}">
+<button type="submit">{{ 'Resume' if selected.paused else 'Pause' }} {{ title | lower }}</button>
+</form>{% endif %}
+</section>{% endfor %}</div>
+<details class="list-help" id="pause-behavior-help"><summary>What does pausing do?</summary>
+<p>Existing blocks stay on the devices and continue to be monitored. Removals and Protected-IP automatic unblocking continue. An operation already in progress finishes and is checked.</p>
+<p>Imports pauses initial application; automatic restoration pauses re-adding previously applied or observed blocks. Saved imports and rules are retained, not cancelled.</p>
+<p class="preview-help">The two pauses are independent. Resuming uses a fresh device check before scheduling missing addresses; it does not clear errors or replay unknown commands.</p></details>
+{% else %}<p class="preview-help">Operator pause controls are not initialized for this database. No pause button is available.</p>{% endif %}
+</section>
 {% if refresh.runtime_mode != 'continuous-managed' %}<p class="policy-warning">Automatic blocking is unavailable in this service mode. {% if refresh.ready_removal_admission_enabled is not sameas true %}Combined removal is also unavailable.{% endif %} You can still review settings and use available stop-maintaining controls.</p>{% endif %}
 <section id="managed-shun-state" data-live-region>
+{% if ('Operator' in identity.roles or 'Administrator' in identity.roles) and (refresh.ready_removal_review_available is sameas true or refresh.ordered_removal_review_available is sameas true or (not managed.changed and managed.entries | selectattr('enabled') | list and refresh.managed_policy_retirement_available)) %}
+<nav class="action-shortcuts" aria-label="Managed actions">
+<span class="muted">Rules &amp; device actions</span>
+<details id="managed-action-menu" class="action-menu"><summary>Actions</summary><div>
+{% if not managed.changed and managed.entries | selectattr('enabled') | list and refresh.managed_policy_retirement_available %}<a href="#managed-retirement-options" data-open-details>Turn off auto-restore only</a>{% endif %}
+{% if refresh.ready_removal_review_available is sameas true %}<a href="#ready-removal-options" data-open-details>Turn off auto-restore and remove block</a>{% endif %}
+{% if refresh.ordered_removal_review_available is sameas true %}<a href="#ordered-removal-options" data-open-details>Remove after an addition in progress</a>{% endif %}
+</div></details></nav>{% endif %}
 {% if managed.changed %}
 <p role="status" class="policy-warning">Policy changed while browsing. <a href="/managed-shuns">Open the current policy</a> before continuing. No scope was rebased.</p>
 {% else %}
-<p><strong>{{ 'Automatic restoration paused for all rules' if managed.restoration_suspended else 'Automatic restoration is not globally paused' }}.</strong> {{ managed.total }} saved device/IP rules, including history. Individual rules and device checks still apply. Open Status and Queue for availability and results.</p>
-<details class="technical-details" id="managed-policy-details"><summary>Technical details</summary><p>Registry revision {{ managed.revision }} · {{ managed.total }} / {{ managed.limit }} retained target keys. Saved settings do not prove a device change.</p></details>
+{% if managed.restoration_suspended %}<p class="policy-warning"><strong>Execution is suspended by maintenance controls.</strong> Operator Resume does not override this safety hold.</p>{% endif %}
+<details class="list-help" id="managed-policy-details"><summary>Rule details · auto-restore off does not unblock</summary><p>{{ managed.total }} saved device/IP rules, including history. Individual rules and device checks still apply. Open Status and Queue for availability and results.</p><p>Registry revision {{ managed.revision }} · {{ managed.total }} / {{ managed.limit }} retained target keys. Saved settings do not prove a device change.</p></details>
 {% if not managed.attempt_ledger_initialized %}<p class="policy-warning">Attempt ledger is not initialized. No recorded attempt is not proof of a verified outcome.</p>{% endif %}
+{% set page_summary = 'Page ' ~ managed.page ~ ' of ' ~ managed.pages ~ ' · ' ~ managed.total ~ ' saved rules · 100 per page, including collapsed history' %}
+{{ pager(managed.page, managed.pages, '/managed-shuns', {'revision': managed.revision}, page_summary, 'Managed policy pagination', 'top', 'managed-page', '', '/managed-shuns', 'Current policy') }}
 {% set groups = namespace(current=[], history=[]) %}
 {% for entry in managed.entries %}
 {% if entry.enabled is sameas false and entry.observed_present is sameas false and entry.attention is sameas false and entry.missing_unknown_job is sameas false and entry.pending_jobs is integer and entry.pending_jobs == 0 and entry.last_attempt_state is defined and entry.last_attempt_state in (none, 'VERIFIED', 'NOOP') %}
@@ -25,10 +55,7 @@
 {% if groups.history %}<details id="managed-restoration-off-history" class="managed-history"><summary>Auto-restore off — history ({{ groups.history | length }} on this page)</summary>
 <p>These rules no longer restore blocks, and no block was seen in the last device read. This is not a list of addresses to unblock automatically. If FTD blocks one again, it remains unmanaged unless you explicitly enable new maintenance or protect the IP.</p>
 {{ policy_table(groups.history, history=true) }}</details>{% endif %}
-<nav class="history-pagination" aria-label="Managed policy pagination"><p>Page {{ managed.page }} of {{ managed.pages }} · Up to 100 saved rules per page, including collapsed history</p><div class="pagination-controls">
-{% if managed.page > 1 %}<a rel="prev" href="/managed-shuns?page={{ managed.page - 1 }}&amp;revision={{ managed.revision }}">Previous 100</a>{% endif %}
-{% if managed.page < managed.pages %}<a rel="next" href="/managed-shuns?page={{ managed.page + 1 }}&amp;revision={{ managed.revision }}">Next 100</a>{% endif %}
-<a href="/managed-shuns">Current policy</a></div></nav>
+{{ pager(managed.page, managed.pages, '/managed-shuns', {'revision': managed.revision}, page_summary, 'Managed policy pagination', 'bottom', 'managed-page', '', '/managed-shuns', 'Current policy') }}
 {% endif %}
 </section>
 <section id="managed-retirement-preparation" data-live-region data-live-editor>

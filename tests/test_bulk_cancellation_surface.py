@@ -342,7 +342,7 @@ def test_maximum_private_cancellation_and_late_status_page(ten_device_compositio
             result = await client.post(WEB + '/cancel', data=fields)
             assert result.status_code == 200, result.text[:400]
             status = await client.get(f'{WEB}/cancellations/{key}?page=1000')
-            assert status.status_code == 200 and 'Page 1000 / 1000' in status.text
+            assert status.status_code == 200 and 'Page 1000 of 1000' in status.text
     asyncio.run(scenario())
 
 

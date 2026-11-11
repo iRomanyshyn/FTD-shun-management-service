@@ -1,14 +1,17 @@
 {% extends "base.html" %}
+{% from "observed-shun-actions.html" import badge %}
 {% block content %}
-<h1>Shun: {{ ip }}</h1>
+<div class="page-heading"><h1>IP: {{ ip }}</h1>
+{% if refresh %}{% include "refresh-panel.html" %}{% endif %}
+</div>
 <section id="protection-notice" data-live-region>{% if is_trusted_policy_ip %}<p class="protected-ip-notice"><strong>Protected IP.</strong> This address is in the trusted-IP automatic-removal policy.</p>{% elif is_disabled_policy_ip %}<p class="disabled-protection-notice"><strong>Protection disabled{% if shuns %} — currently shunned{% endif %}.</strong> This address is saved in Protected IPs, but automatic removal is off.</p>{% endif %}</section>
-{% if refresh %}
-{% include "refresh-panel.html" %}
-{% endif %}
-<p>The device-specific operation removes all verified matching interfaces on that device.</p>
+{% include "ip-actions.html" %}
+<h2>Device observations</h2>
+<p class="preview-help">Unblocking a device removes all verified matching interfaces on that device.</p>
 <ul id="device-shuns" data-live-region>
 {% for shun in shuns %}{% set observed_since = shun.active_since_at | default(shun.first_seen_at) %}
 <li>{{ shun.device_hostname }} — {{ shun.interface }} — observed since <time class="local-timestamp" datetime="{{ observed_since }}">{{ observed_since }}</time>
+{{ badge(shun) }}
 {% include "import-origin.html" %}
 {% if shun.manual_imports %}<details id="import-provenance-{{ shun.device_id }}-{{ shun.interface }}"><summary>Import provenance</summary>
 <p>Showing {{ shun.manual_imports | length }} representative of {{ shun.manual_import_count | default(shun.manual_imports | length) }} verified batch request(s). See retained IP history for request-level audit.</p><ul>
@@ -16,11 +19,10 @@
 {% if origin.reason %}<p>{{ origin.reason }}</p>{% endif %}
 Verified <time class="local-timestamp" datetime="{{ origin.verified_at }}">{{ origin.verified_at }}</time>.</li>{% endfor %}
 </ul></details>{% endif %}
-{% if (refresh or {}).manual_mutations_available is not sameas false and ('Operator' in identity.roles or 'Administrator' in identity.roles) %}<form method="post" action="/devices/{{ shun.device_id }}/shuns/{{ ip }}/remove" data-queue-form><input type="hidden" name="csrf" value="{{ csrf_token }}"><input type="hidden" name="request_id" value="{{ new_operation_key() }}"><button>Queue removal from this device</button></form>{% endif %}
 </li>{% else %}<li>No active shuns are currently recorded for this address.</li>{% endfor %}
 </ul>
 <section id="bulk-removal" data-live-region>
-{% if shuns and (refresh or {}).manual_mutations_available is not sameas false and ('Operator' in identity.roles or 'Administrator' in identity.roles) %}
+{% if shuns and (refresh or {}).manual_mutations_available is not sameas false and shuns | selectattr('maintained', 'sameas', false) | list | length == shuns | length and ('Operator' in identity.roles or 'Administrator' in identity.roles) %}
 <h2>Remove from all listed devices</h2><form method="post" action="/shuns/{{ ip }}/remove-all" class="remove-all-form" data-queue-form><input type="hidden" name="csrf" value="{{ csrf_token }}"><input type="hidden" name="request_id" value="{{ new_operation_key() }}"><label>Type {{ ip }} to confirm <input name="confirm_ip" required></label><button>Queue removal from all devices</button></form>
 {% endif %}
 </section>

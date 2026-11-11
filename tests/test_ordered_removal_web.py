@@ -48,9 +48,10 @@ def surface(composition, ordered, monkeypatch):
     settings, store, agent, service = composition
 
     @asynccontextmanager
-    async def browser(*, api_enabled=True, web_enabled=True, transform=None):
+    async def browser(*, api_enabled=True, web_enabled=True, ready_enabled=False, transform=None):
         app = create_app(settings, store, agent, continuous_dispatcher=service,
-                         ordered_removal_admission_enabled=api_enabled)
+                         ordered_removal_admission_enabled=api_enabled,
+                         ready_removal_admission_enabled=ready_enabled)
         loop, calls = asyncio.get_running_loop(), []
 
         def internal(request):
@@ -66,7 +67,8 @@ def surface(composition, ordered, monkeypatch):
 
         monkeypatch.setattr(web, 'api_client', lambda _: httpx.Client(
             transport=httpx.MockTransport(internal), base_url='http://internal'))
-        bff = web.create_app(settings, ordered_removal_admission_enabled=web_enabled)
+        bff = web.create_app(settings, ordered_removal_admission_enabled=web_enabled,
+                             ready_removal_admission_enabled=ready_enabled)
         async with httpx.AsyncClient(transport=httpx.ASGITransport(app=bff), base_url='https://fixture.test',
                 headers={'Remote-User': 'alice', 'Remote-Groups': 'ftd-shun-operators'}) as client:
             yield client, app, calls
@@ -148,12 +150,179 @@ def test_ready_or_blocked_inspection_has_no_confirmation_token_or_fallback(compo
         async with surface() as (client, _, calls):
             page, fields = await review(client, fleet=True)
             assert not fields['review'] and 'No confirmation token was created' in page.text
-            assert ('DEVICE_DISABLED' if blocked else 'No captured RUNNING ADD remains') in page.text
+            assert ('DEVICE_DISABLED' if blocked else 'No addition is running') in page.text
+            if not blocked:
+                assert 'action="/ip-actions/unblock-everywhere"' in page.text
+                assert 'execution is unavailable' not in page.text
             assert (await client.post(CONFIRM, data=fields)).status_code == 409
             assert not posts(calls)
     before = dump(composition[1])
     asyncio.run(scenario())
     assert dump(composition[1]) == before
+
+
+@pytest.mark.parametrize('mode', ['ready', 'waiting', 'blocked'])
+@pytest.mark.parametrize('fleet', [False, True])
+def test_unified_unblock_selects_only_before_consent(composition, bulk, leases, surface, mode, fleet):
+    grant(bulk)
+    if mode == 'waiting':
+        running(bulk, leases)
+    if mode == 'blocked':
+        with composition[1]._connection() as db:
+            db.execute('UPDATE devices SET enabled=0 WHERE id=1')
+    before = dump(composition[1])
+
+    async def scenario():
+        async with surface(ready_enabled=True) as (client, _, calls):
+            await client.get('/managed-shuns')
+            calls.clear()
+            page = await client.post('/ip-actions/unblock' + ('-everywhere' if fleet else ''), data={
+                'csrf': client.cookies.get('ftd_shun_csrf'),
+                **({'ip': str(IP)} if fleet else {'target': f'1:{IP}'})})
+            assert page.status_code == 200, page.text
+            assert f'Unblock {IP}' in page.text
+            assert [method for method, _, _ in calls] == ['GET', 'GET']
+            assert calls[1][1] == f'/api/v2/managed-ordered-removal-scope/{IP}'
+            assert dump(composition[1]) == before and not composition[2].seen
+            assert ('action="/managed-shuns/v2/removal-confirm"' in page.text) == (mode == 'ready')
+            assert ('action="/managed-shuns/v2/ordered-removal-confirm"' in page.text) == (mode == 'waiting')
+            assert ('name="review"' in page.text) == (mode != 'blocked')
+            assert 'No confirmation token was created' in page.text if mode == 'blocked' else 'Confirm' in page.text
+            if mode == 'blocked':
+                assert 'Device is disabled.' in page.text
+    asyncio.run(scenario())
+    assert dump(composition[1]) == before
+
+
+@pytest.mark.parametrize('problem', ['digest', 'ip', 'mode', 'device', 'flags', 'partial', 'http'])
+def test_unified_unblock_invalid_preflight_never_falls_back(composition, bulk, surface, problem):
+    grant(bulk)
+    before = dump(composition[1])
+
+    def transform(request, response):
+        if '/managed-ordered-removal-scope/' not in request.url.path:
+            return response
+        if problem == 'http':
+            return httpx.Response(503)
+        value = response.json()
+        if problem == 'digest': value['preflight_digest'] = '0' * 64
+        if problem == 'ip': value['scope']['ip'] = '198.51.100.2'
+        if problem == 'mode': value['scope']['scope'] = 'fleet'
+        if problem == 'device': value['scope']['targets'][0]['device_id'] = 2
+        if problem == 'flags': value['device_work_admitted'] = True
+        if problem == 'partial': value['targets'] = []
+        if problem != 'digest':
+            unsigned = {key: item for key, item in value.items() if key != 'preflight_digest'}
+            value['preflight_digest'] = _digest(unsigned, _DOMAIN)
+        return httpx.Response(200, json=value)
+
+    async def scenario():
+        async with surface(transform=transform) as (client, _, calls):
+            await client.get('/managed-shuns')
+            calls.clear()
+            page = await client.post('/ip-actions/unblock', data={
+                'csrf': client.cookies.get('ftd_shun_csrf'), 'target': f'1:{IP}'})
+            assert page.status_code == 503 and 'Nothing was submitted' in page.text
+            assert all(method == 'GET' for method, _, _ in calls)
+            assert not any('/managed-removal-scope/' in path for _, path, _ in calls)
+    asyncio.run(scenario())
+    assert dump(composition[1]) == before and not composition[2].seen
+
+
+def test_unified_unblock_auth_and_fields_refuse_before_inspection(composition, bulk, surface):
+    grant(bulk)
+    before = dump(composition[1])
+
+    async def scenario():
+        async with surface() as (client, _, calls):
+            await client.get('/managed-shuns')
+            fields = {'csrf': client.cookies.get('ftd_shun_csrf'), 'target': f'1:{IP}'}
+            calls.clear()
+            for extra in ({'mode': 'ready'}, {'actor': 'forged'}, {'ip': str(IP)}, {'target': f'01:{IP}'}, {'target': f'0:{IP}'}):
+                assert (await client.post('/ip-actions/unblock', data=fields | extra)).status_code == 422
+            assert (await client.post('/ip-actions/unblock', data=fields | {'csrf': 'wrong'})).status_code == 403
+            client.headers['Remote-Groups'] = 'ftd-shun-viewers'
+            assert (await client.post('/ip-actions/unblock', data=fields)).status_code == 403
+            client.headers.pop('Remote-User')
+            assert (await client.post('/ip-actions/unblock', data=fields)).status_code == 401
+            assert calls == []
+    asyncio.run(scenario())
+    assert dump(composition[1]) == before
+
+
+def test_unified_ready_review_does_not_switch_to_ordered_after_state_change(composition, bulk, leases, surface):
+    grant(bulk)
+
+    async def scenario():
+        async with surface(ready_enabled=True) as (client, _, calls):
+            await client.get('/managed-shuns')
+            page = await client.post('/ip-actions/unblock', data={
+                'csrf': client.cookies.get('ftd_shun_csrf'), 'target': f'1:{IP}'})
+            token = re.search('name="review" value="([^"]+)"', page.text)[1]
+            running(bulk, leases)
+            before = dump(composition[1])
+            result = await client.post('/managed-shuns/v2/removal-confirm', data={
+                'csrf': client.cookies.get('ftd_shun_csrf'), 'review': token, 'confirm_ip': str(IP)})
+            assert result.status_code == 409
+            assert not posts(calls) and dump(composition[1]) == before
+            assert 'name="review" value="' + token + '"' in result.text
+            assert 'action="/managed-shuns/v2/ordered-removal-confirm"' not in result.text
+    asyncio.run(scenario())
+    assert not composition[2].seen
+
+
+def test_unified_unblock_without_ordered_capability_uses_only_ready_inspection(composition, bulk, surface):
+    grant(bulk)
+    before = dump(composition[1])
+
+    def transform(request, response):
+        if request.url.path == '/api/v1/status':
+            return httpx.Response(200, json=response.json() | {'ordered_removal_review_available': False})
+        return response
+
+    async def scenario():
+        async with surface(transform=transform) as (client, _, calls):
+            await client.get('/managed-shuns')
+            calls.clear()
+            page = await client.post('/ip-actions/unblock', data={
+                'csrf': client.cookies.get('ftd_shun_csrf'), 'target': f'1:{IP}'})
+            assert page.status_code == 200 and 'action="/managed-shuns/v2/removal-confirm"' in page.text
+            assert [path for _, path, _ in calls] == ['/api/v1/status', f'/api/v2/managed-removal-scope/{IP}']
+            assert 'button type="submit" disabled' in page.text  # No gate is enabled by selection.
+    asyncio.run(scenario())
+    assert dump(composition[1]) == before and not composition[2].seen
+
+
+def test_unified_ready_unknown_response_retains_original_review_and_key(composition, bulk, surface):
+    grant(bulk)
+    lose = [True]
+
+    def transform(request, response):
+        if request.method == 'POST' and request.url.path.startswith('/api/v2/managed-removals/') and lose[0]:
+            lose[0] = False
+            return httpx.Response(503)
+        return response
+
+    async def scenario():
+        async with surface(ready_enabled=True, transform=transform) as (client, _, calls):
+            await client.get('/managed-shuns')
+            page = await client.post('/ip-actions/unblock', data={
+                'csrf': client.cookies.get('ftd_shun_csrf'), 'target': f'1:{IP}'})
+            token = re.search('name="review" value="([^"]+)"', page.text)[1]
+            fields = {'csrf': client.cookies.get('ftd_shun_csrf'), 'review': token, 'confirm_ip': str(IP)}
+            result = await client.post('/managed-shuns/v2/removal-confirm', data=fields)
+            assert result.status_code == 503 and 'outcome is unknown' in result.text
+            assert 'name="review" value="' + token + '"' in result.text
+            assert 'action="/ip-actions/unblock"' not in result.text
+            after = dump(composition[1])
+            replay = await client.post('/managed-shuns/v2/removal-confirm', data=fields)
+            assert replay.status_code == 200 and 'Original-key replay' in replay.text
+            assert dump(composition[1]) == after and not posts(calls)
+            submissions = [json.loads(body) for method, path, body in calls
+                           if method == 'POST' and path.startswith('/api/v2/managed-removals/')]
+            assert len(submissions) == 2 and submissions[0] == submissions[1]
+    asyncio.run(scenario())
+    assert not composition[2].seen
 
 
 def test_csrf_role_actor_cookie_extra_fields_and_cross_purpose_refuse(composition, bulk, leases, surface):

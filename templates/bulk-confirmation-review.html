@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "pagination-ui.html" import post_pager %}
 {% from "import-ui.html" import steps, classification %}
 {% block content %}
 {% set proposed = review.proposal %}{% set summary = review.summary %}
@@ -31,10 +32,10 @@
 {% if not admission %}<p class="policy-warning" role="status">Import confirmation is unavailable for this review or the selected devices. If you already submitted this form, check saved confirmations before retrying.</p>{% endif %}
 <button type="submit"{% if not admission %} disabled{% endif %}>{{ 'Save import — maintenance suspended' if review.expected_suspended else 'Confirm import and maintain blocks' }}</button>{% endif %}
 {% if draft %}<p>Frozen members: page {{ draft.page }} / {{ draft.pages }} · at most 100 per page.</p>
+{{ post_pager(draft.page, draft.pages, 'bulk-policy-consent', '/managed-imports/v2/confirmation-review/page', 'Frozen import pages', 'top') }}
 <div class="table-scroll"><table aria-label="Frozen standing-consent members"><thead><tr><th>Original device / IP</th><th>Class</th></tr></thead><tbody>
 {% for target in draft.targets %}<tr{% if target.classification == 'EXCLUDED_PROTECTED' %} class="protected-shun"{% endif %}><td>{% for device in summary.devices if device.id == target.device_id %}{{ device.hostname }}{% endfor %} / {{ target.ip }}</td><td>{{ classification(target.classification) }}</td></tr>{% endfor %}</tbody></table></div>
-<div class="pagination-controls">{% if draft.page > 1 %}<button type="submit" formaction="/managed-imports/v2/confirmation-review/page" formnovalidate name="page" value="{{ draft.page - 1 }}">Previous 100</button>{% endif %}
-{% if draft.page < draft.pages %}<button type="submit" formaction="/managed-imports/v2/confirmation-review/page" formnovalidate name="page" value="{{ draft.page + 1 }}">Next 100</button>{% endif %}</div>{% endif %}
+{{ post_pager(draft.page, draft.pages, 'bulk-policy-consent', '/managed-imports/v2/confirmation-review/page', 'Frozen import pages', 'bottom') }}{% endif %}
 </form>
 <p><a href="/managed-imports/v2/receipts/{{ review.operation_id }}">Check saved confirmation</a> · <a href="/managed-imports/v2">Back to Imports</a></p>
 <p class="preview-help">If the response is lost, check the saved confirmation or retry only this same form. Do not start a new import to retry it. Restarting Web clears this form, but not saved confirmations. Status updates do not change your selection, count or consent.</p>

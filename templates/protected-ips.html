@@ -1,20 +1,25 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>Protected IPs</h1>
+<div class="page-heading"><h1>Protected IPs</h1>
 {% include "refresh-panel.html" %}
+</div>
+<p class="page-intro">Automatically unblock these exact IPs on all enabled devices.</p>
+<p class="compact-warning">Enabling protection stops matching auto-restoration. Disabling protection does not restore old rules.</p>
+<details class="page-help" id="protected-page-help"><summary>Protection behavior and editing</summary>
 <p>Exact IPv4 addresses automatically removed from shun on every enabled device after a successful snapshot. Changes do not run device commands immediately.</p>
 <p class="policy-warning">Enabling protection permanently stops matching managed maintenance fleet-wide. Disabling or deleting protection never restores that old policy or adds a shun back.</p>
 <p class="policy-warning">Disabling or deleting cancels unstarted policy requests. Already running commands and independent manual requests are not cancelled.</p>
 <p>All signed-in users can manage this policy. Edits are checked against the saved revision. If someone else changes the policy, <a href="/protected-ips">reload saved values</a> before retrying (unsaved drafts will be discarded).</p>
-<section id="protected-policy" data-live-region>
+</details>
+<section id="protected-policy" class="policy-workspace" data-live-region>
 {% if policy.managed_policy_available is defined and not policy.managed_policy_available %}<p class="preview-error" role="status">Managed policy is unavailable. Maintenance counts are unknown, not zero; disabling/deleting protection is blocked until this is reviewed. Enabling protection remains available.</p>{% endif %}
 <p>{{ policy.entries | selectattr('enabled') | list | length }} enabled · {{ policy.entries | length }} / {{ policy.limit }} addresses.</p>
-<details id="add-protected-ip" class="policy-editor">
+<details id="add-protected-ip" class="policy-editor"{% if target_ip and not policy.entries | selectattr('ip', 'equalto', target_ip) | list %} open{% endif %}>
 <summary>Add protected IP</summary>
 <form id="add-policy-form" method="post" action="/protected-ips/add" class="policy-form" data-policy-form>
 <input type="hidden" name="csrf" value="{{ csrf_token }}"><input type="hidden" name="revision" value="{{ policy.revision }}">
 {% if policy.managed_policy_available | default(false) %}<input type="hidden" name="managed_revision" value="{{ policy.managed_revision }}">{% endif %}
-<label>IPv4 address <input name="ip" inputmode="decimal" placeholder="198.51.100.10" required maxlength="15"></label>
+<label>IPv4 address <input name="ip" value="{{ target_ip | default('') }}" inputmode="decimal" placeholder="198.51.100.10" required maxlength="15"></label>
 <label>Name <input name="name" maxlength="100" placeholder="Office egress"></label>
 <label>Comment <textarea name="comment" maxlength="500" rows="2"></textarea></label>
 <label class="checkbox-label"><input type="checkbox" name="enabled" value="true" checked> Enable automatic removal fleet-wide</label>
@@ -22,12 +27,13 @@
 </form></details>
 {% for entry in policy.entries %}
 <article class="policy-card{% if entry.active_devices %} {{ 'policy-warning' if entry.enabled else 'policy-disabled-warning' }}{% endif %}">
-<div class="policy-card-heading"><h2><a href="/shuns/{{ entry.ip }}">{{ entry.ip }}</a>{% if entry.name %} · {{ entry.name }}{% endif %}</h2><span class="state-badge {{ 'policy-enabled' if entry.enabled else 'policy-disabled' }}">{{ 'Enabled' if entry.enabled else 'Disabled' }}</span></div>
+<div class="policy-card-heading"><h2><a href="/shuns/{{ entry.ip }}">{{ entry.ip }}</a></h2><span class="state-badge {{ 'policy-enabled' if entry.enabled else 'policy-disabled' }}">{{ 'Enabled' if entry.enabled else 'Disabled' }}</span></div>
+{% if entry.name %}<p class="policy-name">{{ entry.name }}</p>{% endif %}
 {% if entry.active_devices and not entry.enabled %}<p class="disabled-protection-summary"><strong>Protection disabled — currently shunned.</strong> Automatic removal is off for this address.</p>{% endif %}
 {% if entry.comment %}<p class="policy-comment">{{ entry.comment }}</p>{% endif %}
 <p>Observed shun: {% if entry.active_devices %}{{ entry.active_devices }} device(s){% else %}not currently observed{% endif %} · Last auto-removed: {% if entry.last_auto_removed_at %}<time class="local-timestamp" datetime="{{ entry.last_auto_removed_at }}">{{ entry.last_auto_removed_at }}</time>{% else %}Never recorded{% endif %}</p>
 {% if entry.maintained_devices | default(0) %}<p class="policy-warning" data-maintenance-warning>Enabled maintenance: {{ entry.maintained_devices }} device(s), including missing or disabled-device targets. {% if entry.enabled %}Maintenance still needs to be stopped: saving or disabling/deleting this enabled protection will permanently stop these intents first.{% else %}Enabling protection will permanently stop these intents. Leaving this entry disabled or deleting it does not revoke newly authorized maintenance.{% endif %}</p>{% endif %}
-<details id="edit-policy-{{ entry.ip }}" class="policy-editor"><summary>Edit / enable / disable</summary>
+<details id="edit-policy-{{ entry.ip }}" class="policy-editor"{% if target_ip == entry.ip %} open{% endif %}><summary>Edit / enable / disable</summary>
 <form id="edit-policy-form-{{ entry.ip }}" method="post" action="/protected-ips/edit" class="policy-form" data-policy-form data-policy-ip="{{ entry.ip }}">
 <input type="hidden" name="csrf" value="{{ csrf_token }}"><input type="hidden" name="revision" value="{{ policy.revision }}"><input type="hidden" name="ip" value="{{ entry.ip }}">
 {% if policy.managed_policy_available | default(false) %}<input type="hidden" name="managed_revision" value="{{ policy.managed_revision }}">{% endif %}

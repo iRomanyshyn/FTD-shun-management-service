@@ -1,5 +1,11 @@
 # Managed Removal Review — Frozen Scopes and Gated Confirmation
 
+Current IP workspace, 2026-11-11: **Unblock…** selects an ordinary or waiting
+review from complete local preflight before the first confirmation. The operator
+does not choose an internal execution mode. Existing explicit routes and frozen
+confirmation contracts below remain separate. See
+[Operator Workspace](operator-workspace.md#actions-and-help).
+
 ## Current scope
 
 The Managed shuns page exposes retained policy and optional cleanup state.

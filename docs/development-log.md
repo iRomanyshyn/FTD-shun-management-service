@@ -10746,6 +10746,467 @@ new template/CSS hashes match source. No spoofed Web identity was used. Existing
 tabs need one reload. Preserve seven receipts and original unknowns; never restore
 stale data or reuse the consumed decision for later uncertainty.
 
+## 2026-11-11 — Quiet navigation/loading and empty-promotion writer avoidance
+
+Operator reported red service-busy notifications on tab changes and repeated
+SQLite-lock notifications. Inspection found synchronous scheduling reserved
+SQLite's writer for an ordered-removal promotion sweep even with no candidates;
+six-hour old API diagnostics contained 347 matching expiry failure/scheduling
+retry/recovery lines. Retained those bounded logs and read-only pre-rollout
+fingerprints/unknown rows privately in `/tmp/ftd-quiet-loading-20261111.bC8ugi`.
+
+Added an accessible fixed loading strip for native primary-tab GET navigation,
+including reduced-motion behavior and back/forward reset. No SPA/page cache,
+form replay or changed frozen-review/CSRF behavior. Brief GET network/timeout or
+502/503/504 failures retain data and show neutral loading/retry details; failures
+three onward or the next failure after 30 seconds warn. Authentication and
+action-submission errors stay immediate, and an earlier actionable local failure
+cannot be quieted by a subsequent transient failure before a successful read.
+Typed scheduling retries one/two are neutral, later attempts warn; only their
+exact coordinator reason is suppressed. Independent stale/device/unknown evidence
+remains visible and real confirmation timestamps stay unchanged.
+
+Empty promotion sweeps now validate the complete existing profile and incomplete
+tickets in one read transaction. No candidate means no writer reservation; a
+candidate repeats all original fresh checks in the existing writer transaction.
+Concurrent newly arriving work waits until the next pass, without cached authority.
+No DDL/protocol/gate/deadline/budget/timeout/credential/trust/network change, no
+generic SQLite/device-command retry or unknown-outcome reinterpretation.
+
+### Validation and lab rollout
+
+Full Python **3582 passed in 649.57s**, final focused **117 passed in 28.71s**,
+final browser/Node **93 passed in 151.75s**. New WAL regression completes an empty
+sweep while another connection holds `BEGIN IMMEDIATE`, with unchanged data.
+Browser checks cover native navigation, reduced motion, brief/persistent failure
+presentation, authentication failure persistence, stable layout and unchanged
+explicit action retry. An initial native-navigation test tried inspecting the
+old page through CDP while Chromium suspended evaluation for navigation; changed
+the test to retain a pre-navigation observation and inspect it after actual
+arrival. Final run is clean. Ruff/compileall/diff and final configured non-
+executing image preflight pass; API check started no execution or migration.
+
+Saved compatible rollback images `ftd-shun-{api,web}:lab-pre-quiet-loading-20261111`.
+Old API/Web actually exited 0 at **09:00:10Z**, stopped **3455 IDLE/no RUNNING**,
+integrity ok and all nine authority/protection/inventory/recovery fingerprints
+plus 26 original unknown rows unchanged. API **4ca90a19296d... / 395b756709a7**
+and Web **b62bee8874f1... / e29afa27d782** started **09:00:57Z** using all three
+overlays/original managed DB and v6. Agent **8d9f196ceea1... / 4b2aa4744e96**
+was not restarted. No new device fixture/import/consent/recovery or evidence reset.
+
+At **09:01:21Z**, coordinator running, fresh read **09:01:19Z**, no last error,
+zero unresolved attention and 26 reviewed history; startup session still active.
+Original import **32,425/32,425 processed** (32,403 verified/22 already present),
+zero outstanding, completed before this deployment. Read-only status requests
+took **1.868/1.732/1.906s** during startup. Web health200/anonymous pages401 and
+actual served navigation/refresh/CSS hashes match local source. Reload old tabs.
+Preserve all seven receipts/26 unknowns. This is not all-contention recovery or
+active-large-list throughput acceptance: original import was already finished,
+and no new live storage lock or mutation failure was deliberately induced.
+
+Final **09:02:56Z** post-rollout read-only check confirms settled **3456 IDLE**,
+no RUNNING jobs, integrity ok, all nine fingerprints and all 26 unknown rows
+unchanged. Candidate templates match local hashes too. No matching storage/
+maintenance/stopped errors in the short startup log sample; this is bounded idle-
+work observation, not evidence that all live contention has been eliminated.
+
+## 2026-11-11 — Separate unmanaged observations and correct observed removal reviews
+
+Continued the agreed working-version usability slice after completing the large
+original import. Added a separate authenticated Unmanaged tab, current exact-
+device/IP maintenance badges in observed rows/details, and bounded filtered reads.
+Enabled standing maintenance defines Managed even while execution is paused;
+off/retired policy can leave an observed unmanaged block. Historical import origin
+and observed presence never infer current maintenance or original creator.
+
+New read-only classifier validates the existing bulk or legacy managed profile;
+genuinely absent policy differs from malformed/partial storage. Count, selected
+observations/provenance and flags share one SQLite read transaction. The fixed
+unmanaged anti-join precedes LIMIT; only displayed pairs are annotated, never the
+entire policy in Python. Added `ownership=all|unmanaged` on the existing paged API;
+Unmanaged BFF rejects old/unfiltered metadata. Per-IP detail gains classification;
+legacy full-list reads may remain explicitly unclassified. Universal IP search
+still includes managed/history matches, clearly distinguished from the table.
+
+Fixed observed-row actions in the actual v2 runtime: the previous index offered
+legacy queue submission even though continuous v2 refuses that endpoint. New
+rows/details prepare the existing CSRF/identity-bound exact frozen device-removal
+review, labelled stop-restoring-and-remove when maintained. Final explicit consent
+and all original admission/role/policy/protection/uncertainty guards remain. Legacy
+maintained rows likewise use their existing combined review; unknown ownership
+does not choose ordinary unmanaged removal. No new mutation or adoption endpoint,
+DDL, protocol, bounds, timeout, gates, authority, credential/trust/network changes.
+
+Added structured Shuns/maintenance manual and updated README/manual index/plan/
+architecture. This is the separate view and review UX, not rolling 24-hour multi-
+device correlation, direct adoption, Emergency Purge or deferred-v7 activation.
+
+### Validation
+
+Full Python **3597 passed in 621.08s**; final focused **119 passed in 14.97s**,
+including two tests added after full collection (malformed-policy API refusal and
+100,000-observation filtered paging under another WAL writer). No second full run
+is claimed. Final browser/Node **95 passed in 138.26s**. Tests cover exact device/
+interface scope, adoption vs creation, retired origins, absence vs damaged schema,
+snapshot consistency during concurrent retirement, SQL LIMIT before hydration,
+authentication/read-only roles, route/query/live page retention and frozen review
+actions without queue admission. Early browser fixtures leaked v2 status/generation
+into an older shared refresh scenario; isolated its initial state and reran cleanly.
+Ruff/compileall/diff and configured non-executing image preflight pass.
+
+Candidate rehearsal opened the actual lab DB with `mode=ro`/`query_only=ON`:
+32,426 observations/325 pages, first/last 100/26 rows, all maintained; Unmanaged
+zero. Query times 0.322/0.228/0.225/0.228s are bounded samples, not load claims.
+Current capability metadata confirms exact v2 ready review is available/admitted,
+legacy manual mutations unavailable. No test ADD/REMOVE was needed or submitted.
+
+### Actual lab rollout
+
+Retained preceding compatible pair as
+`ftd-shun-{api,web}:lab-pre-unmanaged-20261111`. Private recent logs/authority/
+unknown baseline: `/tmp/ftd-unmanaged-20261111.YSyhXE`. Old API/Web actually
+exited 0 at **09:29:38Z/09:29:37Z**, stopped **3463 IDLE/no RUNNING**, integrity
+ok and all nine fingerprints/26 original unknown rows unchanged. API
+**3974a9f36ad7... / 8c1a1e8d943d**, Web **6e39cda4cef2... / 01a79bad4f26**
+started **09:30:10Z**, using all three overlays/original managed DB/import/v6.
+Agent **8d9f196ceea1... / 4b2aa4744e96** did not restart. No new consent, receipt,
+test fixture, dataset reset, reimport or live authority/profile initialization.
+
+Live API first/last pages return 100/26 in **0.558/0.235s**, Unmanaged zero in
+**0.236s**; per-IP flags and invalid-filter422 checked. Web health200/anonymous
+Unmanaged401, exact served CSS/JS and all changed template hashes match source.
+At **09:31:21Z** fresh read **09:30:29Z**, coordinator running/no error/zero
+unresolved attention, 26 reviewed historical unknowns. Original task remains
+32,425/32,425 complete. At **09:31:40Z**, successor **3464 IDLE/no RUNNING**,
+integrity ok, all nine fingerprints and all unknown rows still unchanged. All
+seven recovery receipts remain; no old outcome was replayed or relabelled.
+Existing tabs need one reload. Bounded single-device read acceptance does not
+prove active-load performance, FTD capacity, live authenticated-browser behavior
+or multi-device correlation. No spoofed Web identity was used during rollout.
+
+## 2026-11-11 — Version 0.2.0, uniform paging and independent operator pauses
+
+Operator clarified two independent controls: pause initial imports and pause
+automatic restoration. Existing blocks stay; monitoring, removals and Protected-IP
+automatic unblocking continue. Added separate exact optional control rows, immutable
+real-actor/idempotency history and per-category monotonic revisions/resume barriers.
+No rule retirement, unknown replay/relabel, recovery release or gate changes.
+Existing databases require explicit quiescent initialization; new dev profiles
+include it. Old writers refuse the new schema. Category uses exact current scope's
+adoption/known presence evidence, not inferred original device-command creation.
+Discovery filters paused categories before LIMIT, preserves the other category's
+window, and claims recheck the current pause while allowing in-flight settlement.
+
+Added CSRF-protected API/BFF controls in Managed shuns and neutral Queue/Status
+indicators. Operator Resume requires a new causal read and never clears safety
+holds. Common top/bottom pagers retain existing GET anchors/revisions/searches
+and frozen POST tokens/consent. Active Queue shows RUNNING then newest queued
+items; FIFO/priority dispatch remains unchanged. IP badges have their own layout;
+interface names no longer split mid-word. Product version advances to 0.2.0,
+with a mandatory contributor/agent bump rule for subsequent material deliveries.
+Docker builds generate an explicit public source digest, never Git/private/host
+inputs or per-request source inspection. Exact image IDs remain necessary.
+
+Focused final-source Python 217 passed; Chromium/Node 97 passed in 156.33s.
+These include independent button updates, neutral pause indicators, retained
+unknown warnings, concurrency/replay/CSRF/roles, fresh-read resume, protected
+removal, current-operation settlement and paused-prefix starvation checks.
+Full regression and lab rollout are still in progress at this source checkpoint;
+do not infer deployment or active-import/live-paused-write acceptance from it.
+Later validation/deployment results are appended below. No tag/release publication.
+
+### Final validation and actual lab rollout
+
+Full Python run: **3618 passed, two failed stale assertions,672.92s**. One expected
+FIFO presentation order, not execution order; corrected it to check capability
+by device. The other enumerated the old route set; added the new semantic control
+route while retaining the no-initialization assertion. Final broad boundary set
+**256 passed/22.59s**; all managed-registry/import-execution/control cases and
+source checks **66 passed/3.35s**. These also cover the extra NULL-row profile
+test added after full collection. No second clean full-source run is claimed.
+Final Chromium/Node **97 passed/156.33s**. Compileall/Ruff/diff pass. Candidate
+and running package0.2.0/public digest/footer agree on **6638b65ca610**; no Git
+inspection, environment override or tag publication.
+
+Rehearsal on a private consistent actual-dataset copy passed with all **31 original
+tables unchanged**. The actual old API image refused the new control schema.
+Old API/Web then exited0; stopped **3512 IDLE**, no RUNNING, integrity ok, all nine
+authority/protection/inventory/recovery hashes and all26 unknown rows unchanged.
+Explicit `checked_offline` extension created the exclusive checked backup
+`private-backups/ux-pauses-20261111/before-controls.db`, revalidated quiescence and
+preserved every original table. No job/outcome/authority conversion or recovery.
+Configured non-executing checks passed before and after extension.
+
+API **454e6336b0b2... /6b548900c147** and Web **79a0dcfb1c10... /714f72fa976a**
+started **11:36:47Z** with all three overlays/original managed DB/completed import/
+v6 selection. Agent **8d9f196ceea1... /4b2aa4744e96** stayed running. No agent,
+protocol, timeout, gate, credentials/trust/network or authentication change.
+Retained old `lab-pre-operator-controls-20261111` images are forensic, not a
+compatible rollback against the new schema. Current compatible pair retained as
+`ftd-shun-{api,web}:lab-operator-controls-0.2.0-20261111` for future use; never
+remove pause guards or restore stale authority to undo the feature.
+
+Four fresh keys under real trusted-host label
+`maintenance:operator-controls-lab-20261111` independently paused imports,
+paused restoration, resumed imports and resumed restoration. Each original-key
+repeat returned current state without another toggle. Both controls finish
+**Active/revision2**; barriers **11:37:40.485Z/11:37:40.982Z**. Original queue counts
+unchanged, no new shun fixture/admission/recovery. At **11:37:56Z**, normal3514
+LEASED, integrity ok/nine hashes and26 unknown rows unchanged; not global idle.
+Actual complete read **11:37:57Z** is after both resume barriers.
+
+At **11:38:50Z** running/no error/zero unresolved attention,26 reviewed history;
+original task32,425/32,425 complete (32,403 verified/22 present), observations32,426
+in325 bounded pages, Unmanaged0. Webhealth200/anonymous protected pages401 and
+served source-matching assets pass. These are bounded control/read acceptance,
+not live active-import pause/write-race, multi-device or production acceptance.
+Private host evidence `/tmp/ftd-ux-pauses-20261111.hFwoIA`, private rehearsal/results/
+backup retained in the state volume. Existing tabs need one reload.
+
+## 2026-11-11 — Compact operator workspace, Web v0.2.1
+
+Operator requested less linear, description-heavy pages and intact IP/tag labels.
+Widened/densified the workspace, aligned Status/Queue with headings, and put
+reference-only descriptions behind stable native disclosures. Real errors,
+unknown/current-block/protection warnings and frozen review consequences remain
+visible. IP/badges stay on one line; wide tables scroll within their frame,
+without hiding identifiers/actions or increasing bounded pages. Table buttons
+are smaller; timestamp columns avoid excessive row height. Light/dark and narrow
+layouts retain readable action targets.
+
+Managed Actions above the table opens/focuses existing capability-filtered
+editors, with outside-click/Escape dismissal and no request submission. Existing
+CSRF/identity/frozen scope/revision/consent forms and live editor preservation
+remain. Per-row Note/Activity reveal saved context on demand. Protected-IP cards
+form a responsive grid, with disabled/currently-shunned warning still visible.
+Import source sits beside device/label/reason fields; mobile stacks them.
+No backend scheduling, refresh, paging, policy, schema, protocol or gates changed.
+
+Full Python **3621/661.72s**, final focused **123/28.91s**, final browser/Node
+**100/149.23s** passed. An intermediate browser rerun caught a harness race:
+98 of100 table rows had parsed when it asserted. The helper now waits for complete
+HTML and deferred controllers; final suite is clean. New synthetic layout tests
+cover1440/960/375px light/dark intact labels/row heights/local scroll, protected
+cards/typed deletion, action focus/no submission and responsive import panes.
+Reviewed screenshots retained privately. Compileall/Ruff/diff, all38 compiled
+templates, configured non-executing Web composition and installed package/build/
+rendered footer consistency pass. Product advances0.2.0→0.2.1; no release/tag.
+
+Built/deployed **only Web** `2d364ae45a57... /a7fff523b558`, started
+**13:09:55Z**, public source ID **b4f8eccc19e8**. API `454e6336b0b2... /
+6b548900c147` remains0.2.0; agent `8d9f196ceea1... /4b2aa4744e96` unchanged;
+neither restarted. All three overlays/original managed DB/import/v6 remain.
+Rollback Web `ftd-shun-web:lab-pre-compact-ui-20261111` retains compatible0.2.0.
+No new ADD/REMOVE/control/consent/recovery request, data reset, gate, secret,
+trust, network or authentication change.
+
+Live health200/anonymous seven protected routes401, shipped asset hashes and
+version/source/footer pass. At **13:10:22Z**, integrity ok/all nine original
+fingerprints/all26 unknown rows unchanged, **3535 IDLE/no RUNNING**. At
+**13:10:30Z**, coordinator running/no error/zero unresolved attention,26 reviewed
+retained, original task32,425/32,425 complete, observations32,426/325 pages and
+Unmanaged0. Both controls unchanged before/after: Active, imports revision2 and
+restoration revision4, six existing requests. Seven recovery receipts retained.
+Evidence `/tmp/ftd-compact-ui-20261111.fcKSDV`. Existing tabs need one reload.
+Browser validation is synthetic, not live authenticated-browser/load/production
+acceptance. Follow [Operator Workspace](manual/operator-workspace.md).
+
+## 2026-11-11 — Grouped pause controls and current-only Queue, Web v0.2.2
+
+Operator reported pause buttons visually drifting toward another control and
+asked to keep history out of Queue. Removed space-between stretching; each
+name/state/button now shares a compact outlined flex group. Groups wrap on narrow
+screens without losing the button's association. No pause semantics changed.
+
+Removed completed/reviewed-history tables and finished-import disclosures from
+Queue. Active work/progress, unresolved FAILED/UNVERIFIED and inactive imports
+with attention remain visible. Conservative invalid/missing-review metadata
+fallback still warns; reviewed originals remain unknown in storage. Inactive
+history cannot hold the waiting indicator. Queue links to existing audit and
+supported saved-import pages. Stable row signatures ignore historical rows;
+no outcome deletion, acknowledgment, retry, retention, authority or device change.
+
+Product0.2.1→0.2.2. Full Python **3621/671.80s**, final focused **91/4.33s**,
+final browser/JS **101/151.04s** pass. Tests cover1920/1440/960/375px button-label
+association, completion/cancellation exit, inactive-import attention and invalid
+review fallback. Intermediate old UI expectations were updated to require no
+completed Queue rows. Compileall/Ruff/diff, configured non-executing Web,
+all38 compiled templates and installed package/build/footer pass. Image comparison
+confirms only CSS/freshness JS/refresh-panel template/version literal changed.
+
+Deployed only Web **5fd215581cf8... /219bcead8193** at **15:27:12Z**, source
+**c00f0cbd7a75**. API0.2.0 **454e6336b0b2... /6b548900c147** and agent
+**8d9f196ceea1... /4b2aa4744e96** did not restart. All three overlays/original
+managed DB/import/v6/gates remain. Compatible Web0.2.1 retained as
+`ftd-shun-web:lab-pre-current-queue-20261111`. No new job, fixture, control request,
+consent, recovery decision, schema, secret/trust/network or authentication change.
+
+Live Webhealth200/seven anonymous protected routes401/source assets/footer pass.
+At **15:27:35Z**, integrity ok/nine original fingerprints/all26 unknown rows
+unchanged,3574 IDLE/no RUNNING. At **15:27:42Z**, coordinator running/no error/
+zero unresolved attention,26 reviewed retained; original import32,425/32,425
+complete,32,426 observed/325 pages,Unmanaged0. Controls unchanged Active/imports
+revision2/restoration revision4/six existing requests; seven recovery receipts
+retained. Private evidence/screenshots `/tmp/ftd-queue-ui-20261111.XbXQzR`.
+Reload old tabs. Synthetic browser coverage is not live authenticated-browser
+or production acceptance. See [Operator Workspace](manual/operator-workspace.md).
+
+## 2026-11-11 — Visible IP workspace and concise action names, Web v0.2.3
+
+Operator requested discoverable per-IP controls instead of long repeated buttons
+and easily missed disclosures. Lists now link directly to the address workspace.
+Visible device cards expose Unblock, Stop restoring and separate ordered review;
+whole-fleet review stays explicit. These prepare existing reviews, not immediate
+new mutation paths. Short confirmation labels retain visible frozen consequences,
+typed IP, identity/CSRF/session binding, capabilities, revisions and no-replay rules.
+Advanced editor disclosures get button styling. Observations/provenance/history
+remain separate from current policy, with stable live/editor IDs and focus.
+
+The BFF reads the existing complete local v2 fleet scope, including enabled but
+absent managed targets. Extracted the existing strict inspection validator into
+a pure shared helper; review creation retains identical canonical checks.
+GET allocates no review token/authority. Invalid/empty-or-oversized/unavailable
+scope stays explicit rather than becoming an empty registry. Disabled targets
+cannot use an unblock button, while policy-only retirement remains available.
+Validated-IP deep links prefill import text without device selection/draft save,
+or open the matching protected-IP editor without policy changes. No new API
+endpoint, schema, protocol, feature gate or executor behavior.
+
+Product0.2.2→0.2.3. Full Python **3628 passed/one obsolete pre-collected URL
+assertion in649.08s**: the test had collected the old unanchored protection URL
+before the editor-fragment refinement. Final focused **173/50.80s** and explicit
+new integration cases **8/2.72s** pass with the final anchored URL. No second clean
+full run claimed. Final browser/JS **102/150.78s** pass, covering visible controls
+without disclosures, absent maintained target, disabled/read-only behavior,
+mobile/light/dark and focus retention. Existing frozen reviews/queued cancellation
+still pass; integration GET/prefill snapshots prove no store mutation or agent
+call. Ruff/compileall/diff and all39 template/package/source/footer checks pass.
+
+Configured candidate read-only compatibility with the actual API validated one
+existing complete scope (one target, managed revision6/protection revision1),
+without a BFF identity spoof or device operation. Deployed only Web
+**0aeccc99347c... /959f1f5edc81** at **16:02:07Z**, source **a659ca2aa480**.
+API0.2.0 **454e6336b0b2... /6b548900c147** and agent **8d9f196ceea1... /
+4b2aa4744e96** did not restart. All three overlays/original DB/import/v6/gates
+remain. Compatible previous Web retained as
+`ftd-shun-web:lab-pre-ip-workspace-20261111`. No lab job/fixture/control/consent/
+recovery, credentials/trust/network/authentication or data reset change.
+
+Live Web200/eight anonymous routes401/source assets/footer pass. At **16:02:32Z**
+integrity ok/all nine original fingerprints/all26 unknown rows unchanged,
+**3583 IDLE/no RUNNING**. At **16:02:39Z**, coordinator running/no error/zero
+unresolved attention,26 reviewed retained; original import32,425/32,425 complete,
+32,426 observed/325 pages,Unmanaged0. Independent controls unchanged Active,
+imports revision2/restoration revision4/six existing requests; seven recovery
+receipts retained. Private evidence/screenshots `/tmp/ftd-ip-workspace-20261111.nHVR54`.
+Old tabs need one reload. Synthetic browser/integration and bounded readonly lab
+checks are not live authenticated-browser/device-write or production acceptance.
+
+## 2026-11-11 — unified pre-consent Unblock review (0.2.4)
+
+Operator feedback: separate ready/wait buttons exposed internal scheduling and
+an idle target's ordered inspection misleadingly showed a red unavailable state.
+The IP workspace now has one Unblock entry, a separate policy-only Stop restoring,
+and fleet removal only when multiple devices exist. Block-on-devices is secondary.
+POST preparation authenticates/validates CSRF and canonical scope, reads status
+and complete strict local preflight, and selects the existing token registry
+before consent: READY uses the same exact scope in the ready contract; WAITING_ADD
+uses captured predecessors in the ordered contract; BLOCKED creates no token.
+Unavailable/invalid advertised inspection never falls back. Confirmed/uncertain
+requests keep original mode, scope, key/deadline, independent gates and fences.
+No new API/agent/storage contract or device write path.
+
+Reviews keep outcome/consequences, exact device list, blockers and typed-IP
+confirmation visible. Technical UUIDs/revisions/session evidence are collapsed.
+Old explicit ordered READY shows a neutral explanation plus an explicit new
+Review unblock button; it does not convert consent or execute automatically.
+Architecture and operator manuals document the pre-consent boundary.
+
+Final focused Python **152/36.64s** and browser/JS **102/146.23s** pass.
+Tests cover readonly initial selection, fleet/device scope, blocked/no token,
+invalid/substituted preflight, missing capability/default-off admission, role/
+CSRF/field checks, state drift rejecting instead of changing mode, and original-key
+retry after a lost ready response. Responsive desktop/mobile and light/dark
+screenshots inspected; frozen scopes/focus and existing wait contracts pass.
+An initial restricted synthetic runner stalled and was terminated; all reported
+passing runs used the required local ASGI/browser permissions. Compileall/Ruff/
+diff, candidate installed version/build/footer/all39 templates/66 routes and
+actual unchanged API readonly READY scope compatibility pass.
+
+Web image **5f662db4b804...**, source **e48a5a494686**, product0.2.4.
+No listener or authenticated live BFF/device mutation was used in preflight.
+Clean full Python **3646/637.56s** passes with final source/tests. Previous0.2.3
+retained as `ftd-shun-web:lab-pre-unified-unblock-20261111`. At17:05:51Z readonly
+baseline: integrityok/nine original fingerprints retained/26 raw unknowns retained,
+3598 IDLE/no RUNNING. At17:06:11Z original import32425/32425 complete,32426
+observations/325 pages,Unmanaged1, zero unresolved attention, coordinator running/
+no error. Controls unchanged Active/importsrev2/restorationrev4/six requests.
+Evidence `/tmp/ftd-unified-unblock-20261111.qgHlnY`. No lab fixture, new consent,
+policy retirement, replay, recovery, secret/trust/network/authentication change.
+
+Deployed only Web **b7ee92aab502** at **17:13:11Z**. API0.2.0
+**454e6336b0b2... /6b548900c147** and agent **8d9f196ceea1... /4b2aa4744e96**
+did not restart. All three overlays/original managed-v2 DB/import/v6/gates remain.
+Web200/ten anonymous GET/POST routes401/source assets/package/footer pass. At
+**17:13:30Z** integrityok/all nine original hashes/all26 unknown rows unchanged,
+**3600 IDLE/no RUNNING**; at **17:13:37Z** running/no error/zero unresolved
+attention, original import32425/32425 complete,32426 observed/325 pages,Unmanaged1.
+Controls unchanged Active/importsrev2/restorationrev4/six existing requests; all
+seven recovery receipts retained. Before/after private readonly snapshots are in
+the evidence directory. No device mutation or authenticated live UI submission was
+used for this delivery; do not claim such acceptance. Reload old tabs.
+
+## 2026-11-11 — captured cleanup across deferred handoff (source-only0.2.5)
+
+Continued the import/first-confirmation work rather than expanding unrelated UI.
+The exact fresh deferred execution profile now recognizes existing ordered
+reservation/promotion schemas. No new DDL or consent fields; initialization order
+remains empty deferred setup, then explicit paused/quiescent ordered extension.
+Recovery profiles still refuse; ordinary workers/public selectors remain v5/v6.
+An existing qualifying RUNNING-ADD reservation may survive actual settled-v7
+handoff. Awaiting confirmation waits neutrally rather than promoting on IDLE or
+becoming false attention. After the exact member's first causal complete read,
+promotion binds its original claim/owner/epoch and immutable observation verdict,
+then uses the existing atomic full-scope urgent REMOVE delegation. Independent
+awaiting work remains a conflict. Original deadlines/current policy/protection/
+inventory/fences/capacity and unknown holds are unchanged. Cancelling/expiring a
+reservation does not resume maintenance. Startup refuses an absent store without
+creating a file. Deferred statuses are accepted only for captured ADDs, not REMOVE.
+
+New real-coordinator/synthetic12-address tests reserve the first RUNNING ADD,
+send one batch, settle without a final read, confirm from the next complete read,
+then perform priority verified cleanup without another ADD. Lost settlement keeps
+all12 unknowns/attention and admits no REMOVE. Other tests cover present/absent
+device/fleet delegation, replay/deadline preservation, reopened state, noncausal
+read refusal, cancellation/expiry, changed device/protection/pause, late whole-
+fleet rollback, foreign capture and disagreeing verdict. No live FTD commands.
+
+Final focused **125/41.51s**, clean full Python **3665/663.63s** and browser/JS
+**103/147.03s** pass with final source/tests.
+The browser test covers awaiting/observed/absent labels without false success,
+automatic requests or device demand. Compileall/Ruff/diff pass. Product source
+0.2.4→0.2.5, build **fcd5e3f4e342**. Separate validation image
+**dadaed3d3b34181907313e266a0bf2a6a4fd6dcd7450c24ddbbf0de47491d2f7**
+(`ftd-shun-manager:source-0.2.5-deferred-ordered`) agrees on package/build/footer/
+all39 templates. Networkless readonly same-fixture comparison proves candidate
+acceptance and actual0.2.4 image refusal of the combined profile. Candidate also
+validates the actual existing v6 lab profile query-only; no initialization or
+execution occurred. Private evidence `/tmp/ftd-deferred-ordered-20261111.5MJ4ky`.
+
+No deployed tag/container/configuration, original task/data, credentials/trust/
+network/authentication, lab gate, consent or recovery changed. Current Web0.2.4/
+API0.2.0/agent remain running v6. This is not a configured v7 rollout, live import
+speedup or general unknown-write recovery. Initial already-awaiting capture,
+existing multiple-RUNNING preflight limits, compatible deferred recovery and
+deliberate fresh-store composition/acceptance remain next. No old authority,
+original import or recovery key may be replayed to demonstrate this source.
+
+Readonly lab status **18:22:33Z**: coordinator running/no error, zero unresolved
+attention/26 reviewed unknowns retained; original import32425/32425 complete,
+32426 observations/325 pages,Unmanaged1. Actual Web/API/agent container IDs and
+start times match the previous0.2.4 checkpoint. No new device command, service
+restart or live profile change; no Rust/wire changes or Rust rerun claimed.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

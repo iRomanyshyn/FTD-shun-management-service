@@ -7,9 +7,11 @@
     <link rel="stylesheet" href="/static/app.css">
   </head>
   <body>
+    <div class="navigation-loading" data-navigation-loading hidden role="status" aria-live="polite"><span class="navigation-loading-bar" aria-hidden="true"></span><span data-navigation-message>Loading…</span></div>
     <header><a href="/">FTD Shun Manager</a>{% if identity %}<span>{{ identity.display_name }} · {{ identity.roles | join(', ') or 'No role' }}</span>{% endif %}</header>
     {% if identity %}<nav class="primary-nav" aria-label="Primary">
       <a href="/"{% if active_page | default('shuns') == 'shuns' %} aria-current="page"{% endif %}>Shuns</a>
+      <a href="/unmanaged"{% if active_page == 'unmanaged' %} aria-current="page"{% endif %}>Unmanaged</a>
       {% if (refresh or {}).managed_policy_view_available | default(false) or (refresh or {}).managed_workflows_available is not sameas false %}<a href="/managed-shuns"{% if active_page == 'managed' %} aria-current="page"{% endif %}>Managed shuns</a>{% endif %}
       <a href="/protected-ips"{% if active_page == 'protected' %} aria-current="page"{% endif %}>Protected IPs</a>
       <a href="/history"{% if active_page == 'history' %} aria-current="page"{% endif %}>History</a>
@@ -18,6 +20,7 @@
       <a href="{{ '/managed-imports/v2' if bulk_drafts_available else '/managed-imports' if managed_imports_available else '/imports' }}"{% if active_page == 'imports' %} aria-current="page"{% endif %}>{{ 'Imports' if bulk_drafts_available or managed_imports_available else 'Import preview' }}</a>
     </nav>{% endif %}
     <main>{% block content %}{% endblock %}</main>
-    <footer class="app-footer" aria-label="Application version">FTD Shun Manager · <span data-product-version>v{{ product_version }}</span></footer>
+    <footer class="app-footer" aria-label="Application version">FTD Shun Manager · <span data-product-version>v{{ product_version }}</span>{% if product_build %} · <span data-product-build title="Application source build, not a protocol version or production-readiness claim">{{ product_build.source_id }}</span>{% else %} · <span class="muted">source checkout</span>{% endif %}</footer>
+    <script src="/static/navigation.js" defer></script>
   </body>
 </html>

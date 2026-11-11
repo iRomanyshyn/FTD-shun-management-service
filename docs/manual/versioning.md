@@ -26,16 +26,29 @@ are required before and after this boundary, not postponed until release.
 
 The product version is assigned manually in
 [`src/ftd_shun_manager/__init__.py`](../../src/ftd_shun_manager/__init__.py)
-as `__version__ = "0.1.0"`. This is the single source for the Python package
+as `__version__ = "0.2.5"`. This is the single source for the Python package
 version and the Web footer. Hatch reads it through `tool.hatch.version` in
 [`pyproject.toml`](../../pyproject.toml); Jinja displays it with a `v` prefix.
 The prefix is presentation only, not part of the stored package version.
 
-Commits, tests, container builds, deployments and restarts do not increment the
-version. No Git tag, commit count, timestamp or environment override currently
-participates. Multiple development builds can therefore display the same number;
-the footer alone does not identify their exact source or container image.
-Retain image IDs/tags and deployment records for exact rollout/rollback evidence.
+Every material delivered code/UI increment must advance this number, including
+lab updates. Use one bump for a cohesive tested delivery, not for every edit or
+test run. This is a contributor/agent responsibility, not an automatic counter
+on restart. Rebuilding identical source keeps its version.
+
+Container builds also generate `/app/build-info.json` once, displaying
+`v0.2.5 · <12-character source ID>` in the footer. The full SHA-256 binds sorted,
+length-framed public Python source, templates, static CSS/JS/SVG and pyproject
+bytes. It identifies dirty public source without consulting Git. Private `.env`,
+inventory, credentials, deployment configuration, DBs and host information are
+not inputs. Symlink inputs are refused. A source checkout without the artifact
+says `source checkout`; it does not invent a revision. Web loads the validated
+artifact once at startup, never hashes files or reads Git on a browser request.
+
+This is not the full container digest: dependencies, base image, agent component
+and runtime configuration are outside its scope. Retain exact image IDs/tags and
+rollout evidence. Changed public application source gets a different build ID
+even if a contributor misses a version bump; that does not excuse the omission.
 
 The Rust agent has its own crate version in
 [`agent/Cargo.toml`](../../agent/Cargo.toml); it is not automatically synchronized
@@ -44,7 +57,7 @@ versions are separate compatibility identifiers, not the product release number.
 
 ## Release numbering convention
 
-Use `MAJOR.MINOR.PATCH`, with manual, reviewed changes:
+Use `MAJOR.MINOR.PATCH`, with explicit reviewed changes for every delivery:
 
 - `PATCH`: compatible fixes or small refinements, for example `0.1.0` to `0.1.1`.
 - `MINOR`: a new feature increment, for example `0.1.1` to `0.2.0`.
@@ -67,7 +80,7 @@ and the [Architecture and Security Design](../architecture-and-security-design.m
 
 ## Manual release procedure
 
-1. Choose the number from the actual release scope and update `__version__`.
+1. Choose the number from the actual delivery scope and update `__version__`.
    Do not maintain a second literal in templates or `pyproject.toml`.
 2. Update project status, append the development log, and document any relevant
    compatibility, migration and rollback requirements. Review agent version
@@ -82,12 +95,10 @@ and the [Architecture and Security Design](../architecture-and-security-design.m
    version, exact image identities and validation outcome. Editing the source
    alone does not update a running container.
 
-## Planned development-build identity — not implemented
+## Checking a container build
 
-A future build pipeline may add a Python-compatible development version such
-as `0.2.0.dev3` and a separate short Git revision, displayed for example as
-`v0.2.0.dev3 · a1b2c3d`. These are examples, not the current version or an
-automatic counter already in use. Build identity should be captured at build
-time, including how a dirty source tree is identified; Web must not inspect Git,
-host information or secrets at request time. Any such automation requires its
-own implementation and validation before operators may rely on it.
+Compare `ftd_shun_manager.__version__`, installed package metadata and the
+artifact's `version`; all must agree. Check the rendered footer's version and
+short source ID against that artifact. A stale Web container or old browser tab
+does not update when only source changes. Rebuild/recreate affected services and
+reload the tab. No GitHub release/tag is created by this version/build step.

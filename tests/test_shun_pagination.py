@@ -32,7 +32,7 @@ def populate(store, count):
 
 
 def test_empty_invalid_and_clamped_pages(store):
-    assert store.active_shuns_page() == {'items': [], 'page': 1, 'pages': 1, 'total': 0, 'page_size': 100}
+    assert store.active_shuns_page() == {'items': [], 'ownership': 'all', 'page': 1, 'pages': 1, 'total': 0, 'page_size': 100}
     for page in (True, False, 0, -1, 2**31, '1', 1.0):
         with pytest.raises(ValueError): store.active_shuns_page(page)
     populate(store, 251)
@@ -50,7 +50,7 @@ def test_tied_rows_are_distinct_and_pages_match_original_protected_newest_order(
     pages = [store.active_shuns_page(n) for n in (1, 2, 3)]
     assert [len(page['items']) for page in pages] == [100, 100, 51]
     rows = [row for page in pages for row in page['items']]
-    assert rows == store.list_active_shuns()
+    assert rows == store.list_active_shuns(classify_maintenance=True)
     assert rows[0].ip == IPv4Address(0xC6120000 + 250)
     assert len({(row.device_id, row.ip, row.interface) for row in rows}) == 251
 

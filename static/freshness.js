@@ -17,6 +17,11 @@
   };
   const count = (value) => Number.isSafeInteger(value) && value >= 0 ? value : 0;
   const compactCount = (value) => value > 99 ? "99+" : String(value);
+  const briefStorageRetry = (status) => status.execution_recovery?.state === 'retrying'
+    && Number.isSafeInteger(status.execution_recovery.attempts)
+    && status.execution_recovery.attempts > 0 && status.execution_recovery.attempts < 3;
+  const reportedError = (status) => briefStorageRetry(status)
+    && status.execution_recovery.reason === status.last_error ? '' : status.last_error;
   const deferredRetryWait = (status) => {
     const seconds = Object.values(status.deferred_confirmation || {})
       .filter((row) => row && row.held === false && row.mutations_paused === false
@@ -53,7 +58,7 @@
       || (status.refresh_schedule_mode !== "per_device" && status.refresh_in_progress
         && !phases.some((phase) => ["add_and_verify", "remove_and_verify", "stage_addition"].includes(phase)));
     const working = Boolean(status.refresh_in_progress || active.length || count(status.active_device_count));
-    const attention = Boolean(localError || status.last_error || devices.some(([, device]) =>
+    const attention = Boolean(localError || reportedError(status) || devices.some(([, device]) =>
       device.last_error || device.stale || ["error", "stale", "pending"].includes(device.state)));
     const cooldown = remaining(status.next_interactive_refresh);
     const baseline = remaining(status.next_baseline_refresh);
@@ -68,7 +73,8 @@
         timingLabel: "Requested refresh", timing: "sending request…" });
     } else if (recovery?.state === "retrying") {
       const retry = remaining(recovery.retry_at);
-      Object.assign(result, { activity: working ? "busy" : "waiting", phase: "recovering", attention: true,
+      Object.assign(result, { activity: working ? "busy" : "waiting", phase: "recovering",
+        attention: attention || !briefStorageRetry(status),
         summary: "Storage busy · retrying automatically", timingLabel: "Scheduling retry",
         timing: retry > 0 ? `in ${duration(retry)}` : "waiting for storage availability",
         badge: retry > 0 ? duration(retry) : "…",
@@ -106,21 +112,26 @@
     const awaiting = count(counts.AWAITING_CONFIRMATION);
     const retryWait = deferredRetryWait(status);
     const imports = status.queue?.imports;
-    const importWaiting = (imports?.tasks || []).some((task) => count(task.outstanding));
+    const importWaiting = (imports?.tasks || []).some((task) => task.active && count(task.outstanding));
     const deviceError = Boolean((running || queued || awaiting || importWaiting)
       && Object.values(status.devices || {}).some((device) => device.state === 'error' || device.last_error));
     const attentionCounts = queueAttentionCounts(status.queue || {});
     const attention = Math.max(count(attentionCounts.FAILED) + count(attentionCounts.UNVERIFIED),
       (imports?.tasks || []).reduce((sum, task) => sum + count(task.attention), 0));
     const paused = status.queue?.mutations_suspended === true;
+    const importsPaused = status.managed_addition_controls?.imports?.paused === true;
+    const restorationPaused = status.managed_addition_controls?.restoration?.paused === true;
+    const additionsPaused = importsPaused || restorationPaused;
+    const pauseLabel = importsPaused && restorationPaused ? 'ADD paused' : importsPaused ? 'Imports paused' : 'Restore paused';
     const recovery = status.execution_recovery;
     const stopped = recovery?.state === 'stopped';
-    const problem = Boolean(attention || deviceError || paused || stopped || recovery?.state === 'retrying'
+    const problem = Boolean(attention || deviceError || paused || stopped
+      || (recovery?.state === 'retrying' && !briefStorageRetry(status))
       || localError || status.managed_removal_worker_error || status.managed_restoration_error);
     const total = running + queued + awaiting;
-    return { activity: running ? "busy" : paused || stopped ? "paused" : queued || awaiting || retryWait || submitting || importWaiting ? "waiting" : "idle",
+    return { activity: running ? "busy" : paused || stopped || additionsPaused ? "paused" : queued || awaiting || retryWait || submitting || importWaiting || recovery?.state === 'retrying' ? "waiting" : "idle",
       attention: problem,
-      badge: [total ? compactCount(total) : submitting || importWaiting || retryWait ? "…" : paused ? "Paused" : "",
+      badge: [additionsPaused ? pauseLabel : total ? compactCount(total) : submitting || importWaiting || retryWait ? "…" : paused ? "Paused" : "",
         attention ? `!${compactCount(attention)}` : problem ? "!" : ""].filter(Boolean).join(" · "),
       description: `Queue: ${running} running; ${queued} queued; ${attention} need attention.`
         + (awaiting ? ` ${awaiting} awaiting a complete device read; not yet confirmed.` : '')
@@ -128,6 +139,7 @@
         + (importWaiting ? ' An import has addresses waiting for rolling dispatch.' : '')
         + (deviceError ? ' Some device work needs attention; open Status. Healthy devices can continue.' : '')
         + (paused ? " Device mutations are paused; monitoring continues." : "")
+        + (additionsPaused ? ` ${pauseLabel}. Monitoring, removals and Protected-IP unblocking continue.` : '')
         + (recovery?.state === 'retrying' ? " Storage is busy; scheduling retries automatically. The import is retained." : "")
         + (stopped ? ` Execution stopped. ${recovery.operator_action || 'Open Status for operator instructions.'}` : "")
         + (submitting ? " Submitting operation; acceptance is not verified success." : "")
@@ -155,7 +167,7 @@
   const readInitial = (root) => parseStatus(JSON.parse(
     root.querySelector("[data-refresh-initial]").textContent,
   ));
-  const version = (status) => `${status.instance_id}:${status.data_revision}:${status.cycle_revision}:${status.queue?.revision || 0}:${status.policy_revision || 0}:${status.managed_policy_revision ?? 0}:${Boolean(status.managed_policy_initialized)}:${status.managed_policy_available ?? true}`;
+  const version = (status) => `${status.instance_id}:${status.data_revision}:${status.cycle_revision}:${status.queue?.revision || 0}:${status.policy_revision || 0}:${status.managed_policy_revision ?? 0}:${Boolean(status.managed_policy_initialized)}:${status.managed_policy_available ?? true}:${status.managed_addition_controls?.imports?.revision ?? 0}:${status.managed_addition_controls?.restoration?.revision ?? 0}`;
   // Template JSON and BFF JSON may order object keys differently. Equivalent
   // metadata must not restart native progress animations or replace controls.
   const stableSignature = (value) => JSON.stringify(value, (_key, entry) =>
@@ -217,13 +229,12 @@
     if (!section || !list) return;
     const metadata = queue.imports;
     const deviceError = Object.values(devices || {}).some((device) => device.state === 'error' || device.last_error);
-    const tasks = (metadata?.tasks || []).slice(0, 20);
+    const tasks = (metadata?.tasks || []).filter((task) => task.active || count(task.attention)).slice(0, 20);
     section.hidden = !tasks.length;
-    const signature = stableSignature({ metadata, deviceError });
+    const signature = stableSignature({ tasks, deviceError });
     if (list.dataset.signature === signature) return;
     list.dataset.signature = signature;
     const focused = document.activeElement?.closest('[data-import-id]')?.dataset.importId;
-    const expanded = new Set([...list.querySelectorAll('details[open]')].map((details) => details.id));
     list.replaceChildren();
     const names = { verified: 'verified additions', noop: 'verified already present', adopted: 'adopted',
       unchanged: 'already managed', present: 'observed present (not service-created proof)',
@@ -277,15 +288,7 @@
         note.textContent = 'Opens a whole-import confirmation. Already applied blocks are not removed.';
         card.append(form, note);
       }
-      if (task.active) list.append(card);
-      else {
-        const details = document.createElement('details');
-        details.id = `completed-import-${task.id}`;
-        details.open = expanded.has(details.id);
-        const summary = document.createElement('summary');
-        summary.textContent = `${task.label || `Import ${task.id.slice(0, 8)}`} — initial import finished`;
-        details.append(summary, card); list.append(details);
-      }
+      list.append(card);
     });
     if (focused) list.querySelector(`[data-import-id="${focused}"] button`)?.focus({ preventScroll: true });
   };
@@ -352,6 +355,8 @@
     let manualPending = false;
     let errorMessage = "";
     let failures = 0;
+    let readRetryNotice = "";
+    let readFailureSince = null;
     let paused = false;
     let actionPending = null;
     let failedAction = null;
@@ -421,6 +426,10 @@
       button.disabled = disabled;
       button.textContent = label;
       const view = refreshPresentation(status, remaining, manualPending, errorMessage || actionError);
+      if (readRetryNotice) Object.assign(view, {
+        activity: "waiting", summary: "Loading latest information…", badge: "…",
+        description: `${view.description} ${readRetryNotice}`,
+      });
       panel.querySelector(".baseline-countdown").textContent = view.timing;
       panel.querySelector("[data-refresh-timing-label]").textContent = view.timingLabel;
       panel.querySelector("[data-refresh-timing-help]").textContent = view.timingHelp;
@@ -432,6 +441,15 @@
     };
 
     const render = () => {
+      const additionNotice = panel.querySelector('[data-additions-pause-notice]');
+      if (additionNotice) {
+        const importsPaused = status.managed_addition_controls?.imports?.paused === true;
+        const restorationPaused = status.managed_addition_controls?.restoration?.paused === true;
+        additionNotice.hidden = !importsPaused && !restorationPaused;
+        const label = additionNotice.querySelector('[data-additions-pause-label]');
+        if (label) label.textContent = importsPaused && restorationPaused ? 'Imports and automatic restoration are paused.'
+          : importsPaused ? 'Imports are paused.' : 'Automatic restoration is paused.';
+      }
       const runtimeNotice = panel.querySelector("[data-runtime-notice]");
       if (runtimeNotice) {
         runtimeNotice.hidden = status.runtime_mode !== "continuous-observation";
@@ -451,9 +469,15 @@
       const devices = Object.values(status.devices || {});
       const unsafe = devices.filter((device) => device.state !== "disabled"
         && (device.stale || ["error", "stale", "pending"].includes(device.state)));
-      warning.hidden = !status.last_error && !unsafe.length;
-      warning.textContent = status.last_error ? `Refresh warning: ${status.last_error}`
+      const lastError = reportedError(status);
+      warning.hidden = !lastError && !unsafe.length;
+      warning.textContent = lastError ? `Refresh warning: ${lastError}`
         : unsafe.length ? `Unconfirmed or stale data: ${unsafe.map((device) => device.hostname).join(", ")}. Check Status before acting.` : "";
+      const retryNote = panel.querySelector("[data-read-retry]");
+      if (retryNote) {
+        retryNote.hidden = !readRetryNotice;
+        retryNote.textContent = readRetryNotice;
+      }
       const refreshView = renderButton();
       message.textContent = errorMessage || actionError || (actionPending ? "Submitting operation…"
         : ["requesting", "waiting", "due"].includes(refreshView.phase) ? refreshView.summary
@@ -540,19 +564,15 @@
       const counts = queue.counts || {};
       const attentionCounts = queueAttentionCounts(queue);
       const reviewedHistory = attentionCounts === queue.attention_counts ? queue.reviewed_history : null;
-      const reviewedItems = (reviewedHistory?.items || []).slice(0, 20);
-      const reviewedIds = new Set(reviewedItems.map((item) => item.id));
+      const reviewedIds = new Set((reviewedHistory?.items || []).slice(0, 20).map((item) => item.id));
       const activeStates = new Set(["QUEUED", "RUNNING", "AWAITING_CONFIRMATION"]);
       const attentionStates = new Set(["FAILED", "UNVERIFIED"]);
-      const completedStates = new Set(["VERIFIED", "NOOP", "CANCELLED", "RECONCILED_ABSENT", "OBSERVED_PRESENT", "CONFIRMED_ABSENT"]);
       const items = queue.items || [];
       const activeItems = items.filter((item) => activeStates.has(item.state)).slice(0, 100);
-      const attentionItems = items.filter((item) => attentionStates.has(item.state)).slice(0, 20);
-      const completedItems = items.filter((item) => completedStates.has(item.state)).slice(0, 20);
+      const attentionItems = items.filter((item) => attentionStates.has(item.state) && !reviewedIds.has(item.id)).slice(0, 20);
       const totalFor = (states) => [...states].reduce((sum, state) => sum + (counts[state] || 0), 0);
       const activeTotal = totalFor(activeStates);
       const attentionTotal = [...attentionStates].reduce((sum, state) => sum + (attentionCounts[state] || 0), 0);
-      const completedTotal = totalFor(completedStates);
       paintMenu("#queue-menu", queuePresentation(status, Boolean(actionPending), errorMessage || actionError));
       const queueWarning = panel.querySelector("[data-queue-warning]");
       const recoveryWarning = panel.querySelector("[data-recovery-warning]");
@@ -572,13 +592,12 @@
         activeTotal ? `${counts.RUNNING || 0} running; ${counts.QUEUED || 0} queued. `
           + (counts.AWAITING_CONFIRMATION ? `${counts.AWAITING_CONFIRMATION} awaiting confirmation. ` : '')
           + `Showing ${activeItems.length} of ${activeTotal} active operations.${next}`
-          : queue.imports?.tasks?.some((task) => count(task.outstanding))
+          : queue.imports?.tasks?.some((task) => task.active && count(task.outstanding))
             ? 'Import work is waiting for rolling dispatch. See whole-import progress below.'
             : deferredRetryWait(status) || "Queue is empty.";
       const activeTable = panel.querySelector("[data-queue-active-table]");
       if (activeTable) activeTable.hidden = !activeItems.length;
       const attentionRows = panel.querySelector("[data-queue-attention]");
-      const completedRows = panel.querySelector("[data-queue-completed]");
       const attentionSection = panel.querySelector("[data-queue-attention-section]");
       if (attentionSection) {
         attentionSection.hidden = !attentionTotal;
@@ -586,47 +605,24 @@
           `${attentionCounts.FAILED || 0} failed; ${attentionCounts.UNVERIFIED || 0} unverified. `
           + `Showing the latest ${attentionItems.length} of ${attentionTotal}. Unverified writes are not automatically retried.`;
       }
-      const results = panel.querySelector("#queue-results-details");
-      if (results) {
-        results.hidden = !completedTotal;
-        panel.querySelector("[data-queue-completed-summary]").textContent = `Completed operations (${completedTotal})`;
-        panel.querySelector("[data-queue-completed-note]").textContent =
-          `Showing the latest ${completedItems.length} of ${completedTotal} retained results. `
-          + `${counts.VERIFIED || 0} verified; ${counts.NOOP || 0} no-op; `
-          + `${counts.CANCELLED || 0} cancelled; ${counts.RECONCILED_ABSENT || 0} reconciled absent.`
-          + (counts.OBSERVED_PRESENT ? ` ${counts.OBSERVED_PRESENT} observed present (not creation proof).` : '')
-          + (counts.CONFIRMED_ABSENT ? ` ${counts.CONFIRMED_ABSENT} confirmed absent; eligible work retries automatically.` : '');
-      }
-      const reviewedSection = panel.querySelector('#queue-reviewed-details');
-      const reviewedRows = panel.querySelector('[data-queue-reviewed]');
-      if (reviewedSection) {
-        reviewedSection.hidden = !reviewedHistory?.total;
-        panel.querySelector('[data-queue-reviewed-summary]').textContent = `Reviewed history (${reviewedHistory?.total || 0})`;
-        panel.querySelector('[data-queue-reviewed-note]').textContent =
-          `Showing ${reviewedItems.length} of ${reviewedHistory?.total || 0} reviewed historical operations. `
-          + 'No action is needed for these records. Original unknown outcomes are retained; later results are separate.';
-      }
       // Preserve native indeterminate animation (and focused cancellation
       // controls) when only unrelated freshness/phase metadata changes.
-      const rowSignature = stableSignature([items, reviewedItems, panel.dataset.operator, panel.dataset.subject, panel.dataset.administrator]);
+      const rowSignature = stableSignature([activeItems, attentionItems, panel.dataset.operator, panel.dataset.subject, panel.dataset.administrator]);
       if (queueRows.dataset.signature === rowSignature) return;
       queueRows.dataset.signature = rowSignature;
       queueRows.replaceChildren();
       attentionRows?.replaceChildren();
-      completedRows?.replaceChildren();
-      reviewedRows?.replaceChildren();
-      [...activeItems, ...attentionItems, ...completedItems, ...reviewedItems].forEach((item) => {
+      [...activeItems, ...attentionItems].forEach((item) => {
         const row = document.createElement("tr");
         row.dataset.operationId = item.id;
         const requests = item.requests || [];
         [ `${item.hostname} / ${item.ip}`,
-          reviewedIds.has(item.id) ? 'Reviewed unknown' : item.action === "ADD" && item.state === "QUEUED" && item.execution_enabled !== true
+          item.action === "ADD" && item.state === "QUEUED" && item.execution_enabled !== true
             ? "Held" : ({ AWAITING_CONFIRMATION: 'Awaiting confirmation', OBSERVED_PRESENT: 'Observed present',
               CONFIRMED_ABSENT: 'Confirmed absent' }[item.state] || item.state),
           requests.map((request) => `${request.actor_display_name} (${request.source}`
             + `${activeStates.has(item.state) && request.state !== "ACTIVE" ? `, ${request.state}` : ""})`).join(", "),
-          reviewedIds.has(item.id) ? `Original outcome: ${item.state}. Reviewed: ${formatTime(item.reviewed_at)}. ${item.reason || ''}`
-          : item.reason || (item.completed_at ? `Completed: ${formatTime(item.completed_at)}`
+          item.reason || (item.completed_at ? `Completed: ${formatTime(item.completed_at)}`
             : item.started_at ? `Started: ${formatTime(item.started_at)}` : `Queued: ${formatTime(item.requested_at)}`),
         ].forEach((value, index) => {
           const cell = document.createElement("td");
@@ -663,8 +659,7 @@
               row.lastElementChild.append(" ", cancel);
             });
         }
-        const target = reviewedIds.has(item.id) ? reviewedRows : activeStates.has(item.state) ? queueRows
-          : attentionStates.has(item.state) ? attentionRows : completedRows;
+        const target = activeStates.has(item.state) ? queueRows : attentionRows;
         target?.append(row);
       });
     };
@@ -679,20 +674,23 @@
 
     const fetchChecked = async (url, options, contentType) => {
       let response;
+      const readOnly = !options.method || options.method === 'GET';
       try { response = await fetch(url, {
         ...options, credentials: "same-origin", cache: "no-store", redirect: "error",
         signal: AbortSignal.timeout(15000),
       }); } catch (error) {
-        throw new Error(failureText(error));
+        throw Object.assign(new Error(failureText(error)), { transientRead: readOnly
+          && (error instanceof TypeError || ['AbortError', 'TimeoutError', 'NetworkError'].includes(error?.name)) });
       }
       if (!response.ok || !response.headers.get("content-type")?.includes(contentType)) {
         let detail;
         if (!response.ok && response.headers.get("content-type")?.includes("application/json")) {
           try { detail = (await response.json()).detail; } catch (_) { /* use the fallback */ }
         }
-        throw new Error(typeof detail === "string" ? detail : response.status === 401 || response.status === 403
+        throw Object.assign(new Error(typeof detail === "string" ? detail : response.status === 401 || response.status === 403
           ? "Authentication is required. Reload the page to sign in."
-          : "Refresh is temporarily unavailable. Retrying automatically.");
+          : "Refresh is temporarily unavailable. Retrying automatically."),
+        { transientRead: readOnly && [502, 503, 504].includes(response.status) });
       }
       return response;
     };
@@ -778,9 +776,16 @@
         apply(await response.json());
         if (version(status) !== displayedVersion) await updateView();
         failures = 0;
+        readRetryNotice = "";
+        readFailureSince = null;
       } catch (error) {
         failures += 1;
-        errorMessage = failureText(error);
+        if (readFailureSince === null) readFailureSince = Date.now();
+        const briefReadFailure = error.transientRead && !errorMessage
+          && failures < 3 && Date.now() - readFailureSince < 30000;
+        readRetryNotice = briefReadFailure
+          ? "Latest information is temporarily unavailable. Keeping displayed data and retrying automatically…" : "";
+        errorMessage = briefReadFailure ? "" : failureText(error);
       } finally {
         busy = false;
         render();
@@ -814,7 +819,7 @@
       if (!busy) schedule(0);
     };
     document.addEventListener("submit", (event) => {
-      if (!event.target.matches("[data-queue-form], [data-policy-form], [data-managed-cancel-form]")) return;
+      if (!event.target.matches("[data-queue-form], [data-policy-form], [data-managed-cancel-form], [data-managed-control-form]")) return;
       event.preventDefault();
       submitAction(event.target.action, new FormData(event.target), event.submitter, event.target);
     });

@@ -226,7 +226,11 @@ class ContinuousDispatcher:
             desired = db.execute('SELECT restoration_suspended,dispatch_resume_after FROM managed_bulk_registry WHERE id=1').fetchone()
             if policy is None or executor is None or desired is None:
                 raise QueueConflict('Existing policy/executor controls are incomplete.')
-            return policy[0], executor[0], desired[0], desired[1]
+            from .managed_addition_controls import effective_barrier
+            from .managed_addition_controls import read as read_controls
+            control = read_controls(db)
+            both_paused = control['available'] and all(control[kind]['paused'] for kind in ('imports', 'restoration'))
+            return policy[0], executor[0], desired[0] or both_paused, effective_barrier(db, desired[1])
 
     def request_refresh(self, device_ids=None):
         """Owning-loop coalesced demand; repeated clicks preserve the first deadline."""
@@ -382,7 +386,8 @@ class ContinuousDispatcher:
 
     def _pending(self, device, *, removals_only=False):
         return self.runner.queue.has_pending(
-            device, addition_device_ids=frozenset() if removals_only else self.runner.configuration['addition_device_ids'],
+            device, addition_device_ids=frozenset() if removals_only or (self._controls and self._controls[2])
+                else self.runner.configuration['addition_device_ids'],
             bulk_dispatch_enabled=self.runner.configuration['bulk_dispatch_enabled'])
 
     def _nudge(self, device, current):

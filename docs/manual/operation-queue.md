@@ -97,37 +97,39 @@ The fleet-wide cooldown, idempotency, cancellation, and audit rules are unchange
 
 ## Progress and cancellation
 
-**Operation queue** shows only active work: up to 100 QUEUED/RUNNING jobs,
-running first and then FIFO. An empty queue says **Queue is empty**, even when
+**Operation queue** shows only active work: up to 100 QUEUED/RUNNING/
+AWAITING_CONFIRMATION jobs, running first and newest queued entries next.
+Display order does not change priority/FIFO execution. An empty queue says **Queue is empty**, even when
 historical results exist. Next eligibility appears only when work is pending.
 
 **Needs attention** separately shows up to 20 latest FAILED/UNVERIFIED results
 that remain unresolved and their total counts; these are not pending automatic
 retries. It appears before long import/active lists. An exactly validated
 [quiescent reconciliation](quiescent-managed-reconciliation.md) moves only its
-reviewed unknown records out of attention into collapsed **Reviewed history**,
-with a separate total and at most 20 entries. The original outcome stays
-UNVERIFIED, with original reason, review time and IP link; no action is needed
+reviewed unknown records out of attention. Those historical records are not
+rendered in Queue. The original outcome stays UNVERIFIED with its original
+reason and review evidence retained; no action is needed
 for that historical record. A later success does not rewrite it. New/unrelated
 unknowns and FAILED operations remain attention; missing or invalid evidence is
 not a reason to suppress warnings.
-**Completed operations** is collapsed by default and contains the latest 20
-VERIFIED/NOOP/CANCELLED/RECONCILED_ABSENT results. Opening/closing this panel
-survives local polling and partial page updates. Old completed cycle progress
-is hidden while idle.
+Completed operations and completed/cancelled imports without attention disappear
+from Queue. Active imports retain whole-task progress, and inactive imports with
+unresolved attention remain visible. Open **Audit history**, IP details or the
+available **Saved imports** link for retained events/receipts. Old completed cycle
+progress is hidden while idle.
 
-All groups include device/IP, outcome, requesters, timestamps/reasons, and an
-IP-detail link to retained audit history. Counts cover all retained rows, not
-only the visible slice. The independent limits (100 active, 20 attention,
-20 completed, plus 20 separately reviewed-history records; at most 160 jobs per
-status response) keep a large backlog from
+Active/attention rows include device/IP, outcome, requesters, timestamps/reasons,
+and an IP-detail link. Raw API counts still cover all retained rows, not only the
+visible slice. Display limits are 100 active and 20 unresolved attention rows;
+the existing status response also retains its bounded completed/reviewed metadata
+(at most 160 jobs overall), without rendering that history. These bounds keep a large backlog from
 hiding results/errors or flooding the page. This is a bounded operational
 summary, not a full paginated queue browser.
 
 Private status retains raw historical `counts` and separately supplies
 `attention_counts` plus `reviewed_history` from the same validated read snapshot.
 Queue warning/icon use unresolved counts; old or inconsistent metadata defaults
-conservatively to raw attention. Reading or expanding history never acknowledges
+conservatively to raw attention. Reading history never acknowledges
 an incident, changes outcomes/policy or releases a fence.
 
 BFF polling updates it locally without generating CLI queries. Hiding completed
@@ -173,7 +175,7 @@ within-command percentage or ETA. Snapshot/priority phases remain separate
 from job progress and do not advance its bar.
 
 Settled requests leave the active-progress panel; retained outcomes remain in
-Needs attention or the collapsed Completed operations view. Unchanged metadata
+Needs attention when unresolved, otherwise in the separate audit/IP history. Unchanged metadata
 does not recreate indicators while status polling or page-region updates run.
 Progress is rendered generically for queued jobs. Staged ADD rows explicitly
 say execution is disabled, do not schedule extra device cycles and can be

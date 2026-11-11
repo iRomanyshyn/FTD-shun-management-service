@@ -100,10 +100,69 @@ def test_independent_default_off_gates_allow_review_but_never_submit(composition
     async def scenario():
         async with surface(api_enabled=api_gate, web_enabled=web_gate) as (client, _, calls):
             page, fields = await review(client)
-            assert 'disabled' in page.text.split('Turn off auto-restore and queue removal')[0].rsplit('<button', 1)[1]
+            assert 'disabled' in page.text.split('Confirm unblock')[0].rsplit('<button', 1)[1]
             response = await client.post('/managed-shuns/v2/removal-confirm', data=fields)
             assert response.status_code == 503 and 'not submitted' in response.text
             assert not any(method == 'POST' and path.startswith('/api/v2/managed-removals/') for method, path, _ in calls)
+    asyncio.run(scenario())
+    assert dump(store) == before and not agent.seen
+
+
+def test_ip_workspace_includes_absent_maintained_devices_and_only_prepares_existing_reviews(composition, bulk, surface):
+    _, store, agent, _ = composition
+    confirm(bulk, prepare(bulk, devices=(1, 2))[1])
+    before = dump(store)
+
+    async def scenario():
+        async with surface() as (client, _, calls):
+            page = await client.get(f'/shuns/{IP}')
+            assert page.status_code == 200
+            assert page.text.count('class="ip-device-card"') == 2
+            assert 'No block observed' in page.text and 'Stop restoring…' in page.text
+            assert 'action="/ip-actions/unblock"' in page.text
+            assert 'action="/managed-shuns/retirement-review"' in page.text
+            assert f'name="target" value="1:{IP}"' in page.text
+            assert f'href="/protected-ips?ip={IP}#add-protected-ip"' in page.text
+            assert all(method == 'GET' for method, _, _ in calls)
+            response = await client.post('/managed-shuns/retirement-review', data={
+                'csrf': client.cookies.get('ftd_shun_csrf'), 'target': f'1:{IP}'})
+            assert response.status_code == 200 and 'Confirm stop restoring' in response.text
+            response = await client.post('/managed-shuns/v2/removal-review', data={
+                'csrf': client.cookies.get('ftd_shun_csrf'), 'target': f'1:{IP}'})
+            assert response.status_code == 200 and 'Confirm unblock' in response.text
+            client.headers['Remote-Groups'] = 'ftd-shun-viewers'
+            viewer = await client.get(f'/shuns/{IP}')
+            assert viewer.status_code == 200 and 'Read-only.' in viewer.text
+            assert 'action="/ip-actions/unblock"' not in viewer.text
+            assert 'action="/managed-shuns/retirement-review"' not in viewer.text
+            assert 'Protect IP…' in viewer.text  # Shared authenticated policy access.
+    asyncio.run(scenario())
+    assert dump(store) == before and not agent.seen
+
+
+@pytest.mark.parametrize('damage', ['wrong_ip', 'wrong_digest', 'mutable', 'wrong_scope', 'truncated', 'unavailable'])
+def test_ip_workspace_rejects_substituted_or_unavailable_local_scope(composition, bulk, surface, damage):
+    _, store, agent, _ = composition
+    confirm(bulk, prepare(bulk)[1])
+    before = dump(store)
+
+    def transform(request, response):
+        if request.url.path != f'/api/v2/managed-removal-scope/{IP}': return response
+        if damage == 'unavailable': return httpx.Response(503, json={})
+        value = response.json()
+        if damage == 'wrong_ip': value['ip'] = '198.51.100.2'
+        elif damage == 'wrong_digest': value['scope_digest'] = 'f' * 64
+        elif damage == 'mutable': value['read_only'] = False
+        elif damage == 'wrong_scope': value['scope'] = 'device'
+        elif damage == 'truncated': value['targets'] = []
+        return httpx.Response(200, json=value)
+
+    async def scenario():
+        async with surface(transform=transform) as (client, _, calls):
+            page = await client.get(f'/shuns/{IP}')
+            assert page.status_code == 200 and 'Device actions could not be loaded.' in page.text
+            assert 'class="ip-device-card"' not in page.text
+            assert all(method == 'GET' for method, _, _ in calls)
     asyncio.run(scenario())
     assert dump(store) == before and not agent.seen
 

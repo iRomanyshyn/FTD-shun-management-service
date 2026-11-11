@@ -64,9 +64,10 @@ def test_disabled_never_opens_storage(tmp_path):
     assert service.status()['deferred_confirmation'] == {}
 
 
-def test_ordered_promotion_refuses_before_storage(tmp_path):
-    with pytest.raises(ValueError, match='ordered'):
-        DeferredContinuousDispatcher(Store(tmp_path / 'absent.db'), Agent(), ordered_promotion_enabled=True)
+@pytest.mark.parametrize('capability', [1, 'true', None])
+def test_ordered_promotion_requires_literal_capability_before_storage(tmp_path, capability):
+    with pytest.raises(ValueError, match='[Oo]rdered'):
+        DeferredContinuousDispatcher(Store(tmp_path / 'absent.db'), Agent(), ordered_promotion_enabled=capability)
     assert not (tmp_path / 'absent.db').exists()
 
 

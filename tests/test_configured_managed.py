@@ -28,6 +28,53 @@ inventory = inventory_fixture
 fresh = fresh_fixture
 
 
+def test_independent_pause_api_and_bff_are_attributed_csrf_protected_and_do_not_send_commands(configured, monkeypatch):
+    settings, store = configured
+    app = create_app(settings)
+    monkeypatch.setattr(UnixAgentClient, 'open_tracked_cycle', lambda *_args: pytest.fail('Control never sends RPC.'))
+
+    async def scenario():
+        loop = asyncio.get_running_loop()
+        calls = []
+        def internal(request):
+            calls.append(request)
+            async def send():
+                async with httpx.AsyncClient(transport=httpx.ASGITransport(app), base_url='http://internal') as client:
+                    return await client.request(request.method, str(request.url), content=request.content, headers=request.headers)
+            response = asyncio.run_coroutine_threadsafe(send(), loop).result(timeout=20)
+            return httpx.Response(response.status_code, content=response.content, headers=response.headers)
+        monkeypatch.setattr(web, 'api_client', lambda _: httpx.Client(transport=httpx.MockTransport(internal), base_url='http://internal'))
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(web.create_app(settings)), base_url='https://fixture.test',
+                headers={'Remote-User': 'alice', 'Remote-Groups': 'ftd-shun-operators'}) as client:
+            page = await client.get('/managed-shuns')
+            assert page.status_code == 200 and 'Pause imports' in page.text and 'Pause automatic restoration' in page.text
+            fields = {'csrf': client.cookies.get('ftd_shun_csrf'), 'revision': '0', 'request_id': str(uuid4())}
+            before = dump(store)
+            assert (await client.post('/managed-additions/imports/pause', data=fields | {'csrf': 'bad'})).status_code == 403
+            assert dump(store) == before
+            result = await client.post('/managed-additions/imports/pause', data=fields, headers={'Accept': 'application/json'})
+            assert result.status_code == 200, result.text
+            controls = result.json()['managed_addition_controls']
+            assert controls['imports']['paused'] and not controls['restoration']['paused']
+            assert (await client.post('/managed-additions/imports/pause', data=fields)).status_code == 303
+            page = await client.get('/managed-shuns')
+            assert 'Resume imports' in page.text and 'Pause automatic restoration' in page.text
+            assert 'Protected-IP automatic unblocking continue' in page.text
+            post = next(r for r in calls if r.url.path == '/api/v2/managed-additions/control')
+            payload = json.loads(post.content)
+            assert payload['actor']['subject'] == 'alice' and payload['actor']['roles'] == ['Operator']
+            assert payload['kind'] == 'imports' and payload['revision'] == 0
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app), base_url='http://internal') as client:
+            fields = {'kind': 'restoration', 'action': 'PAUSE', 'revision': 0,
+                      'actor': {'subject': 'viewer', 'display_name': 'Viewer', 'roles': ['Viewer']}}
+            before = dump(store)
+            response = await client.post('/api/v2/managed-additions/control', json=fields, headers={'Idempotency-Key': str(uuid4())})
+            assert response.status_code == 403 and dump(store) == before
+        with store._connection() as db:
+            assert db.execute('SELECT COUNT(*) FROM operation_jobs').fetchone()[0] == 0
+    asyncio.run(scenario())
+
+
 @pytest.fixture
 def configured(fresh):
     store, inventory = fresh

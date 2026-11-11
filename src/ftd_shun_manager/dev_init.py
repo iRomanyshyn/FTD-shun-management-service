@@ -65,6 +65,8 @@ def _build(store, entries, concurrency, protection, subject):
     DeviceLeases(store, queue).initialize(scope, concurrency=concurrency)
     BulkOrderedWaits(store, queue).initialize(enabled=True)
     BulkOrderedPromoter(store, queue).initialize(enabled=True)
+    from .managed_addition_controls import ManagedAdditionControls
+    ManagedAdditionControls(store).initialize()
     timestamp, key = stamp(datetime.now(UTC)), str(uuid4())
     with store._connection() as db:
         db.execute('BEGIN IMMEDIATE')

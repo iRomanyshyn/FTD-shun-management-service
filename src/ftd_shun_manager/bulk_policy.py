@@ -103,7 +103,7 @@ def _initialize(db):
 @lru_cache(maxsize=18)
 def _expected(cancellation=False, attempts=False, waits=False, dispatch=False, devices=False, ordered=False, promotions=False,
               recovery=False, reconciliation=False, extended_recovery=False, pending_confirmation=False, pending_execution=False,
-              prewrite_recovery=False):
+              prewrite_recovery=False, controls=False):
     with closing(sqlite3.connect(':memory:')) as db:
         db.execute('BEGIN')
         _initialize(db)
@@ -157,6 +157,9 @@ def _expected(cancellation=False, attempts=False, waits=False, dispatch=False, d
         if pending_execution:
             from .pending_execution import DDL
             execute_schema(db, DDL)
+        if controls:
+            from .managed_addition_controls import DDL
+            execute_schema(db, DDL)
         return _objects(db)
 
 
@@ -182,16 +185,21 @@ def _state(db):
     pending_confirmation = any(name.startswith('managed_bulk_pending_') or table.startswith('managed_bulk_pending_')
                                for _, name, table, _ in objects)
     pending_execution = any(table == 'managed_bulk_pending_execution' for _, _, table, _ in objects)
+    controls = any(name.startswith('managed_bulk_control') for _, name, _, _ in objects)
     if ((attempts and not cancellation) or (waits and not attempts) or (dispatch and not waits)
             or (devices and not dispatch) or (ordered and not devices)
             or (promotions and not ordered) or (recovery and not devices) or (reconciliation and not recovery)
             or (extended_recovery and not recovery)
             or (prewrite_recovery and (not recovery or not extended_recovery))
             or (pending_confirmation and not devices)
-            or (pending_execution and (not pending_confirmation or ordered or recovery))
+            or (pending_execution and (not pending_confirmation or recovery))
+            or (controls and not devices)
             or objects != _expected(cancellation, attempts, waits, dispatch, devices, ordered, promotions, recovery,
-                                    reconciliation, extended_recovery, pending_confirmation, pending_execution, prewrite_recovery)):
+                                    reconciliation, extended_recovery, pending_confirmation, pending_execution, prewrite_recovery, controls)):
         raise BulkUnavailable('Exact version-2 storage is required; legacy/partial/optional state was not converted.')
+    if controls:
+        from .managed_addition_controls import validate
+        validate(db)
     row = db.execute('SELECT revision,restoration_suspended,format_version FROM managed_bulk_registry WHERE id=1').fetchone()
     if (row is None or type(row[0]) is not int or row[0] < 0 or row[2] != 2
             or row[1] not in ((0, 1) if dispatch else (1,))):
@@ -335,7 +343,7 @@ def _actor(subject, display_name, roles):
 
 def _key_free(db, key):
     for table in ('managed_shun_requests', 'manual_import_batches', 'operation_requests', 'operation_jobs', 'import_preparation_plans',
-                  'managed_bulk_device_recovery'):
+                  'managed_bulk_device_recovery', 'managed_bulk_control_requests'):
         if (db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (table,)).fetchone()
                 and db.execute(f'SELECT 1 FROM {table} WHERE id=?', (key,)).fetchone()):
             raise ManagedConflict('The key is already reserved; it cannot acquire bulk authority.')

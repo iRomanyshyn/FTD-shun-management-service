@@ -50,6 +50,18 @@ def promoter(ordered):
     return service
 
 
+def test_empty_sweep_does_not_compete_with_an_existing_writer(promoter, ordered):
+    before = dump(ordered.store)
+    with ordered.store._connection() as writer:
+        writer.execute('BEGIN IMMEDIATE')
+        # WAL readers can inspect the validated profile without reserving the
+        # writer. The previous empty sweep timed out here on BEGIN IMMEDIATE.
+        assert promoter.advance(enabled=True) == 0
+        assert writer.in_transaction
+        writer.rollback()
+    assert dump(ordered.store) == before
+
+
 def setup(ordered, bulk, leases, *, devices=(1, 2), second=False):
     grant(bulk, devices=devices)
     first = running(bulk, leases)

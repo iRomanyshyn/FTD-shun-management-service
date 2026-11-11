@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "import-ui.html" import steps, draft_state, classification %}
+{% from "pagination-ui.html" import pager %}
 {% block content %}
 <h1>Review import</h1>
 {% if refresh %}{% include "refresh-panel.html" %}{% endif %}
@@ -26,6 +27,9 @@
 {% if draft.state == 'PREPARED' and draft.target_count > draft.classification_counts.EXCLUDED_PROTECTED and ('Operator' in identity.roles or 'Administrator' in identity.roles) and not review_mode %}<p class="import-next-action"><a class="action-link" href="/managed-imports/v2/{{ draft.plan_id }}/review">Review planned changes</a><span class="preview-help">Nothing is applied until you confirm.</span></p>{% endif %}
 <details class="technical-details"><summary>Technical details</summary><dl class="import-review-metadata"><dt>Draft reference</dt><dd><code>{{ draft.plan_id }}</code></dd><dt>Draft digest</dt><dd><code>{{ draft.digest }}</code></dd><dt>Managed / protection revisions</dt><dd>{{ draft.managed_revision }} / {{ draft.protected_revision }}</dd><dt>Prepared by</dt><dd>{{ draft.actor_display_name }} ({{ draft.actor_subject }}) · {{ draft.actor_roles | default([]) | join(', ') }} — roles at preparation, not current permissions</dd>{% if proposal %}<dt>Confirmation reference</dt><dd><code>{{ proposal.operation_id }}</code></dd><dt>Proposal digest</dt><dd><code>{{ proposal.digest }}</code></dd><dt>Full manifest digest</dt><dd><code>{{ proposal.manifest.digest }}</code></dd>{% endif %}</dl></details>
 <h2>Proposed targets</h2>
+{% set page_base = '/managed-imports/v2/' ~ draft.plan_id ~ ('/review' if review_mode else '') %}
+{% set page_summary = 'Page ' ~ draft.page ~ ' of ' ~ draft.pages ~ ' · At most 100 targets and 100 diagnostic rows per page' %}
+{{ pager(draft.page, draft.pages, page_base, {}, page_summary, 'Bulk preparation pagination', 'top', 'draft-page') }}
 <div class="table-scroll"><table aria-label="Frozen bulk targets"><thead><tr><th>Device / IP</th><th>Planned action</th><th>State when reviewed</th></tr></thead><tbody>
 {% for target in draft.targets %}<tr{% if target.classification == 'EXCLUDED_PROTECTED' %} class="protected-shun"{% endif %}>
 <td>{% for device in draft.devices if device.id == target.device_id %}{{ device.hostname }}{% endfor %}<br>{{ target.ip }}</td>
@@ -36,10 +40,7 @@
 <div class="table-scroll"><table aria-label="Bulk source diagnostics"><thead><tr><th>Source line / IP</th><th>Status</th><th>Generated reason</th></tr></thead><tbody>
 {% for row in draft.report_rows %}<tr class="preview-row" data-preview-status="{{ row.status }}"><td>{{ row.line }} · {{ row.ip or '—' }}</td><td><span class="preview-state-badge" data-preview-status="{{ row.status }}">{{ row.status }}</span></td><td>{{ row.reason }}</td></tr>{% else %}<tr><td colspan="3">No diagnostic rows on this page.</td></tr>{% endfor %}
 </tbody></table></div>
-{% set suffix = '/review' if review_mode else '' %}
-<nav class="history-pagination" aria-label="Bulk preparation pagination"><p>Page {{ draft.page }} of {{ draft.pages }} · At most 100 targets and 100 diagnostic rows per page</p><div class="pagination-controls">
-{% if draft.page > 1 %}<a rel="prev" href="/managed-imports/v2/{{ draft.plan_id }}{{ suffix }}?page={{ draft.page - 1 }}">Previous 100</a>{% endif %}
-{% if draft.page < draft.pages %}<a rel="next" href="/managed-imports/v2/{{ draft.plan_id }}{{ suffix }}?page={{ draft.page + 1 }}">Next 100</a>{% endif %}</div></nav>
+{{ pager(draft.page, draft.pages, page_base, {}, page_summary, 'Bulk preparation pagination', 'bottom', 'draft-page') }}
 {% if draft.state in ('PREPARED', 'EXPIRED', 'CANCELLED') %}<details><summary>Cancel this unconfirmed draft only</summary><p>No policy, completed import or queue work will be cancelled. You may revoke your own draft after role loss.</p>
 <form method="post" action="/managed-imports/v2/{{ draft.plan_id }}/cancel" class="import-confirm-form"><input type="hidden" name="csrf" value="{{ csrf_token }}"><button type="submit">Cancel original draft only</button></form></details>{% endif %}
 {% else %}<p class="policy-warning">Original report is unavailable, not an empty successful import.</p>{% endif %}

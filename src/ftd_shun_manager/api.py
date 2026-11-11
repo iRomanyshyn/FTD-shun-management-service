@@ -66,6 +66,14 @@ class ManagedControlActor(Actor):
     model_config = ConfigDict(extra="forbid")
 
 
+class ManagedAdditionControlRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    actor: ManagedControlActor
+    kind: Literal['imports', 'restoration']
+    action: Literal['PAUSE', 'RESUME']
+    revision: int = Field(strict=True, ge=0)
+
+
 class ManagedRetirementRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     actor: ManagedControlActor
@@ -323,6 +331,7 @@ def _serialize(shun: Shun) -> dict[str, object]:
         "active": shun.active,
         "manual_imports": list(shun.manual_imports),
         "manual_import_count": shun.manual_import_count,
+        **({'maintained': shun.maintained} if shun.maintained is not None else {}),
     }
 
 
@@ -684,6 +693,26 @@ def create_app(
             continuous.note_state_change()
         return {**result, 'intent_format': 2, 'policy_only': True, 'device_work_admitted': False}
 
+    @app.post('/api/v2/managed-additions/control')
+    def managed_addition_control(change: ManagedAdditionControlRequest, request: Request) -> dict:
+        if continuous is None or not continuous.managed_execution:
+            raise HTTPException(503, 'Managed ADD controls require the continuous managed runtime.')
+        from .managed_addition_controls import ManagedAdditionControls
+        try:
+            result = ManagedAdditionControls(store).change(request.headers.get('Idempotency-Key', ''), change.kind, change.action,
+                change.revision, change.actor.subject, change.actor.display_name, tuple(change.actor.roles))
+        except PermissionError as error:
+            raise HTTPException(403, str(error)) from error
+        except (ManagedConflict, ManagedCapacity) as error:
+            raise HTTPException(409, str(error)) from error
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from error
+        except (ManagedStateUnavailable, sqlite3.DatabaseError) as error:
+            raise HTTPException(503, 'ADD control was not confirmed. Inspect status and retry only the original key.') from error
+        if not result['replayed']:
+            continuous.note_state_change()
+        return result
+
     @app.post("/api/v1/managed-shuns/selection")
     def managed_selection(selection: ManagedSelectionRequest) -> dict:
         return read_managed_selection(selection, batch=False)
@@ -1040,8 +1069,12 @@ def create_app(
         return [_serialize(shun) for shun in store.list_active_shuns()]
 
     @app.get('/api/v1/shuns-page')
-    def active_shuns_page(page: Annotated[int, Query(ge=1, le=2**31 - 1)] = 1) -> dict:
-        result = store.active_shuns_page(page)
+    def active_shuns_page(page: Annotated[int, Query(ge=1, le=2**31 - 1)] = 1,
+                          ownership: Literal['all', 'unmanaged'] = 'all') -> dict:
+        try:
+            result = store.active_shuns_page(page, ownership=ownership)
+        except (ManagedStateUnavailable, sqlite3.DatabaseError) as error:
+            raise HTTPException(503, 'Maintenance classification is unavailable; no unmanaged state was inferred.') from error
         return {**result, 'items': [_serialize(shun) for shun in result['items']]}
 
     @app.get('/api/v1/queue-recovery')
@@ -1064,7 +1097,10 @@ def create_app(
 
     @app.get("/api/v1/shuns/{ip}")
     def shun_detail(ip: IPv4Address) -> list[dict[str, object]]:
-        return [_serialize(shun) for shun in store.list_active_shuns(ip)]
+        try:
+            return [_serialize(shun) for shun in store.list_active_shuns(ip, classify_maintenance=True)]
+        except (ManagedStateUnavailable, sqlite3.DatabaseError) as error:
+            raise HTTPException(503, 'Maintenance classification is unavailable; no unmanaged state was inferred.') from error
 
     @app.get("/api/v1/history")
     def history(limit: int = 200) -> list[dict]:

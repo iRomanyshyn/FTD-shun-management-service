@@ -125,6 +125,8 @@ def _authority_valid(db, attempt, now, state, *, retry_parent=None):
     if not fresh_after_recovery(db, attempt['device_id'], attempt['snapshot_started_at']):
         return False
     barrier = db.execute('SELECT dispatch_resume_after FROM managed_bulk_registry WHERE id=1').fetchone()[0]
+    from .managed_addition_controls import effective_barrier
+    barrier = effective_barrier(db, barrier, attempt)
     row = db.execute('''SELECT t.*,d.enabled AS device_enabled,
         json_extract(r.result_json,'$.admission_mode') AS admission_mode FROM managed_shun_targets t
         JOIN devices d ON d.id=t.device_id JOIN managed_shun_requests r ON r.id=t.authorization_request_id
@@ -267,6 +269,9 @@ class BulkDispatch:
             if attempts:
                 raise QueueConflict('Recover existing admissions separately; do not mix old and new portion members.')
             _lease(db, self.queue, owner, snapshot.device_id)
+            from .managed_addition_controls import paused_for
+            if any(paused_for(db, {'device_id': candidate.device_id, 'ip': candidate.ip.packed}) for candidate, _, _ in identities):
+                raise QueueConflict('Managed additions are paused by an operator. Monitoring and removals continue.')
             if (state['restoration_suspended'] or mutations_suspended(db) or state['revision'] != managed_revision
                     or db.execute('SELECT revision FROM protected_policy WHERE id=1').fetchone()[0] != protected_revision
                     or snapshot.device_id not in addition_device_ids):

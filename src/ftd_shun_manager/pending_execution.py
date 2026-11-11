@@ -4,6 +4,7 @@ Only exact settled-v7 ACKs may leave RUNNING. Later complete observation settles
 as presence/known absence without inventing creation, adoption or replay rights.
 """
 
+import json
 import sqlite3
 from contextlib import closing
 from functools import lru_cache
@@ -139,6 +140,36 @@ def validate(db):
         AND (j.id IS NULL OR j.state!=a.state) LIMIT 1''').fetchone():
         raise BulkUnavailable('Deferred attempt is missing its exact retained queue state.')
     validate_retries(db)
+
+
+def ordered_predecessor_confirmed(db, member, evidence, job, now):
+    """Bind a captured RUNNING ADD to its later original settled-v7 observation.
+
+    The caller validates the exact complete profile first. This neither captures
+    an already-awaiting target nor grants retry, creation or lease-release rights.
+    """
+    if not present(db):
+        raise QueueConflict('Deferred ordered evidence requires its exact execution profile.')
+    row = db.execute('''SELECT m.claim_event_id,m.ordinal,s.device_id,s.owner,s.epoch,s.settled_at,
+        r.started_at,r.completed_at,r.recorded_at,r.present_ordinals_json
+        FROM managed_bulk_pending_members m JOIN managed_bulk_pending_sessions s ON s.id=m.session_id
+        LEFT JOIN managed_bulk_pending_reads r ON r.session_id=s.id WHERE m.job_id=?''', (job['id'],)).fetchone()
+    if (row is None or row['claim_event_id'] != evidence['claim_event_id']
+            or row['device_id'] != member['device_id'] or row['owner'] != evidence['executor_owner']
+            or row['epoch'] != evidence['executor_epoch']
+            or not evidence['started_at'] <= row['settled_at'] <= now):
+        raise QueueConflict('Deferred result does not bind the captured original command and session.')
+    if job['state'] == AWAITING:
+        if row['started_at'] is not None or job['completed_at'] is not None:
+            raise QueueConflict('Awaiting predecessor cannot contain a terminal observation.')
+        return False
+    if (job['state'] not in OUTCOMES or row['started_at'] is None
+            or not row['settled_at'] < row['started_at'] <= row['completed_at'] <= row['recorded_at'] <= job['completed_at'] <= now):
+        raise QueueConflict('Captured ADD needs its actual causal complete observation.')
+    expected = 'OBSERVED_PRESENT' if row['ordinal'] in json.loads(row['present_ordinals_json']) else 'CONFIRMED_ABSENT'
+    if job['state'] != expected:
+        raise QueueConflict('Captured ADD outcome differs from its immutable first observation.')
+    return True
 
 
 class PendingExecution:

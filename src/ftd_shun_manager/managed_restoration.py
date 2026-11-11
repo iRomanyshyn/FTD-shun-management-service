@@ -47,7 +47,11 @@ def attempt_for_job(db, job_id):
 def key_reserved(db, key):
     from .bulk_attempts import present as bulk_present
     from .bulk_attempts import reserved
+    from .managed_addition_controls import present as controls_present
     from .managed_closures import key_reserved as closure_key_reserved
+
+    if controls_present(db) and db.execute('SELECT 1 FROM managed_bulk_control_requests WHERE id=?', (key,)).fetchone():
+        return True
 
     if bulk_present(db):
         return (reserved(db, key) or db.execute('SELECT 1 FROM managed_shun_requests WHERE id=?', (key,)).fetchone() is not None)

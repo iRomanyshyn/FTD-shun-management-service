@@ -66,14 +66,25 @@ def register_ready_removal_web(app, settings, *, enabled, render, identity_for, 
                     raise ReviewUnavailable('Removal scope is empty or changed; inspect current state before reviewing.')
                 if response.status_code != 200:
                     raise httpx.RequestError('Version-2 scope unavailable; no legacy fallback')
-            review = reviews.prepare(identity.subject, request.cookies.get('ftd_shun_csrf', ''), response.json(), ip,
-                device_id=device_id, ttl_seconds=min(900, settings.sensitive_action_max_age_seconds), reason=reason)
+            inspection = response.json()
         except ReviewUnavailable as error:
             raise HTTPException(409, str(error)) from error
         except (ValueError, TypeError, KeyError) as error:
             raise HTTPException(422, 'Invalid or substituted v2 review data; no change was submitted.') from error
         except httpx.HTTPError as error:
             raise HTTPException(503, 'Version-2 review unavailable; no change was submitted.') from error
+        return inspect_review(request, identity, ip, device_id, reason, state, inspection)
+
+    def inspect_review(request, identity, ip, device_id, reason, state, inspection):
+        if not compatible(state):
+            raise HTTPException(503, 'Compatible unblock review is unavailable; nothing was submitted.')
+        try:
+            review = reviews.prepare(identity.subject, request.cookies.get('ftd_shun_csrf', ''), inspection, ip,
+                device_id=device_id, ttl_seconds=min(900, settings.sensitive_action_max_age_seconds), reason=reason)
+        except ReviewUnavailable as error:
+            raise HTTPException(409, str(error)) from error
+        except (ValueError, TypeError, KeyError) as error:
+            raise HTTPException(422, 'Invalid unblock review data; no change was submitted.') from error
         return view(request, identity, review, state)
 
     @app.post('/managed-shuns/v2/removal-confirm')
@@ -126,3 +137,5 @@ def register_ready_removal_web(app, settings, *, enabled, render, identity_for, 
             pass
         return view(request, identity, review, state if compatible(state) else None, result=result, message=message,
                     code=code, confirm_ip=review.scope['ip'])
+
+    return inspect_review
