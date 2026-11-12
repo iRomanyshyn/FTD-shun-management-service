@@ -1,5 +1,38 @@
 # FTD Shun Management Service
 
+## Optional Team Cymru routing supplement — 2026-11-12
+
+The operator-retained Team Cymru supplement fills missing ASN/network information
+after local IPFire processing. Only the existing isolated metadata worker may
+query it. Web/API/agent keep their existing networks and secrets; the feed remains
+query-only. No device or blocking-policy operation follows from metadata.
+
+Use the vendor-recommended DNS interface for recurring work, not repeated WHOIS
+connections. Construct only public IPv4 reverse names under `origin.asn.cymru.com`
+and bounded numeric ASN names under `asn.cymru.com`, through the worker's existing
+resolver. This discloses those public-IP questions to the DNS path/provider; it
+does not send credentials, original event history or the complete shun list.
+DNS routing data is advisory, not authenticated ownership or geolocation.
+
+Keep this optional/default-off capability in the worker only. Persist per-IP
+occurrence attempts and results in a supplemental table in its own cache; never
+initialize/convert core storage or perform DDL on a Web read. Select active public
+observations missing IPFire ASN/name/network, at most500 per batch/one batch per
+minute, at most8 DNS questions concurrently,500 unique ASN-name questions and a
+30s whole-batch budget. Use resolver TTL caching plus durable weekly IP refresh,
+15m failure backoff and a new-occurrence cooldown. A restart must not repeat an
+in-flight batch immediately. Inactive or fully described IPFire entries produce
+no recurring supplement queries.
+
+Validate prefix containment, ASN ranges/multiple origins, bounded printable names,
+registry fields and fixed source attribution. Preserve previous useful data on
+provider failure, mark stale retained routing information, and do not attach an
+old occurrence's result to a new one. Keep IPFire fields primary; do not fill a
+network name from a conflicting ASN. Display Cymru registration country separately
+from geography and expose source/time for supplemental fields. Readers revalidate
+only displayed cache rows in the existing snapshot/limits; a malformed supplement
+must not hide good IPFire information. No page/action opens a provider connection.
+
 ## Exact full final groups in deferred visits — 2026-11-12
 
 In explicitly selected deferred-v7 execution, a final group of exactly16 ADD ACKs

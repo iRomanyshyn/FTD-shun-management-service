@@ -1065,6 +1065,37 @@ test("refresh interaction in real Chromium", { timeout: 240000 }, async (t) => {
         assert.equal(removalKeys.length,before);
       } finally { await page.close(); }
     });
+    await t.test('Cymru supplement keeps geography separate and appears in IP and action frames', async () => {
+      const context = {state:'ready',country:'US',asn:15169,organization:'<Routing network>',
+        network:'198.51.100.0/24',range_start:'198.51.100.0',range_end:'198.51.100.255',
+        provider:'ipfire-location-v1',registry:'IPFire Location',source:'https://www.ipfire.org/location/',
+        fetched_at:'2026-11-12T12:00:00Z',routing_fields:['ASN','network name'],
+        routing:{network:'198.51.100.0/24',asns:[15169],registration_country:'DE',
+          organization:'<Routing network>',source:'https://www.team-cymru.com/ip-asn-mapping',
+          fetched_at:'2026-11-12T12:01:00Z',stale:true}};
+      status={...initial(),fixture_ip_context:{'198.51.100.10':context},ip_context_revision:3};
+      const page=await connectPage(debugOrigin,origin);
+      const writes=postCount,removals=removalKeys.length;
+      try {
+        await page.until("document.querySelector('#active-shuns .ip-context-inline')?.textContent.includes('Cymru')");
+        assert.match(await page.evaluate("document.querySelector('#active-shuns .ip-context-inline').textContent"),/US.*AS15169/);
+        await page.evaluate("document.querySelector('#active-shuns [data-ip-link]').click()");
+        await page.until("document.querySelector('[data-ip-dialog][open] .ip-context-card')");
+        const text=await page.evaluate("document.querySelector('[data-ip-dialog] .ip-context-card').textContent");
+        assert.match(text,/Country: US/);assert.match(text,/DE \(registry data, not geolocation\)/);
+        assert.match(text,/Team Cymru DNS/);assert.match(text,/Last known information/);
+        assert.equal(await page.evaluate("document.querySelectorAll('[data-ip-dialog] .ip-context-card img').length"),0);
+        await page.call('Emulation.setDeviceMetricsOverride',{width:375,height:800,deviceScaleFactor:1,mobile:true});
+        await screenshot(page,'cymru-ip-375');
+        await page.evaluate("document.querySelector('[data-ip-close]').click()");
+        await page.until("!document.querySelector('[data-ip-dialog][open]')");
+        await page.evaluate("document.querySelector('#active-shuns [data-open-action] button').click()");
+        await page.until("document.querySelector('dialog[open] .ip-context-card')");
+        assert.match(await page.evaluate("document.querySelector('dialog[open] .ip-context-card').textContent"),/Team Cymru DNS/);
+        await page.evaluate("document.querySelector('[data-action-close]').click()");
+        assert.equal(postCount,writes);assert.equal(removalKeys.length,removals);
+      } finally {await page.close();status=initial();}
+    });
     await t.test('IP badges do not move when cached context arrives or disappears', async () => {
       status = {...initial(), fixture_maintained:true,fixture_ip_context:{},ip_context_revision:0};
       const page = await connectPage(debugOrigin, origin);

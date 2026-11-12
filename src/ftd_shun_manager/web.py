@@ -325,6 +325,7 @@ def create_app(settings: Settings | None = None, *, ready_removal_admission_enab
         context.update(ip_context=contexts,
                        ip_context_target=target, ip_context_enabled=settings.ip_context_cache_path is not None)
         context['ip_context_location'] = any(info.get('provider') == 'ipfire-location-v1' for info in contexts.values())
+        context['ip_context_cymru'] = any(info.get('routing') for info in contexts.values())
         if type(context.get('refresh')) is dict and settings.ip_context_cache_path is not None:
             context['refresh'] = {**context['refresh'], 'ip_context_revision': revision, 'ip_context': contexts}
         token, set_cookie = csrf_token(request)

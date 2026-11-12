@@ -15,6 +15,7 @@ USER 10001:10001
 # bindings run under /usr/bin/python3, separate from the application's Python.
 FROM application AS ip-context
 USER root
+RUN pip install --no-cache-dir '.[ip-context]'
 RUN apt-get update && apt-get install -y --no-install-recommends location python3-location \
     && rm -rf /var/lib/apt/lists/*
 USER 10001:10001

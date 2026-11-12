@@ -6,10 +6,71 @@ Last updated: 2026-11-12
 
 Return to bulk-import/session throughput and deferred confirmation/recovery lab
 acceptance, then integrated lifecycle checks, Emergency Purge and release setup.
-Team Cymru is explicitly retained as the next supplemental metadata source after
-the bulk-import slice: bounded background batches/cache for missing IPFire ASN/
-network information, distinct attribution and no page-triggered queries. It is
-planned, not currently enabled; the selected provider remains local IPFire.
+Team Cymru is now enabled as the optional supplemental metadata source described
+below: bounded background batches/cache for missing IPFire ASN/network information,
+distinct attribution and no page-triggered queries. Local IPFire remains primary.
+
+## Current Web/worker v0.11.0 — approved Cymru activation
+
+The operator explicitly approved ongoing Cymru DNS gap filling and deployment of
+only Web/metadata worker. The earlier approval-review rejection is resolved.
+Both services run0.11.0/source `b4e13249d625`, replaced at17:45:12Z. Main API,
+SSH agent and observation feed retain their original exact images/containers/
+start times. The private lab flag is enabled; tracked examples stay default-off.
+
+Initial backfill completed at17:51:37Z:3383 attempted,3380 ready/three unmapped,
+no unattempted or failed lookups. Seven batches (six500/one383) respected60s
+minimum intervals, including across restart. Combined cached context is ready
+for32423 observations; primary IPFire values/hash remain unchanged.
+A clean worker restart after1500
+entries retained every result/attempt/time and the exact persisted cooldown;
+normal scheduled work continued. No manual rate acceleration or cache reset.
+
+Installed package/footer/source, live health200/ten anonymous401/six assets and
+actual cached Cymru card/source/country rendering pass. Repeated reads do not
+change its provider attempt. Core integrity/nine fingerprints/all26 unknowns
+were unchanged immediately after rollout. Final17:52:33Z integrity/seven other
+fingerprints/all26 unknowns still match. Protected-policy/IP fingerprints changed
+through two audited authenticated operator edits (revision3); these legitimate
+concurrent edits are retained. No queue/policy/device mutations or API/agent restart were
+submitted by this delivery. Original data/import/protection/seven recovery
+receipts remain. Existing tabs need a reload for the new footer/templates.
+
+Validation is the previously completed3959 full/99 final-focused/110 browser set
+below; no code change or full rerun occurred for activation. Candidate image IDs
+remain the deployed image IDs. Evidence `/tmp/ftd-cymru-20261112`; rollback Web/
+worker tags retained, cache/core data preserved. See [IP Context](manual/ip-context.md).
+
+## Previous source v0.11.0 — candidate before activation approval
+
+Implemented worker-only DNS supplementation for public active IPs missing IPFire
+ASN/network names. Existing/new gaps share durable per-occurrence caching and
+bounded weekly refresh/15-minute error backoff. At most500 addresses per minute,
+eight DNS questions concurrently and30s per batch; ASN names deduplicate and DNS
+TTL caching avoids repeated provider questions. No lookup starts from a view.
+
+IPFire fields stay primary. Lists/cards label Cymru fields; IP/action details
+show its source/time and separate routing registration country from geography.
+Multiple origins remain explicit. A failed refresh preserves last useful data;
+a bad supplement cannot hide valid primary data. Only the isolated worker adds
+its optional metadata-cache table/dependency, never core storage or Web-read DDL.
+
+Full Python3959 pass691.12s, final affected99 pass1.57s (includes three cases added
+after full collection), Browser/Node110 pass167.14s, Ruff/compileall/JS/diff and
+candidate package/build/footer/43 templates/66 routes/actual readonly API/cache
+preflight pass. Real DNS probes of two public infrastructure IPs succeeded. A
+temporary actual-cache copy filled two genuine misses while preserving primary
+IPFire and repeated-read state; no immediate retry after simulated restart.
+
+Source `b4e13249d625`; candidate Web `208c23580f07...`, worker `30786f1d6e82...`.
+Automatic approval review rejected persistent activation/deployment, requiring
+explicit approval for ongoing external DNS work. Operator question is pending.
+No command was executed: live flag absent/false, no live supplemental table,
+all captured container/image/start identities unchanged. Main remains Web0.10.1,
+API0.2.0/agentv6 and IPFire worker0.9.0; no live backfill or FTD writes. Core
+integrity/nine fingerprints/26 unknowns and primary metadata remain unchanged.
+The current cache has3383 eligible gaps. See [IP Context](manual/ip-context.md).
+Private evidence `/tmp/ftd-cymru-20261112`; rollback tags retained for Web/worker.
 
 ## Source v0.10.2 — deferred tail verified on the desk FPR
 

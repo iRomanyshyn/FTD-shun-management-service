@@ -272,6 +272,9 @@ def read_contexts(path, ips, *, with_revision=False, limit=100):
                 batch = packed[offset:offset + 100]
                 rows.extend(db.execute('SELECT ip,state,substr(fetched_at,1,40) AS fetched_at,substr(payload,1,2049) AS payload '
                                        'FROM contexts WHERE ip IN (' + ','.join('?' for _ in batch) + ')', batch).fetchall())
+            from .cymru_context import read_supplements
+
+            supplements = read_supplements(db, packed)
         result = {}
         for row in rows:
             ip = IPv4Address(row['ip'])
@@ -300,6 +303,11 @@ def read_contexts(path, ips, *, with_revision=False, limit=100):
                     raise ValueError('Invalid registration source or country')
                 value.update(raw)
             result[str(ip)] = value
+        from .cymru_context import combine
+
+        for ip, supplement in supplements.items():
+            if ip in result:
+                result[ip] = combine(result[ip], supplement)
         return (result, revision) if with_revision else result
     except (OSError, sqlite3.Error, ValueError, TypeError, KeyError, RecursionError):
         return ({}, revision) if with_revision else {}

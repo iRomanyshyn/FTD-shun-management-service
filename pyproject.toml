@@ -17,6 +17,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8,<9", "ruff>=0.6,<1"]
+ip-context = ["dnspython>=2.7,<3"]
 
 [project.scripts]
 ftd-shun-api = "ftd_shun_manager.api:main"

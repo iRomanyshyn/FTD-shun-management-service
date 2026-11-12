@@ -3,7 +3,8 @@
 Shuns, Unmanaged and Managed shuns display **country · ASN · network operator**
 under an IP. The shared component keeps address/badges on one stable line and
 reserves a separate line for metadata or its missing-information placeholder. IP pages and addition/unblock dialogs include the network prefix,
-range, source and source-database time. The current provider is **IPFire Location**.
+range, source and source-database time. **IPFire Location** is the primary provider;
+an optional **Team Cymru** supplement fills missing routing information.
 This is advisory context: country is approximate, a network operator is not the
 identity of an attacker, and metadata never changes blocking policy. Missing
 information never blocks an action.
@@ -39,6 +40,8 @@ The optional lab overlay selects these worker settings from `.env`:
 | --- | --- | --- |
 | `FTD_SHUN_LOCATION_UPDATE_INTERVAL_SECONDS` |86400 (one day)|1–7 days|
 | `FTD_SHUN_IP_CONTEXT_REFRESH_INTERVAL_SECONDS` |604800 (seven days)|1–30 days|
+| `FTD_SHUN_CYMRU_ENABLED` |`false`|`true` or `false`|
+| `FTD_SHUN_CYMRU_REFRESH_INTERVAL_SECONDS` |604800 (seven days)|1–30 days|
 
 A source-generation change refreshes context sooner than the fallback interval.
 Restart the worker to apply changed settings. Web uses the optional
@@ -106,28 +109,47 @@ RDAP cache (`cache.db`) is retained separately from `location-cache.db`; the new
 worker refuses to repurpose it. Keep all existing overlays/data. Never run broad
 volume cleanup. This is unrelated to the deferred-v7 lab overlay.
 
-## Planned Team Cymru supplement
+## Optional Team Cymru supplement (v0.11.0)
 
-The operator reaffirmed this follow-up on2026-11-12. After the bulk-import work,
-add Team Cymru as a supplemental source for IPs missing ASN/network information
-in IPFire. Use bounded asynchronous bulk queries, deduplication and a persistent
-cache; existing misses and newly observed addresses are eligible. Page views,
-searches and dialogs must never query the provider. Bound retries/refresh and
-preserve useful cached data when the provider is unavailable.
+Set `FTD_SHUN_CYMRU_ENABLED=true` in the lab `.env`, then rebuild/update only Web
+and `ip-context-worker` with the existing four-overlay composition above. The
+worker creates a small supplemental table in its own metadata cache. Core DB,
+API, agent, inventory, trust and credentials are unchanged. New installations
+default to disabled. The ordinary API/Web images do not install dnspython;
+the worker image uses the optional `ip-context` Python dependency extra.
 
-Keep provider attribution/time explicit and retain IPFire values when available.
-Cymru country information describes registration, not geolocation; do not silently
-merge it into the IPFire country field. Implementation and activation remain
-pending; the current worker still uses only the local IPFire database.
+Existing and newly observed public IPs are eligible when local IPFire processing
+has no result or lacks ASN/network name. Complete IPFire results are left alone.
+The worker processes at most500 IPs per batch, at most once a minute; DNS questions
+run with at most8 concurrent requests and a30s whole-batch deadline. ASN-name
+questions are deduplicated within the batch (at most500), and a4096-entry resolver
+cache respects positive/negative DNS TTLs. Per-IP results/attempts persist across
+restart. Successful and unmapped entries refresh weekly by default; failures
+retry after15 minutes, preserving useful data. A new observed occurrence can
+refresh after the ordinary60s cooldown; inactive addresses are not queried.
 
-## Why not regular Team Cymru Bulk WHOIS?
+Queries use the worker's existing system DNS resolver and fixed Team Cymru
+origin/ASN zones. Public IPs appear as reversed-octet DNS questions, shared across
+devices; no contacts, credentials, event history or full IP-list file is sent.
+The vendor recommends DNS for recurring automation instead of repeated WHOIS
+sessions. See [Team Cymru IP-to-ASN mapping](https://www.team-cymru.com/ip-asn-mapping).
+DNS context is advisory and must never authorize a block or imply ownership.
 
-Team Cymru remains a potential supplemental routing-data provider. Its official
-service guidance recommends a few thousand IPs per bulk run and DNS for recurring
-bulk use; its country codes are registry data, not geolocation. A local dataset
-better fits our tens of thousands of active addresses and background refresh.
-No Team Cymru dependency, query stream or automatic fallback is enabled.
-See [Team Cymru IP-to-ASN mapping](https://www.team-cymru.com/ip-asn-mapping).
+IPFire country/prefix/ASN/name stay primary. Supplemental fields are labelled
+**Cymru** in the compact information and **Team Cymru DNS** with a retrieval time
+in IP/action details. Multiple origin ASNs remain explicit. Cymru country is
+shown only as **Routing registration country**, never as geolocation. A name
+from a conflicting origin ASN cannot fill an IPFire name. Retained context after
+a failed refresh is labelled **Last known information**. An unavailable provider
+or malformed supplemental record cannot remove valid IPFire data or block an
+operator action. Lists, history, search and dialogs use the same cache reader;
+opening any of them never starts DNS work.
+
+To stop external supplement queries, set `FTD_SHUN_CYMRU_ENABLED=false` and
+recreate only the worker. Cached routing context remains readable. Rollback to
+the retained old worker/Web images does not require cache deletion or restoring
+the core database; old images ignore the supplemental table. Keep the IPFire
+dataset and both old caches intact.
 
 ## Previous RDAP experiment
 

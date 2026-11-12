@@ -24,6 +24,16 @@ core-DB/control-socket access or blocking-policy authority is granted to the
 provider component. This is a delivery-plan update, not an activated fallback.
 See [IP Context](manual/ip-context.md).
 
+Team Cymru supplement, v0.11.0 (2026-11-12): implementation/candidate validation
+are complete and the operator explicitly approved persistent activation after
+the initial review refusal. Only Web/metadata worker were updated. The worker uses bounded
+DNS batches for missing IPFire ASN/name data, durable caching/retries and distinct
+source/registration-country presentation. No page-triggered calls or changes to
+blocking authority. Two real missing entries were filled on a temporary cache
+copy; live enrichment supplements primary IPFire. See current status/log/manual for evidence
+and the exact deployment boundary. This does not close remaining bulk recovery,
+integrated lifecycle, Emergency Purge or release work.
+
 Final full-group optimization, source0.10.2 (2026-11-12): deferred visits no longer
 verify a final exact16 before END_PENDING. Bounded advisory scheduling preserves
 intermediate-group verification and priority work; ordinary verified v5/v6 keep

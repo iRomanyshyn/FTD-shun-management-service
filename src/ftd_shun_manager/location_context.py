@@ -235,6 +235,10 @@ def main():
     args = parser.parse_args()
     update_seconds = interval('FTD_SHUN_LOCATION_UPDATE_INTERVAL_SECONDS', DAY, 7 * DAY)
     refresh_seconds = interval('FTD_SHUN_IP_CONTEXT_REFRESH_INTERVAL_SECONDS', 7 * DAY, 30 * DAY)
+    cymru_enabled = os.environ.get('FTD_SHUN_CYMRU_ENABLED', 'false')
+    if cymru_enabled not in ('true', 'false'):
+        parser.error('FTD_SHUN_CYMRU_ENABLED must be true or false.')
+    cymru_refresh = interval('FTD_SHUN_CYMRU_REFRESH_INTERVAL_SECONDS', 7 * DAY, 30 * DAY)
     args.cache.parent.mkdir(parents=True, exist_ok=True)
     os.umask(0o077)
     stopping = False
@@ -249,6 +253,13 @@ def main():
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         cache, dataset = LocationCache(args.cache), LocationDataset(args.database)
         cache.initialize()
+        supplement, routing = None, None
+        if cymru_enabled == 'true':
+            from .cymru import CymruDNS
+            from .cymru_context import CymruSupplement
+
+            supplement, routing = CymruSupplement(cache), CymruDNS()
+            supplement.initialize()
         feed = ObservationFeed(args.feed_socket)
         try:
             if args.database.exists():
@@ -293,6 +304,8 @@ def main():
                         processed += count
                         if not count:
                             break
+                if supplement is not None and not stopping:
+                    processed += supplement.refresh_batch(routing, refresh_seconds=cymru_refresh)
                 if args.once:
                     if not dataset.generation:
                         raise RuntimeError('No verified location dataset; no context was invented.')
