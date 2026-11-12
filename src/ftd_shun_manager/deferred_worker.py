@@ -68,6 +68,51 @@ class DeferredBatchSession(BatchSession):
         if not isinstance(self.queue, DeferredDeviceOperationQueue):
             raise TypeError('Deferred session requires its explicit fresh-profile queue.')
 
+    def _more_work(self):
+        """Bounded scheduling hint only; never claim, refill or grant authority.
+
+        A full *last* group must reach END_PENDING, just like a short last group.
+        Still verify intermediate groups when another segment or urgent work
+        can follow. All real claims/refills retain their original transactions.
+        """
+        w = self.worker
+        with self.queue.store._connection() as db:
+            db.execute('BEGIN')
+            PendingExecution._profile(db)
+            self.queue._executor(db, w.instance_id, self.device)
+            if db.execute("SELECT 1 FROM operation_jobs WHERE device_id=? AND state='QUEUED' AND action='REMOVE' LIMIT 1",
+                          (self.device,)).fetchone():
+                return True
+            if db.execute('''SELECT 1 FROM operation_jobs j JOIN protected_ips p ON p.ip=j.ip
+                WHERE j.device_id=? AND j.state='RUNNING' AND p.enabled=1 LIMIT 1''', (self.device,)).fetchone():
+                return True
+            if mutations_suspended(db) or db.execute('SELECT restoration_suspended FROM managed_bulk_registry').fetchone()[0]:
+                return False
+            cutoff = w._cycle_cutoff if w._cycle_cutoff is not None else self.queue.cutoff()
+            jobs = db.execute('''SELECT t.* FROM operation_jobs j JOIN managed_shun_targets t
+                ON t.device_id=j.device_id AND t.ip=j.ip WHERE j.device_id=? AND j.state='QUEUED'
+                AND j.action='ADD' AND j.seq<=? AND t.enabled=1 ORDER BY j.seq LIMIT 64''',
+                              (self.device, cutoff)).fetchall()
+            if any(not paused_for(db, job) for job in jobs):
+                return True
+            if w.bulk_discovery.remaining <= 0 or w.bulk_discovery.checked >= w.bulk_discovery.check_limit:
+                return False
+            targets = db.execute('''SELECT t.* FROM managed_shun_targets t WHERE t.device_id=? AND t.enabled=1
+                AND NOT EXISTS(SELECT 1 FROM shun_state s WHERE s.device_id=t.device_id AND s.ip=t.ip AND s.active=1)
+                AND NOT EXISTS(SELECT 1 FROM operation_jobs j WHERE j.device_id=t.device_id AND j.ip=t.ip
+                    AND j.state IN ('QUEUED','RUNNING','AWAITING_CONFIRMATION'))
+                ORDER BY t.ip LIMIT 64''', (self.device,)).fetchall()
+            return any(not paused_for(db, target) for target in targets)
+
+    async def full_group(self):
+        w = self.worker
+        if w._stop_mutations or w._mutations_blocked:
+            return False
+        if (w._priority_pending and not w._priority_used) or await w._local_call(self._more_work):
+            await self.flush()
+            return True
+        return False  # No next segment: settle once, confirm on the next causal read.
+
     async def flush(self, *, final=False):
         if not final or not self.queue.pending:
             return await super().flush(final=final)

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "ip-item.html" import item as ip_item %}
 {% block content %}
 {% set scope = review.scope %}
 {% set disabled_scope = scope.targets | rejectattr('device_enabled') | list %}
@@ -15,7 +16,7 @@
 {% if disabled_scope %}<p class="preview-error" role="alert">Disabled devices are included, not skipped. The whole removal is blocked; policy-only stop-maintaining remains separate.</p>{% endif %}
 <div class="table-scroll"><table aria-label="Frozen removal scope"><thead><tr><th>Device / IP</th><th>Current block</th><th>After confirmation</th></tr></thead><tbody>
 {% for target in scope.targets %}<tr>
-<td>{{ target.hostname }} ({{ target.device_id }})<br>{{ scope.ip }}<br><span class="state-badge {{ 'policy-enabled' if target.device_enabled else 'policy-disabled' }}">{{ 'Device enabled' if target.device_enabled else 'Device disabled — blocks removal' }}</span></td>
+<td>{{ target.hostname }} ({{ target.device_id }})<br>{{ ip_item(scope.ip, ip_context) }}<br><span class="state-badge {{ 'policy-enabled' if target.device_enabled else 'policy-disabled' }}">{{ 'Device enabled' if target.device_enabled else 'Device disabled — blocks removal' }}</span></td>
 <td><span class="status-label">{{ 'Observed present' if target.observed_present else 'Not currently observed' }}</span>{% if not target.observed_present %} — retained scope{% endif %}</td>
 <td><span class="status-label">{{ 'Auto-restore on' if target.maintenance_enabled else 'Auto-restore off' }}</span> — {{ 'will turn off' if target.maintenance_enabled else 'remove block only' }}</td>
 </tr>{% endfor %}</tbody></table></div>

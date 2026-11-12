@@ -61,7 +61,123 @@ invent successful results, alter credentials/trust or silently erase the dataset
   require explicit quiescent initialization of the optional control profile;
   startup/GET must not add it. Old writers refuse this profile.
 
-## Current Web/worker v0.9.0 lab — local IPFire context, 2026-11-12
+## Next priorities — operator reminder, 2026-11-12
+
+Return to bulk-import execution/confirmation and bounded FPR acceptance first.
+Do not forget Team Cymru: the operator explicitly retained it as a planned
+supplement for missing IPFire ASN/network context after that slice. Use bounded
+background bulk/cache work, distinct attribution and no page-triggered queries.
+Current provider remains IPFire; no Cymru activation or runtime change follows
+from this documentation update. See working-version-plan.md and manual/ip-context.md.
+
+## Source v0.10.2 — isolated deferred full-tail acceptance, 2026-11-12
+
+Final exact16 groups now use END_PENDING instead of a redundant group verification.
+Bounded readonly scheduling preserves intermediate/urgent work; v5/v6 and all
+wire/schema/authority/timeout/pause/uncertainty contracts remain. Source
+`936da7952899`, app image `e341cf171af0...`, matching agent `c226db65e833...`.
+Python broad3929 passed/one obsolete shared-IP link assertion failed796.44s;
+that assertion was corrected and final version/order10 pass1.86s. Deferred/shared
+176 pass120.49s. Ruff/compileall/diff and configured nonexecuting checks,
+installed package/build/footer/43 templates pass. No clean second full run or new
+Rust/browser suite claimed; agent source/wire unchanged.
+
+Separate prepared deferred-tail DB/sockets were used with original inventory/
+agent-only credentials/network. Original Web/API then agent actually exited0;
+original epoch3877 IDLE/no RUNNING before experimental writers started. Fresh
+actor-attributed operation `82603a46-dc48-474e-a05f-ec099aa23b1c` imported exactly
+198.51.100.160–175 after a real complete absence read. One60.378s SSH visit sent
+16 ADDs/16 retained target preflights/one initial full read, terminal pending16.
+Real settlement15:28:46.154Z preceded automatic read15:28:46.263–15:28:54.528Z:
+all16 OBSERVED_PRESENT, no repeated ADD or false VERIFIED creation. This is a
+bounded normal-path acceptance, not bulk-throughput/general crash recovery.
+
+Cleanup:16 fresh ready-removal requests retired all16 targets; all16 removals
+VERIFIED, fixtures absent, no uncertainty. Existing ten-submissions/minute guard
+refused request11 with429; after the interval the exact original frozen key/body
+was used, no limiter bypass. Clean API restart/complete read retained absence,
+32 terminal jobs/no new ADD. Experimental API/agent stopped exit0 at15:34:49Z;
+their containers, separate volumes/DB, requests and logs are retained. Do not
+replay consumed fixture authority or apply its private overlay to main services.
+
+Same original main agent/API/Web containers/images restarted at15:35Z; main stays
+v6/API0.2.0/Web0.10.1. Main IDLE epoch3878/no RUNNING, integrityok/nine authority
+fingerprints/all26 unknowns unchanged; fresh read15:35:25Z, errornone/attention0,
+original import32425/32425 complete,32426 observed/Unmanaged1, fixtures absent.
+Web200/ten anonymous401/assets pass; metadata services unchanged. Original DB,
+overlays, controls, seven recovery receipts/trust/secrets remain. Persistent v7
+cutover/general held recovery remain unfinished. Evidence
+`/tmp/ftd-deferred-tail-20261112`; see manual/deferred-confirmation.md. Keep Team
+Cymru in the next metadata slice alongside remaining lifecycle/recovery work.
+
+## Current Web v0.10.1 lab — IP backdrop dismissal, 2026-11-12
+
+Web `df26509b4fc9...` / `bb0de6058fb4...` started14:35:00Z, version0.10.1/source
+`46e1c68725aa`. A primary pointer press/click wholly on the native IP backdrop
+uses the same history-aware close as Close/Escape. Padding clicks and drags from
+inside do not dismiss; nested frozen action reviews keep their original request.
+Only Web changed; every other image/container/start identity, overlays/data/
+gates and worker/API/agent remain. No state/cache/policy/job/device mutation.
+Python19/.56s, focused Chromium overlay subcase+parent2/10.71s (69 skipped),
+source checks and built package/footer/43 templates/66 routes/readonly API
+preflight pass. Web200/ten anonymous401/six served assets match. No broad suite
+or live authenticated-browser/device-write acceptance claimed. Evidence
+`/tmp/ftd-ip-backdrop-20261112`, rollback Web
+`ftd-shun-web:lab-pre-backdrop-20261112` (0.10.0). Reload old tabs.
+
+## Previous Web v0.10.0 lab — shared IP objects and navigable frame, 2026-11-12
+
+Web `66f3c372de79...` / `14ae4b55611c...` started14:12:13Z, version0.10.0/source
+`ec6c5836447e`. Address/badges use a fixed first line; metadata/placeholder uses
+a reserved second line. Shared components cover Shuns/search/Managed/Protected/
+history/Queue and displayed import rows. Readonly cache selection uses only
+presented collections,100-key chunks/one snapshot, maximum1000 distinct IPs for
+the whole protected list. The default cache-reader limit remains100. No traversal
+of hidden parsed lists/authority manifests or provider/device demand on views.
+
+Canonical IP links progressively open the existing GET workspace in a native
+frame and update the URL. Back/Close restores the list URL/query; Forward reopens;
+copy/reload/Open page/modified clicks remain ordinary canonical links. Background
+refresh keeps the original document URL; modal markup strips scripts/controllers/
+live ownership and namespaces IDs/label references. Frozen action reviews remain
+unchanged, including when IP details open above them. Disclosure booleans/summary
+focus persist through live replacement; same-tab reload uses bounded session
+storage, never form/CSRF/token/body storage. Follow operator-workspace.md.
+
+Only Web changed. Worker0.9.0/API0.2.0/agent/feed/Caddy/Authelia retain exact image/
+container/start identities, all overlays/data/gates remain. No policy/job/consent/
+control/recovery/device mutation. At14:12:53Z integrityok/nine original hashes/all
+26 unknowns unchanged; normal3857 LEASED, not global idleness. At14:12:59Z no error/
+zero unresolved attention, original import32425/32425 complete,32426 observations/
+Unmanaged1. Package/source/footer/43 templates/66 routes/readonly actual API
+preflight/Web200/ten anonymous401/all six served JS/CSS assets match.
+
+Python broad284/61.62s and final86/1.59s pass, including real synthetic Web/cache
+integration for protected/history and no-source-change. Browser broad107 pass/
+one ADD-label case plus parent failure; restored the operation label and focused
+five-case accounting (four subcases+parent)/22.07s passes. Final overlay/focus run
+two-case accounting (one+parent)/10.05s passes. Initial fixture lacked new assets;
+fixed and separately rechecked all six affected scenarios. No clean second full
+Python/browser or live authenticated-browser/device-write acceptance claimed.
+Ruff/compileall/JS/diff pass. Evidence `/tmp/ftd-ip-workspace-20261112`.
+Rollback Web `ftd-shun-web:lab-pre-ip-frame-20261112` (0.9.1); reload old tabs.
+
+## Previous Web v0.9.1 lab — exact IPFire lookup links, 2026-11-12
+
+Web `793fef28580a...` / `0bafb1487a9f...` started13:40:06Z, version0.9.1/source
+`47b0d5b73623`. Source in IPFire cards opens the exact canonical displayed IPv4
+at `https://www.ipfire.org/location/lookup/<IP>`; general footer attribution and
+old RDAP targets remain. Rendering does not issue a network request or alter the
+cached payload. Worker0.9.0/API0.2.0/agent/feed/Caddy/Authelia retain exact image/
+container/start identities. All overlays, metadata/core storage and gates remain.
+No policy/job/control/consent/device change. Read-only actual217.61.226.186 cache
+render verifies the lookup URL and general footer; Web200/ten anonymous401/assets/
+package/build/footer/42 templates/66 routes/readonly API preflight pass.
+Python81/1.44s and Chromium69/163.40s (including exact IPFire href) pass; source checks
+pass. Evidence `/tmp/ftd-source-link-20261112`, rollback Web
+`ftd-shun-web:lab-pre-ipfire-links-20261112` (0.9.0). Reload old tabs.
+
+## Previous Web/worker v0.9.0 lab — local IPFire context, 2026-11-12
 
 The operator explicitly replaced once-per-occurrence RDAP-only enrichment with
 local IPFire context for all current/missing IPs and periodic refresh. The newer

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "ip-item.html" import item as ip_item %}
 {% from "pagination-ui.html" import post_pager %}
 {% block content %}
 {% set summary = review.summary %}
@@ -15,7 +16,7 @@
 {% if not result %}<label for="cancel-accepted-count">Type {{ summary.accepted_count }} to confirm this whole import's accepted pair count</label><input id="cancel-accepted-count" name="accepted_count" value="{{ typed_count }}" pattern="{{ summary.accepted_count }}" maxlength="6" inputmode="numeric" autocomplete="off" required><button type="submit">Cancel uncompleted work only</button>{% endif %}
 {% if report %}
 {{ post_pager(report.page, report.pages, 'bulk-cancellation-consent', '/managed-imports/v2/cancellation-review/page', 'Frozen cancellation pages', 'top') }}
-<div class="table-scroll"><table aria-label="Frozen cancellation members"><thead><tr><th>Device / IP</th><th>Class</th><th>Reviewed disposition</th></tr></thead><tbody>{% for target in report.targets %}<tr><td>{{ target.device_id }} / {{ target.ip }}</td><td><span class="status-label">{{ target.classification }}</span></td><td><span class="status-label">{{ target.state }}</span></td></tr>{% endfor %}</tbody></table></div>
+<div class="table-scroll"><table aria-label="Frozen cancellation members"><thead><tr><th>Device / IP</th><th>Class</th><th>Reviewed disposition</th></tr></thead><tbody>{% for target in report.targets %}<tr><td>{{ target.device_id }} / {{ ip_item(target.ip, ip_context) }}</td><td><span class="status-label">{{ target.classification }}</span></td><td><span class="status-label">{{ target.state }}</span></td></tr>{% endfor %}</tbody></table></div>
 {{ post_pager(report.page, report.pages, 'bulk-cancellation-consent', '/managed-imports/v2/cancellation-review/page', 'Frozen cancellation pages', 'bottom') }}{% endif %}</form>
 <p><a href="/managed-imports/v2/cancellations/{{ review.operation_id }}">Check original cancellation status</a> · <a href="/managed-imports/v2">Imports</a></p>
 <p class="preview-help">The five-minute review binds the complete original scope and current dispositions. State changes conflict, never silently change acceptance. Unknown replies permit inspection or same-review/actual-actor retry only. Cancellation stays available with new admission disabled and never resumes policy or resolves uncertainty.</p>

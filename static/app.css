@@ -47,6 +47,15 @@ main { width: 100%; flex: 1; margin-top: 1.5rem; padding-bottom: 3rem; }
 .ip-summary > a, .interface-name { white-space: nowrap; overflow-wrap: normal; }
 .ip-badges { display: inline-flex; flex-wrap: nowrap; align-items: center; gap: .25rem; }
 .ip-badges .state-badge, .ip-badges .protected-ip-badge { margin: 0; }
+.ip-item { display: inline-grid; grid-template-rows: auto 1.2em; align-items: start; gap: .12rem; white-space: normal; max-width: 100%; vertical-align: top; }
+.ip-item-heading { display: flex; align-items: center; gap: .45rem; flex-wrap: nowrap; white-space: nowrap; }
+.ip-item-heading > a { flex: 0 0 15ch; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .85rem; font-weight: 650; font-variant-numeric: tabular-nums; }
+.ip-item > .ip-context-inline { width: 30ch; max-width: 100%; min-height: 1.2em; line-height: 1.2em; }
+.ip-context-empty { color: var(--muted); opacity: .7; }
+.ip-dialog { width: min(64rem, calc(100vw - 2rem)); }
+.ip-dialog-controls { display: flex; align-items: center; gap: .8rem; font-size: .85rem; }
+.ip-dialog .page-heading { margin-top: 1rem; }
+.ip-dialog [data-ip-content] { min-width: 0; }
 .list-pagination { margin-block: 1rem; }
 .managed-addition-control { padding: 1rem; margin-block: 1rem; border: 1px solid #8886; border-radius: .4rem; }
 .managed-addition-control h2 { margin-top: 0; }

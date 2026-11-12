@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "ip-item.html" import item as ip_item %}
 {% from "pagination-ui.html" import pager %}
 {% block content %}
 <div class="page-heading"><h1>History</h1>
@@ -19,7 +20,7 @@
 {% if anchored_history %}<p class="history-window-note">New events do not move this browsing window. Open Latest events for live updates. Retention may shorten older pages.</p>{% endif %}
 {% if recent_events %}
 <div class="table-scroll"><table><thead><tr><th>Time</th><th>Event</th><th>IP address</th><th>Device</th><th>Actor</th></tr></thead><tbody>
-{% for event in recent_events %}<tr data-event-id="{{ event.id }}"><td><time class="local-timestamp" datetime="{{ event.timestamp }}">{{ event.timestamp }}</time></td><td><span class="status-label">{{ event.event_type }}</span></td><td>{% if event.ip %}<a href="/shuns/{{ event.ip }}">{{ event.ip }}</a>{% else %}—{% endif %}</td><td>{{ event.device_hostname or "—" }}</td><td>{{ event.actor_display_name or event.actor_subject or "System" }}</td></tr>{% endfor %}
+{% for event in recent_events %}<tr data-event-id="{{ event.id }}"><td><time class="local-timestamp" datetime="{{ event.timestamp }}">{{ event.timestamp }}</time></td><td><span class="status-label">{{ event.event_type }}</span></td><td>{% if event.ip %}{{ ip_item(event.ip, ip_context) }}{% else %}—{% endif %}</td><td>{{ event.device_hostname or "—" }}</td><td>{{ event.actor_display_name or event.actor_subject or "System" }}</td></tr>{% endfor %}
 </tbody></table></div>
 {% else %}<p>No audit events are retained yet.</p>{% endif %}
 {{ pager(pagination.page, pagination.pages, '/history', page_params, page_summary, 'History pagination', 'bottom', 'history-page', '', '/history', 'Latest events') }}

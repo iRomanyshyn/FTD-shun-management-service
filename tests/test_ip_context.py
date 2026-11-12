@@ -284,6 +284,8 @@ def test_web_batch_is_bounded_and_cannot_trigger_provider_work(context):
     before = len(provider.seen)
     values = read_contexts(cache.path, ips)
     assert len(values) == 100 and len(provider.seen) == before
+    assert len(read_contexts(cache.path, ips, limit=1000)) == len(ips)
+    assert len(provider.seen) == before
 
 
 @pytest.mark.parametrize('fault', ['country', 'source', 'registry', 'extra', 'oversized'])

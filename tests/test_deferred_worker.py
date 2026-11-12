@@ -357,6 +357,26 @@ def test_real_socket_lost_terminal_handoff_then_causal_confirmation(runtime, bul
     assert len(agent.writes) == 12 and not agent.verifications
 
 
+@pytest.mark.parametrize('count', [16, 17, 32, 48, 64])
+def test_full_last_group_waits_for_the_next_read_without_redundant_verification(bulk, execution, count):
+    grant(bulk, (1,), count=count)
+    agent = Agent()
+    service = runner(execution.store, agent)
+    asyncio.run(visit(service))
+    final = count % 16 or 16
+    verified = count - final
+    assert [len(group) for group in agent.verifications] == [16] * (verified // 16)
+    assert states(service) == ({'VERIFIED': verified} if verified else {}) | {'AWAITING_CONFIRMATION': final}
+    assert agent.reads == [('initial', 1)]
+    assert len(agent.writes) == count and sum(step[0] == 'open' for step in agent.trace) == 1
+    assert service.leases.status()['devices'][0]['state'] == 'IDLE'
+    bulk[1][0] += timedelta(seconds=1)
+    restarted = runner(service.store, agent)
+    asyncio.run(visit(restarted))
+    assert states(restarted) == ({'VERIFIED': verified} if verified else {}) | {'OBSERVED_PRESENT': final}
+    assert len(agent.writes) == count  # Confirmation cannot resend the group.
+
+
 def test_sixty_four_attempt_visit_verifies_intermediate_groups_and_defers_only_last(bulk, execution):
     grant(bulk, (1,), count=80)
     agent = Agent()
@@ -367,6 +387,60 @@ def test_sixty_four_attempt_visit_verifies_intermediate_groups_and_defers_only_l
     assert len(agent.writes) == 64 and sum(step[0] == 'open' for step in agent.trace) == 1
     assert agent.reads == [('initial', 1)]  # Intermediate group reads are traced separately.
     assert service._workers[1]._device_cycle['completed'] == 48
+    assert service.leases.status()['devices'][0]['state'] == 'IDLE'
+
+
+@pytest.mark.parametrize('interrupt', ['refresh', 'remove', 'protect'])
+def test_full_group_still_flushes_for_urgent_work_before_further_additions(bulk, execution, interrupt):
+    grant(bulk, (1,), count=32)
+    agent = Agent()
+    service = runner(execution.store, agent)
+
+    def boundary(device, ip, count):
+        if count != 16:
+            return
+        if interrupt == 'refresh':
+            service._workers[1]._priority_pending = True
+        elif interrupt == 'remove':
+            admitted_removal(bulk, IPv4Address('203.0.113.17'))
+        else:
+            ProtectedPolicy(service.store).change('add', IPv4Address('198.51.100.1'), 0,
+                'synthetic:policy', 'Synthetic editor', ('Viewer',), managed_revision=1)
+
+    agent.on_stage = boundary
+    asyncio.run(visit(service))
+    verification = next(i for i, step in enumerate(agent.trace) if step[0] == 'verify')
+    assert len(agent.trace[verification][2]) == 16
+    assert agent.trace[verification + 1][0] == ('stage' if interrupt == 'refresh' else 'remove')
+    assert service._workers[1].session_settled
+    assert sum(step[0] == 'open' for step in agent.trace) == 1
+
+
+@pytest.mark.parametrize('interrupt', ['stop', 'pause', 'cancel'])
+def test_full_tail_stop_pause_cancel_settles_without_extra_device_read(bulk, execution, cancellation_controls, interrupt):
+    grant(bulk, (1,), count=32)
+    agent = Agent()
+    service = runner(execution.store, agent)
+
+    def boundary(device, ip, count):
+        if count != 16:
+            return
+        if interrupt == 'stop':
+            service._workers[1]._stop_mutations = True
+        elif interrupt == 'pause':
+            with service.store._connection() as db:
+                db.execute('UPDATE operation_executor SET mutations_suspended=1')
+        else:
+            from test_bulk_cancellations import cancel
+
+            with service.store._connection() as db:
+                root = db.execute('SELECT authorization_request_id FROM managed_bulk_attempts LIMIT 1').fetchone()[0]
+            cancel(cancellation_controls, root)
+
+    agent.on_stage = boundary
+    asyncio.run(visit(service))
+    assert len(agent.writes) == 16 and states(service)['AWAITING_CONFIRMATION'] == 16
+    assert agent.reads == [('initial', 1)] and not agent.verifications
     assert service.leases.status()['devices'][0]['state'] == 'IDLE'
 
 

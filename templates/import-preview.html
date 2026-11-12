@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "ip-item.html" import item as ip_item %}
 {% from "pagination-ui.html" import post_pager %}
 {% block content %}
 <h1>Blocklist import preview</h1>
@@ -34,7 +35,7 @@
 <p class="preview-help">Changing pages re-parses the current form and rechecks local state. No source is saved on the server. Changed input or policy can change the results. Counts above cover the entire list.</p>
 <div class="table-scroll"><table class="preview-table"><thead><tr><th>IP / result</th><th>Source lines</th><th>Selected device state</th><th>Reason / comment</th><th>Source excerpt</th></tr></thead><tbody>
 {% for row in preview.page_rows %}<tr data-preview-state="{{ row.status }}"{% if row.protected %} class="protected-shun"{% endif %}>
-<td>{% if row.ip %}{{ row.ip }}{% else %}—{% endif %}<br><strong class="preview-state-badge" data-preview-status="{{ row.status }}">{{ row.status }}</strong>{% if row.protected %}<span class="protected-ip-badge">Protected IP</span>{% endif %}</td>
+<td>{% if row.ip %}{{ ip_item(row.ip, ip_context) }}{% else %}—{% endif %}<br><strong class="preview-state-badge" data-preview-status="{{ row.status }}">{{ row.status }}</strong>{% if row.protected %}<span class="protected-ip-badge">Protected IP</span>{% endif %}</td>
 <td>{{ row.source_lines | join(', ') }}</td>
 <td>{% for device in row.devices %}<div>{{ device.hostname }}: <span class="status-label">{% if row.protected %}Protected — excluded{% elif row.status == 'Duplicate' %}Duplicate — excluded{% elif device.already_shunned %}Already shunned{% else %}Candidate only{% endif %}</span></div>{% else %}<span class="status-label">No target extracted</span>{% endfor %}</td>
 <td>{{ row.reason }}{% if row.comment %}<div class="policy-comment">Comment: {{ row.comment }}</div>{% endif %}</td><td><code>{{ row.excerpt }}</code></td>

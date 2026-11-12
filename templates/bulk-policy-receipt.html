@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "ip-item.html" import item as ip_item %}
 {% from "import-ui.html" import classification %}
 {% from "pagination-ui.html" import pager %}
 {% block content %}
@@ -17,7 +18,7 @@
 {% set page_summary = 'Page ' ~ receipt.page ~ ' of ' ~ receipt.pages ~ ' · At most 100 original members per page' %}
 {{ pager(receipt.page, receipt.pages, page_base, {}, page_summary, 'Historical policy receipt pages', 'top', 'receipt-page') }}
 <div class="table-scroll"><table aria-label="Historical policy members"><thead><tr><th>Original device / IP</th><th>Class</th><th>Assigned original authority</th></tr></thead><tbody>
-{% for target in receipt.targets %}<tr{% if target.classification == 'EXCLUDED_PROTECTED' %} class="protected-shun"{% endif %}><td>{{ target.device_id }} / {{ target.ip }}</td><td>{{ classification(target.classification) }}</td><td>{% if target.intent_id %}<details><summary>Maintenance reference</summary><code>{{ target.intent_id }}</code><br>Generation {{ target.generation }}</details>{% else %}Excluded — no authority{% endif %}</td></tr>{% endfor %}
+{% for target in receipt.targets %}<tr{% if target.classification == 'EXCLUDED_PROTECTED' %} class="protected-shun"{% endif %}><td>{{ target.device_id }} / {{ ip_item(target.ip, ip_context) }}</td><td>{{ classification(target.classification) }}</td><td>{% if target.intent_id %}<details data-ui-key="maintenance-{{ target.device_id }}-{{ target.ip }}"><summary>Maintenance reference</summary><code>{{ target.intent_id }}</code><br>Generation {{ target.generation }}</details>{% else %}Excluded — no authority{% endif %}</td></tr>{% endfor %}
 </tbody></table></div>
 {{ pager(receipt.page, receipt.pages, page_base, {}, page_summary, 'Historical policy receipt pages', 'bottom', 'receipt-page') }}
 {% else %}<p>Original retained receipt is unavailable, not successful execution or an empty import.</p>{% endif %}

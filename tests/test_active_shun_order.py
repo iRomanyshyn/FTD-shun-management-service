@@ -158,7 +158,7 @@ def test_api_and_bff_preserve_active_order_and_current_appearance_timestamp(stat
             page = await client.get("/")
             assert page.status_code == 200
             active = page.text.split('<section id="active-shuns"', 1)[1]
-            assert re.findall(r'<a href="/shuns/([0-9.]+)">', active) == ["198.51.100.1", "198.51.100.2"]
+            assert re.findall(r'<a href="/shuns/([0-9.]+)"(?:\s[^>]*)?>', active) == ["198.51.100.1", "198.51.100.2"]
             assert "Observed since" in active and f'datetime="{OLD}"' in active
             assert 'class="disabled-protection-shun"' in active
 

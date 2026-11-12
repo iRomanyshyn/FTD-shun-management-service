@@ -5,10 +5,60 @@ uses tracked v6 and complete in-session verification. Matched v0.5.0 API/client/
 agent can explicitly select deferred confirmation on its separate prepared DB,
 using the configuration below. Setting only the wire version to7 still refuses.
 No current database, configuration or running service is switched automatically.
+Source0.10.2 has completed the bounded isolated normal-path FPR experiment below;
+the original main lab was restored to v6 afterward.
+
+## Final full groups (source v0.10.2)
+
+A final group of exactly 16 addresses now follows the same deferred path as a
+shorter final group. It ends the shared SSH visit without another full-table
+verification; its jobs remain **Awaiting confirmation** until the next causal
+complete device read. Acknowledgement is not verified presence or service-created
+provenance. This fixes the redundant read for imports ending at 16, 32 or 48
+addresses; the 64-attempt visit boundary already used that handoff.
+
+Intermediate groups still verify before more work can enter the same session.
+A bounded, read-only scheduling check looks for another segment or priority
+removal/protection work. It does not claim jobs, create authority, extend a
+deadline or bypass pauses. An interactive refresh still gets its existing
+priority boundary. Stop, pause and cancellation settle the current acknowledged
+tail; they do not discard it or mark it successful.
+
+Versions 5 and 6 keep eager full-group verification. The 16-address pending
+limit, 64 mutation attempts and 240-second visit budget remain unchanged. This
+is one fewer redundant read for the final group, not an unbounded write batch or
+a claim that every imported address is sent in one SSH session. Persistent v7
+cutover and general held-epoch recovery remain separate work; an isolated,
+labelled desk-lab acceptance profile does not convert the original database.
+
+### Bounded FPR acceptance, 2026-11-12
+
+With original writers cleanly stopped, a separate prepared profile used the
+existing inventory, pinned trust and agent-only credentials to import16 fresh
+TEST-NET addresses (198.51.100.160–175). They were absent in a complete device
+read before authority was confirmed. One real v7 session sent16 ADDs, retained16
+target preflights and performed one initial full read; it settled a pending16
+tail in60.378s. Settlement15:28:46.154Z preceded the next automatic complete read
+started15:28:46.263Z/completed15:28:54.528Z. All16 became OBSERVED_PRESENT with
+zero repeated ADDs. This confirms presence, not original service creation.
+
+Fresh ordinary cleanup requests disabled all16 managed targets and removed all16
+with VERIFIED outcomes. The existing ten-submissions/minute limit refused the
+eleventh request; its exact saved key/body was submitted after that interval.
+No limiter/guard was changed. A clean API restart and complete read retained
+absence and exactly32 terminal jobs. Experimental containers then exited0;
+their separate state and receipts remain private evidence, not reusable authority.
+
+The same original v6 main containers/images were restarted. Fresh main read
+confirmed all fixtures absent; original nine authority fingerprints/26 historical
+unknowns/import and seven recovery receipts remained unchanged. This is not a
+persistent mode switch, crash/held-epoch recovery test, authenticated UI acceptance
+or bulk-load benchmark. Per-target preflight dominated the small fixture visit;
+it is still required. Evidence: `/tmp/ftd-deferred-tail-20261112`.
 
 Source v0.6.0 also supports the exact [completed pending-handoff API crash
 window](pending-restart-recovery.md), using the original checkpoint and agent
-journal. General held-epoch recovery and real-device acceptance remain unfinished;
+journal. General held-epoch recovery and broader lifecycle acceptance remain unfinished;
 original unknown outcomes remain guarded. This is not an activated lab mode or a
 measured throughput claim.
 
@@ -551,9 +601,10 @@ Next implementation steps, under the approved working-version behavior:
    settled-pending consent and captured RUNNING-to-pending cleanup,
    proved pre-write child replacement, ready cleanup and later confirmed-presence
    restoration are implemented above, not yet enabled in the lab.
-3. Run new labelled bounded fresh-store lab acceptance, including the implemented
-   awaiting/confirmed/waiting UI without false attention or freshness resets,
-   before enabling the mode.
+3. The isolated normal ADD/causal-confirmation/retirement/removal/restart path
+   passed on the FPR above. Still validate disappearance/retry, protection,
+   cancellation, relevant failure/recovery paths and awaiting/confirmed/waiting
+   UI without false attention or freshness resets before persistent cutover.
 
 Do not reset/reimport the current 32,425-pair task, renew expired delegation or
 reuse historical recovery keys to demonstrate the feature. These foundations are

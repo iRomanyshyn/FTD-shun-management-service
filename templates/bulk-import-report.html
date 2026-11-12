@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "ip-item.html" import item as ip_item %}
 {% from "import-ui.html" import steps, draft_state, classification %}
 {% from "pagination-ui.html" import pager %}
 {% block content %}
@@ -32,13 +33,13 @@
 {{ pager(draft.page, draft.pages, page_base, {}, page_summary, 'Bulk preparation pagination', 'top', 'draft-page') }}
 <div class="table-scroll"><table aria-label="Frozen bulk targets"><thead><tr><th>Device / IP</th><th>Planned action</th><th>State when reviewed</th></tr></thead><tbody>
 {% for target in draft.targets %}<tr{% if target.classification == 'EXCLUDED_PROTECTED' %} class="protected-shun"{% endif %}>
-<td>{% for device in draft.devices if device.id == target.device_id %}{{ device.hostname }}{% endfor %}<br>{{ target.ip }}</td>
+<td>{% for device in draft.devices if device.id == target.device_id %}{{ device.hostname }}{% endfor %}<br>{{ ip_item(target.ip, ip_context) }}</td>
 <td>{{ classification(target.classification) }}</td>
 <td>{% if target.observed_at %}Observed <time class="local-timestamp" datetime="{{ target.observed_at }}">{{ target.observed_at }}</time>{% else %}Not observed at preparation{% endif %}<br>{{ 'Existing maintenance — preserve authority' if target.managed_enabled else 'No enabled maintenance at preparation' }}</td></tr>
 {% else %}<tr><td colspan="3">No target rows on this page. Diagnostics are retained below.</td></tr>{% endfor %}</tbody></table></div>
 <h2>Input issues and skipped entries</h2>
 <div class="table-scroll"><table aria-label="Bulk source diagnostics"><thead><tr><th>Source line / IP</th><th>Status</th><th>Generated reason</th></tr></thead><tbody>
-{% for row in draft.report_rows %}<tr class="preview-row" data-preview-status="{{ row.status }}"><td>{{ row.line }} · {{ row.ip or '—' }}</td><td><span class="preview-state-badge" data-preview-status="{{ row.status }}">{{ row.status }}</span></td><td>{{ row.reason }}</td></tr>{% else %}<tr><td colspan="3">No diagnostic rows on this page.</td></tr>{% endfor %}
+{% for row in draft.report_rows %}<tr class="preview-row" data-preview-status="{{ row.status }}"><td>{{ row.line }} · {% if row.ip %}{{ ip_item(row.ip, ip_context) }}{% else %}—{% endif %}</td><td><span class="preview-state-badge" data-preview-status="{{ row.status }}">{{ row.status }}</span></td><td>{{ row.reason }}</td></tr>{% else %}<tr><td colspan="3">No diagnostic rows on this page.</td></tr>{% endfor %}
 </tbody></table></div>
 {{ pager(draft.page, draft.pages, page_base, {}, page_summary, 'Bulk preparation pagination', 'bottom', 'draft-page') }}
 {% if draft.state in ('PREPARED', 'EXPIRED', 'CANCELLED') %}<details><summary>Cancel this unconfirmed draft only</summary><p>No policy, completed import or queue work will be cancelled. You may revoke your own draft after role loss.</p>

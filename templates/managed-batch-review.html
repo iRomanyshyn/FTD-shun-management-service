@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "ip-item.html" import item as ip_item %}
 {% from "pagination-ui.html" import post_pager %}
 {% block content %}
 <h1>Review standing-policy batch</h1>
@@ -20,7 +21,7 @@
 {% if not result %}{{ post_pager(page, pages, 'standing-batch-confirm', '/managed-shuns/bulk-review-page', 'Frozen batch pages', 'top') }}{% endif %}
 <p>Page {{ page }} of {{ pages }} · at most 100 pairs per page. Changing pages does not reconstruct the batch.</p>
 <div class="table-scroll"><table aria-label="Frozen standing batch targets"><thead><tr><th>Device</th><th>IPv4</th><th>Previous policy</th></tr></thead><tbody>
-{% for target in page_targets %}<tr data-standing-target><td>{{ target.hostname }} ({{ target.device_id }})</td><td>{{ target.ip }}</td><td>{% if target.intent_id %}Stopped generation {{ target.generation }} · <code>{{ target.intent_id }}</code>{% else %}No prior managed intent; no observed shun adopted{% endif %}</td></tr>{% endfor %}
+{% for target in page_targets %}<tr data-standing-target><td>{{ target.hostname }} ({{ target.device_id }})</td><td>{{ ip_item(target.ip, ip_context) }}</td><td>{% if target.intent_id %}Stopped generation {{ target.generation }} · <code>{{ target.intent_id }}</code>{% else %}No prior managed intent; no observed shun adopted{% endif %}</td></tr>{% endfor %}
 </tbody></table></div>
 {% if not result %}{{ post_pager(page, pages, 'standing-batch-confirm', '/managed-shuns/bulk-review-page', 'Frozen batch pages', 'bottom') }}{% endif %}
 {% if not result %}

@@ -82,6 +82,11 @@ class BatchSession:
         w._set_interactive_state('running')
         return True
 
+    async def full_group(self):
+        """Verified versions always observe a full group before continuing."""
+        await self.flush()
+        return True
+
     async def stage(self, job, target):
         w = self.worker
         w._device_cycle.update(action='stage_addition', ip=str(target))
@@ -178,8 +183,8 @@ class BatchSession:
                     if not await self.stage(job, target):
                         break
                     if (len(self.queue.pending) >= max_pending_additions(self.cycle.version)
-                            and attempts < self.limit):
-                        await self.flush()
+                            and attempts < self.limit and not await self.full_group()):
+                        break
                 elif not await self.remove(job, target):
                     break
             # Stop/pause/defer/expiry all share one final verification observation

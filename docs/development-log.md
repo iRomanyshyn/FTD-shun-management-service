@@ -11680,6 +11680,175 @@ Evidence `/tmp/ftd-location-20261112`. Web rollback image
 `ftd-shun-ip-context:rdap-0.8.0-20261112`. Stop worker for update shutdown; retain
 metadata/core datasets rather than reset or restore original authority.
 
+## 2026-11-12 — direct IPFire Source links, Web v0.9.1
+
+Changed IPFire card Source links to the exact canonical displayed IP's lookup
+page, as requested. General footer attribution and existing RDAP registry links
+remain; cached payload/schema, provider scheduling and permissions are unchanged.
+No network request is made while rendering. Updated the existing Chromium
+IPFire-dialog scenario to check the exact href, plus the operator manual.
+
+Python81/1.44s, Chromium69/163.40s (including exact href) and source Ruff/compileall/diff
+checks pass. Final built package/source/footer/42 templates/66 routes/actual
+readonly API preflight pass. Actual existing217.61.226.186 context renders the
+requested lookup URL; footer remains general. Web200/ten anonymous401/served
+assets pass. Browser verification uses synthetic authenticated fixtures; the
+actual context check is read-only, not a live authenticated browser session.
+
+Only Web replaced at13:40:06Z: version0.9.1/source `47b0d5b73623`, image
+`sha256:793fef28580af1bd96aa67f8aa752727186f8ea3242e5ebc5df2cae1a01f43c1`,
+container `0bafb1487a9f...`. All other actual container/image/start identities
+are unchanged, including worker0.9.0/API0.2.0/agent/feed/Caddy/Authelia. No DB,
+cache, policy/job/consent/control/recovery/device change. Preserve all overlays
+and data. Rollback `ftd-shun-web:lab-pre-ipfire-links-20261112` (0.9.0).
+Evidence `/tmp/ftd-source-link-20261112`; reload old tabs.
+
+## 2026-11-12 — shared IP presentation, navigable overlay and retained disclosures, Web0.10.0
+
+Replaced inconsistent IP cells with one address/badge/context component across
+observed/search/managed/protected/history/import tables; Queue builds equivalent
+safe DOM with its Add/Unblock/device label retained. Fixed address width and a
+reserved metadata line prevent badges/row heights shifting as cache data arrives.
+A bounded presentation selector deduplicates canonical IPs across displayed
+collections only, including protected/history previously omitted. Up to1000
+protected/displayed keys use100-key SQL chunks within one read snapshot; ordinary
+reader default100 remains. Full input/authority manifests are never scanned.
+Synthetic real-Web integration proves protected/history reuse the same existing
+cache without source mutation; pages never start provider requests.
+
+Added a native GET-only IP frame, progressive over canonical links. Its URL is
+shareable, Back/Close restores the list/query/page and Forward reopens. Direct
+links/reload/Open page/modified clicks work normally. Background freshness now
+captures its original document URL. Imported frame markup strips scripts,
+controllers and live-region/editor ownership; IDs and label references are
+namespaced. Underlying IP data may refresh, retaining scroll/disclosures/focus,
+but frozen action reviews never refresh or change scope/token/key. A read-only
+frame can open above a confirmation without changing it. Closing returns focus
+to an equivalent replacement link when the original list DOM was refreshed.
+
+Shared presentation-state capture supports details without IDs via stable keys,
+restores summary focus and retains existing dirty-field/editor checks. Nested
+live regions are replaced through their outermost owner only; dialogs are excluded.
+Same-tab reload stores at most1000 disclosure booleans per URL, no form/token/body
+values. Removed or changed actions still come from the fresh server response.
+
+Broad Python284/61.62s and final core/template/integration86/1.59s pass; Ruff/
+compileall/JS/diff pass. Initial browser fixture omitted the two new assets, so
+several cases failed; serving them and keeping existing action-dialog DOM order
+corrected that. Focused six affected subcases+parent7/22.97s pass. Broad browser
+109 accounting:107 passed, one ADD operation-label regression plus parent failed.
+Restored the label, then final four subcases+parent5/22.07s pass; final overlay/
+replaced-link-focus subcase+parent2/10.05s pass. No clean second full Python/browser
+run claimed. Screenshots include375px overlay plus desktop/mobile/light/dark
+rows. No live authenticated browser or device-write acceptance claimed.
+
+Final source `ec6c5836447e`/version0.10.0, Web image
+`sha256:66f3c372de79df4142b58feb91a8934850ad7ea8abea98d7e7bf70696b219bc3`,
+container `14ae4b55611c...`, started14:12:13Z. Final image package/source/footer/
+43 templates/66 routes and actual readonly API scope preflight pass. Web200/ten
+anonymous401/actual served navigation/freshness/action-dialog/ip-dialog/ui-state/
+CSS hashes match. Only Web changed: metadata worker0.9.0/API0.2.0/agent/feed/
+Caddy/Authelia exact images/containers/start times remain. All overlays, gates,
+original DB/import/seven receipts and metadata caches are retained.
+
+At14:12:53Z integrityok/nine original fingerprints/all26 unknown rows unchanged;
+normal3857 LEASED, not global idleness. At14:12:59Z no last_error/zero unresolved
+attention, original import32425/32425 complete,32426 observations/Unmanaged1.
+No policy/job/consent/control/recovery or FTD command by this increment. Evidence
+`/tmp/ftd-ip-workspace-20261112`, rollback
+`ftd-shun-web:lab-pre-ip-frame-20261112` (0.9.1). Reload old tabs.
+
+## 2026-11-12 — IP-frame backdrop close, Web0.10.1
+
+Added geometric native-backdrop detection requiring a primary pointer press and
+click outside the IP dialog. Padding/inside clicks and drags from inside are
+ignored. Dismissal uses the existing history-aware close; URL/list/focus and
+nested frozen confirmation behavior remain. No action-dialog submission or
+cancellation behavior changed. Updated the existing Chromium scenario with real
+pointer events and updated operator manuals.
+
+Python19/.56s and focused Chromium overlay subcase+parent2/10.71s (69 skipped)
+pass, including backdrop/inside/drag/history/frozen-review/reload behavior.
+Ruff/JS/diff and final built package/footer/source/43 templates/66 routes/actual
+readonly API preflight pass. No broad Python/browser suite claimed.
+
+Only Web replaced14:35:00Z: version0.10.1/source `46e1c68725aa`, image
+`sha256:df26509b4fc941f1418020014b89f0044b61efd7f3ca984e7086267ecc3bd8af`,
+container `bb0de6058fb4...`. Every non-Web image/container/start identity unchanged;
+all data/overlays/gates remain. No policy/job/consent/control/recovery/cache/device
+mutation. Actual health200/ten anonymous401/six served asset hashes match.
+Browser acceptance uses synthetic fixtures, not a live authenticated session.
+Evidence `/tmp/ftd-ip-backdrop-20261112`, rollback
+`ftd-shun-web:lab-pre-backdrop-20261112` (0.10.0); reload old tabs.
+
+## 2026-11-12 — retain Team Cymru in the delivery plan
+
+The operator accepted the bulk-import/lifecycle/Purge/release sequence and
+explicitly reminded us to retain Team Cymru. Recorded it as a planned supplemental
+ASN/network source for missing IPFire data after the bulk-import slice. The plan
+requires bounded asynchronous bulk queries/cache/deduplication, distinct source
+attribution, provider-aware retry/refresh and no page-triggered requests. Registry
+country must not silently replace IPFire geography; metadata remains advisory.
+
+Updated working plan, current priorities, operator manual and agent handoff.
+Documentation-only; diff checked. No code/version/image/configuration/network,
+provider query, cache/DB, queue/policy or FTD change. Current Web0.10.1 and local
+IPFire worker remain the deployed behavior; Team Cymru is not enabled yet.
+
+## 2026-11-12 — defer final full groups and validate on the desk FPR
+
+**Source version: 0.10.2; isolated acceptance complete, main remains v6.**
+
+Fixed a boundary defect: deferred groups ending at exactly 16, 32 or 48 addresses
+were eagerly verified rather than handing off the final group. A bounded readonly
+scheduling hint now distinguishes possible continuation/priority work from a final
+tail. Intermediate groups and urgent refresh/removal/protection retain existing
+verification; verified v5/v6 are unchanged. No schema, binary protocol, agent
+source, authority, timeout, credential, trust or network change. Tests also cover
+64/80-address boundaries and stop/pause/cancel. Updated the shared-IP ordering
+test to accept its existing additional link attribute while retaining exact order.
+
+Validation: deferred/shared 176 passed in 120.49s. Full Python run: 3929 passed,
+one obsolete link assertion failed in 796.44s; corrected assertion and final
+version/order set: 10 passed in 1.86s. No second clean full run claimed. Ruff,
+compileall/diff, configured nonexecuting API/agent preflight and candidate installed
+package/source/footer/all 43 templates pass. No new Rust/browser suite; no wire,
+agent or UI behavior changed in this increment.
+
+Original writers actually exited 0 at 15:25:49–50Z; original epoch 3877 was IDLE,
+no RUNNING jobs. A separate prepared deferred-tail DB/socket profile used original
+inventory and agent-only credentials. Fresh actor-attributed operation
+`82603a46-dc48-474e-a05f-ec099aa23b1c` imported exactly 198.51.100.160–175 after
+a complete absence read. One real v7 SSH visit took 60.378s: 16 ADDs, 16 retained
+target preflights, one initial full read, pending tail 16. Actual settlement at
+15:28:46.154Z preceded the next automatic complete read at
+15:28:46.263–15:28:54.528Z. All 16 became OBSERVED_PRESENT, without ADD replay or
+false VERIFIED creation. This is normal-path acceptance, not a bulk-load speedup.
+
+Cleanup retired all 16 targets and completed 16 VERIFIED removals. The existing
+ten-submissions/minute guard refused request 11 with 429; waited and reused that
+exact saved key/body, without limiter changes. Clean API restart/full read kept
+all fixtures absent and exactly 32 terminal jobs. Experimental API/agent exited
+0 at 15:34:49Z; containers/separate volumes/state/requests/logs remain retained.
+No unknown result or recovery release was created.
+
+Restored the same original main containers/images at 15:35Z: API 0.2.0, tracked
+v6 agent and Web 0.10.1. Fresh read 15:35:25Z, no error/unresolved attention,
+original import complete 32425/32425, 32426 observed/Unmanaged 1, fixtures absent.
+Integrity ok, all nine original fingerprints and all 26 historical unknowns
+unchanged; original executor 3878 IDLE/no RUNNING. Web health 200, ten anonymous
+routes 401 and source-matching assets pass. Metadata services, original DB,
+overlays, pauses and seven recovery receipts remain unchanged.
+
+Candidate application image:
+`sha256:e341cf171af0ccb105d7de3255d6393a26ce22742aa7667d1bf405d0dc4fe791`,
+source `936da7952899`; matched experimental agent:
+`sha256:c226db65e8333a5f351b49a005379c8bc090f27341d073c5720574cbefdf16b8`.
+Private evidence: `/tmp/ftd-deferred-tail-20261112`, including exact original/
+candidate images and exits, immutable requests/receipts, telemetry and comparisons.
+Persistent v7 cutover/general held-epoch recovery and broader lifecycle/failure
+acceptance remain unfinished. Team Cymru remains the next metadata slice.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

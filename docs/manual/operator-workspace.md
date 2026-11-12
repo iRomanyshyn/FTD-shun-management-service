@@ -28,7 +28,8 @@ history. Invalid/missing review metadata still warns conservatively.
 ## Lists and IP labels
 
 Observed lists retain their 100-row pages and top/bottom navigation. IP addresses
-and their badges stay together on one line; table content scrolls horizontally
+and their badges stay together on a stable first line. Cached country/ASN/operator
+and the missing-information placeholder occupy a separate reserved second line; table content scrolls horizontally
 within its own frame when it cannot fit. No addresses, states or actions are
 truncated to fit the screen. Explanations and user-entered notes may still wrap.
 The layout supports both light and dark browser themes.
@@ -40,8 +41,19 @@ see [Shuns and Maintenance](shuns-and-maintenance.md).
 
 ## Actions and help
 
-**Manage IP** in Shuns, Unmanaged and Managed opens the IP's dedicated workspace.
-The visible device cards offer **Unblock…** and **Stop restoring…**.
+**IP links** in lists, Protected IPs, history, Queue and import reports open the
+IP workspace in a frame over the current page. The address bar becomes
+`/shuns/<IP>` so you can copy the link. Back, Close or a click on the backdrop returns to the original
+list/query/page; Forward reopens the IP frame. Reloading or opening the copied
+link directly gives the complete IP page. Ctrl/Cmd-click and Open page keep
+ordinary navigation. Opening this frame reads local state only.
+
+The same IP component and cached data are used across these surfaces; no full
+import input is scanned for metadata, and a view never starts a provider lookup.
+Background list updates remain bound to the original list URL. IP-frame refreshes
+are read-only and preserve disclosures/focus; an open action review stays frozen.
+
+The visible device cards in the IP workspace offer **Unblock…** and **Stop restoring…**.
 No disclosure must be opened first. There is no execution-mode choice to make.
 Unblock stops matching restoration and requests cleanup; Stop restoring leaves
 the existing device block unchanged. Device-disabled and protection warnings stay
@@ -64,7 +76,7 @@ deadlines and separate admission gates remain unchanged. A state change can reje
 confirmation; it cannot silently switch mode, replace scope or retry a write.
 Old explicit ordered inspections that find no running addition offer **Review
 unblock**: an explicit new preflight, not execution or automatic conversion.
-Review screens keep consequences, device list, blockers and typed-IP confirmation
+Review screens keep consequences, device list, blockers and explicit confirmation
 visible, while UUIDs/revisions/session evidence live under **Technical details**.
 
 The v2 workspace uses the existing complete local removal-scope read (up to ten
@@ -107,3 +119,13 @@ selected-device review and explicit final confirmation are unchanged.
 This is a Web presentation change. It requires rebuilding/recreating Web and
 reloading old tabs, not an API/agent restart, database extension, new consent,
 device operation or recovery action.
+
+## Disclosure state
+
+Expanding a section is a presentation choice. Stable IDs or semantic keys retain
+that choice and summary focus through live updates, including IP information and
+cleanup sections without DOM IDs. Same-tab reloads remember at most1000 disclosure
+booleans per URL in session storage; storage denial simply disables this reload
+convenience. Form values, CSRF/review tokens and request bodies are never stored
+there. Existing server checks still refresh/remove changed actions; keeping a
+section open cannot recreate unavailable controls or rebase a frozen review.

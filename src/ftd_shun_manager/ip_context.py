@@ -251,22 +251,27 @@ class ContextCache:
         return True
 
 
-def read_contexts(path, ips, *, with_revision=False):
+def read_contexts(path, ips, *, with_revision=False, limit=100):
     """Small read-only Web batch. Failure never blocks an operator action."""
     empty = ({}, 0) if with_revision else {}
     revision = 0
     if path is None:
         return empty
     try:
-        packed = list(dict.fromkeys(IPv4Address(ip).packed for ip in ips))[:100]
+        if type(limit) is not int or not 1 <= limit <= 1000:
+            raise ValueError('Invalid displayed-IP limit.')
+        packed = list(dict.fromkeys(IPv4Address(ip).packed for ip in ips))[:limit]
         if not packed:
             return ({}, cache_revision(path)) if with_revision else {}
         with readonly(path, 0.05) as db:
             if db.execute('PRAGMA application_id').fetchone()[0] != APPLICATION_ID:
                 return empty
             revision = _revision(db)
-            rows = db.execute('SELECT ip,state,substr(fetched_at,1,40) AS fetched_at,substr(payload,1,2049) AS payload '
-                              'FROM contexts WHERE ip IN (' + ','.join('?' for _ in packed) + ')', packed).fetchall()
+            rows = []
+            for offset in range(0, len(packed), 100):
+                batch = packed[offset:offset + 100]
+                rows.extend(db.execute('SELECT ip,state,substr(fetched_at,1,40) AS fetched_at,substr(payload,1,2049) AS payload '
+                                       'FROM contexts WHERE ip IN (' + ','.join('?' for _ in batch) + ')', batch).fetchall())
         result = {}
         for row in rows:
             ip = IPv4Address(row['ip'])
@@ -285,8 +290,8 @@ def read_contexts(path, ips, *, with_revision=False):
                     raise ValueError('Invalid cached context')
                 # Revalidate even local advisory data; no raw external links or
                 # contact objects are ever rendered from the cache.
-                for key, limit in (('network', 96), ('organization', 96), ('country', 2), ('registry', 16)):
-                    if raw.get(key) is not None and (type(raw[key]) is not str or len(raw[key]) > limit
+                for key, field_limit in (('network', 96), ('organization', 96), ('country', 2), ('registry', 16)):
+                    if raw.get(key) is not None and (type(raw[key]) is not str or len(raw[key]) > field_limit
                             or any(not char.isprintable() for char in raw[key])):
                         raise ValueError('Invalid cached display field')
                 checked = registration({'objectClassName': 'ip network', 'ipVersion': 'v4',

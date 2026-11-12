@@ -2,7 +2,7 @@
 {% from "pagination-ui.html" import pager %}
 {% from "managed-policy-ui.html" import behavior_help, restoration_badge %}
 {% from "observed-shun-actions.html" import actions %}
-{% from "ip-context.html" import inline %}
+{% from "ip-item.html" import item as ip_item %}
 {% block content %}
 <h1>Managed shuns</h1>
 {% include "refresh-panel.html" %}
@@ -30,7 +30,7 @@
 {% if managed.entries %}
 <div class="table-scroll"><table aria-label="Managed shun policy"><thead><tr><th>Device / IP</th><th>Desired policy</th><th>Local observation</th><th>Restoration</th><th>Authorization</th><th>Last verified restoration</th><th>Actions</th></tr></thead><tbody>
 {% for entry in managed.entries %}<tr{% if entry.enabled and entry.protected %} class="protected-shun"{% endif %}>
-<td>{{ entry.hostname }}<br><a href="/shuns/{{ entry.ip }}">{{ entry.ip }}</a>{{ inline(entry.ip, ip_context) }}</td>
+<td>{{ entry.hostname }}<br>{{ ip_item(entry.ip, ip_context) }}</td>
 <td>{{ restoration_badge(entry.enabled) }}<br>Generation {{ entry.generation }}</td>
 <td><span class="state-badge">{{ 'Observed present' if entry.observed_present else 'Not currently observed' }}</span><br>Presence is not proof of service creation.</td>
 <td>{% if entry.restoration_hold %}{% set holds = {'stopped':'Maintenance stopped','protected':'Blocked by Protected IP','device_disabled':'Device disabled','needs_review':'Restoration needs reviewed resolution','present':'Observed present — no ADD needed','controller_disabled':'Controller disabled','no_addition_profile':'ADD capability/profile unavailable','not_initialized':'Attempt ledger not initialized','suspended':'Standing policy suspended','recovery_pause':'Recovery safety pause','pending_work':'Pending work — inspect Queue','cleanup_pending':'Cleanup pending or needs attention','backoff':'Restoration backoff','churn_limit':'Rolling-hour churn limit','awaiting_snapshot':'Waiting for a fresh complete snapshot','eligible':'Waiting for discovery','capacity':'Queue or ledger capacity hold'} %}<span class="status-label{% if entry.restoration_hold == 'needs_review' %} preview-error{% endif %}">{{ holds.get(entry.restoration_hold, 'State changed — awaiting next check') }}</span>{% if entry.restoration_next_eligible_at %}<br>Not before <time class="local-timestamp" datetime="{{ entry.restoration_next_eligible_at }}">{{ entry.restoration_next_eligible_at }}</time>{% endif %}{% elif not entry.enabled %}<span class="status-label">Maintenance stopped</span>{% elif entry.protected %}<strong class="status-label">Blocked by Protected IP</strong>{% elif not entry.device_enabled %}<strong class="status-label">Device disabled</strong>{% elif entry.restoration_attention %}<strong class="status-label preview-error">Restoration needs reviewed resolution</strong>{% else %}<span class="status-label">Controller not implemented</span>{% endif %}{% if entry.restoration_state %}<br>Last attempt: <span class="status-label">{{ entry.restoration_state }}</span> (generation {{ entry.restoration_generation }}).{% endif %}</td>

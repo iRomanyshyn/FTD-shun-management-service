@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "ip-item.html" import item as ip_item %}
 {% from "pagination-ui.html" import pager %}
 {% block content %}
 <h1>Import cancellation status</h1>
@@ -14,7 +15,7 @@
 {% set page_base = '/managed-imports/v2/cancellations/' ~ operation_id %}
 {% set page_summary = 'Page ' ~ cancellation.page ~ ' of ' ~ cancellation.pages ~ ' · At most 100 original accepted members per page' %}
 {{ pager(cancellation.page, cancellation.pages, page_base, {}, page_summary, 'Cancellation pages', 'top', 'cancellation-page') }}
-<div class="table-scroll"><table aria-label="Current cancellation members"><thead><tr><th>Original device / IP</th><th>Initial / current disposition</th><th>Captured ADD / attention</th></tr></thead><tbody>{% for target in cancellation.targets %}<tr><td>{{ target.device_id }} / {{ target.ip }}</td><td><span class="status-label">{{ target.initial_state | default(target.state) }}</span><br><span class="status-label">{{ target.state }}</span></td><td><span class="status-label">{{ target.outcome | default('No later settlement recorded') }}</span>{% if target.attention | default(false) %}<br><strong class="status-label">Retained attention</strong>{% endif %}{% if target.settled_at %}<br><time class="local-timestamp" datetime="{{ target.settled_at }}">{{ target.settled_at }}</time>{% endif %}</td></tr>{% endfor %}</tbody></table></div>
+<div class="table-scroll"><table aria-label="Current cancellation members"><thead><tr><th>Original device / IP</th><th>Initial / current disposition</th><th>Captured ADD / attention</th></tr></thead><tbody>{% for target in cancellation.targets %}<tr><td>{{ target.device_id }} / {{ ip_item(target.ip, ip_context) }}</td><td><span class="status-label">{{ target.initial_state | default(target.state) }}</span><br><span class="status-label">{{ target.state }}</span></td><td><span class="status-label">{{ target.outcome | default('No later settlement recorded') }}</span>{% if target.attention | default(false) %}<br><strong class="status-label">Retained attention</strong>{% endif %}{% if target.settled_at %}<br><time class="local-timestamp" datetime="{{ target.settled_at }}">{{ target.settled_at }}</time>{% endif %}</td></tr>{% endfor %}</tbody></table></div>
 {{ pager(cancellation.page, cancellation.pages, page_base, {}, page_summary, 'Cancellation pages', 'bottom', 'cancellation-page') }}
 {% elif cancellation %}<p>No cancellation decision is recorded for this original import. After an unknown submission this read does not prove rollback; retry only its original review.</p><form method="post" action="/managed-imports/v2/{{ operation_id }}/cancellation-review" class="import-confirm-form"><input type="hidden" name="csrf" value="{{ csrf_token }}"><button type="submit">Review cancellation of uncompleted work</button></form>
 {% else %}<p>Current evidence unavailable, not empty success or permission to replay ADD.</p>{% endif %}

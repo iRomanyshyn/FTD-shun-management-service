@@ -1,7 +1,8 @@
 # Cached IP Information
 
 Shuns, Unmanaged and Managed shuns display **country · ASN · network operator**
-under an IP. IP pages and addition/unblock dialogs include the network prefix,
+under an IP. The shared component keeps address/badges on one stable line and
+reserves a separate line for metadata or its missing-information placeholder. IP pages and addition/unblock dialogs include the network prefix,
 range, source and source-database time. The current provider is **IPFire Location**.
 This is advisory context: country is approximate, a network operator is not the
 identity of an attacker, and metadata never changes blocking policy. Missing
@@ -63,13 +64,18 @@ and checks native readability. Invalid updates never replace a good source.
 The worker's bridge uses one bounded15s native process per batch, not one process
 or network request per IP. Work is bounded to100,000 cached IPs/200,000 observed
 pairs, at most2000 local entries between feed scans. Web batch-reads/revalidates
-at most100 displayed IPs with a50ms storage timeout and2KiB payload bounds.
+displayed IPs in100-key SQL chunks (at most1000 distinct keys for the whole
+Protected-IP list; ordinary tables retain100-row pages) with a50ms storage timeout and2KiB payload bounds.
 Metadata revisions update context-aware lists; frozen dialogs remain unchanged.
 Application destination checks are not an OS egress firewall.
 
+The Source link opens IPFire's lookup page for the exact displayed IPv4 address
+(`/location/lookup/<IP>`), only when the operator follows the link. It does not
+run a background per-IP request. RDAP links keep their original registry targets.
 Source attribution and its database time appear in IP details; pages with IPFire
 results link to IPFire and [CC BY-SA4.0](https://creativecommons.org/licenses/by-sa/4.0/)
-in the footer. Names are escaped, and contact-person/email/postal fields are not
+in the footer. The same cache is used for search, history, Protected IPs,
+Queue and displayed import rows; these views never query a provider. Names are escaped, and contact-person/email/postal fields are not
 collected. Native packages retain their packaged license notices.
 
 ## Desk-lab deployment
@@ -99,6 +105,20 @@ Do not reset a cache or restore the core DB for a metadata rollback. The old0.8
 RDAP cache (`cache.db`) is retained separately from `location-cache.db`; the new
 worker refuses to repurpose it. Keep all existing overlays/data. Never run broad
 volume cleanup. This is unrelated to the deferred-v7 lab overlay.
+
+## Planned Team Cymru supplement
+
+The operator reaffirmed this follow-up on2026-11-12. After the bulk-import work,
+add Team Cymru as a supplemental source for IPs missing ASN/network information
+in IPFire. Use bounded asynchronous bulk queries, deduplication and a persistent
+cache; existing misses and newly observed addresses are eligible. Page views,
+searches and dialogs must never query the provider. Bound retries/refresh and
+preserve useful cached data when the provider is unavailable.
+
+Keep provider attribution/time explicit and retain IPFire values when available.
+Cymru country information describes registration, not geolocation; do not silently
+merge it into the IPFire country field. Implementation and activation remain
+pending; the current worker still uses only the local IPFire database.
 
 ## Why not regular Team Cymru Bulk WHOIS?
 

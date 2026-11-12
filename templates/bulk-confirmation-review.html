@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "ip-item.html" import item as ip_item %}
 {% from "pagination-ui.html" import post_pager %}
 {% from "import-ui.html" import steps, classification %}
 {% block content %}
@@ -34,7 +35,7 @@
 {% if draft %}<p>Frozen members: page {{ draft.page }} / {{ draft.pages }} · at most 100 per page.</p>
 {{ post_pager(draft.page, draft.pages, 'bulk-policy-consent', '/managed-imports/v2/confirmation-review/page', 'Frozen import pages', 'top') }}
 <div class="table-scroll"><table aria-label="Frozen standing-consent members"><thead><tr><th>Original device / IP</th><th>Class</th></tr></thead><tbody>
-{% for target in draft.targets %}<tr{% if target.classification == 'EXCLUDED_PROTECTED' %} class="protected-shun"{% endif %}><td>{% for device in summary.devices if device.id == target.device_id %}{{ device.hostname }}{% endfor %} / {{ target.ip }}</td><td>{{ classification(target.classification) }}</td></tr>{% endfor %}</tbody></table></div>
+{% for target in draft.targets %}<tr{% if target.classification == 'EXCLUDED_PROTECTED' %} class="protected-shun"{% endif %}><td>{% for device in summary.devices if device.id == target.device_id %}{{ device.hostname }}{% endfor %} / {{ ip_item(target.ip, ip_context) }}</td><td>{{ classification(target.classification) }}</td></tr>{% endfor %}</tbody></table></div>
 {{ post_pager(draft.page, draft.pages, 'bulk-policy-consent', '/managed-imports/v2/confirmation-review/page', 'Frozen import pages', 'bottom') }}{% endif %}
 </form>
 <p><a href="/managed-imports/v2/receipts/{{ review.operation_id }}">Check saved confirmation</a> · <a href="/managed-imports/v2">Back to Imports</a></p>

@@ -3,6 +3,38 @@
 Agreed with the operator: 2026-10-20.
 Status: approved target behavior and delivery plan; not a deployment procedure.
 
+## Next delivery alignment — 2026-11-12
+
+The operator accepted returning to bulk-import execution/confirmation and bounded
+FPR acceptance, followed by integrated lifecycle checks, Emergency Purge and
+working-release preparation. Keep the existing source-only deferred capabilities
+and their remaining recovery/lab gaps distinct from the currently deployed v6.
+
+**Team Cymru is a planned supplemental source**, explicitly reaffirmed by the
+operator, not an idea to drop after selecting IPFire. Schedule it after the bulk
+import slice. Fill missing IPFire ASN/network context through bounded background
+bulk queries and a durable cache. Deduplicate across devices and views; batch
+pre-existing misses as well as new ones, with bounded retries/provider-aware
+refresh and no query from page rendering. Preserve provider attribution and
+retrieval time. A Cymru registry country must not overwrite an IPFire country or
+be presented as geolocation. Provider failure leaves existing useful context.
+
+Retain Web/API/agent isolation and the dedicated metadata path; no credentials,
+core-DB/control-socket access or blocking-policy authority is granted to the
+provider component. This is a delivery-plan update, not an activated fallback.
+See [IP Context](manual/ip-context.md).
+
+Final full-group optimization, source0.10.2 (2026-11-12): deferred visits no longer
+verify a final exact16 before END_PENDING. Bounded advisory scheduling preserves
+intermediate-group verification and priority work; ordinary verified v5/v6 keep
+their existing behavior. Tests cover16/17/32/48/64-address tails, 80-address visit
+limits, urgent refresh/removal/protection and stop/pause/cancel. Bounded isolated
+FPR acceptance used16 fresh TEST-NET addresses: one60.378s SSH visit,16 ADDs,
+16 retained target preflights and one initial full read; its entire final group
+was confirmed by the next automatic causal full read with zero ADD replay.
+This is not a measured bulk-load speedup or persistent v7 cutover. General held-
+epoch recovery remains unfinished. See status/log for cleanup and restoration.
+
 Completed-handoff crash recovery, 2026-11-12 (source0.6.0, not activated): a
 pre-END checkpoint binds the original visit; an exact completed agent journal
 receipt can atomically finish the expired original LEASED handoff to awaiting

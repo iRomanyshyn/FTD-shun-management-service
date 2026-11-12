@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "ip-item.html" import item as ip_item %}
 {% block content %}
 <div class="page-heading"><h1>Protected IPs</h1>
 {% include "refresh-panel.html" %}
@@ -28,7 +29,7 @@
 </form></details>
 {% for entry in policy.entries %}
 <article class="policy-card{% if entry.active_devices %} {{ 'policy-warning' if entry.enabled else 'policy-disabled-warning' }}{% endif %}">
-<div class="policy-card-heading"><h2><a href="/shuns/{{ entry.ip }}">{{ entry.ip }}</a></h2><span class="state-badge {{ 'policy-enabled' if entry.enabled else 'policy-disabled' }}">{{ 'Enabled' if entry.enabled else 'Disabled' }}</span></div>
+<div class="policy-card-heading"><h2>{% call ip_item(entry.ip, ip_context) %}<span class="state-badge {{ 'policy-enabled' if entry.enabled else 'policy-disabled' }}">{{ 'Enabled' if entry.enabled else 'Disabled' }}</span>{% endcall %}</h2></div>
 {% if entry.name %}<p class="policy-name">{{ entry.name }}</p>{% endif %}
 {% if entry.active_devices and not entry.enabled %}<p class="disabled-protection-summary"><strong>Protection disabled — currently shunned.</strong> Automatic removal is off for this address.</p>{% endif %}
 {% if entry.comment %}<p class="policy-comment">{{ entry.comment }}</p>{% endif %}

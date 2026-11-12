@@ -44,6 +44,7 @@ from .import_preview import (
 )
 from .import_review import ImportReviews, ReviewUnavailable
 from .ip_context import cache_revision, read_contexts
+from .ip_presentation import displayed_ips
 from .managed_batch_review import ManagedBatchReviews, parse_standing_list, validate_batch_receipt
 from .managed_grant_review import ManagedGrantReviews
 from .managed_import_web import register_import_web
@@ -307,7 +308,7 @@ def create_app(settings: Settings | None = None, *, ready_removal_admission_enab
 
     def render(request: Request, name: str, context: dict, status_code: int = 200) -> HTMLResponse:
         context = dict(context)
-        ips, target = [], context.get('ip')
+        target = context.get('ip')
         review = context.get('review')
         if target is None and review is not None:
             scope = getattr(review, 'scope', None)
@@ -319,18 +320,13 @@ def create_app(settings: Settings | None = None, *, ready_removal_admission_enab
             target = str(IPv4Address(target)) if target else None
         except (ValueError, TypeError):
             target = None
-        if target:
-            ips.append(target)
-        managed = context.get('managed')
-        for rows in (context.get('shuns'), context.get('search_results'), managed.get('entries') if type(managed) is dict else None):
-            if type(rows) is list:
-                ips.extend(row['ip'] for row in rows[:100] if type(row) is dict and 'ip' in row)
-        contexts, revision = read_contexts(settings.ip_context_cache_path, ips[:100], with_revision=True)
+        contexts, revision = read_contexts(settings.ip_context_cache_path, displayed_ips(context, target),
+                                           with_revision=True, limit=1000)
         context.update(ip_context=contexts,
                        ip_context_target=target, ip_context_enabled=settings.ip_context_cache_path is not None)
         context['ip_context_location'] = any(info.get('provider') == 'ipfire-location-v1' for info in contexts.values())
         if type(context.get('refresh')) is dict and settings.ip_context_cache_path is not None:
-            context['refresh'] = {**context['refresh'], 'ip_context_revision': revision}
+            context['refresh'] = {**context['refresh'], 'ip_context_revision': revision, 'ip_context': contexts}
         token, set_cookie = csrf_token(request)
         response = templates.TemplateResponse(
             request, name, {**context, "csrf_token": token,
@@ -344,6 +340,8 @@ def create_app(settings: Settings | None = None, *, ready_removal_admission_enab
         result = refresh_metadata(value)
         if settings.ip_context_cache_path is not None:
             result['ip_context_revision'] = cache_revision(settings.ip_context_cache_path)
+            result['ip_context'] = read_contexts(settings.ip_context_cache_path,
+                                                displayed_ips({'refresh': result}))
         return result
 
     def html_request(request):

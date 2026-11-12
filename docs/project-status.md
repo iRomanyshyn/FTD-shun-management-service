@@ -2,7 +2,110 @@
 
 Last updated: 2026-11-12
 
-## Current Web/worker v0.9.0 — local country/ASN/operator for existing IPs
+## Next delivery priorities — operator alignment, 2026-11-12
+
+Return to bulk-import/session throughput and deferred confirmation/recovery lab
+acceptance, then integrated lifecycle checks, Emergency Purge and release setup.
+Team Cymru is explicitly retained as the next supplemental metadata source after
+the bulk-import slice: bounded background batches/cache for missing IPFire ASN/
+network information, distinct attribution and no page-triggered queries. It is
+planned, not currently enabled; the selected provider remains local IPFire.
+
+## Source v0.10.2 — deferred tail verified on the desk FPR
+
+Fixed redundant verification of final exact16-address groups. Intermediate groups
+still verify before continuing; urgent refresh/removal/protection keeps priority.
+The bounded scheduling hint grants no authority. Existing verified v5/v6, pending
+size16, mutation limit64 and visit budget240s remain unchanged.
+
+An isolated prepared profile, with original writers stopped, imported exactly
+198.51.100.160–175 through fresh real service authority. The real v7 SSH visit
+took60.378s:16 ADDs,16 target preflights, one initial full read and a settled
+pending16 tail. The next automatic causal read confirmed all16 as OBSERVED_PRESENT
+without another ADD. All16 were then retired and removed with VERIFIED results;
+an API restart/full read proved they stayed absent. The rate limiter correctly
+refused cleanup11 until the next interval; its original frozen request/key was
+retained and reused. No guard was disabled.
+
+Experimental containers stopped exit0; separate DB/volumes and evidence remain.
+Main was restored to the same v6 agent/API0.2.0/Web0.10.1 containers/images, not
+switched to v7. At15:35:35Z: fresh read15:35:25Z, no error/current attention,
+original import32425/32425 complete,32426 observed/Unmanaged1. Integrityok/nine
+original fingerprints/all26 unknowns unchanged; epoch3878 IDLE/no RUNNING.
+Web health/auth/assets pass. Metadata services and original configuration/data/
+seven receipts remain. Source/build `936da7952899`, isolated app `e341cf171af0...`.
+
+Python full3929 pass/one obsolete shared-IP link assertion failed796.44s; corrected
+and final version/order10 pass1.86s. Deferred/shared176 pass120.49s; Ruff/
+compileall/diff, candidate configured preflight/package/build/footer/43 templates
+pass. No second clean full run, new Rust/browser suite, production/load result
+or general crash-recovery acceptance claimed. Persistent cutover still needs
+remaining held-epoch/lifecycle work; Team Cymru remains the next metadata slice.
+See [Deferred Confirmation](manual/deferred-confirmation.md). Private evidence:
+`/tmp/ftd-deferred-tail-20261112`.
+
+## Current Web v0.10.1 — close IP details from the backdrop
+
+Clicking the backdrop closes the IP frame through its existing history-aware
+path and restores the list URL/focus. Inside/padding clicks and drags starting
+inside keep it open. Frozen action confirmations are unchanged.
+Web `df26509b4fc9...` / `bb0de6058fb4...`, source `46e1c68725aa`, started14:35:00Z.
+All non-Web images/containers/start times and original data/gates remain unchanged.
+Python19/.56s, focused Chromium overlay2/10.71s (69 skipped), source checks,
+package/footer/43 templates/66 routes/actual readonly API preflight and Web200/
+ten anonymous401/six assets pass. No new broad regression or device action.
+Evidence `/tmp/ftd-ip-backdrop-20261112`; rollback
+`ftd-shun-web:lab-pre-backdrop-20261112`. See [IP Actions](manual/ip-actions.md).
+
+## Previous Web v0.10.0 — stable IP tiles and shareable detail frame
+
+Shared IP presentation keeps the address/badges on a fixed first line and cached
+country/ASN/operator or a placeholder on a separate reserved line. The same
+bounded cache selection now covers search, protected/history, Queue and displayed
+import rows as well as observations/managed policy. Whole protected lists may
+read1000 unique IPs in100-key chunks within one snapshot; full parsed inputs and
+hidden authority targets are not traversed.
+
+Canonical IP links open a native GET-only frame with `/shuns/<IP>` in the address
+bar. Copy/reload/Open page work; Back/Close returns to the list/query and Forward
+reopens. Background refresh remains bound to its original URL. Imported IDs are
+namespaced, controllers/live ownership stripped, existing action reviews stay
+frozen and all original POST guards remain. Stable disclosure keys retain open
+state and summary focus through live updates; bounded same-tab session storage
+remembers booleans on reload, never forms or tokens. See
+[Operator Workspace](manual/operator-workspace.md) and [IP Actions](manual/ip-actions.md).
+
+Web `66f3c372de79...` / `14ae4b55611c...`, source `ec6c5836447e`/0.10.0,
+started14:12:13Z. All non-Web image/container/start identities are unchanged,
+including worker0.9.0/API0.2.0/agent/feed; original DB/overlays/gates/import/seven
+receipts remain. At14:12:53Z integrityok/nine fingerprints/all26 unknowns unchanged,
+normal3857 LEASED. At14:12:59Z no error/zero unresolved attention, original import
+complete32425/32425,32426 observations/Unmanaged1. No new mutation or FTD command.
+
+Broad Python284/61.62s and final86/1.59s pass. Browser broad107 pass/one ADD-label
+case+parent failure, fixed and covered by final focused5/22.07s; overlay focus2/
+10.05s passes. Initial missing fixture assets were corrected; six formerly
+failing scenarios passed focused. No clean second full regression claimed.
+Source checks, actual image package/footer/43 templates/66 routes/read-only API
+preflight and live health200/ten anonymous401/six assets pass. Browser fixtures
+are synthetic, not a live authenticated acceptance. Evidence
+`/tmp/ftd-ip-workspace-20261112`; rollback `ftd-shun-web:lab-pre-ip-frame-20261112`.
+
+## Previous Web v0.9.1 — Source opens the displayed IP
+
+IPFire Source links now open `/location/lookup/<IP>` for the exact displayed
+IPv4; the footer retains general IPFire attribution. Cached provider data and
+RDAP links are unchanged, and rendering performs no external lookup.
+Web `793fef28580a...` / `0bafb1487a9f...`, source `47b0d5b73623`, started13:40:06Z.
+Every other service's image/container/start time remains unchanged, including
+worker0.9.0/API0.2.0/agent/feed. No core data/policy/device operation.
+Python81/1.44s and Chromium69/163.40s pass, including the exact IPFire href; built
+package/footer/42 templates/66 routes/readonly API preflight pass. Actual cached
+217.61.226.186 link/footer render, Web200/ten anonymous401/assets pass.
+Evidence `/tmp/ftd-source-link-20261112`; rollback
+`ftd-shun-web:lab-pre-ipfire-links-20261112`. See [IP Context](manual/ip-context.md).
+
+## Previous Web/worker v0.9.0 — local country/ASN/operator for existing IPs
 
 IPFire Location replaces the previous two-IP RDAP experiment as the selected lab
 provider. The isolated worker downloads a signed shared database, then enriches

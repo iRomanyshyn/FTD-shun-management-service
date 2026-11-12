@@ -320,16 +320,12 @@
         start: field.selectionStart, end: field.selectionEnd,
       });
     });
-    const opened = new Map([...oldRegion.querySelectorAll("details[id]")].map(
-      (element) => [element.id, element.open],
-    ));
+    const disclosureState = window.FtdUiState?.capture(oldRegion);
     const replacement = document.importNode(nextRegion, true);
     oldRegion.replaceWith(replacement);
     // Reopen details before restoring focus: a field in a closed details body
     // cannot receive focus, even if the body is reopened immediately afterward.
-    replacement.querySelectorAll("details[id]").forEach((element) => {
-      if (opened.has(element.id)) element.open = opened.get(element.id);
-    });
+    if (disclosureState) window.FtdUiState.restore(replacement, disclosureState);
     replacement.querySelectorAll("input, textarea, select").forEach((field) => {
       const saved = values.get(fieldKey(field));
       if (!saved) return;
@@ -347,6 +343,8 @@
   };
 
   const createController = (panel) => {
+    // An IP overlay may update the address bar without changing this document.
+    const pageUrl = window.location.href;
     let status = readInitial(panel);
     let displayedVersion = version(status);
     let clockOffset = Date.parse(status.server_time) - Date.now();
@@ -607,7 +605,9 @@
       }
       // Preserve native indeterminate animation (and focused cancellation
       // controls) when only unrelated freshness/phase metadata changes.
-      const rowSignature = stableSignature([activeItems, attentionItems, panel.dataset.operator, panel.dataset.subject, panel.dataset.administrator]);
+      const rowSignature = stableSignature([activeItems, attentionItems,
+        [...activeItems, ...attentionItems].map(item => status.ip_context?.[item.ip]),
+        panel.dataset.operator, panel.dataset.subject, panel.dataset.administrator]);
       if (queueRows.dataset.signature === rowSignature) return;
       queueRows.dataset.signature = rowSignature;
       queueRows.replaceChildren();
@@ -640,7 +640,12 @@
         const targetLink = document.createElement("a");
         targetLink.href = `/shuns/${encodeURIComponent(item.ip)}`;
         targetLink.textContent = `${item.action === "ADD" ? "Add · " : ""}${item.hostname} / ${item.ip}`;
-        row.firstElementChild.replaceChildren(targetLink);
+        const ipItem = window.FtdIpItem?.create(item.ip, status.ip_context?.[item.ip]);
+        if (ipItem) {
+          const device = document.createElement('span'); device.className = 'cell-secondary';
+          device.textContent = `${item.action === 'ADD' ? 'Add' : 'Unblock'} · ${item.hostname}`;
+          row.firstElementChild.replaceChildren(ipItem, device);
+        } else row.firstElementChild.replaceChildren(targetLink);
         if (item.state === "RUNNING") {
           const running = document.createElement("progress");
           running.className = "operation-running-progress";
@@ -702,12 +707,14 @@
         displayedVersion = version(status);
         return;
       }
-      const response = await fetchChecked(window.location.href, { headers: { Accept: "text/html" } }, "text/html");
+      const response = await fetchChecked(pageUrl, { headers: { Accept: "text/html" } }, "text/html");
       const nextDocument = new DOMParser().parseFromString(await response.text(), "text/html");
       const renderedStatus = readInitial(nextDocument);
       // Validate all regions before touching the live document (including an
       // authentication response or a partial/error render).
-      const replacements = [...document.querySelectorAll("[data-live-region]")].map((region) => {
+      const replacements = [...document.querySelectorAll("[data-live-region]")].filter(
+        region => !region.parentElement?.closest('[data-live-region]') && !region.closest('dialog'),
+      ).map((region) => {
         const replacement = nextDocument.getElementById(region.id);
         if (!replacement?.hasAttribute("data-live-region")) throw new Error("Updated results are unavailable. Retrying.");
         return [region, replacement];
@@ -719,6 +726,7 @@
       window.scrollTo(scroll);
       displayedVersion = version(renderedStatus);
       apply(renderedStatus);
+      document.dispatchEvent(new CustomEvent('ftd:view-updated'));
     };
 
     const schedule = (delay) => {

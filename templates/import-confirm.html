@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "ip-item.html" import item as ip_item %}
 {% block content %}
 <h1>Review one-time import</h1>
 {% if refresh %}{% include "refresh-panel.html" %}{% endif %}
@@ -18,7 +19,7 @@
 <p class="preview-counts">{% for state, count in review.counts %}<span class="preview-state-badge" data-preview-status="{{ state }}">{{ state }}: {{ count }}</span>{% endfor %}</p>
 <p>Only Ready device/IP pairs listed below are included. Duplicates, refused lines, enabled Protected IPs and already observed pairs are excluded. Disabled Protected IPs are not protected from import. This is retained local state, not a fresh Cisco query. No partial admission or automatic chunking is permitted.</p>
 <div class="table-scroll import-review-targets"><table><thead><tr><th>Device</th><th>IPv4 address</th></tr></thead><tbody>
-{% for device_id, ip in review.targets %}<tr><td>{% for id, hostname in review.devices %}{% if id == device_id %}{{ hostname }} ({{ id }}){% endif %}{% endfor %}</td><td>{{ ip }}</td></tr>{% endfor %}
+{% for device_id, ip in review.targets %}<tr><td>{% for id, hostname in review.devices %}{% if id == device_id %}{{ hostname }} ({{ id }}){% endif %}{% endfor %}</td><td>{{ ip_item(ip, ip_context) }}</td></tr>{% endfor %}
 </tbody></table></div>
 {% if not accepted %}
 <form method="post" action="/imports/confirm" class="import-confirm-form">

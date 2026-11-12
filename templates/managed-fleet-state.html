@@ -1,3 +1,4 @@
+{% from "ip-item.html" import item as ip_item %}
 <section id="managed-fleet-state" data-live-region>
 <h2>Fleet cleanup</h2>
 {% if not fleet_cleanup %}
@@ -11,7 +12,7 @@
 {% for item in fleet_cleanup['items'] %}
 {% set retained = not item.active and not item.attention %}
 {% if retained %}<details class="cleanup-record" id="fleet-cleanup-{{ item.id }}"><summary>Settled / retained fleet cleanup for {{ item.ip }}</summary>{% else %}<div class="cleanup-record" id="fleet-cleanup-{{ item.id }}">{% endif %}
-<p><a href="/shuns/{{ item.ip }}">{{ item.ip }}</a> · {{ item.target_count }} device(s)
+<p>{{ ip_item(item.ip, ip_context) }} · {{ item.target_count }} device(s)
 <span class="state-badge cleanup-state" data-cleanup-state="{{ 'attention' if item.attention else 'waiting' if item.state == 'WAITING_ADD' else 'verified' if item.verified else 'active' if item.active else 'settled' }}">{% if item.state in phases %}{{ phases[item.state] }}{% elif item.verified %}All targets verified removed{% elif item.unknown_targets %}Queue history incomplete — outcome unknown{% elif item.queue_request_state in ['CANCELLED', 'EXPIRED'] %}Delegation {{ item.queue_request_state | lower }} — inspect shared jobs{% elif item.active %}Removal in progress{% else %}Linked jobs settled — inspect outcomes{% endif %}</span></p>
 {% if item.reason %}<p class="policy-comment">{{ item.reason }}</p>{% endif %}
 {% if item.predecessor_total %}<p>Captured ADDs ({{ item.predecessor_total }}): {% for state, count in item.predecessor_counts.items() %}{{ state }}: {{ count }}{% if not loop.last %} · {% endif %}{% endfor %}. ADD settlement does not prove removal.</p>{% endif %}

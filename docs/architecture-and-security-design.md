@@ -1,5 +1,58 @@
 # FTD Shun Management Service
 
+## Exact full final groups in deferred visits — 2026-11-12
+
+In explicitly selected deferred-v7 execution, a final group of exactly16 ADD ACKs
+has the same pending-END/next-causal-read semantics as a shorter final group.
+Do not force VERIFY merely because the group reached capacity and then issue a
+second terminal full read when no further work can follow. V5/v6 retain their
+original eager verified-group behavior. V7 intermediate groups still verify to
+continue a larger visit or service interactive refresh/REMOVE/Protected-IP work.
+
+Use only bounded local advisory lookahead (up to64 queued/current target rows)
+under the existing exact profile/live lease; no claim, refill, grant, checkpoint
+rewrite or authority extension follows from it. All real claims/refills/terminal
+handoffs keep their original transactional checks. Stop/suspension/cancellation
+may settle the final pending group without an extra device read. A request racing
+with the scheduling decision is handled at the next checkpoint/visit; no command
+is interrupted. Keep all16/64/240s/sequence/uncertainty bounds unchanged.
+
+A bounded isolated known-desk lab experiment may validate this source-only mode
+using a separate fresh profile/sockets and labelled fixture authority, with main
+writers quiescent and original data retained. This is not persistent cutover or
+completion of general held-epoch/missing-journal recovery. Restore the original
+runtime after verified fixture cleanup; never release historical uncertainty or
+adopt old authority to make the experiment proceed.
+
+## Shared IP presentation and navigable read-only overlay — 2026-11-12
+
+Use one canonical IP component for address/badges and a separate stable-height
+cached-context row across observation, managed, protected, history and import
+presentation. Select only displayed collections; never scan a full parsed input
+or authority manifest for enrichment. Web may read at most1000 distinct displayed
+IPs (the full bounded Protected-IP list) in100-key SQL chunks within one read
+snapshot. Ordinary tables stay paginated. The existing100-key reader default
+remains; no device/provider request is triggered by presentation.
+
+Canonical same-origin `/shuns/<IPv4>` links may progressively open the existing
+GET page in a native overlay. Preserve ordinary links, modifier/new-tab behavior
+and full-page navigation. Update browser history with the canonical IP URL so
+copy/reload works; Back/Forward closes/reopens the view while retaining the list
+query/page. Background refresh must keep its original document URL, independent
+of the overlay URL. No new API route, authority, hint or confirmation is created.
+Imported markup strips scripts/refresh controllers/live-region ownership and
+namespaces IDs/label references; it cannot create a second background controller.
+Existing POST review/CSRF/identity/scope/key/uncertainty rules stay unchanged.
+Never refresh an open frozen action review. Defer underlying IP-view updates
+while it is open, then reload the read-only view after it closes if needed.
+
+Retain disclosure choices by stable explicit/semantic presentation keys during
+live replacement and same-tab reload, including details without DOM IDs. Persist
+only bounded booleans, never fields, hidden authority, tokens or request bodies.
+Changed/removed server controls still update; a saved open state cannot recreate
+an unavailable action. Preserve summary focus and stable editor DOM under the
+existing rules. See manual/operator-workspace.md and manual/ip-actions.md.
+
 ## Local IPFire context and periodic refresh — 2026-11-12
 
 The operator replaces the once-per-occurrence RDAP-only product target with a

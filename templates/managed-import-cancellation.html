@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "ip-item.html" import item as ip_item %}
 {% from "pagination-ui.html" import post_pager %}
 {% block content %}
 <h1>Current import cancellation status</h1>
@@ -10,7 +11,7 @@
 <p>Initial decision recorded <time class="local-timestamp" datetime="{{ status.initial_receipt.requested_at }}">{{ status.initial_receipt.requested_at }}</time>. Counts below reflect current settlement, not the initial receipt.</p>
 {{ post_pager(status.page, status.pages, 'import-cancellation-pages', '/managed-imports/cancellation', 'Cancellation pages', 'top') }}
 <div class="table-scroll"><table aria-label="Cancellation settlement"><thead><tr><th>Device</th><th>IPv4</th><th>Disposition</th><th>Last settled / updated</th></tr></thead><tbody>
-{% for target in status.targets %}<tr><td>{{ target.device_id }}</td><td>{{ target.ip }}</td><td><span class="state-badge{% if target.attention %} policy-disabled{% elif target.state.startswith('RETAINED_') %} policy-enabled{% endif %}">{{ target.state }}</span>{% if target.attention %} Needs attention{% endif %}</td><td><time class="local-timestamp" datetime="{{ target.updated_at }}">{{ target.updated_at }}</time></td></tr>{% endfor %}
+{% for target in status.targets %}<tr><td>{{ target.device_id }}</td><td>{{ ip_item(target.ip, ip_context) }}</td><td><span class="state-badge{% if target.attention %} policy-disabled{% elif target.state.startswith('RETAINED_') %} policy-enabled{% endif %}">{{ target.state }}</span>{% if target.attention %} Needs attention{% endif %}</td><td><time class="local-timestamp" datetime="{{ target.updated_at }}">{{ target.updated_at }}</time></td></tr>{% endfor %}
 </tbody></table></div>
 {{ post_pager(status.page, status.pages, 'import-cancellation-pages', '/managed-imports/cancellation', 'Cancellation pages', 'bottom') }}
 {% endif %}

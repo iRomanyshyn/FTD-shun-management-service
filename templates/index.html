@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% from "observed-shun-actions.html" import badge, actions %}
 {% from "pagination-ui.html" import pager %}
-{% from "ip-context.html" import inline %}
+{% from "ip-item.html" import item as ip_item %}
 {% set list_path = shun_path | default('/') %}
 {% block content %}
 <div class="page-heading"><h1>{{ 'Unmanaged shuns' if unmanaged_view else 'Shuns' }}</h1>
@@ -31,7 +31,7 @@
 {% if search_results %}
 <div class="table-scroll" role="region" aria-label="IP search results" tabindex="0"><table class="data-table"><thead><tr><th>IP address</th><th>State</th><th>Protection</th><th>Last seen</th><th>Last removed</th><th>Latest event</th><th>Devices</th></tr></thead><tbody>
 {% for result in search_results %}<tr{% if result.protected %} class="protected-shun"{% elif result.active and result.ip in disabled_policy_ips %} class="disabled-protection-shun"{% endif %}>
-<td><a href="/shuns/{{ result.ip }}">{{ result.ip }}</a></td>
+<td>{{ ip_item(result.ip, ip_context) }}</td>
 <td>{% if result.active %}<strong class="current-state">Current shun</strong>{% elif result.last_seen_at %}<span class="historical-state">Historical — not currently shunned</span>{% else %}<span class="historical-state">Not currently shunned</span>{% endif %}</td>
 <td>{% if result.protected %}<span class="protected-ip-badge">Protected IP</span>{% elif result.ip in disabled_policy_ips %}<span class="state-badge policy-disabled">Protection disabled</span>{% else %}—{% endif %}</td>
 <td>{% if result.last_seen_at %}<time class="local-timestamp" datetime="{{ result.last_seen_at }}">{{ result.last_seen_at }}</time>{% else %}—{% endif %}</td>
@@ -54,7 +54,7 @@
 <details class="list-help" id="shun-order-help"><summary>Protected first · newest observations first</summary><p>Protected IPs (including disabled) first; newest detections first. Times reflect service observations, not device creation. Live list: new detections and removals may move entries between pages. IP search checks the whole retained dataset, not just this page.</p></details>
 <div class="table-scroll" role="region" aria-label="{{ 'Unmanaged shuns' if unmanaged_view else 'Current shuns' }}" tabindex="0"><table class="data-table shuns-table"><thead><tr><th>IP address / labels</th><th>Device</th><th>Interface</th><th>Observed since</th><th>Last seen</th><th>Action</th></tr></thead>
 <tbody>{% for shun in shuns %}<tr{% if shun.ip in trusted_policy_ips %} class="protected-shun"{% elif shun.ip in disabled_policy_ips %} class="disabled-protection-shun"{% endif %}>
-<td><div class="ip-summary"><div class="ip-address-context"><a href="/shuns/{{ shun.ip }}">{{ shun.ip }}</a>{{ inline(shun.ip, ip_context) }}</div><div class="ip-badges">{{ badge(shun) }}{% if shun.ip in trusted_policy_ips %}<span class="protected-ip-badge">Protected IP</span>{% elif shun.ip in disabled_policy_ips %}<span class="state-badge policy-disabled" title="Automatic removal is off for this address.">Protection disabled</span>{% endif %}{% include "import-origin.html" %}</div></div></td><td>{{ shun.device_hostname }}</td><td><span class="interface-name">{{ shun.interface }}</span></td><td>{% set observed_since = shun.active_since_at | default(shun.first_seen_at) %}<time class="local-timestamp" datetime="{{ observed_since }}">{{ observed_since }}</time></td><td><time class="local-timestamp" datetime="{{ shun.last_seen_at }}">{{ shun.last_seen_at }}</time></td>
+<td>{% call ip_item(shun.ip, ip_context) %}{{ badge(shun) }}{% if shun.ip in trusted_policy_ips %}<span class="protected-ip-badge">Protected IP</span>{% elif shun.ip in disabled_policy_ips %}<span class="state-badge policy-disabled" title="Automatic removal is off for this address.">Protection disabled</span>{% endif %}{% include "import-origin.html" %}{% endcall %}</td><td>{{ shun.device_hostname }}</td><td><span class="interface-name">{{ shun.interface }}</span></td><td>{% set observed_since = shun.active_since_at | default(shun.first_seen_at) %}<time class="local-timestamp" datetime="{{ observed_since }}">{{ observed_since }}</time></td><td><time class="local-timestamp" datetime="{{ shun.last_seen_at }}">{{ shun.last_seen_at }}</time></td>
 <td>{{ actions(shun, identity, refresh, csrf_token, new_operation_key) }}</td>
 </tr>{% endfor %}</tbody></table></div>
 {% else %}<p>{{ 'No current unmanaged shuns. Active service-maintained blocks are still visible in Shuns and Managed shuns.' if unmanaged_view else 'No active shuns are currently recorded.' }}</p>{% endif %}

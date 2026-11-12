@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}FTD Shun Manager{% endblock %}</title>
     <link rel="stylesheet" href="/static/app.css">
+    <script src="/static/ui-state.js" defer></script>
+    <script src="/static/ip-dialog.js" defer></script>
   </head>
   <body>
     <div class="navigation-loading" data-navigation-loading hidden role="status" aria-live="polite"><span class="navigation-loading-bar" aria-hidden="true"></span><span data-navigation-message>Loading…</span></div>
@@ -26,6 +28,11 @@
       <p data-action-status role="status" aria-live="polite" hidden></p>
       <div data-action-content></div>
       <button type="button" data-action-retry hidden>Retry the same request</button>
+    </dialog>
+    <dialog class="action-dialog ip-dialog" data-ip-dialog aria-labelledby="ip-dialog-title">
+      <div class="action-dialog-header"><h2 id="ip-dialog-title">IP details</h2><div class="ip-dialog-controls"><a data-ip-full-page href="/">Open page</a><button type="button" data-ip-close>Close</button></div></div>
+      <p data-ip-status role="status" aria-live="polite" hidden></p>
+      <div data-ip-content></div><button type="button" data-ip-retry hidden>Retry loading</button>
     </dialog>
     <script src="/static/action-dialog.js" defer></script>
     <script src="/static/navigation.js" defer></script>

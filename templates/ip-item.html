@@ -1,0 +1,4 @@
+{% from "ip-context.html" import inline %}
+{% macro item(ip, contexts=none) -%}
+<span class="ip-item ip-summary" data-ip="{{ ip }}" data-ip-context-list><span class="ip-item-heading"><a href="/shuns/{{ ip }}" data-ip-link>{{ ip }}</a>{% if caller is defined %}<span class="ip-badges">{{ caller() }}</span>{% endif %}</span>{{ inline(ip, contexts or {}) }}</span>
+{%- endmacro %}

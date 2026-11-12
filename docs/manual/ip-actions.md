@@ -34,3 +34,13 @@ Browser form errors show a human-readable HTML message rather than raw JSON.
 Explicit JSON clients retain structured errors. The optional
 [IP registration component](ip-context.md) supplies cached country, ASN and network context in
 lists and dialogs. Opening an action never starts an external lookup.
+
+## IP details without leaving the list
+
+Follow an IP link to open its complete workspace over the current page. The URL
+changes to `/shuns/<IP>` for copying. Back/Close or a click on the backdrop returns to the original list,
+including its page/query/scroll; Forward reopens the frame. Open page or a copied
+link opens the ordinary full page. Modified clicks retain normal browser behavior.
+The frame only GETs local state. Existing action dialogs still require their
+original explicit confirmation; IP details may be inspected above a review
+without replacing its token or submitting it. Frozen reviews never auto-refresh.

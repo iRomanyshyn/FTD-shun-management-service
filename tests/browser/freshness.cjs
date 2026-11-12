@@ -300,6 +300,11 @@ async function connectPage(debugOrigin, url, readySelector = "[data-refresh-requ
 }
 
 test("refresh interaction in real Chromium", { timeout: 240000 }, async (t) => {
+  if (process.env.FTD_BROWSER_CASE_PATTERN) {
+    const pattern = new RegExp(process.env.FTD_BROWSER_CASE_PATTERN);
+    const run = t.test.bind(t);
+    t.test = (name, ...args) => pattern.test(name) ? run(name, ...args) : run(name, {skip:true}, () => {});
+  }
   let status = initial();
   let generation = 1;
   let failStatus = false;
@@ -348,6 +353,9 @@ test("refresh interaction in real Chromium", { timeout: 240000 }, async (t) => {
     if (url.pathname === "/static/app.css") {
       response.setHeader("Content-Type", "text/css");
       response.end(fs.readFileSync(path.join(root, "static/app.css")));
+    } else if (["/static/ip-dialog.js", "/static/ui-state.js"].includes(url.pathname)) {
+      response.setHeader("Content-Type", "text/javascript");
+      response.end(fs.readFileSync(path.join(root, url.pathname)));
     } else if (url.pathname === "/static/navigation.js") {
       response.setHeader("Content-Type", "text/javascript");
       response.end(fs.readFileSync(path.join(root, "static/navigation.js")));
@@ -1048,12 +1056,95 @@ test("refresh interaction in real Chromium", { timeout: 240000 }, async (t) => {
         await page.until("document.querySelector('dialog[open] .ip-context-card')");
         assert.match(await page.evaluate("document.querySelector('dialog .ip-context-card').textContent"), /Country: UA/);
         assert.match(await page.evaluate("document.querySelector('dialog .ip-context-card').textContent"), /CC BY-SA 4.0/);
+        assert.equal(await page.evaluate("document.querySelector('dialog .ip-context-card a').href"),
+          'https://www.ipfire.org/location/lookup/198.51.100.10');
         assert.equal(await page.evaluate("document.querySelectorAll('dialog img').length"), 0);
         await page.call('Emulation.setDeviceMetricsOverride', {width:375,height:800,deviceScaleFactor:1,mobile:true});
         await screenshot(page,'ipfire-dialog-375');
         await page.evaluate("document.querySelector('[data-action-close]').click()");
         assert.equal(removalKeys.length,before);
       } finally { await page.close(); }
+    });
+    await t.test('IP badges do not move when cached context arrives or disappears', async () => {
+      status = {...initial(), fixture_maintained:true,fixture_ip_context:{},ip_context_revision:0};
+      const page = await connectPage(debugOrigin, origin);
+      try {
+        const bounds = () => page.evaluate(`(() => {
+          const row=document.querySelector('#active-shuns tbody tr');
+          const badge=row.querySelector('.ip-badges .state-badge').getBoundingClientRect();
+          const tile=row.querySelector('.ip-item').getBoundingClientRect();
+          return {left:badge.left-tile.left,top:badge.top-tile.top,height:row.getBoundingClientRect().height};
+        })()`);
+        const before = await bounds();
+        status.fixture_ip_context={'198.51.100.10':{state:'ready',country:'UA',asn:6849,organization:'A very long network operator name',registry:'IPFire Location'}};
+        status.ip_context_revision=1;status.status_revision+=1;
+        await wake(page);
+        await page.until("document.querySelector('#active-shuns .ip-context-inline').textContent.includes('AS6849')");
+        const after = await bounds();
+        for (const key of ['left','top','height']) assert.ok(Math.abs(before[key]-after[key])<1, key);
+        status.fixture_ip_context={};status.ip_context_revision=2;status.status_revision+=1;
+        await wake(page);
+        await page.until("document.querySelector('#active-shuns .ip-context-inline').textContent.includes('No cached')");
+        assert.deepEqual(await bounds(),before);
+      } finally { await page.close();status=initial(); }
+    });
+    await t.test('IP overlay has a shareable URL, Back/Forward, independent refresh and stable disclosures', async () => {
+      status={...initial(),fixture_ip_context:{'198.51.100.10':{state:'ready',country:'UA',asn:6849,
+        organization:'Example AS',registry:'IPFire Location',source:'https://www.ipfire.org/location/',
+        provider:'ipfire-location-v1',network:'198.51.100.0/24',database_at:'2026-11-12T04:45:06Z'}},ip_context_revision:1};
+      const page=await connectPage(debugOrigin,origin+'/?q=198.51');
+      const writes=postCount,removals=removalKeys.length;
+      try {
+        await page.evaluate("document.querySelector('#active-shuns [data-ip-link]').click()");
+        await page.until("document.querySelector('[data-ip-dialog][open] [data-ip-content] h1') && location.pathname==='/shuns/198.51.100.10'");
+        assert.equal(await page.evaluate("document.querySelectorAll('[data-ip-dialog] [data-refresh-controller], [data-ip-dialog] [data-live-region]').length"),0);
+        assert.equal(await page.evaluate("new Set([...document.querySelectorAll('[id]')].map(n=>n.id)).size===document.querySelectorAll('[id]').length"),true);
+        await page.call('Emulation.setDeviceMetricsOverride', {width:375,height:800,deviceScaleFactor:1,mobile:true});
+        assert.ok(await page.evaluate("(() => { const r=document.querySelector('[data-ip-dialog]').getBoundingClientRect(); return r.left>=0 && r.right<=innerWidth && r.top>=0 && r.bottom<=innerHeight; })()"));
+        await screenshot(page,'ip-overlay-375');
+        await page.evaluate("document.querySelector('[data-ip-dialog] .ip-context-card details').open=true; document.querySelector('[data-ip-dialog] .ip-context-card summary').focus()");
+        generation+=1;status.data_revision+=1;status.status_revision+=1;
+        await wake(page);
+        await page.until(`document.querySelector('#active-shuns').textContent.includes('FIXTURE_EVENT_${generation}')`);
+        await page.until(`document.querySelector('[data-ip-dialog] [data-ip-content]').textContent.includes('FIXTURE_EVENT_${generation}')`);
+        assert.equal(await page.evaluate("document.querySelector('[data-ip-dialog] .ip-context-card details').open"),true);
+        assert.equal(await page.evaluate("document.activeElement===document.querySelector('[data-ip-dialog] .ip-context-card summary')"),true);
+        assert.equal(await page.evaluate('location.pathname'),'/shuns/198.51.100.10');
+        await page.evaluate('history.back()');
+        await page.until("!document.querySelector('[data-ip-dialog]').open && location.search==='?q=198.51'");
+        assert.equal(await page.evaluate("document.activeElement?.getAttribute('href')"),'/shuns/198.51.100.10');
+        await page.evaluate('history.forward()');
+        await page.until("document.querySelector('[data-ip-dialog][open] [data-ip-content] h1')");
+        const box=await page.evaluate("(() => {const r=document.querySelector('[data-ip-dialog]').getBoundingClientRect(); return {x:r.left+3,y:r.top+3};})()");
+        const mouse=async(type,x,y,buttons)=>page.call('Input.dispatchMouseEvent',{type,x,y,button:'left',buttons,clickCount:1});
+        await mouse('mousePressed',box.x,box.y,1);await mouse('mouseReleased',box.x,box.y,0);
+        assert.equal(await page.evaluate("document.querySelector('[data-ip-dialog]').open"),true,'dialog padding is inside');
+        await mouse('mousePressed',box.x,box.y,1);await mouse('mouseMoved',1,1,1);await mouse('mouseReleased',1,1,0);
+        assert.equal(await page.evaluate("document.querySelector('[data-ip-dialog]').open"),true,'drag from inside does not dismiss');
+        await mouse('mousePressed',1,1,1);await mouse('mouseReleased',1,1,0);
+        await page.until("!document.querySelector('[data-ip-dialog]').open && location.pathname==='/'");
+        assert.equal(postCount,writes);assert.equal(removalKeys.length,removals);
+        await page.evaluate("document.querySelector('#active-shuns [data-open-action] button').click()");
+        await page.until("document.querySelector('[data-action-dialog][open] [name=confirm_action]')");
+        const frozen=await page.evaluate("document.querySelector('[data-action-dialog] [name=request_id]').value");
+        await page.evaluate("document.querySelector('[data-action-dialog] a[href^=\"/shuns/\"]').click()");
+        await page.until("document.querySelector('[data-ip-dialog][open] [data-ip-content] h1')");
+        await page.evaluate("document.querySelector('[data-ip-close]').click()");
+        await page.until("!document.querySelector('[data-ip-dialog]').open");
+        assert.equal(await page.evaluate("document.querySelector('[data-action-dialog] [name=request_id]').value"),frozen);
+        await page.evaluate("document.querySelector('[data-action-close]').click()");
+        // Direct copied links remain complete pages, and anonymous disclosures
+        // survive both live replacement and an explicit same-tab reload.
+        await page.call('Page.navigate',{url:origin+'/shuns/198.51.100.10'});
+        await page.until("document.querySelector('#ip-registration .ip-context-card details') && document.querySelector('[data-refresh-controller]')");
+        await page.evaluate("document.querySelector('#ip-registration details').open=true");
+        await page.until("Object.values(JSON.parse(sessionStorage.getItem('ftd-disclosures:/shuns/198.51.100.10')||'{}')).includes(true)");
+        generation+=1;status.data_revision+=1;status.status_revision+=1;await wake(page);
+        await page.until(`document.querySelector('#device-shuns').textContent.includes('FIXTURE_EVENT_${generation}')`);
+        assert.equal(await page.evaluate("document.querySelector('#ip-registration details').open"),true);
+        await page.call('Page.reload');
+        await page.until("document.querySelector('#ip-registration details')?.open===true");
+      } finally { await page.close();status=initial(); }
     });
     await t.test('row unblock opens a stable responsive dialog; closing never submits', async () => {
       status = initial();

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "ip-item.html" import item as ip_item %}
 {% block content %}
 {% set scope = inspection.scope %}
 {% set admission = review and ordered_removal_local_enabled and refresh and refresh.ordered_removal_admission_enabled is sameas true and refresh.ordered_removal_promotion_enabled is sameas true %}
@@ -40,7 +41,7 @@
 {% if inspection.global_blockers %}<p class="preview-error">A system-wide restriction prevents this request. Inspect Status before trying again.</p>{% endif %}
 <div class="table-scroll"><table aria-label="Frozen ordered removal scope"><thead><tr><th>Device / IP</th><th>Current block / auto-restore</th><th>Next step</th></tr></thead><tbody>
 {% for target in scope.targets %}{% set item = inspection.targets[loop.index0] %}<tr>
-<td>{{ target.hostname }} ({{ target.device_id }})<br>{{ scope.ip }}<br>{{ 'Device enabled' if target.device_enabled else 'Device disabled — blocks entire scope' }}</td>
+<td>{{ target.hostname }} ({{ target.device_id }})<br>{{ ip_item(scope.ip, ip_context) }}<br>{{ 'Device enabled' if target.device_enabled else 'Device disabled — blocks entire scope' }}</td>
 <td>{{ 'Auto-restore on — will turn off' if target.maintenance_enabled else 'Auto-restore off — remove block only' }}<br>{{ 'Observed present' if target.observed_present else 'Not currently observed — retained scope' }}</td>
 <td><span class="state-badge {{ 'policy-disabled' if item.disposition == 'BLOCKED' else '' }}">{{ 'Needs attention' if item.disposition == 'BLOCKED' else 'Wait for confirmation' if item.predecessor and item.predecessor.kind | default('RUNNING') == 'AWAITING_CONFIRMATION' else 'Wait for addition' if item.disposition == 'WAITING_ADD' else 'Ready to unblock' }}</span>{% for blocker in item.blockers %}<p>{{ blocker_labels[blocker] }}</p>{% endfor %}</td>
 </tr>{% endfor %}</tbody></table></div>

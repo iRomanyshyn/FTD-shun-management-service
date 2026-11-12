@@ -1103,3 +1103,17 @@ bounded query validation and BFF authentication/canonical links. Chromium
 navigates a 251-event fixture, observes the live 252nd event without moving an
 older page, and measures unchanged search coordinates during refresh, device/
 queue errors and network failure at 1100px and 375px viewport widths.
+
+## Focused browser cases
+
+For a specific presentation regression, set `FTD_BROWSER_CASE_PATTERN` to a regular
+expression matching subtest names, for example:
+
+```sh
+FTD_BROWSER_CASE_PATTERN='IP overlay|IP badges' node --test tests/browser/freshness.cjs
+```
+
+Other cases are reported skipped; do not describe that as a full browser run.
+The synthetic server must serve every production asset used by base.html,
+including ui-state.js and ip-dialog.js. Final full-browser regression runs omit
+the filter. No live identity, device or environment file is used by these cases.
