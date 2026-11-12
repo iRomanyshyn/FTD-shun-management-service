@@ -79,6 +79,9 @@ if p["template"] in ("bulk-removal-review.html", "bulk-ordered-review.html", "bu
             snapshot_at="2026-10-21T12:00:00.000Z",requested_at="2026-10-21T12:00:00.000Z",expires_at="2026-10-21T12:15:00.000Z",
             started_at="2026-10-21T12:00:01.000Z",executor_owner="66666666-6666-4666-8666-666666666666",executor_epoch=1,
             lease_until="2026-10-21T12:02:15.000Z",claim_event_id="77777777-7777-4777-8777-777777777777",evidence_digest="a"*64)
+        if p["refresh"].get("fixture_pending_capture"):
+            predecessor.pop("lease_until")
+            predecessor.update(kind="AWAITING_CONFIRMATION",pending_session_id="88888888-8888-4888-8888-888888888888",settled_at="2026-10-21T12:00:01.500Z")
         inspection = dict(intent_format=2,mode="ordered-removal-preflight",inspected_at="2026-10-21T12:00:02.000Z",
             scope=scope,scope_digest=canonical_scope(scope)[1],targets=[dict(device_id=i,disposition="WAITING_ADD" if i==1 else "READY",
                 blockers=[],predecessor=predecessor if i==1 else None) for i in (1,2)],global_blockers=[],blocked_target_count=0,
@@ -195,6 +198,9 @@ if p["template"] in ("bulk-import-workspace.html", "bulk-import-report.html", "b
                 targets=projected[(current-1)*100:current*100])
             validate_status(bulk_cancellation,cancel_key,current)
 print(templates.get_template(p["template"]).render(identity=Identity("test", "Test Operator", ("Operator",)),
+    ip_context=p["refresh"].get("fixture_ip_context",{}),ip_context_enabled="fixture_ip_context" in p["refresh"],
+    ip_context_target=shun["ip"] if "fixture_ip_context" in p["refresh"] else None,
+    targets=[dict(device_hostname="lab-ftd",interface="outside")],device_id=1,request_id=p.get("request_id",""),target="/shuns/198.51.100.10",
     review=review, report=managed_import_report, accepted=None, result=None, confirm_ip="", message=None, admission_enabled=p["refresh"].get("managed_policy_admission_enabled" if p["template"] == "managed-import-review.html" else "import_admission_enabled", False),
     retry_available=p["refresh"].get("import_admission_enabled", False), execution_enabled=False,
     removal_admission_enabled=p["refresh"].get("managed_removal_admission_enabled", False),
@@ -345,6 +351,9 @@ test("refresh interaction in real Chromium", { timeout: 240000 }, async (t) => {
     } else if (url.pathname === "/static/navigation.js") {
       response.setHeader("Content-Type", "text/javascript");
       response.end(fs.readFileSync(path.join(root, "static/navigation.js")));
+    } else if (url.pathname === "/static/action-dialog.js") {
+      response.setHeader("Content-Type", "text/javascript");
+      response.end(fs.readFileSync(path.join(root, "static/action-dialog.js")));
     } else if (url.pathname === "/static/freshness.js") {
       response.setHeader("Content-Type", "text/javascript");
       response.end(fs.readFileSync(path.join(root, "static/freshness.js")));
@@ -387,6 +396,14 @@ test("refresh interaction in real Chromium", { timeout: 240000 }, async (t) => {
       for await (const chunk of request) body += chunk;
       assert.ok(body.includes("fixture-token"));
       const key = body.match(/name="request_id"\r\n\r\n([^\r\n]+)/)[1];
+      const html = request.headers.accept?.includes('text/html');
+      if (html && !body.includes('name="confirm_action"')) {
+        response.setHeader('Content-Type', 'text/html; charset=utf-8');
+        response.end(execFileSync('python3', ['-c', renderScript], { cwd: root, encoding: 'utf8', input: JSON.stringify({
+          template: 'unmanaged-unblock-review.html', refresh: stamp(), generation, query: '', request_id: key,
+        }) }));
+        return;
+      }
       removalKeys.push(key);
       if (!status.queue.items.length) {
         status.queue.items.push({ id: "job-1", device_id: 1, hostname: "lab-ftd", ip: "198.51.100.10",
@@ -396,6 +413,15 @@ test("refresh interaction in real Chromium", { timeout: 240000 }, async (t) => {
       }
       status.queue.revision += 1;
       status.status_revision += 1;
+      if (html) {
+        response.statusCode = failQueueReply ? 503 : 200;
+        response.setHeader('Content-Type','text/html; charset=utf-8');
+        response.end(failQueueReply ? '<main><h1>Request unavailable</h1><p>Admission reply lost.</p></main>'
+          : execFileSync('python3', ['-c', renderScript], {cwd:root,encoding:'utf8',input:JSON.stringify({
+            template:'action-result.html',refresh:stamp(),generation,query:'',
+          })}));
+        return;
+      }
       response.setHeader("Content-Type", "application/json");
       response.statusCode = failQueueReply ? 503 : 200;
       response.end(JSON.stringify(failQueueReply ? { detail: "Admission reply lost. Retry the same request." } : stamp()));
@@ -707,16 +733,16 @@ test("refresh interaction in real Chromium", { timeout: 240000 }, async (t) => {
       const before = removalKeys.length;
       const page = await connectPage(debugOrigin, origin);
       try {
-        const action = "document.querySelector('#active-shuns .table-action')";
+        const action = "document.querySelector('#active-shuns .row-ip-actions .text-action')";
         assert.equal(await page.evaluate(`${action}.getAttribute('href')`), '/shuns/198.51.100.10#ip-actions');
-        assert.equal(await page.evaluate(`${action}.textContent`), 'Manage IP');
+        assert.equal(await page.evaluate(`${action}.textContent`), 'Details');
         const managedColor = await page.evaluate("getComputedStyle(document.querySelector('#active-shuns .maintenance-enabled')).color");
         assert.equal(await page.evaluate("Boolean(document.querySelector('#active-shuns [data-queue-form]'))"), false);
         status.fixture_maintained = false;
         complete(); await wake(page);
         await page.until("Boolean(document.querySelector('#active-shuns .maintenance-unmanaged'))");
         assert.notEqual(await page.evaluate("getComputedStyle(document.querySelector('#active-shuns .maintenance-unmanaged')).color"), managedColor);
-        assert.equal(await page.evaluate(`${action}.textContent`), 'Manage IP');
+        assert.equal(await page.evaluate(`${action}.textContent`), 'Details');
         await page.call('Page.navigate', { url: `${origin}/shuns/198.51.100.10` });
         await page.until("Boolean(document.querySelector('#ip-actions form[action=\"/ip-actions/unblock\"]'))");
         assert.equal(await page.evaluate("document.querySelector('#ip-actions [name=target]').value"), '1:198.51.100.10');
@@ -921,7 +947,6 @@ test("refresh interaction in real Chromium", { timeout: 240000 }, async (t) => {
     await t.test("same errors update again; recovery and restart update without navigation", async () => {
       const page = await connectPage(debugOrigin, `${origin}/shuns/198.51.100.10`);
       try {
-        await page.evaluate("document.querySelector('[name=confirm_ip]').value='198.51.100'; document.querySelector('[name=confirm_ip]').focus()");
         complete("failed");
         await wake(page);
         await page.until(`document.querySelector('#ip-history').textContent.includes('FIXTURE_EVENT_${generation}')`);
@@ -930,8 +955,7 @@ test("refresh interaction in real Chromium", { timeout: 240000 }, async (t) => {
         await wake(page);
         await page.until(`document.querySelector('#ip-history').textContent.includes('FIXTURE_EVENT_${generation}')`);
         assert.ok(pageReads > before, "Identical failure still updates data by revision");
-        assert.equal(await page.evaluate("document.querySelector('[name=confirm_ip]').value"), "198.51.100");
-        assert.equal(await page.evaluate("document.activeElement.name"), "confirm_ip");
+        assert.equal(await page.evaluate("document.querySelector('main [name=confirm_ip]')"), null);
         failStatus = true;
         await wake(page);
         await page.until("!document.querySelector('[data-read-retry]').hidden");
@@ -942,7 +966,7 @@ test("refresh interaction in real Chromium", { timeout: 240000 }, async (t) => {
         generation += 1;
         await wake(page);
         await page.until(`document.querySelector('#ip-history').textContent.includes('FIXTURE_EVENT_${generation}')`);
-        assert.equal(await page.evaluate("document.querySelector('[name=confirm_ip]').value"), "198.51.100");
+        assert.equal(await page.evaluate("document.querySelector('main [name=confirm_ip]')"), null);
       } finally { await page.close(); }
     });
 
@@ -984,6 +1008,81 @@ test("refresh interaction in real Chromium", { timeout: 240000 }, async (t) => {
         await first.until("document.querySelector('[data-refresh-request]').textContent==='Refreshing…'");
       } finally { await first.close(); await second.close(); }
     });
+    await t.test('cached IP registration updates independently of device revisions, including the action dialog', async () => {
+      status = {...initial(), fixture_ip_context: {}, ip_context_revision: 0};
+      const page = await connectPage(debugOrigin, origin);
+      const before = removalKeys.length;
+      try {
+        const data = status.data_revision, reads = pageReads;
+        status.fixture_ip_context = {'198.51.100.10': {state:'ready',country:'UA',organization:'<Example Network>',network:'EXAMPLE',
+          registry:'RIPE NCC',source:'https://rdap.db.ripe.net/ip/198.51.100.10',range_start:'198.51.100.0',range_end:'198.51.100.255',
+          fetched_at:'2026-11-12T12:00:00Z'}};
+        status.ip_context_revision = 1; status.status_revision += 1;
+        await wake(page);
+        await page.until("document.querySelector('.ip-context-inline')?.textContent.includes('UA')");
+        assert.equal(status.data_revision, data);
+        assert.ok(pageReads > reads);
+        assert.equal(await page.evaluate("document.querySelectorAll('#active-shuns img').length"), 0);
+        assert.match(await page.evaluate("document.querySelector('.ip-context-inline').textContent"), /<Example Network>/);
+        await page.evaluate("document.querySelector('#active-shuns [data-open-action] button').click()");
+        await page.until("document.querySelector('dialog[open] .ip-context-card')");
+        assert.equal(await page.evaluate("document.querySelectorAll('dialog img').length"), 0);
+        assert.match(await page.evaluate("document.querySelector('dialog .ip-context-card').textContent"), /Registration country: UA/);
+        await page.call('Emulation.setDeviceMetricsOverride', {width:375,height:800,deviceScaleFactor:1,mobile:true});
+        await screenshot(page,'rdap-dialog-375');
+        await page.evaluate("document.querySelector('[data-action-close]').click()");
+        assert.equal(removalKeys.length, before);
+      } finally { await page.close(); }
+    });
+    await t.test('local IPFire country and ASN fit compact rows and unblock dialogs', async () => {
+      status = {...initial(), ip_context_revision: 2, fixture_ip_context: {'198.51.100.10': {
+        state:'ready',provider:'ipfire-location-v1',country:'UA',asn:6849,organization:'<Example AS>',
+        network:'198.51.100.0/24',range_start:'198.51.100.0',range_end:'198.51.100.255',
+        source:'https://www.ipfire.org/location/',registry:'IPFire Location',
+        fetched_at:'2026-11-12T12:00:00Z',database_at:'2026-11-12T04:45:06Z'}}};
+      const page = await connectPage(debugOrigin, origin);
+      const before = removalKeys.length;
+      try {
+        await page.until("document.querySelector('.ip-context-inline')?.textContent.includes('AS6849')");
+        await page.evaluate("document.querySelector('#active-shuns [data-open-action] button').click()");
+        await page.until("document.querySelector('dialog[open] .ip-context-card')");
+        assert.match(await page.evaluate("document.querySelector('dialog .ip-context-card').textContent"), /Country: UA/);
+        assert.match(await page.evaluate("document.querySelector('dialog .ip-context-card').textContent"), /CC BY-SA 4.0/);
+        assert.equal(await page.evaluate("document.querySelectorAll('dialog img').length"), 0);
+        await page.call('Emulation.setDeviceMetricsOverride', {width:375,height:800,deviceScaleFactor:1,mobile:true});
+        await screenshot(page,'ipfire-dialog-375');
+        await page.evaluate("document.querySelector('[data-action-close]').click()");
+        assert.equal(removalKeys.length,before);
+      } finally { await page.close(); }
+    });
+    await t.test('row unblock opens a stable responsive dialog; closing never submits', async () => {
+      status = initial();
+      const page = await connectPage(debugOrigin, origin);
+      const before = removalKeys.length;
+      try {
+        await page.evaluate("document.querySelector('#active-shuns [data-open-action] button').click()");
+        await page.until("document.querySelector('dialog[open] [name=confirm_action]')");
+        const original = await page.evaluate("document.querySelector('dialog [name=request_id]').value");
+        assert.equal(await page.evaluate("location.pathname"), '/');
+        assert.equal(await page.evaluate("document.querySelectorAll('dialog [name=confirm_ip]').length"), 0);
+        assert.equal(await page.evaluate("document.querySelectorAll('dialog [data-refresh-controller]').length"), 0);
+        for (const width of [1200, 375]) {
+          await page.call('Emulation.setDeviceMetricsOverride', {width,height:800,deviceScaleFactor:1,mobile:width===375});
+          for (const scheme of ['light', 'dark']) {
+            await page.call('Emulation.setEmulatedMedia', {features:[{name:'prefers-color-scheme',value:scheme}]});
+            assert.ok(await page.evaluate("(() => { const box=document.querySelector('dialog').getBoundingClientRect(); return box.left>=0 && box.right<=innerWidth && box.top>=0 && box.bottom<=innerHeight; })()"));
+            await screenshot(page, `unblock-dialog-${width}-${scheme}`);
+          }
+        }
+        generation += 1; status.data_revision += 1; await wake(page); await delay(300);
+        assert.equal(await page.evaluate("document.querySelector('dialog').open"), true);
+        assert.equal(await page.evaluate("document.querySelector('dialog [name=request_id]').value"), original);
+        await page.call('Input.dispatchKeyEvent', {type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
+        await page.call('Input.dispatchKeyEvent', {type:'keyUp',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
+        await page.until("!document.querySelector('dialog').open");
+        assert.equal(removalKeys.length, before);
+      } finally { await page.close(); }
+    });
     await t.test("queued admission survives lost reply and DOM refresh; cancellation updates progress", async () => {
       status = initial();
       status.instance_id = "instance-4";
@@ -991,15 +1090,18 @@ test("refresh interaction in real Chromium", { timeout: 240000 }, async (t) => {
       try {
         failQueueReply = true;
         await page.evaluate("document.querySelector('[data-queue-form]').requestSubmit()");
-        await page.until("document.querySelector('[data-refresh-message]').textContent.includes('Admission reply lost')");
+        await page.until("document.querySelector('dialog[open] [name=confirm_action]')");
+        await page.evaluate("document.querySelector('dialog [name=confirm_action]').click()");
+        await page.until("!document.querySelector('[data-action-retry]').hidden");
         failQueueReply = false;
         await wake(page);
         await page.until("document.querySelector('[data-operation-queue]').textContent.includes('QUEUED')");
         assert.equal(await page.evaluate("document.querySelectorAll('[data-operation-queue] tr').length"), 1);
         // The partial render produces a fresh form UUID, but an unknown
         // admission retries with the original operation key.
-        await page.evaluate("document.querySelector('[data-queue-form]').requestSubmit()");
-        await page.until("document.querySelector('[data-refresh-message]').textContent==='Refresh completed.'");
+        await page.evaluate("document.querySelector('[data-action-retry]').click()");
+        await page.until("document.querySelector('dialog [data-action-receipt]')");
+        await page.evaluate("document.querySelector('[data-action-close]').click()");
         assert.equal(removalKeys.length, 2);
         assert.equal(removalKeys[0], removalKeys[1]);
         await page.evaluate("document.querySelector('[data-operation-cancel]').click()");
@@ -1431,9 +1533,9 @@ test("refresh interaction in real Chromium", { timeout: 240000 }, async (t) => {
         assert.equal(await page.evaluate("document.querySelector('#unblock-technical-details').open"), false);
         assert.equal(await page.evaluate("Boolean(document.querySelector('.import-confirm-form').closest('details'))"), false);
         assert.equal(await page.evaluate("document.querySelectorAll('td b').length"), 0);
-        assert.equal(await page.evaluate("document.querySelector('.import-confirm-form').checkValidity()"), false);
+        assert.equal(await page.evaluate("document.querySelector('.import-confirm-form').checkValidity()"), true);
         const key = await page.evaluate("document.querySelector('input[name=review]').value");
-        await page.evaluate("document.querySelector('#confirm-ready-ip').value='198.51.100.251'; document.querySelector('#confirm-ready-ip').focus()");
+        await page.evaluate("document.querySelector('main h1').tabIndex=-1; document.querySelector('main h1').focus()");
         const reads = pageReads;
         status.data_revision += 1;
         status.status_revision += 1;
@@ -1441,13 +1543,13 @@ test("refresh interaction in real Chromium", { timeout: 240000 }, async (t) => {
         await delay(300);
         assert.equal(pageReads, reads);
         assert.equal(await page.evaluate("document.querySelector('input[name=review]').value"), key);
-        assert.equal(await page.evaluate("document.querySelector('#confirm-ready-ip').value"), "198.51.100.251");
-        assert.equal(await page.evaluate("document.activeElement.id"), "confirm-ready-ip");
+        assert.equal(await page.evaluate("document.querySelectorAll('input[name=confirm_ip]').length"), 0);
+        assert.equal(await page.evaluate("document.activeElement.tagName"), "H1");
         assert.equal(await page.evaluate("document.querySelector('.import-confirm-form').checkValidity()"), true);
         for (const width of [1100, 375]) {
           await page.call("Emulation.setDeviceMetricsOverride", { width, height: 800, deviceScaleFactor: 1, mobile: width === 375 });
           assert.equal(await page.evaluate("document.documentElement.scrollWidth<=window.innerWidth"), true);
-          assert.ok(await page.evaluate("document.querySelector('.import-confirm-form button').getBoundingClientRect().top>document.querySelector('#confirm-ready-ip').getBoundingClientRect().bottom"));
+          assert.ok(await page.evaluate("document.querySelector('.import-confirm-form button').getBoundingClientRect().height>0"));
           await screenshot(page, `unblock-ready-${width}`);
         }
         assert.equal(postCount, hints);
@@ -1473,25 +1575,51 @@ test("refresh interaction in real Chromium", { timeout: 240000 }, async (t) => {
         assert.equal(await page.evaluate("Boolean(document.querySelector('.import-confirm-form').closest('details'))"), false);
         assert.equal(await page.evaluate("document.querySelector('.import-confirm-form button').disabled"), false);
         assert.equal(await page.evaluate("document.querySelectorAll('td b').length"), 0);
-        assert.equal(await page.evaluate("document.querySelector('.import-confirm-form').checkValidity()"), false);
+        assert.equal(await page.evaluate("document.querySelector('.import-confirm-form').checkValidity()"), true);
         const key = await page.evaluate("document.querySelector('input[name=review]').value");
-        await page.evaluate("document.querySelector('#confirm-ordered-ip').value='198.51.100.251';document.querySelector('#confirm-ordered-ip').focus()");
+        await page.evaluate("document.querySelector('main h1').tabIndex=-1; document.querySelector('main h1').focus()");
         const reads = pageReads;
         status.data_revision += 1;
         await wake(page);
         await delay(300);
         assert.equal(pageReads, reads);
         assert.equal(await page.evaluate("document.querySelector('input[name=review]').value"), key);
-        assert.equal(await page.evaluate("document.activeElement.id"), "confirm-ordered-ip");
+        assert.equal(await page.evaluate("document.activeElement.tagName"), "H1");
         assert.equal(await page.evaluate("document.querySelector('.import-confirm-form').checkValidity()"), true);
         for (const width of [1100, 375]) {
           await page.call("Emulation.setDeviceMetricsOverride", { width, height: 800, deviceScaleFactor: 1, mobile: width === 375 });
           assert.equal(await page.evaluate("document.documentElement.scrollWidth<=window.innerWidth"), true);
-          assert.ok(await page.evaluate("document.querySelector('.import-confirm-form button').getBoundingClientRect().top>document.querySelector('#confirm-ordered-ip').getBoundingClientRect().bottom"));
+          assert.ok(await page.evaluate("document.querySelector('.import-confirm-form button').getBoundingClientRect().height>0"));
           await screenshot(page, `unblock-waiting-${width}`);
         }
         assert.equal(postCount, hints);
         assert.equal(executionCount, executions);
+      } finally { await page.close(); }
+    });
+    await t.test('already-settled ADD review describes confirmation waiting without pretending SSH is still running', async () => {
+      status = { ...initial(), runtime_mode: 'continuous-observation', managed_policy_format: 2,
+        ordered_removal_review_available: true, ordered_removal_admission_enabled: true,
+        ordered_removal_promotion_enabled: true, fixture_ordered_local_enabled: true, fixture_pending_capture: true };
+      const hints = postCount, executions = executionCount;
+      const page = await connectPage(debugOrigin, `${origin}/managed-shuns/v2/ordered-removal-review`);
+      try {
+        assert.match(await page.evaluate("document.querySelector('main').innerText"), /SSH session has finished/);
+        assert.match(await page.evaluate("document.querySelector('main').innerText"), /Wait for confirmation/);
+        assert.doesNotMatch(await page.evaluate("document.querySelector('main').innerText"), /An addition is already running/);
+        assert.equal(await page.evaluate("document.querySelector('.import-confirm-form button').disabled"), false);
+        await page.evaluate("document.querySelector('main h1').tabIndex=-1; document.querySelector('main h1').focus()");
+        const token = await page.evaluate("document.querySelector('[name=review]').value");
+        status.data_revision++;
+        await wake(page);
+        await delay(300);
+        assert.equal(await page.evaluate("document.querySelector('[name=review]').value"), token);
+        assert.equal(await page.evaluate("document.activeElement.tagName"), "H1");
+        for (const width of [1100, 375]) {
+          await page.call('Emulation.setDeviceMetricsOverride', { width, height: 900, deviceScaleFactor: 1, mobile: width === 375 });
+          assert.equal(await page.evaluate('document.documentElement.scrollWidth<=innerWidth'), true);
+          await screenshot(page, `pending-capture-${width}`);
+        }
+        assert.equal(postCount, hints); assert.equal(executionCount, executions);
       } finally { await page.close(); }
     });
     await t.test("ordered status updates local evidence, retains dirty waiting form and never implies premature success", async () => {
@@ -2145,7 +2273,7 @@ test("refresh interaction in real Chromium", { timeout: 240000 }, async (t) => {
       const executions = executionCount;
       const page = await connectPage(debugOrigin, `${origin}/protected-ips`);
       try {
-        assert.ok(await page.evaluate("document.querySelector('[data-maintenance-warning]').textContent.includes('Enabled maintenance: 2')"));
+        assert.ok(await page.evaluate("document.querySelector('[data-maintenance-warning]').textContent.includes('Saved auto-restore settings: 2')"));
         await page.evaluate(`(() => { const form=document.getElementById('edit-policy-form-198.51.100.10'); form.closest('details').open=true;
           form.elements.enabled.checked=false;
           form.elements.enabled.dispatchEvent(new Event('input',{bubbles:true})); })()`);
@@ -2153,7 +2281,7 @@ test("refresh interaction in real Chromium", { timeout: 240000 }, async (t) => {
         policy.entries[0].maintained_devices = 3;
         status.status_revision += 1;
         await wake(page);
-        await page.until("document.querySelector('[data-maintenance-warning]').textContent.includes('Enabled maintenance: 3')");
+        await page.until("document.querySelector('[data-maintenance-warning]').textContent.includes('Saved auto-restore settings: 3')");
         assert.equal(await page.evaluate("document.getElementById('edit-policy-form-198.51.100.10').elements.managed_revision.value"), "10");
         assert.equal(await page.evaluate("document.getElementById('edit-policy-form-198.51.100.10').elements.enabled.checked"), false);
         assert.equal(await page.evaluate("document.getElementById('delete-policy-form-198.51.100.10').elements.managed_revision.value"), "11");
@@ -2166,7 +2294,7 @@ test("refresh interaction in real Chromium", { timeout: 240000 }, async (t) => {
         assert.equal(await clean.evaluate("document.getElementById('edit-policy-form-198.51.100.10').elements.managed_revision.value"), "11");
         assert.equal(await clean.evaluate("document.querySelector('[name=confirm_maintenance_resume]')"), null);
         assert.equal(await clean.evaluate("document.getElementById('add-policy-form').elements.managed_revision.value"), "11");
-        assert.ok(await clean.evaluate("document.querySelector('[data-maintenance-warning]').textContent.includes('permanently stop')"));
+        assert.ok(await clean.evaluate("document.querySelector('[data-maintenance-warning]').textContent.includes('Save changes to turn off these auto-restore settings')"));
         await clean.call("Emulation.setDeviceMetricsOverride", { width: 375, height: 800, deviceScaleFactor: 1, mobile: true });
         assert.equal(await clean.evaluate("document.documentElement.scrollWidth<=window.innerWidth"), true);
         assert.equal(postCount, hints);
@@ -2530,7 +2658,8 @@ test("refresh interaction in real Chromium", { timeout: 240000 }, async (t) => {
         await wake(page);
         await page.until("document.querySelector('#managed-shun-state').textContent.includes('Auto-restore on')");
         assert.ok(await page.evaluate("document.querySelector('#managed-shun-state').textContent.includes('Not currently observed')"));
-        assert.equal(await page.evaluate("document.querySelectorAll('#managed-shun-state img, #managed-shun-state form, #managed-shun-state button').length"), 0);
+        assert.equal(await page.evaluate("document.querySelectorAll('#managed-shun-state img').length"), 0);
+        assert.equal(await page.evaluate("[...document.querySelectorAll('#managed-shun-state form')].every(form => new URL(form.action).pathname.endsWith('/removal-review'))"), true);
         assert.equal(await page.evaluate("document.querySelectorAll('#managed-removal-preparation form').length"), 1);
         assert.ok(await page.evaluate("document.querySelector('.local-timestamp').textContent.match(/GMT|UTC/) !== null"));
         assert.equal(await page.evaluate("document.documentElement.scrollWidth<=window.innerWidth"), true);
@@ -2653,7 +2782,7 @@ test("refresh interaction in real Chromium", { timeout: 240000 }, async (t) => {
       const page = await connectPage(debugOrigin, `${origin}/managed-shuns/removal-review`);
       try {
         const original = await page.evaluate("document.querySelector('input[name=review]').value");
-        await page.evaluate("document.querySelector('#confirm-managed-ip').value='198.51.100.251'; document.querySelector('#confirm-managed-ip').focus()");
+        await page.evaluate("document.querySelector('main h1').tabIndex=-1; document.querySelector('main h1').focus()");
         const reads = pageReads;
         generation += 1;
         status.data_revision += 1;
@@ -2662,8 +2791,8 @@ test("refresh interaction in real Chromium", { timeout: 240000 }, async (t) => {
         await delay(300);
         assert.equal(pageReads, reads, "Frozen POST review must not be fetched/replaced by status updates");
         assert.equal(await page.evaluate("document.querySelector('input[name=review]').value"), original);
-        assert.equal(await page.evaluate("document.querySelector('#confirm-managed-ip').value"), "198.51.100.251");
-        assert.equal(await page.evaluate("document.activeElement.id"), "confirm-managed-ip");
+        assert.equal(await page.evaluate("document.querySelectorAll('input[name=confirm_ip]').length"), 0);
+        assert.equal(await page.evaluate("document.activeElement.tagName"), "H1");
         assert.equal(await page.evaluate("document.querySelector('.import-confirm-form button').disabled"), true);
         for (const width of [1100, 375]) {
           await page.call("Emulation.setDeviceMetricsOverride", { width, height: 800, deviceScaleFactor: 1, mobile: width === 375 });
@@ -2683,7 +2812,7 @@ test("refresh interaction in real Chromium", { timeout: 240000 }, async (t) => {
         assert.ok(await page.evaluate("document.body.textContent.includes('Disabled devices are included')"));
         assert.equal(await page.evaluate("document.querySelectorAll('table[aria-label=\"Frozen fleet removal scope\"] tbody tr').length"), 3);
         const original = await page.evaluate("document.querySelector('input[name=review]').value");
-        await page.evaluate("document.querySelector('#confirm-managed-ip').value='198.51.100.251'; document.querySelector('#confirm-managed-ip').focus()");
+        await page.evaluate("document.querySelector('main h1').tabIndex=-1; document.querySelector('main h1').focus()");
         const reads = pageReads;
         status.data_revision += 1;
         status.managed_policy_revision = (status.managed_policy_revision || 0) + 1;
@@ -2691,8 +2820,8 @@ test("refresh interaction in real Chromium", { timeout: 240000 }, async (t) => {
         await delay(300);
         assert.equal(pageReads, reads);
         assert.equal(await page.evaluate("document.querySelector('input[name=review]').value"), original);
-        assert.equal(await page.evaluate("document.querySelector('#confirm-managed-ip').value"), "198.51.100.251");
-        assert.equal(await page.evaluate("document.activeElement.id"), "confirm-managed-ip");
+        assert.equal(await page.evaluate("document.querySelectorAll('input[name=confirm_ip]').length"), 0);
+        assert.equal(await page.evaluate("document.activeElement.tagName"), "H1");
         assert.equal(await page.evaluate("document.querySelector('.import-confirm-form button').disabled"), true);
         for (const width of [1100, 375]) {
           await page.call("Emulation.setDeviceMetricsOverride", { width, height: 800, deviceScaleFactor: 1, mobile: width === 375 });
@@ -2713,10 +2842,10 @@ test("refresh interaction in real Chromium", { timeout: 240000 }, async (t) => {
         const page = await connectPage(debugOrigin, `${origin}${endpoint}`);
         try {
           assert.equal(await page.evaluate("document.querySelector('.import-confirm-form button').disabled"), false);
-          assert.equal(await page.evaluate("document.querySelector('.import-confirm-form').checkValidity()"), false);
+          assert.equal(await page.evaluate("document.querySelector('.import-confirm-form').checkValidity()"), true);
           if (scope !== "device") assert.ok(await page.evaluate(`document.body.textContent.includes('${scope === "fleet-ordered" ? "Ordered mode: wait for all" : "Ready-only mode: a RUNNING ADD conflicts"}')`));
           const key = await page.evaluate("document.querySelector('input[name=review]').value");
-          await page.evaluate("document.querySelector('#confirm-managed-ip').value='198.51.100.251'; document.querySelector('#confirm-managed-ip').focus()");
+          await page.evaluate("document.querySelector('main h1').tabIndex=-1; document.querySelector('main h1').focus()");
           assert.equal(await page.evaluate("document.querySelector('.import-confirm-form').checkValidity()"), true);
           const reads = pageReads;
           status.data_revision += 1;
@@ -2726,11 +2855,11 @@ test("refresh interaction in real Chromium", { timeout: 240000 }, async (t) => {
           await delay(300);
           assert.equal(pageReads, reads);
           assert.equal(await page.evaluate("document.querySelector('input[name=review]').value"), key);
-          assert.equal(await page.evaluate("document.activeElement.id"), "confirm-managed-ip");
+          assert.equal(await page.evaluate("document.activeElement.tagName"), "H1");
           for (const width of [1100, 375]) {
             await page.call("Emulation.setDeviceMetricsOverride", { width, height: 800, deviceScaleFactor: 1, mobile: width === 375 });
             assert.equal(await page.evaluate("document.documentElement.scrollWidth<=window.innerWidth"), true);
-            assert.ok(await page.evaluate("document.querySelector('.import-confirm-form button').getBoundingClientRect().top>document.querySelector('#confirm-managed-ip').getBoundingClientRect().bottom"));
+            assert.ok(await page.evaluate("document.querySelector('.import-confirm-form button').getBoundingClientRect().height>0"));
           }
         } finally { await page.close(); }
       }
@@ -2756,7 +2885,7 @@ test("refresh interaction in real Chromium", { timeout: 240000 }, async (t) => {
         assert.ok(await reviewPage.evaluate("document.body.textContent.includes('No device command')"));
         assert.equal(await reviewPage.evaluate("document.querySelector('.import-confirm-form button').disabled"), false);
         const original = await reviewPage.evaluate("document.querySelector('input[name=review]').value");
-        await reviewPage.evaluate("document.querySelector('#confirm-retirement-ip').value='198.51.100.251'; document.querySelector('#confirm-retirement-ip').focus()");
+        await reviewPage.evaluate("document.querySelector('main h1').tabIndex=-1; document.querySelector('main h1').focus()");
         const reads = pageReads;
         status.managed_policy_revision = 50;
         status.data_revision += 1;
@@ -2765,8 +2894,8 @@ test("refresh interaction in real Chromium", { timeout: 240000 }, async (t) => {
         await delay(300);
         assert.equal(pageReads, reads);
         assert.equal(await reviewPage.evaluate("document.querySelector('input[name=review]').value"), original);
-        assert.equal(await reviewPage.evaluate("document.activeElement.id"), "confirm-retirement-ip");
-        assert.equal(await reviewPage.evaluate("document.querySelector('#confirm-retirement-ip').value"), "198.51.100.251");
+        assert.equal(await reviewPage.evaluate("document.activeElement.tagName"), "H1");
+        assert.equal(await reviewPage.evaluate("document.querySelectorAll('input[name=confirm_ip]').length"), 0);
         for (const width of [1100, 375]) {
           await reviewPage.call("Emulation.setDeviceMetricsOverride", { width, height: 800, deviceScaleFactor: 1, mobile: width === 375 });
           assert.equal(await reviewPage.evaluate("document.documentElement.scrollWidth<=window.innerWidth"), true);

@@ -282,6 +282,81 @@ def test_failed_local_terminal_handoff_rolls_back_before_retaining_unknowns(runt
     assert len(agent.writes) == 12
 
 
+@pytest.mark.parametrize('proof', ['complete', 'active', 'foreign', 'local_failure'])
+def test_real_socket_lost_terminal_handoff_then_causal_confirmation(runtime, bulk, tmp_path, monkeypatch, proof):
+    from test_batch_additions import frames
+    from test_session_completion_lookup import serve_many
+
+    from ftd_shun_manager.agent_client import UnixAgentCycle
+    from ftd_shun_manager.agent_protocol import PENDING_SESSION_LOOKUP, encode_session_request
+    from ftd_shun_manager.pending_execution import PendingExecution
+
+    service, agent = runtime
+    original_open = agent.open_tracked_cycle
+    owner_id, members, ends = [], [], []
+
+    def handler(connection, index):
+        if index == 0:
+            begin = connection.recv(100)
+            assert begin[:4] == bytes([0x18, 7, 0, 1]) and len(begin) == 20
+            owner_id.append(begin[4:])
+            for frame in frames(0x18, 0, version=7): connection.send(frame)
+            for sequence in range(1, 13):
+                stage = connection.recv(100)
+                assert stage[:3] == bytes([0x1a, 7, sequence]) and len(stage) == 7
+                ip = IPv4Address(stage[3:])
+                members.append(ip)
+                agent.writes.append((1, ip))
+                agent.entries[1].append(ObservedShun(ip, 'management'))
+                connection.send(bytes([5, 7, 0x1a, sequence]))
+            ends.append(connection.recv(100))
+            assert ends == [bytes([0x1d, 7, 13])]
+            # Model actual completed handler/postamble with a lost terminal reply.
+            return
+        assert index == 1
+        lookup = encode_session_request(PENDING_SESSION_LOOKUP, 7, 1, owner_id[0])
+        assert connection.recv(100) == lookup
+        packet = bytes([2 if proof == 'active' else 0, 7, PENDING_SESSION_LOOKUP]) + lookup[2:]
+        if proof != 'active':
+            packet += bytes([6, 7, 0x1d, 13, 12]) + b''.join(ip.packed for ip in members)
+        if proof == 'foreign': packet = packet[:20] + bytes([packet[20] ^ 1]) + packet[21:]
+        connection.send(packet)
+        assert connection.recv(100) == b''
+
+    path, pool, server = serve_many(tmp_path, handler)
+    agent.open_tracked_cycle = lambda device, owner: UnixAgentCycle(path, 4, device, version=7,
+        settled_cycles=True, recoverable_cycles=True, session_id=UUID(owner).bytes)
+    if proof == 'local_failure':
+        def failed_audit(*_args, **_kwargs):
+            raise ValueError('Synthetic persistence failure after recovered settlement')
+        monkeypatch.setattr(PendingExecution, '_audit', failed_audit)
+    try:
+        asyncio.run(visit(service))
+        server.result(5)
+    finally:
+        pool.shutdown(wait=True)
+        agent.open_tracked_cycle = original_open
+    assert len(agent.writes) == 12 and len(ends) == 1
+    if proof != 'complete':
+        assert states(service) == {'UNVERIFIED': 12}
+        with service.store._connection() as db:
+            assert db.execute('SELECT COUNT(*) FROM managed_bulk_pending_sessions').fetchone()[0] == 0
+        assert service._workers[1].rpc_failed
+        return
+    assert states(service) == {'AWAITING_CONFIRMATION': 12}
+    assert not agent.lookup  # The successful mutation proof never uses read-only recovery.
+    assert service.leases.status()['devices'][0]['state'] == 'IDLE'
+    assert service._workers[1].session_settled and not service._workers[1].rpc_failed
+    with service.store._connection() as db:
+        assert db.execute('SELECT COUNT(*) FROM shun_state').fetchone()[0] == 0
+        assert db.execute('SELECT COUNT(*) FROM shun_import_origins').fetchone()[0] == 0
+    bulk[1][0] += timedelta(seconds=1)
+    restarted = runner(service.store, agent)
+    asyncio.run(visit(restarted))
+    assert states(restarted) == {'OBSERVED_PRESENT': 12}
+    assert len(agent.writes) == 12 and not agent.verifications
+
+
 def test_sixty_four_attempt_visit_verifies_intermediate_groups_and_defers_only_last(bulk, execution):
     grant(bulk, (1,), count=80)
     agent = Agent()

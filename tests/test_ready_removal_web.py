@@ -6,6 +6,7 @@ import re
 from contextlib import asynccontextmanager
 from dataclasses import FrozenInstanceError
 from ipaddress import IPv4Address
+from uuid import uuid4
 
 import httpx
 import pytest
@@ -75,6 +76,73 @@ def surface(composition, monkeypatch):
     return browser
 
 
+def test_dialog_button_consent_keeps_original_scope_actor_and_replay(surface, bulk, composition):
+    confirm(bulk, prepare(bulk)[1])
+
+    async def scenario():
+        async with surface(api_enabled=True, web_enabled=True) as (client, _, calls):
+            page, fields = await review(client)
+            assert 'name="confirm_ip"' not in page.text
+            fields.pop('confirm_ip')
+            before = len([call for call in calls if call[0] == 'POST'])
+            for action in ('', 'stop-restoring', 'yes'):
+                response = await client.post('/managed-shuns/v2/removal-confirm',
+                    data=fields | {'confirm_action': action}, headers={'Accept': 'text/html'})
+                assert response.status_code == 422
+                assert 'text/html' in response.headers['content-type'] and 'Request unavailable' in response.text
+            assert len([call for call in calls if call[0] == 'POST']) == before
+            consent = fields | {'confirm_action': 'unblock'}
+            first = await client.post('/managed-shuns/v2/removal-confirm', data=consent,
+                                      headers={'Accept': 'text/html', 'X-Action-Dialog': '1'})
+            assert first.status_code == 200 and 'Removal queued' in first.text
+            second = await client.post('/managed-shuns/v2/removal-confirm', data=consent)
+            assert second.status_code == 200 and 'Original-key replay' in second.text
+            assert not composition[2].seen  # Admission is not a device operation.
+    asyncio.run(scenario())
+
+
+def test_browser_form_errors_are_html_but_json_clients_keep_structured_errors(surface):
+    async def scenario():
+        async with surface() as (client, _, calls):
+            await client.get('/managed-shuns')
+            fields = {'csrf': client.cookies.get('ftd_shun_csrf'), 'request_id': str(uuid4()), 'confirm_ip': 'wrong'}
+            response = await client.post(f'/shuns/{IP}/remove-all', data=fields, headers={'Accept': 'text/html'})
+            assert response.status_code == 400 and 'text/html' in response.headers['content-type']
+            assert 'Confirm unblocking' in response.text and not response.text.startswith('{')
+            response = await client.post(f'/shuns/{IP}/remove-all', data=fields, headers={'Accept': 'application/json'})
+            assert response.status_code == 400 and type(response.json()['detail']) is str
+            invalid = await client.post('/devices/1/shuns/not-an-ip/remove', data=fields,
+                                        headers={'Accept': 'text/html'})
+            assert invalid.status_code == 422 and 'text/html' in invalid.headers['content-type']
+            assert not any(method == 'DELETE' or (method == 'POST' and 'remove-all' in path) for method, path, _ in calls)
+    asyncio.run(scenario())
+
+
+def test_ordinary_browser_unblock_prepares_then_queues_same_operation_key(surface, composition):
+    store = composition[1]
+    store.reconcile_snapshot(1, [(IP, 'management')])
+
+    def legacy_ack(request, response):
+        # This fixture's real API is continuous-only. Model only the distinct
+        # legacy API acknowledgement to exercise the BFF dialog presentation.
+        return httpx.Response(202, json={'fixture': 'legacy admission'}) if request.method == 'DELETE' else response
+
+    async def scenario():
+        async with surface(transform=legacy_ack) as (client, _, calls):
+            await client.get('/managed-shuns')
+            fields = {'csrf': client.cookies.get('ftd_shun_csrf'), 'request_id': str(uuid4())}
+            path = f'/devices/1/shuns/{IP}/remove'
+            page = await client.post(path, data=fields, headers={'Accept': 'text/html', 'X-Action-Dialog': '1'})
+            assert page.status_code == 200 and f'Unblock {IP}?' in page.text
+            assert 'name="confirm_ip"' not in page.text and fields['request_id'] in page.text
+            assert not any(method == 'DELETE' for method, _, _ in calls)
+            result = await client.post(path, data=fields | {'confirm_action': 'unblock'},
+                                       headers={'Accept': 'text/html', 'X-Action-Dialog': '1'})
+            assert result.status_code == 200 and 'Unblock request queued' in result.text
+            assert len([call for call in calls if call[0] == 'DELETE']) == 1
+    asyncio.run(scenario())
+
+
 async def review(client, *, fleet=False):
     page = await client.get('/managed-shuns')
     assert page.status_code == 200 and 'ready-removal-preparation' in page.text
@@ -100,7 +168,7 @@ def test_independent_default_off_gates_allow_review_but_never_submit(composition
     async def scenario():
         async with surface(api_enabled=api_gate, web_enabled=web_gate) as (client, _, calls):
             page, fields = await review(client)
-            assert 'disabled' in page.text.split('Confirm unblock')[0].rsplit('<button', 1)[1]
+            assert re.search(r'<button[^>]*name="confirm_action"[^>]* disabled', page.text)
             response = await client.post('/managed-shuns/v2/removal-confirm', data=fields)
             assert response.status_code == 503 and 'not submitted' in response.text
             assert not any(method == 'POST' and path.startswith('/api/v2/managed-removals/') for method, path, _ in calls)
@@ -126,10 +194,10 @@ def test_ip_workspace_includes_absent_maintained_devices_and_only_prepares_exist
             assert all(method == 'GET' for method, _, _ in calls)
             response = await client.post('/managed-shuns/retirement-review', data={
                 'csrf': client.cookies.get('ftd_shun_csrf'), 'target': f'1:{IP}'})
-            assert response.status_code == 200 and 'Confirm stop restoring' in response.text
+            assert response.status_code == 200 and 'value="stop-restoring"' in response.text
             response = await client.post('/managed-shuns/v2/removal-review', data={
                 'csrf': client.cookies.get('ftd_shun_csrf'), 'target': f'1:{IP}'})
-            assert response.status_code == 200 and 'Confirm unblock' in response.text
+            assert response.status_code == 200 and 'value="unblock"' in response.text
             client.headers['Remote-Groups'] = 'ftd-shun-viewers'
             viewer = await client.get(f'/shuns/{IP}')
             assert viewer.status_code == 200 and 'Read-only.' in viewer.text

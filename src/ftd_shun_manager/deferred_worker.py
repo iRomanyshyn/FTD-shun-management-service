@@ -1,9 +1,11 @@
-"""Explicit fresh-profile v7 worker; no configured startup, DDL or activation.
+"""Explicit fresh-profile v7 worker; no implicit DDL or runtime activation.
 
 Keeps v5/v6 on their original path. Only the separate coordinator below may
 compose durable pending handoff, causal confirmation and bounded fresh retries.
+Configured use additionally requires the separate matching deferred capability.
 """
 
+import json
 import sqlite3
 from collections import Counter
 from copy import deepcopy
@@ -19,10 +21,12 @@ from .bulk_discovery import BulkDiscovery
 from .bulk_dispatch import _snapshot
 from .bulk_policy import BulkUnavailable, _atomic
 from .device_leases import DeviceOperationQueue, device_uncertain
+from .managed_addition_controls import paused_for
 from .managed_restoration import CompleteSnapshot
 from .operation_queue import QueueConflict, QueueFull
 from .parallel_synchronizer import ParallelSynchronizer, _DeviceWorker
 from .pending_execution import PendingExecution
+from .pending_restart import prepare, recover
 from .pending_retries import PendingRetries, RetryDeferred, retry_candidates
 from .safety import mutations_suspended
 from .schema import schema_connection
@@ -71,11 +75,16 @@ class DeferredBatchSession(BatchSession):
         count = len(self.queue.pending)
         w._device_cycle.update(action='settling_pending_additions', ip=None, pending_verification=count)
         w._status_revision += 1
+        await w._local_call(prepare, self.queue, self.cycle.sequence)
         receipt = await w._agent_call(self.cycle.finish_pending_additions)
         if getattr(self.cycle, 'settled', False) is not True:
             raise AgentUnavailable('Deferred terminal response lacks actual session settlement.')
         w.session_settled = True
         await w._local_call(self.queue.handoff, w.instance_id, receipt)
+        if getattr(self.cycle, 'pending_settlement_recovered', False) is True:
+            print(json.dumps({'event': 'queue.addition_batch.settlement_recovered', 'device_id': self.device,
+                              'session_id': receipt.session_id.hex(), 'sequence': receipt.sequence,
+                              'awaiting_confirmation': count}), flush=True)
         w._device_cycle.update(pending_verification=0, awaiting_confirmation=count)
         w.note_state_change()
         # No complete read occurred here: no publication, refresh callback,
@@ -115,6 +124,9 @@ class _RetryDiscovery:
             with self.store._connection() as db:
                 db.execute('BEGIN')
                 PendingExecution._profile(db)
+                if paused_for(db, row):
+                    counts['operator_paused'] += 1
+                    continue  # Other eligible targets may still progress.
                 revision = db.execute('SELECT revision FROM managed_bulk_registry').fetchone()[0]
                 protected = db.execute('SELECT revision FROM protected_policy').fetchone()[0]
             try:
@@ -217,7 +229,7 @@ class _DeferredDeviceWorker(_DeviceWorker):
 
 
 class DeferredParallelSynchronizer(ParallelSynchronizer):
-    """Internal opt-in only; current service/client/agent configuration stays v5/v6."""
+    """Explicit opt-in; configured use requires matching client, storage and gates."""
 
     _worker_type = _DeferredDeviceWorker
 
@@ -241,6 +253,24 @@ class DeferredParallelSynchronizer(ParallelSynchronizer):
         with self.store._connection() as db:
             db.execute('BEGIN')
             PendingExecution._profile(db)
+
+    async def _before_claim(self, device, worker):
+        # Run before ordinary expired-lease processing can mark these still
+        # RUNNING original jobs unknown. Cancellation drains this bounded local
+        # journal/transaction operation before another visit may start.
+        try:
+            recovered = await worker._local_call(recover, self.store, device.id, self.agent)
+        except AgentUnavailable as error:
+            self._results[str(device.id)] = {'state': 'held', 'error': str(error)}
+            return False
+        if recovered:
+            # Re-enter the scheduler so its existing causal read barrier applies.
+            # Do not open a new read in the same millisecond as settlement.
+            self._results[str(device.id)] = {'state': 'pending_recovered'}
+            worker._device_cycle = {'action': 'awaiting_confirmation'}
+            worker._status_revision += 1
+            return False
+        return True
 
     @staticmethod
     def _validate_transport(agent):

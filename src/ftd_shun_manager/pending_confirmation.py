@@ -176,8 +176,15 @@ class PendingConfirmations:
         """Retain original settled transport evidence; NO job/attempt/lease change.
 
         Caller supplies the actual low-level client's terminal value, not a raw
-        ACK or generic agent log. No current production worker calls this method.
+        ACK or generic agent log. Ordinary handoff requires the live lease.
         """
+        return self._record(token, receipt, job_ids, DeviceLeases(self.store, self.queue).check,
+                            enabled=enabled, connection=connection)
+
+    def _record(self, token, receipt, job_ids, check_fence, *, enabled=False, connection=None):
+        # Also used inside the exact expired-END recovery transaction. Its
+        # checker proves an unchanged checkpoint/fence and actual journal receipt;
+        # it does not renew a lease or authorize another device command.
         _enabled(enabled)
         _token(token)
         if (type(receipt) is not SettledPendingAdditions or type(receipt.device_id) is not int
@@ -201,8 +208,7 @@ class PendingConfirmations:
             raise ValueError('Every pending acknowledgement needs its original job.')
         with schema_connection(self.store, connection) as db, _atomic(db):
             self._profile(db)
-            leases = DeviceLeases(self.store, self.queue)
-            leases.check(db, token)
+            check_fence(db, token)
             if db.execute('SELECT 1 FROM managed_bulk_pending_sessions WHERE owner=?', (token.owner,)).fetchone():
                 raise QueueConflict('This terminal session is already retained; no replacement evidence.')
             running = db.execute("SELECT id FROM operation_jobs WHERE device_id=? AND state='RUNNING'",
@@ -259,7 +265,7 @@ class PendingConfirmations:
             db.executemany('INSERT INTO managed_bulk_pending_members VALUES (?,?,?,?,?,?,?,?)', members)
             db.execute('INSERT INTO managed_bulk_pending_sessions VALUES (?,?,?,?,?,?,?)',
                        (group, token.device_id, token.owner, token.epoch, receipt.sequence, len(members), settled_at))
-            leases.check(db, token)
+            check_fence(db, token)
             self._profile(db)
         return group
 

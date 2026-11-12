@@ -67,6 +67,8 @@ class Settings:
     agent_concurrency: int = 1
     batch_additions_enabled: bool = False
     batch_session_version: int = 5
+    deferred_confirmation_enabled: bool = False
+    ip_context_cache_path: Path | None = None
 
     def __post_init__(self) -> None:
         if type(self.api_runtime) is not str or self.api_runtime not in {'legacy', 'continuous-observation', 'continuous-managed'}:
@@ -76,9 +78,18 @@ class Settings:
         if type(self.batch_additions_enabled) is not bool or (self.batch_additions_enabled and (
                 self.api_runtime != 'continuous-managed' or self.agent_mode != 'socket')):
             raise ValueError('Batch additions require the configured continuous-managed socket runtime.')
-        if (type(self.batch_session_version) is not int or self.batch_session_version not in (5, 6)
+        if type(self.deferred_confirmation_enabled) is not bool:
+            raise ValueError('Deferred confirmation capability must be a literal boolean.')
+        if self.deferred_confirmation_enabled and (
+                self.api_runtime != 'continuous-managed' or self.agent_mode != 'socket'
+                or self.batch_additions_enabled is not True or self.batch_session_version != 7
+                or self.agent_cycles_enabled is not True or self.large_snapshots_enabled is not True
+                or self.development_auth is not False):
+            raise ValueError('Deferred confirmation requires explicit managed/socket/tracked grouped-v7 settings and deployed authentication.')
+        if (type(self.batch_session_version) is not int
+                or self.batch_session_version not in ((7,) if self.deferred_confirmation_enabled else (5, 6))
                 or (self.batch_session_version == 6 and not self.batch_additions_enabled)):
-            raise ValueError('Batch session version must be 5, or 6 with grouped execution enabled.')
+            raise ValueError('Batch session version requires 5, 6 with grouped execution, or explicitly enabled deferred version 7.')
         if type(self.managed_removal_admission_enabled) is not bool:
             raise ValueError("managed removal admission setting must be boolean")
         if self.managed_removal_admission_enabled and (
@@ -115,8 +126,11 @@ class Settings:
         if batch_additions not in {'true', 'false'}:
             raise ValueError('FTD_SHUN_AGENT_BATCH_ADDITIONS_ENABLED must be true or false')
         batch_version = environ.get('FTD_SHUN_AGENT_BATCH_SESSION_VERSION', '5')
-        if batch_version not in {'5', '6'}:
-            raise ValueError('FTD_SHUN_AGENT_BATCH_SESSION_VERSION must be 5 or 6')
+        deferred = environ.get('FTD_SHUN_DEFERRED_CONFIRMATION_ENABLED', 'false')
+        if deferred not in {'true', 'false'}:
+            raise ValueError('FTD_SHUN_DEFERRED_CONFIRMATION_ENABLED must be true or false')
+        if batch_version not in ({'7'} if deferred == 'true' else {'5', '6'}):
+            raise ValueError('FTD_SHUN_AGENT_BATCH_SESSION_VERSION must match the explicit deferred/verified selection')
         import_admission = environ.get("FTD_SHUN_IMPORT_ADMISSION_ENABLED", "false")
         if import_admission not in {"true", "false"}:
             raise ValueError("FTD_SHUN_IMPORT_ADMISSION_ENABLED must be true or false")
@@ -183,4 +197,6 @@ class Settings:
             agent_concurrency=int(concurrency),
             batch_additions_enabled=batch_additions == 'true',
             batch_session_version=int(batch_version),
+            deferred_confirmation_enabled=deferred == 'true',
+            ip_context_cache_path=Path(environ['FTD_SHUN_IP_CONTEXT_CACHE']) if environ.get('FTD_SHUN_IP_CONTEXT_CACHE') else None,
         )

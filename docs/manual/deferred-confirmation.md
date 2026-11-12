@@ -1,12 +1,56 @@
 # Deferred First Confirmation — Evidence, Queue Handoff and Fresh Attempts
 
-This is a developer contract, **not an enabled import mode**. The current lab
-continues to use tracked v6 and complete in-session verification. Do not set
-`FTD_SHUN_AGENT_BATCH_SESSION_VERSION=7`: configuration and high-level composition
-deliberately refuse it until the complete worker/retry/priority contract exists.
+This is an **experimental, default-off development mode**. The current lab still
+uses tracked v6 and complete in-session verification. Matched v0.5.0 API/client/
+agent can explicitly select deferred confirmation on its separate prepared DB,
+using the configuration below. Setting only the wire version to7 still refuses.
+No current database, configuration or running service is switched automatically.
 
-Explicit internal per-visit and continuous workers are implemented below. This does not
-enable the configured service, high-level Unix client or agent v7 selector.
+Source v0.6.0 also supports the exact [completed pending-handoff API crash
+window](pending-restart-recovery.md), using the original checkpoint and agent
+journal. General held-epoch recovery and real-device acceptance remain unfinished;
+original unknown outcomes remain guarded. This is not an activated lab mode or a
+measured throughput claim.
+
+## Explicit configured selection (v0.5.0, 2026-11-12)
+
+Use all of these together with matching images:
+
+| Setting | API/Web | Agent |
+| --- | --- | --- |
+| `FTD_SHUN_API_RUNTIME` | `continuous-managed` | Not used |
+| `FTD_SHUN_AGENT_MODE` | `socket` | Not used |
+| `FTD_SHUN_DEFERRED_CONFIRMATION_ENABLED` | `true` | `true` |
+| `FTD_SHUN_AGENT_BATCH_SESSION_VERSION` | `7` | `7` |
+| `FTD_SHUN_AGENT_BATCH_ADDITIONS_ENABLED` | `true` | `true` |
+| `FTD_SHUN_AGENT_CYCLES_ENABLED` / `FTD_SHUN_LARGE_SNAPSHOTS_ENABLED` | Both `true` | Both `true` |
+| `FTD_SHUN_AGENT_ADDITIONS_ENABLED` | Not used | `true` |
+
+Keep development authentication and all legacy admission/controller switches off.
+Keep SSH credentials agent-only. Every enabled device needs its explicit supported
+ADD profile. Select the separate DB prepared with
+`ftd-shun-dev-init --profile deferred-confirmation`, including both controls and
+ordered cleanup/promotion. The API never initializes or converts storage; the
+ordinary verified worker refuses that profile, and deferred startup refuses a
+verified, absent or incomplete DB. Inventory/scope, identity, pauses, uncertainty
+and capacity checks are unchanged. The standalone high-level client also needs
+literal `deferred_confirmation=True`, grouped tracked capabilities and its exact
+nonempty bounded ADD-device set; protocol7 alone grants nothing.
+
+`ftd-shun-api --check` and `ftd-shun-agent --check-config` report version7 and
+`deferred_confirmation_enabled=true` without starting work. API status retains
+the `continuous-managed` workflow family, adding this explicit boolean and the
+existing confirmation/retry metadata. Configured API binds exactly
+`DeferredContinuousDispatcher`; it cannot accept a verified dispatcher, injected
+fake client or changed capability selection. Successful preflight is not a
+device-write or crash-recovery acceptance result.
+
+The explicit `deploy/compose.deferred-lab.yml` overlay selects
+`/var/lib/ftd-shun-manager/deferred-v7.db` and matched flags after the existing
+base/local-lab/managed-lab files. It does not prepare this file, copy old authority,
+change trust/credentials or replace the original DB. It has **not** been applied
+to the current lab. Complete the documented recovery/acceptance work before the
+planned live cutover; do not treat merely adding the overlay as validation.
 
 ## Implemented boundary
 
@@ -14,7 +58,8 @@ A low-level tracked-v7 cycle can stage acknowledged ADDs and end with
 `finish_pending_additions()`, without issuing a verification/full-table read at
 that final step. It returns `SettledPendingAdditions` only after receiving both
 the exact ordered pending scope and normal post-cleanup/guard/worker-IDLE
-settlement. The value contains the device, original tracked session identity,
+settlement, or the separately bound completed journal receipt described below.
+The value contains the device, original tracked session identity,
 terminal sequence and original ordered ACKs. It has no `created`, interface,
 snapshot or verified-success field.
 
@@ -27,15 +72,59 @@ snapshot or verified-success field.
 Shared Python/Rust vectors are in `tests/fixtures/pending-end-v7.json`.
 Every ACK sequence must be strictly increasing and earlier than terminal END;
 NOOPs do not enter pending scope. Wrong status/version/opcode/sequence/count,
-order, duplicate/foreign targets, trailing bytes, missing ACK or lost settlement
-refuse. The client closes without fallback, reconnect, resend or synthetic success.
-Mutated sessions remain unsafe in the read-only completion journal lookup.
+order, duplicate/foreign targets, trailing bytes or missing ACK refuse. Lost
+settlement permits only the exact local completion lookup below, never a device
+reconnect/resend or synthetic success. Mutated sessions remain unsafe in the
+read-only completion journal lookup.
 
 V7 retains 240 seconds, 64 combined mutation attempts, 256 commands, sequence
 <=130 and pending <=16. Staging retains original target preflight, strict Cisco
 ACK parsing, profile, capacity and time reserves. Plain END/snapshot/removal
 still cannot overtake pending writes. Versions 1–6 retain their previous
 verification contracts; v7 can also perform their strict grouped verification.
+
+## Lost terminal response recovery (source-only v0.3.1, 2026-11-12)
+
+If the original client fully sent END_PENDING but loses its response to EOF,
+socket failure or timeout, it closes that connection and performs **one** local
+completion lookup (maximum five seconds). The agent never opens SSH or issues
+Cisco commands for this query, even while another visit holds the device guard.
+The original ACKs stay in memory until exact proof is returned. Malformed,
+truncated or foreign response evidence does not select this recovery path.
+
+| Frame | Meaning |
+| --- | --- |
+| `1e 07 device:u16 session:16` | Exact original tracked-v7 identity, 20 bytes. |
+| `status 07 1e device:u16 session:16` | 21-byte binding: 1 unavailable, 2 still active; neither is recovery proof. |
+| `00 07 1e device:u16 session:16` + original `06 07 1d sequence count IPv4...` | Completed pending receipt, 30–90 bytes; exact original nonempty ordered group. |
+
+Shared Python/Rust vectors: `tests/fixtures/pending-lookup-v7.json`. Only actual
+END_PENDING execution plus successful SSH disconnect can prepare the receipt.
+It remains unavailable until handler/resource cleanup, guard release and the
+worker-IDLE postamble finish. A failed local response send does not erase that
+completed proof. Normal END/verified-group/read-only/failed-cleanup sessions
+cannot substitute for it. The existing process-local journal holds at most
+4096 identities and evicts only completed entries; agent restart or eviction
+loses proof and conservatively retains uncertainty.
+
+The strict client checks version/device/session, terminal sequence, count and
+ordered addresses against the original ordered ACKs. It sets `settled` only
+after exact proof. The same existing queue transaction then requires its original
+live owner/epoch, claims, ACKs, roots and delegations before recording the entire
+group, transitioning to AWAITING_CONFIRMATION and releasing that original lease.
+Only after this commit does the worker log
+`queue.addition_batch.settlement_recovered`. No freshness/verified-progress or
+creation attribution is published. The next causal complete observation confirms
+presence or absence normally, including across coordinator restart.
+
+An active, absent, foreign or unavailable receipt does not trigger polling, another
+END, ADD replay or blind retry. Lost stage ACKs cannot use this path. Malformed
+terminal packets also refuse without lookup. A local persistence failure retains
+the previous unknown/hold behavior, even with valid transport completion. This
+does not recover historical unknown operations or an arbitrary API/agent crash;
+the original live caller and ACK/claim evidence must still exist. Read-only
+lookup remains a separate proof and never accepts this mutated session. The
+current lab remains on v6; this recovery proof does not select a mode or schema.
 
 ## Fresh deferred queue profile (source-only, 2026-11-09)
 
@@ -45,7 +134,8 @@ paused mutations, quiescence and **empty execution/history tables**. It installs
 the expanded job/attempt/cancellation-result schema only in that fresh profile.
 It does not copy, convert or discard retained execution data. Even fully VERIFIED
 history refuses this initializer. A partial schema failure rolls back. There is
-no startup/GET initialization, configuration selector or operator init CLI.
+no startup/GET initialization. The development CLI below creates the whole
+profile in a separate absent destination; runtime selection is separate above.
 
 Use a separate disposable database for development. **Do not delete/reset the
 live DB, reimport its original task or use this as a legacy-dev converter.**
@@ -56,6 +146,23 @@ ordered reservation/promotion schemas as described below. Initialize the empty
 deferred execution layout first; its initializer still refuses pre-existing
 ordered/recovery storage. Offline recovery profiles remain unsupported; the
 separate evidence-only ledger retains its original recovery combinations.
+
+### One-command fresh storage (v0.4.0, 2026-11-12)
+
+`ftd-shun-dev-init --profile deferred-confirmation` prepares a separate new
+development database with this evidence/execution/retry layout, ordered removal/
+promotion and independent import/restoration pauses in the required order.
+Default `--profile verified` keeps the existing verified-read layout. Both modes
+require an absent absolute destination and explicit public inventory. Private
+staging, integrity/checkpoint validation and exclusive publication prevent partial
+or racing replacements. The setup event and JSON report identify the selected
+profile. Optional protection copying reads only explicitly selected current
+settings; no old managed authority, queue or history is transferred.
+
+This is storage preparation only: no environment reads, SSH, new authority,
+configured v7 activation or live database conversion. The default configured
+verified worker refuses the deferred execution profile. See
+[Fresh Working-Version Lab](fresh-development.md#optional-deferred-confirmation-development-storage).
 
 The new job and attempt states are distinct from old success/failure/unknowns:
 
@@ -161,10 +268,9 @@ Corrupt/missing proof refuses pruning atomically. Unrelated expired audit rows
 still purge normally. These records have a bounded retained capacity; they are
 not ordinary disposable display history.
 
-This replacement contract is source-only/internal. No schema, public selector,
-configured runtime, current v6 import or device command changes. Ordinary workers
-still refuse the deferred profile; ordered pending/recovery and explicit
-fresh-store configuration/acceptance remain prerequisites for enabling it.
+This replacement contract changes neither schema nor current v6 imports. Ordinary
+workers still refuse the deferred profile. The explicit configured selection above
+can now compose it; crash recovery and real-device acceptance remain unfinished.
 
 ## Durable evidence ledger (source-only, 2026-11-09)
 
@@ -172,8 +278,9 @@ fresh-store configuration/acceptance remain prerequisites for enabling it.
 operator API or an enabled worker. Its explicit `initialize()` requires the exact
 device-scoped bulk profile, paused mutations and quiescence. Nothing initializes
 it at startup or on GET. Do not apply it to the live database merely to deploy
-the source: older writers refuse the optional schema, and current workers cannot
-finish the new workflow. There is no new configuration flag or initialization CLI.
+the source: verified workers refuse the optional execution profile. The ledger
+alone neither selects a configured runtime nor initializes the execution workflow;
+use the complete fresh-profile CLI and matching selection above.
 
 Three retained, immutable tables bind a terminal session, its ordered original
 members, and at most one later complete observation. The session stores the
@@ -218,8 +325,8 @@ disabled. It requires an existing exact fresh execution profile and explicitly
 matching strict tracked-v7 client capabilities. It does not initialize storage,
 select configuration, connect an ordinary v5/v6 client as v7 or convert the lab
 DB. Its `DeferredDeviceOperationQueue`/`DeferredBatchSession` accept only v7;
-ordinary queue/session selectors retain their v5/v6-only contracts. Public
-configuration/high-level Unix client/agent still refuse v7.
+ordinary queue/session selectors retain their v5/v6-only contracts. Configured
+use requires the separate literal deferred capability and matching components.
 
 The worker reuses the original bounded parallel coordinator and shared queue,
 not another executor. Per-device streams remain serialized; independent devices
@@ -237,8 +344,18 @@ Retry selection exposes bounded counts and `retry_at` through the internal
 coordinator status. These are advisory scheduling waits, not failed queue jobs.
 There is no sleeping inside SSH until backoff expires and no automatic replay
 of an old attempt. A later requested visit supplies fresh read evidence. The
-explicit continuous scheduler below supplies those later visits; configured
-runtime selection remains disabled.
+explicit continuous scheduler below supplies those later visits. Configured
+selection remains default-off and requires the separate capability above.
+
+Independent operator pauses are checked during both retry scheduling and worker
+discovery. A paused target cannot create extra retry-only SSH visits or be
+reported as ineligible merely because it is paused. Other eligible targets still
+progress through bounded cursors. Scheduler metadata reports sampled
+`operator_paused_candidates`; worker discovery counts `operator_paused`. Resume
+still requires a new complete read beyond the selected control's barrier; neither
+the earlier absence nor a retry timer grants another ADD. Already claimed groups
+settle and causal confirmation, ordinary/manual reads, removals and Protected-IP
+unblocking continue with both pauses on. Pause is not uncertainty recovery.
 
 Within a visit, full intermediate groups use strict original shared verification
 and refresh the existing admission cutoff. A 64-attempt synthetic visit verifies
@@ -259,16 +376,19 @@ of an awaiting address is confirmed before publication, then removed with the
 normal priority policy. Caller cancellation drains the actual RPC/terminal path,
 never abandons the thread and grants a replacement command.
 
-Lost/mismatched/unsettled terminal evidence or local handoff failure retains old
-unknown outcomes and its fence. Failed classification publishes no read. A NOOP
+Unrecoverable lost/mismatched/unsettled terminal evidence or local handoff failure
+retains old unknown outcomes and its fence. Only the exact completed pending
+lookup above may recover response loss before handoff. Failed classification
+publishes no read. A NOOP
 proven by preflight does not enter pending scope or gain creation attribution.
 None of these paths resolves historical unknowns or uses a mutated completion
 journal entry as read-only recovery.
 
 ## Explicit continuous scheduling and UI (source-only, 2026-11-09)
 
-`DeferredContinuousDispatcher` is a separate default-disabled internal composition,
-not a configuration selector or automatic initializer. It uses the exact fresh
+`DeferredContinuousDispatcher` is a separate default-disabled composition,
+not an automatic initializer. The matching configured factory selects it only
+with the explicit deferred capability above. It uses the exact fresh
 execution profile and matching tracked-v7 client. Ordinary `ContinuousDispatcher`
 still refuses that profile. Ordered promotion is independently default-off;
 explicit internal composition requires the existing exact ordered storage below.
@@ -325,11 +445,11 @@ exception. The new absence read must begin strictly after retained terminal
 evidence. No schema, wire, selector, credential or runtime change is required.
 
 Ready-only removal explicitly rejects AWAITING_CONFIRMATION before retiring
-anything or admitting jobs. Ordered read-only inspection reports
-`ADD_AWAITING_CONFIRMATION`, with human guidance to request a refresh and review
-again; it creates no confirmation token or executable predecessor. Never treat
-awaiting state as a waitable RUNNING ADD or silently switch ready consent into
-an ordered reservation. After actual confirmation, use a fresh frozen existing
+anything or admitting jobs. An exact fresh execution profile can now prepare
+separate settled-pending ordered consent as described below; missing/invalid
+evidence remains blocked. Never pretend awaiting state is a live RUNNING ADD or
+silently switch an existing ready consent into an ordered reservation. After
+actual confirmation, a new frozen existing
 ready-removal review to retire the complete selected device/fleet scope and
 enqueue one shared manual REMOVE request atomically. Results remain per-device
 VERIFIED/NOOP only after semantic execution. Late failure rolls back the entire
@@ -370,32 +490,65 @@ settlement remains UNVERIFIED/held; expiry/revocation never resumes maintenance;
 late fleet failure rolls back all cleanup. Status accepts deferred states only
 for captured ADDs, never as REMOVE success, and labels them in plain language.
 
-This does **not** authorize initial capture of an already-AWAITING_CONFIRMATION
-job, omit independent pending work, relax multiple-RUNNING preflight checks,
-recover an unknown mutation, or activate a configured/lab mode. Such an initial
-inspection still requests a refresh and a new review. Compatible deferred
-recovery, remaining capture/composition and bounded fresh-store lab acceptance
-are still required before activation.
+That0.2.5 increment did not authorize initial capture of an already-awaiting job;
+the separate0.3.0 contract below adds it without pretending an old lease is live.
+Neither increment relaxes multiple-RUNNING preflight, omits independent work,
+recovers unknown mutations or activates a configured/lab mode.
 
-## Not implemented or activated
+## New consent while already awaiting (source-only0.3.0, 2026-11-11)
 
-No configured service consumes these hooks. Only the explicit fresh-profile
+An exact still-maintained device/IP in AWAITING_CONFIRMATION can now be captured
+after actual original session settlement, before its first complete observation.
+Preparation is a readonly local snapshot; accepting the frozen request retires
+matching maintenance and reserves cleanup just as existing ordered consent does.
+One fleet may contain both still-running and already-settled predecessors.
+
+The settled descriptor has `kind=AWAITING_CONFIRMATION`, `pending_session_id` and
+`settled_at`, **no `lease_until`**. Its original claim/ACK/member/session digest,
+request/intent/generation/snapshot identities and original executor owner/epoch
+remain bound. It is not a synthetic live lease or a new ADD delegation. The
+original ADD authorization may already be expired; cleanup has its own fresh
+actor-attributed key and bounded deadline and cannot renew or retry that ADD.
+Current inventory/protection/policy/fence/uncertainty/capacity checks still apply.
+
+Acceptance re-reads the complete scope and predecessor variants atomically. If
+confirmation arrived while the operator was reviewing, reject the stale request;
+do not silently convert it to ready removal or replace its key. Mixed variants,
+future settlement, substituted identities/digests, missing proof, unknown kinds
+and a smuggled live-lease field cannot partially retire or admit cleanup. Later
+promotion revalidates immutable settled evidence and still requires the actual
+causal complete first read. That verdict is not verified service creation.
+
+Private request models use strict mutually exclusive running/settled variants.
+Frozen Web reviews describe **Wait for confirmation** and keep typed-IP consent,
+scope/key and focus unchanged through status updates. No table/CLI/binary-wire or
+public runtime selector changes are made. Old running payloads still validate;
+0.2.5 images refuse stored new-variant data, so use matching components before
+using it in a fresh profile. No compatibility converter or current-lab extension
+is implied. Current lab stays v6. Configured composition is available above;
+deferred crash recovery and bounded fresh-store activation/acceptance remain unfinished.
+
+## Remaining activation and recovery work
+
+Only the explicitly selected matching configured mode or internal fresh-profile
 handoff above may release its exact settled group; the transport value or
 standalone ledger never marks arbitrary jobs successful, releases old holds,
 reclassifies unknowns or authorizes another write. No live schema, gate/default,
 `.env`, inventory, trust, credential or service change follows merely from the
-source-only code. The current
-configured agent rejects v7 before SSH opening; high-level API client and grouped
-queue also reject it. The new Rust release binary is validation, not deployment.
+source code. Without the new explicit capability, the configured agent and
+high-level API client still reject v7. The validated new Rust release binary
+has not replaced the running lab agent.
 
 The pending-end receipt does not solve durable first confirmation on its own.
 Next implementation steps, under the approved working-version behavior:
 
-1. Connect the explicit continuous worker to a matching configured transport
-   and deliberate fresh-store initialization.
-   Do not merely widen existing v5/v6 settings or replay original lab authority.
-2. Complete initial already-pending managed/fleet capture and compatible deferred
-   recovery without weakening unknown holds. Captured RUNNING-to-pending cleanup,
+1. Matching configured transport/API composition and explicit fresh-store CLI are
+   now implemented above. Keep old settings/defaults and the current lab intact
+   until the remaining recovery and acceptance scenarios below are complete.
+2. Complete crash/held-epoch deferred recovery without weakening unknown holds.
+   Bounded lost-terminal recovery is implemented above; it is not general crash
+   recovery. Initial
+   settled-pending consent and captured RUNNING-to-pending cleanup,
    proved pre-write child replacement, ready cleanup and later confirmed-presence
    restoration are implemented above, not yet enabled in the lab.
 3. Run new labelled bounded fresh-store lab acceptance, including the implemented
@@ -411,7 +564,7 @@ not a throughput improvement or a completed cross-session retry workflow.
 Run the disposable profile, retry and retention checks with:
 
 ```bash
-python3 -m pytest -q tests/test_pending_end.py tests/test_pending_confirmation.py tests/test_pending_execution.py tests/test_pending_retries.py tests/test_deferred_worker.py tests/test_deferred_dispatch.py tests/test_deferred_lifecycle.py tests/test_deferred_ordered.py tests/test_store.py tests/test_history_pagination.py
+python3 -m pytest -q tests/test_dev_init.py tests/test_deferred_pauses.py tests/test_pending_end.py tests/test_pending_completion_lookup.py tests/test_pending_confirmation.py tests/test_pending_execution.py tests/test_pending_retries.py tests/test_deferred_worker.py tests/test_deferred_dispatch.py tests/test_deferred_lifecycle.py tests/test_deferred_ordered.py tests/test_pending_ordered_capture.py tests/test_store.py tests/test_history_pagination.py
 node --test tests/browser/status-presentation.cjs tests/browser/freshness.cjs
 ```
 

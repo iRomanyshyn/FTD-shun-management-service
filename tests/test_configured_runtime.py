@@ -224,6 +224,7 @@ def test_cli_check_never_serves_starts_or_exposes_inventory(configured, monkeypa
     api.main(['--check'])
     report = json.loads(capsys.readouterr().out)
     assert report == {'event': 'api.runtime.checked', 'runtime_mode': 'continuous-observation',
+                      'batch_session_version': 5, 'deferred_confirmation_enabled': False,
                       'execution_started': False, 'migration_performed': False}
     assert dump(store) == before
 

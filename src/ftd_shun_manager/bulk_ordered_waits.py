@@ -31,6 +31,7 @@ DOMAIN = b'ftd-shun-manager:ordered-removal:v2\n'
 _PREDECESSOR_FIELDS = {'request_id', 'job_id', 'intent_id', 'generation', 'authorization_request_id',
     'target_revision', 'snapshot_id', 'snapshot_started_at', 'snapshot_at', 'requested_at', 'expires_at',
     'started_at', 'executor_owner', 'executor_epoch', 'lease_until', 'claim_event_id', 'evidence_digest'}
+_PENDING_PREDECESSOR_FIELDS = (_PREDECESSOR_FIELDS - {'lease_until'}) | {'kind', 'pending_session_id', 'settled_at'}
 
 
 class OrderedReservationNotFound(KeyError):
@@ -88,7 +89,7 @@ def canonical_ordered_removal(reviewed, predecessors, ttl_seconds=900, reason=''
     if type(reason) is not str or len(reason) > 500 or any(ord(char) < 32 for char in reason):
         raise ValueError('Use at most 500 plain-text reason characters.')
     if type(predecessors) is not list or not 1 <= len(predecessors) <= len(reviewed['targets']):
-        raise ValueError('Explicit ordered cleanup requires at least one captured RUNNING ADD.')
+        raise ValueError('Explicit ordered cleanup requires at least one captured running or settled pending ADD.')
     targets, previous, identities = {row['device_id']: row for row in reviewed['targets']}, 0, set()
     for entry in predecessors:
         if type(entry) is not dict or set(entry) != {'device_id', 'evidence'}:
@@ -96,8 +97,10 @@ def canonical_ordered_removal(reviewed, predecessors, ttl_seconds=900, reason=''
         _integer(entry['device_id'], previous + 1, 65535, 'ordered predecessor device')
         previous, evidence = entry['device_id'], entry['evidence']
         target = targets.get(previous)
+        pending = (type(evidence) is dict and type(evidence.get('kind')) is str
+                   and evidence['kind'] == 'AWAITING_CONFIRMATION')
         if (target is None or not target['maintenance_enabled'] or type(evidence) is not dict
-                or set(evidence) != _PREDECESSOR_FIELDS):
+                or set(evidence) != (_PENDING_PREDECESSOR_FIELDS if pending else _PREDECESSOR_FIELDS)):
             raise ValueError('Captured ADD must belong to the frozen maintained scope.')
         for field in ('request_id', 'job_id', 'intent_id', 'authorization_request_id', 'snapshot_id', 'executor_owner', 'claim_event_id'):
             _uuid(evidence[field])
@@ -110,10 +113,19 @@ def canonical_ordered_removal(reviewed, predecessors, ttl_seconds=900, reason=''
                 or identities.intersection((evidence['request_id'], evidence['job_id']))):
             raise ValueError('Captured identities cannot alias another predecessor or authority.')
         identities.update((evidence['request_id'], evidence['job_id']))
-        for field in ('snapshot_started_at', 'snapshot_at', 'requested_at', 'expires_at', 'started_at', 'lease_until'):
+        for field in ('snapshot_started_at', 'snapshot_at', 'requested_at', 'expires_at', 'started_at'):
             _time(evidence[field])
+        deadline = evidence['expires_at']
+        if pending:
+            _uuid(evidence['pending_session_id'])
+            _time(evidence['settled_at'])
+            if evidence['settled_at'] < evidence['started_at']:
+                raise ValueError('Pending settlement cannot precede its original ADD.')
+        else:
+            _time(evidence['lease_until'])
+            deadline = min(deadline, evidence['lease_until'])
         if not (evidence['snapshot_started_at'] <= evidence['snapshot_at'] <= evidence['requested_at']
-                <= evidence['started_at'] < min(evidence['expires_at'], evidence['lease_until'])):
+                <= evidence['started_at'] < deadline):
             raise ValueError('Original predecessor times and deadlines are inconsistent.')
     payload = {'version': 2, 'action': 'STOP_AND_REMOVE_ORDERED', 'scope_digest': scope_digest,
                'reviewed': json.loads(scope), 'predecessors': predecessors, 'ttl_seconds': ttl_seconds, 'reason': reason.strip()}
@@ -232,6 +244,10 @@ def validate_held_predecessors(db):
                         'target_revision', 'snapshot_id', 'snapshot_started_at', 'snapshot_at', 'requested_at'))
                     or _json(_record(claim)) != member['claim_json']):
                 raise BulkUnavailable('Captured ordered ADD binding changed; pruning was refused.')
+            if evidence.get('kind') == 'AWAITING_CONFIRMATION':
+                from .pending_ordered import require_captured
+
+                require_captured(db, evidence, job)
 
 
 class BulkOrderedWaits:
@@ -336,7 +352,8 @@ class BulkOrderedWaits:
             validate_held_predecessors(db)
             final = self.queue._now()
             if (not now <= final < now + timedelta(seconds=ttl_seconds)
-                    or any(row['evidence']['lease_until'] <= stamp(final) or row['evidence']['expires_at'] <= stamp(final)
+                    or any(row['evidence'].get('kind') != 'AWAITING_CONFIRMATION'
+                           and (row['evidence']['lease_until'] <= stamp(final) or row['evidence']['expires_at'] <= stamp(final))
                            for row in frozen['predecessors'])):
                 raise QueueConflict('Original delegation/lease expired or clock reversed during reservation.')
             return result

@@ -102,7 +102,8 @@ def test_bff_view_requires_auth_read_only_for_all_roles_and_escapes_metadata(lab
             assert "Alice (alice)" in response.text and f"v{__version__}" in response.text
             assert 'data-auto-request="false"' in response.text
             region = response.text.split('id="managed-shun-state"')[1].split("</section>")[0]
-            assert "<form" not in region and "<button" not in region
+            assert not re.search(r'<form[^>]*action="(?!/managed-shuns/removal-review)', region)
+            assert 'data-queue-form' not in region  # Visible preparation is not execution.
             status = (await client.get("/refresh-status")).json()
             assert status["managed_policy_revision"] == 1 and status["managed_policy_initialized"] is True
             assert all(call.method == "GET" for call in calls)

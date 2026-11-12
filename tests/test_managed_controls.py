@@ -160,7 +160,7 @@ def test_unknown_reply_preserves_frozen_retry_key_and_never_submits_new_intent(l
             behavior[failure] = True
             lost = await client.post("/managed-shuns/retirement-confirm", data=fields)
             assert lost.status_code == 503 and "outcome is unknown" in lost.text
-            assert token(lost) == fields["review"] and 'value="198.51.100.251"' in lost.text
+            assert token(lost) == fields["review"] and str(IP) in lost.text and 'value="stop-restoring"' in lost.text
             before = registry.snapshot(), store.list_events()
             retry = await client.post("/managed-shuns/retirement-confirm", data=fields)
             assert retry.status_code == 200 and "Original-key replay" in retry.text

@@ -8,6 +8,7 @@ from starlette.concurrency import run_in_threadpool
 
 from .bulk_removal_review import ReadyRemovalReviews, validate_ready_receipt
 from .import_review import ReviewUnavailable
+from .web_confirmation import confirmed
 
 
 def register_ready_removal_web(app, settings, *, enabled, render, identity_for, operator_for,
@@ -91,14 +92,14 @@ def register_ready_removal_web(app, settings, *, enabled, render, identity_for, 
     async def confirm(request: Request):
         identity = identity_for(request, settings.development_auth)
         operator_for(identity)
-        fields = await form_for(request, allowed={'csrf', 'review', 'confirm_ip'}, max_bytes=4096)
+        fields = await form_for(request, allowed={'csrf', 'review', 'confirm_ip', 'confirm_action'}, max_bytes=4096)
         csrf_for(request, fields.get('csrf', [''])[0])
         try:
             review = reviews.get(fields.get('review', [''])[0], identity.subject, request.cookies.get('ftd_shun_csrf', ''))
         except ReviewUnavailable as error:
             raise HTTPException(409, str(error)) from error
-        if fields.get('confirm_ip', [''])[0] != review.scope['ip']:
-            raise HTTPException(422, 'Type the exact IPv4 from this frozen v2 review.')
+        if not confirmed(fields, review.scope['ip'], 'unblock'):
+            raise HTTPException(422, 'Confirm unblocking this reviewed IP and device scope.')
         return await run_in_threadpool(save_review, request, identity, review)
 
     def save_review(request, identity, review):

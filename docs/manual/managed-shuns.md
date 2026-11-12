@@ -15,7 +15,7 @@ checkpoints below retain their original storage/gate contracts.
 | **Shuns** | Blocks observed during the last successful device reads. Search can also show labelled historical observations. |
 | **Managed shuns · Auto-restore on** | Keep this device/IP blocked; restore a missing block while execution and safety checks permit. |
 | **Managed shuns · Auto-restore off** | Do not restore missing blocks. Neither remove an existing block nor automatically remove a later FTD-created block. |
-| **Protected IPs · Protection enabled** | Request removal whenever the protected address is detected blocked. Permanently stop matching auto-restoration. |
+| **Protected IPs · Protection enabled** | Automatically unblock this IP when detected blocked and turn off its auto-restore on every device. Turning protection off does not block it again; create a new import if you want it kept blocked. |
 
 **Auto-restore off is not a blacklist of addresses to remove.** It is retained
 history of previous management. A subsequently detected block is unmanaged unless
@@ -101,7 +101,7 @@ review; it is not implied by observing presence or a NOOP.
 | Operator removes directly through SSH | Restore on later confirmed absence while maintenance remains enabled. Stop maintenance first if absence is intended. |
 | Enabled Protected IP matches | Block restoration; existing automatic-removal policy has priority. |
 | Protection saved enabled | Permanently retire matching maintenance with actor audit; cancel unstarted additions, never interrupt RUNNING work. |
-| Protection later disabled/deleted | Never resume old policy. Finish any legacy/deferred retirement before releasing active protection; new explicit consent is required for another maintained generation. |
+| Protection later disabled/deleted | Stop automatic unblocking. Do not add a block or turn auto-restore back on. To keep the IP blocked again, disable protection and create a new import. |
 | ADD result/worker outcome unknown | Needs attention; do not send another ADD under a new ID. |
 | Later explicit managed import after retirement | New reviewed intent generation; an old-key retry never reactivates it. |
 

@@ -16,10 +16,13 @@ from uuid import UUID, uuid4
 import httpx
 import uvicorn
 from fastapi import FastAPI, Form, HTTPException, Query, Request
+from fastapi.exception_handlers import http_exception_handler, request_validation_exception_handler
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.concurrency import run_in_threadpool
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from . import __version__
 from .build_info import load_build
@@ -40,6 +43,7 @@ from .import_preview import (
     summarize_preview,
 )
 from .import_review import ImportReviews, ReviewUnavailable
+from .ip_context import cache_revision, read_contexts
 from .managed_batch_review import ManagedBatchReviews, parse_standing_list, validate_batch_receipt
 from .managed_grant_review import ManagedGrantReviews
 from .managed_import_web import register_import_web
@@ -47,6 +51,7 @@ from .managed_retirement_review import ManagedRetirementReviews
 from .managed_review import ManagedRemovalReviews, validate_removal_receipt
 from .managed_selection import require_selection
 from .unblock_web import register_unblock_web
+from .web_confirmation import confirmed
 
 PROJECT_ROOT = Path(os.environ.get("FTD_SHUN_ASSET_ROOT", Path(__file__).resolve().parents[2]))
 templates = Jinja2Templates(directory=str(PROJECT_ROOT / "templates"))
@@ -237,6 +242,7 @@ def refresh_metadata(refresh: object) -> dict[str, object]:
         "device_cycle",
         "device_cycles",
         "deferred_confirmation",
+        "deferred_confirmation_enabled",
         "maintenance",
         "history_retention_days",
         "last_retention_purge",
@@ -300,13 +306,63 @@ def create_app(settings: Settings | None = None, *, ready_removal_admission_enab
         return response
 
     def render(request: Request, name: str, context: dict, status_code: int = 200) -> HTMLResponse:
+        context = dict(context)
+        ips, target = [], context.get('ip')
+        review = context.get('review')
+        if target is None and review is not None:
+            scope = getattr(review, 'scope', None)
+            target = scope.get('ip') if type(scope) is dict else getattr(review, 'ip', None)
+        text = context.get('source_text')
+        if target is None and type(text) is str and len(text) <= 15:
+            target = text
+        try:
+            target = str(IPv4Address(target)) if target else None
+        except (ValueError, TypeError):
+            target = None
+        if target:
+            ips.append(target)
+        managed = context.get('managed')
+        for rows in (context.get('shuns'), context.get('search_results'), managed.get('entries') if type(managed) is dict else None):
+            if type(rows) is list:
+                ips.extend(row['ip'] for row in rows[:100] if type(row) is dict and 'ip' in row)
+        contexts, revision = read_contexts(settings.ip_context_cache_path, ips[:100], with_revision=True)
+        context.update(ip_context=contexts,
+                       ip_context_target=target, ip_context_enabled=settings.ip_context_cache_path is not None)
+        context['ip_context_location'] = any(info.get('provider') == 'ipfire-location-v1' for info in contexts.values())
+        if type(context.get('refresh')) is dict and settings.ip_context_cache_path is not None:
+            context['refresh'] = {**context['refresh'], 'ip_context_revision': revision}
         token, set_cookie = csrf_token(request)
         response = templates.TemplateResponse(
-            request, name, {**context, "csrf_token": token}, status_code=status_code
+            request, name, {**context, "csrf_token": token,
+                            "in_action_dialog": request.headers.get('X-Action-Dialog') == '1'}, status_code=status_code
         )
         if set_cookie:
             response.set_cookie("ftd_shun_csrf", token, secure=True, httponly=True, samesite="strict")
         return response
+
+    def browser_refresh(value):
+        result = refresh_metadata(value)
+        if settings.ip_context_cache_path is not None:
+            result['ip_context_revision'] = cache_revision(settings.ip_context_cache_path)
+        return result
+
+    def html_request(request):
+        return 'text/html' in request.headers.get('accept', '')
+
+    @app.exception_handler(StarletteHTTPException)
+    async def browser_http_error(request, error):
+        if not html_request(request):
+            return await http_exception_handler(request, error)
+        message = error.detail if type(error.detail) is str else 'This request could not be completed.'
+        response = render(request, 'error.html', {'message': message}, error.status_code)
+        response.headers.update(error.headers or {})
+        return response
+
+    @app.exception_handler(RequestValidationError)
+    async def browser_validation_error(request, error):
+        if not html_request(request):
+            return await request_validation_exception_handler(request, error)
+        return render(request, 'error.html', {'message': 'Check the submitted fields. No operation was submitted by this request.'}, 422)
 
     def queued_result(request: Request, response: httpx.Response, target: str) -> Response:
         if response.status_code not in {200, 202}:
@@ -323,7 +379,9 @@ def create_app(settings: Settings | None = None, *, ready_removal_admission_enab
                 raise HTTPException(503, "Request status is unknown. Retry with the same operation key.") from error
             if refresh.status_code != 200:
                 raise HTTPException(503, "Request may be queued; status is unavailable. Retry with the same operation key.")
-            return JSONResponse({**refresh_metadata(refresh.json()), "operation_result": response.json()})
+            return JSONResponse({**browser_refresh(refresh.json()), "operation_result": response.json()})
+        if request.headers.get('X-Action-Dialog') == '1':
+            return render(request, 'action-result.html', {'target': target})
         return RedirectResponse(target, status_code=303)
 
     @app.get("/healthz")
@@ -407,7 +465,7 @@ def create_app(settings: Settings | None = None, *, ready_removal_admission_enab
         if response.status_code != 200:
             raise HTTPException(response.status_code, response.text)
         try:
-            return JSONResponse(refresh_metadata(response.json()))
+            return JSONResponse(browser_refresh(response.json()))
         except (TypeError, ValueError) as error:
             raise HTTPException(status_code=503, detail="State API returned invalid status.") from error
 
@@ -957,15 +1015,15 @@ def create_app(settings: Settings | None = None, *, ready_removal_admission_enab
     async def confirm_retirement(request: Request) -> HTMLResponse:
         identity = identity_from_request(request, settings.development_auth)
         require_managed_operator(identity)
-        fields = await preview_form(request, allowed={"csrf", "review", "confirm_ip"}, max_bytes=4096)
+        fields = await preview_form(request, allowed={"csrf", "review", "confirm_ip", "confirm_action"}, max_bytes=4096)
         require_csrf(request, fields.get("csrf", [""])[0])
         try:
             review = retirement_reviews.get(fields.get("review", [""])[0], identity.subject,
                                              request.cookies.get("ftd_shun_csrf", ""))
         except ReviewUnavailable as error:
             raise HTTPException(409, str(error)) from error
-        if fields.get("confirm_ip", [""])[0] != str(review.ip):
-            raise HTTPException(422, "Type the exact IPv4 address shown in the retirement review.")
+        if not confirmed(fields, review.ip, 'stop-restoring'):
+            raise HTTPException(422, "Confirm turning off auto-restoration for this reviewed target.")
         return await run_in_threadpool(save_retirement, request, identity, review)
 
     def save_retirement(request, identity, review):
@@ -1128,15 +1186,15 @@ def create_app(settings: Settings | None = None, *, ready_removal_admission_enab
     async def confirm_managed_removal(request: Request) -> HTMLResponse:
         identity = identity_from_request(request, settings.development_auth)
         require_managed_operator(identity)
-        fields = await preview_form(request, allowed={"csrf", "review", "confirm_ip"}, max_bytes=4096)
+        fields = await preview_form(request, allowed={"csrf", "review", "confirm_ip", "confirm_action"}, max_bytes=4096)
         require_csrf(request, fields.get("csrf", [""])[0])
         try:
             review = managed_reviews.get(fields.get("review", [""])[0], identity.subject,
                                          request.cookies.get("ftd_shun_csrf", ""))
         except ReviewUnavailable as error:
             raise HTTPException(409, str(error)) from error
-        if fields.get("confirm_ip", [""])[0] != str(review.ip):
-            raise HTTPException(422, "Type the exact IPv4 address shown in the review.")
+        if not confirmed(fields, review.ip, 'unblock'):
+            raise HTTPException(422, "Confirm unblocking this reviewed IP and device scope.")
         if not settings.managed_removal_admission_enabled:
             return managed_review_view(request, identity, review, None, confirm_ip=str(review.ip),
                                        message="Combined admission is disabled. No policy change or queue request was submitted by this attempt. Inspect any earlier unknown outcome.",
@@ -1254,7 +1312,7 @@ def create_app(settings: Settings | None = None, *, ready_removal_admission_enab
         if "application/json" in request.headers.get("accept", ""):
             try:
                 payload = response.json()
-                return JSONResponse(refresh_metadata(payload["refresh"]))
+                return JSONResponse(browser_refresh(payload["refresh"]))
             except (KeyError, TypeError, ValueError) as error:
                 raise HTTPException(
                     status_code=503, detail="State API returned invalid refresh status."
@@ -1306,10 +1364,14 @@ def create_app(settings: Settings | None = None, *, ready_removal_admission_enab
     @app.post("/devices/{device_id}/shuns/{ip}/remove")
     def remove_device(
         request: Request, device_id: int, ip: IPv4Address,
-        request_id: Annotated[UUID, Form()], csrf: str = Form(...),
+        request_id: Annotated[UUID, Form()], csrf: str = Form(...), confirm_action: str = Form(''),
     ) -> Response:
         require_csrf(request, csrf)
         identity = identity_from_request(request, settings.development_auth)
+        if html_request(request) and not confirm_action:
+            return simple_unblock_review(request, identity, ip, request_id, device_id)
+        if confirm_action and confirm_action != 'unblock':
+            raise HTTPException(422, 'Confirm unblocking this IP.')
         try:
             with api_client(settings) as client:
                 response = client.request(
@@ -1325,11 +1387,15 @@ def create_app(settings: Settings | None = None, *, ready_removal_admission_enab
 
     @app.post("/shuns/{ip}/remove-all")
     def remove_all(request: Request, ip: IPv4Address, request_id: Annotated[UUID, Form()],
-                   csrf: str = Form(...), confirm_ip: str = Form(...)) -> Response:
+                   csrf: str = Form(...), confirm_ip: str = Form(''), confirm_action: str = Form('')) -> Response:
         require_csrf(request, csrf)
-        if confirm_ip != str(ip):
-            raise HTTPException(status_code=400, detail="confirmation must match the IP address")
         identity = identity_from_request(request, settings.development_auth)
+        if html_request(request) and not confirm_ip and not confirm_action:
+            return simple_unblock_review(request, identity, ip, request_id)
+        fields = {**({'confirm_ip': [confirm_ip]} if confirm_ip else {}),
+                  **({'confirm_action': [confirm_action]} if confirm_action else {})}
+        if not confirmed(fields, ip, 'unblock'):
+            raise HTTPException(status_code=400, detail="Confirm unblocking the reviewed IP address.")
         try:
             with api_client(settings) as client:
                 response = client.post(f"/api/v1/shuns/{ip}/remove-all", json=identity.__dict__,
@@ -1340,6 +1406,23 @@ def create_app(settings: Settings | None = None, *, ready_removal_admission_enab
                 detail="Queue admission was not confirmed. Retry with the same operation key.",
             ) from error
         return queued_result(request, response, f"/shuns/{ip}")
+
+    def simple_unblock_review(request, identity, ip, request_id, device_id=None):
+        require_managed_operator(identity)
+        try:
+            with api_client(settings) as client:
+                response = client.get(f'/api/v1/shuns/{ip}')
+                response.raise_for_status()
+            rows = response.json()
+            if type(rows) is not list:
+                raise ValueError('Invalid device observations')
+            targets = [row for row in rows if device_id is None or row['device_id'] == device_id]
+            if not targets or any(row.get('maintained') is not False for row in targets):
+                raise HTTPException(409, 'This block changed or is managed. Open the IP page and review its current actions.')
+        except (httpx.HTTPError, ValueError, TypeError, KeyError) as error:
+            raise HTTPException(503, 'Unable to load the block for confirmation. Nothing was submitted.') from error
+        return render(request, 'unmanaged-unblock-review.html', {'identity': identity, 'ip': ip,
+                      'request_id': str(request_id), 'device_id': device_id, 'targets': targets})
 
     @app.post("/operations/{operation_id}/cancel")
     def cancel_operation(request: Request, operation_id: UUID, csrf: str = Form(...)) -> Response:

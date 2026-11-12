@@ -1,0 +1,20 @@
+{% macro inline(ip, contexts) -%}
+{% set info = (contexts | default({})).get(ip | string) %}
+{% if info and info.state == 'ready' %}<span class="ip-context-inline" title="IP context: {{ info.country or 'country not supplied' }} · {{ info.organization or info.network or 'network not named' }} · {{ info.registry }}">{{ info.country ~ ' · ' if info.country else '' }}{% if info.asn %}AS{{ info.asn }} · {% endif %}{{ info.organization or info.network or info.registry }}</span>{% endif %}
+{%- endmacro %}
+
+{% macro card(ip, contexts) -%}
+{% set info = (contexts | default({})).get(ip | string) %}
+<aside class="ip-context-card" aria-label="IP information">
+{% if info and info.state == 'ready' %}
+<p><strong>{% if info.asn %}AS{{ info.asn }} · {% endif %}{{ info.organization or info.network or info.registry }}</strong>{% if info.country %} · {{ 'Country' if info.provider | default('') == 'ipfire-location-v1' else 'Registration country' }}: <span class="status-label">{{ info.country }}</span>{% endif %}</p>
+<details><summary>IP information details</summary><dl>
+{% if info.network %}<dt>Network</dt><dd>{{ info.network }}</dd>{% endif %}
+<dt>Allocated range</dt><dd>{{ info.range_start }} – {{ info.range_end }}</dd>
+<dt>Source</dt><dd><a href="{{ info.source }}" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">{{ info.registry }}{{ ' · CC BY-SA 4.0' if info.provider | default('') == 'ipfire-location-v1' else ' RDAP' }}</a></dd>
+{% if info.database_at %}<dt>Source database</dt><dd><time class="local-timestamp" datetime="{{ info.database_at }}">{{ info.database_at }}</time></dd>{% endif %}
+<dt>Retrieved</dt><dd><time class="local-timestamp" datetime="{{ info.fetched_at }}">{{ info.fetched_at }}</time></dd>
+</dl><p class="preview-help">IP information is advisory. Country is approximate; the network name does not identify the attacker.</p></details>
+{% else %}<p class="preview-help">{{ 'IP information pending.' if info and info.state in ('pending', 'looking_up', 'not_requested') else 'No public IP information for this special-use IP.' if info and info.state == 'skipped' else 'IP information unavailable.' }} Actions do not wait for this information.</p>{% endif %}
+</aside>
+{%- endmacro %}

@@ -1,15 +1,33 @@
 # Protected IPs
 
-**Lifecycle update (2026-10-21):** explicit enabled-protection saves now permanently
-retire matching managed maintenance. Disabling/deleting protection never restores
-that old policy. Existing entries are not swept on startup or GET; legacy/deferred
-maintenance is retired on a reviewed save before active protection can be removed.
+Use **Protected IPs** for addresses that should stay unblocked, such as an office's
+public IP. When a device check finds a protected IP in Shuns, the service queues
+an unblock. Protection applies to **all enabled devices**, not a device selection.
+
+## What the switches mean
+
+| Action | Result |
+| --- | --- |
+| Turn protection on | Automatically unblock the IP when a device check finds it blocked. Also turn off auto-restore for this IP on every device. |
+| Turn protection off | Keep the entry for later use, but stop automatic unblocking. Do not add a block or turn auto-restore back on. |
+| Delete the entry | Remove it from this list and stop automatic unblocking. Do not add a block or turn auto-restore back on. |
+
+**Example:** you imported `198.51.100.10` so the service would keep it blocked.
+You then enable protection for that IP. The service stops recreating its block
+and queues an unblock when it finds one. Later, you disable protection. Nothing
+is added back: the IP can remain unblocked, and FTD can block it again if its own
+detection rules trigger. If you want the service to keep it blocked again,
+disable protection and create a **new import** for the selected devices.
+
+Saving an entry does not run a device command immediately. Check **Queue** for
+unblocking progress and **Status** for device-check errors. Turning protection off
+or deleting an entry cancels automatic unblock requests that have not started.
+A running command finishes; manually requested unblocks are not cancelled.
 
 ## Purpose and permissions
 
-Open **Protected IPs** in the navigation. Each enabled, exact IPv4 address is
-eligible for automatic shun removal on **every enabled FTD device**. This is an
-ongoing protection policy, not a manual blocklist import or a desired blocklist.
+Open **Protected IPs** in the navigation. On each enabled device, a successful
+check queues removal of any block found for an enabled protected IP.
 Use only independently verified egress addresses. CIDRs, ranges, hostnames and
 IPv6 are unsupported; the list is bounded to 1,000 addresses.
 
@@ -41,32 +59,39 @@ are optional plain text and escaped in HTML; they never become Cisco commands.
 ## Workflow and concurrent users
 
 1. Open **Add protected IP**, enter an exact address and optional name/comment,
-   and explicitly review the fleet-wide enabled checkbox before saving.
+   and leave **Automatically unblock this IP** checked to turn protection on.
+   Clear it if you only want to save the address for later.
 2. Open an address's editor to rename/comment or enable/disable it. To delete,
    open **Delete address** and type the address to confirm.
-3. Saving changes SQLite only; it does not synchronously open SSH or bypass the
-   shared scheduler. A subsequent successful snapshot discovers eligible shuns
-   and queues verified automatic removal within existing cycle limits.
-4. Enabling protection permanently stops matching managed maintenance, including
-   targets missing from observations or on disabled devices. It cancels unsent
-   ADD/restoration but never interrupts an already RUNNING command or claims a
-   device removal succeeded. Required device verification/removal remains queued.
-5. Disabling/deleting atomically cancels unstarted policy intentions. A shared
-   manual request survives; already RUNNING operations cannot be interrupted.
-   Disabling protection does not itself add a shun back to the device. Retained
-   managed maintenance is not resumed. Only new explicit maintained-policy consent
-   after protection is disabled can authorize another generation. A later FTD-
-   detected shun without new service consent remains unmanaged.
+3. After saving, wait for the next successful device check. If the address is
+   blocked, its automatic unblock appears in Queue.
+4. If the IP was previously imported, protection also turns off its auto-restore
+   settings on all devices, including disabled devices and those where no block
+   is currently seen. Additions that have not started are cancelled; a running
+   command finishes before the service can unblock the IP.
+5. To stop automatic unblocking, clear **Automatically unblock this IP** and save,
+   or delete the entry. This does not block the IP. If FTD later blocks it again,
+   the service leaves that block alone unless you enable protection again.
 
-Edits carry the global saved policy revision. Another user's change
-causes `409 Conflict`, not last-writer-wins overwrite. Dynamic updates preserve
-dirty values **and their original revision**, independently for each address.
-Use **reload saved values** to discard drafts, review the latest policy and
-resubmit. An interrupted save is not automatically retried: check the current
-list first. Successful saves refresh the list and other tabs observe the
-durable policy revision without triggering a Cisco query.
+If someone else saves changes while you are editing, your save is refused so you
+do not overwrite their changes. Your unsaved fields stay in the form. Use
+**reload the list**, review the saved values, and make your changes again;
+reloading discards your unsaved edits. If a save is interrupted, check the current
+list before retrying. Other open tabs update after a successful save.
 
-### Managed maintenance acknowledgement
+The v0.3.2 wording update changes Web presentation only. It requires a Web image
+update and browser reload, without a policy edit, API/agent restart or database
+change. The technical upgrade procedures below describe earlier storage/runtime
+changes, not a requirement for this text update.
+
+## Implementation details: auto-restore and concurrent edits
+
+The sections below describe internal checks and troubleshooting. For ordinary
+use, the switches and workflow above are sufficient. Protection saves turn off
+matching managed targets permanently: an old import is never automatically
+reactivated when protection ends. Existing entries are not swept on startup or
+GET; any older/deferred retirement is completed on a checked save before active
+protection can be removed.
 
 Each card reports the number of **enabled managed intents** for that address,
 including missing observations and disabled devices, excluding stopped intents.

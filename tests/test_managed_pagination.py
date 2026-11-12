@@ -205,7 +205,8 @@ def test_api_and_web_pagination_auth_conflict_and_no_full_fallback(lab, monkeypa
             response = await client.get("/managed-shuns?page=2&revision=1")
             assert response.status_code == 200 and "Managed policy changed while" in response.text
             assert "has not been initialized" not in response.text and '<select id="managed-review-target"' not in response.text
-            assert 'id="managed-shun-state" data-live-region' in response.text
+            opening = response.text.split('id="managed-shun-state"', 1)[1].split('>', 1)[0]
+            assert 'data-live-region' in opening  # Metadata marker order is presentation only.
             assert (await client.get("/managed-shuns?page=4")).status_code == 422
         async with httpx.AsyncClient(transport=httpx.ASGITransport(app=api), base_url="http://internal") as client:
             response = await client.get("/api/v1/managed-shuns/page?page=2&revision=1")

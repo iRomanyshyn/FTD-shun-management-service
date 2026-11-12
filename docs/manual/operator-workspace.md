@@ -5,6 +5,14 @@ Status and Queue remain beside the page heading on wide screens, and below it
 on narrow screens. Their existing activity/error indicators and live updates are
 unchanged. Open either panel for execution details.
 
+Protected IPs describes what the service does: **automatically unblock this IP**
+on enabled devices after a successful check. Turning it off stops automatic
+unblocking; it does not add a block or turn auto-restore back on. If an imported
+IP should be kept blocked again, disable protection and create a new import.
+The short page explanation stays visible; timing, concurrent edits and the
+imported-IP example live under **How protection works** and in the
+[Protected IPs manual](protected-ips.md#what-the-switches-mean).
+
 Each execution pause has its own compact outlined group: name, state and button
 stay together rather than stretching across the available width. The groups
 wrap independently on small screens.

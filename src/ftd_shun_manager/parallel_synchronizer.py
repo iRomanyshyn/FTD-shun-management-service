@@ -346,6 +346,9 @@ class ParallelSynchronizer:
             if isinstance(result, BaseException):
                 self._results[str(device.id)] = {'state': 'held', 'error': 'Unexpected device worker failure.'}
 
+    async def _before_claim(self, device, worker):
+        return True
+
     async def _visit(self, device):
         if self._stopping:
             self._results[str(device.id)] = {'state': 'not_started'}
@@ -356,6 +359,8 @@ class ParallelSynchronizer:
                 self.store, self.agent, device.id, **self.configuration)
         timing_bound = False
         try:
+            if not await self._before_claim(device, worker):
+                return
             token = self.leases.claim(device.id, str(uuid4()), self._lease_seconds, enabled=True)
             if token is None:
                 self._results[str(device.id)] = {'state': 'lease_held'}

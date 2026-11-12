@@ -14,6 +14,11 @@ storage. Observation and managed execution are separate explicit selections;
 neither is production acceptance. The legacy lab database and its retained
 managed lifecycle evidence cannot be converted by startup.
 
+The experimental v0.5.0 deferred mode keeps the `continuous-managed` workflow
+family but requires its own explicit capability, protocol7 and complete separate
+profile. See [Deferred First Confirmation](deferred-confirmation.md#explicit-configured-selection-v050-2026-11-12).
+Default verified behavior and the currently deployed lab remain unchanged.
+
 This increment supplies three pieces: explicit runtime selection, immutable
 public-inventory assertions, and a non-executing CLI check. It uses the existing
 [restricted composition](continuous-api.md), [dispatcher](continuous-dispatch.md)

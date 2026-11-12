@@ -1015,9 +1015,12 @@ class OperationQueue:
             from .prewrite_recovery import present as prewrite_present
 
             if pending_present(db):
+                from .pending_restart import RETAINED_CLAIMS
+
                 bulk_state(db)
                 preserve += """ AND NOT EXISTS (SELECT 1 FROM managed_bulk_pending_members m
                     WHERE m.job_id=operation_jobs.id)"""
+                preserve += ' AND NOT EXISTS (SELECT 1 FROM (' + RETAINED_CLAIMS + ') h WHERE h.job_id=operation_jobs.id)'
             if retries_present(db):
                 validate_retained_jobs(db)
                 preserve += """ AND NOT EXISTS (SELECT 1 FROM managed_bulk_pending_retries r

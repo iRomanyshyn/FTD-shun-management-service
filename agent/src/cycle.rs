@@ -622,6 +622,7 @@ pub(super) fn handle(
         version,
     };
     let mut failed_read = Some((packet[0], 0));
+    let mut pending_terminal = None;
     let result = (|| -> Result<u8> {
         let initial = runtime.block_on(timeout(
             cycle
@@ -683,6 +684,11 @@ pub(super) fn handle(
                 );
             }
             let (response, done) = execution?;
+            if done && packet[0] == batch_addition::END_PENDING {
+                // Retain the exact executed scope even if its local send fails.
+                // Publication still requires successful disconnect AND postamble.
+                pending_terminal = Some((packet[2], cycle.pending_additions.clone()));
+            }
             snapshot::send_frames(connection, &response, deadline)?;
             if done {
                 return Ok(packet[2]);
@@ -707,6 +713,16 @@ pub(super) fn handle(
         agent
             .sessions
             .prepare_read_only(sessions::decode(packet, sessions::BEGIN)?)?;
+    }
+    if packet[0] == sessions::BEGIN
+        && cleanup.is_ok()
+        && let Some((sequence, targets)) = pending_terminal
+    {
+        agent.sessions.prepare_pending(
+            sessions::decode(packet, sessions::BEGIN)?,
+            sequence,
+            &targets,
+        )?;
     }
     let reason = result
         .as_ref()

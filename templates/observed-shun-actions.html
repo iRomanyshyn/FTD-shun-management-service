@@ -2,14 +2,23 @@
 {% if 'Operator' in identity.roles or 'Administrator' in identity.roles %}
 {% if (refresh or {}).managed_policy_format == 2 %}
 {% if refresh.ready_removal_review_available is sameas true %}
-<form method="post" action="/managed-shuns/v2/removal-review" class="observed-removal-review"><input type="hidden" name="csrf" value="{{ csrf_token }}"><input type="hidden" name="target" value="{{ shun.device_id }}:{{ shun.ip }}"><button>{{ 'Review stop restoring and remove' if shun.maintained is sameas true else 'Review removal from this device' }}</button></form>
+<form method="post" action="/ip-actions/unblock" class="observed-removal-review" data-open-action><input type="hidden" name="csrf" value="{{ csrf_token }}"><input type="hidden" name="target" value="{{ shun.device_id }}:{{ shun.ip }}"><button{% if shun.device_enabled is sameas false %} disabled{% endif %}>Unblock</button></form>
 {% else %}<span class="muted">Removal unavailable</span>{% endif %}
 {% elif shun.maintained is sameas true %}
-<form method="post" action="/managed-shuns/removal-review" class="observed-removal-review"><input type="hidden" name="csrf" value="{{ csrf_token }}"><input type="hidden" name="target" value="{{ shun.device_id }}:{{ shun.ip }}"><button>Review stop restoring and remove</button></form>
+<form method="post" action="/managed-shuns/removal-review" class="observed-removal-review" data-open-action><input type="hidden" name="csrf" value="{{ csrf_token }}"><input type="hidden" name="target" value="{{ shun.device_id }}:{{ shun.ip }}"><button>Unblock</button></form>
 {% elif shun.maintained is sameas false and (refresh or {}).manual_mutations_available is not sameas false %}
-<form method="post" action="/devices/{{ shun.device_id }}/shuns/{{ shun.ip }}/remove" data-queue-form><input type="hidden" name="csrf" value="{{ csrf_token }}"><input type="hidden" name="request_id" value="{{ new_operation_key() }}"><button>Queue removal from this device</button></form>
+<form method="post" action="/devices/{{ shun.device_id }}/shuns/{{ shun.ip }}/remove" data-queue-form data-open-action><input type="hidden" name="csrf" value="{{ csrf_token }}"><input type="hidden" name="request_id" value="{{ new_operation_key() }}"><button>Unblock</button></form>
 {% else %}<a href="/shuns/{{ shun.ip }}">View IP details</a>{% endif %}
 {% else %}Read-only{% endif %}
+{% endmacro %}
+
+{% macro actions(shun, identity, refresh, csrf_token, new_operation_key, actionable=true) %}
+<div class="row-ip-actions" aria-label="Actions for {{ shun.ip }} on {{ shun.device_hostname }}">
+{% if actionable %}{{ removal(shun, identity, refresh, csrf_token, new_operation_key) }}{% endif %}
+{% if shun.maintained is sameas false and (refresh or {}).bulk_import_preparation_available is sameas true and ('Operator' in identity.roles or 'Administrator' in identity.roles) %}<a class="table-action" href="/managed-imports/v2?ip={{ shun.ip }}&amp;device_id={{ shun.device_id }}" title="Keep this IP blocked on the selected device and restore it if it disappears">Make managed</a>{% endif %}
+<a class="table-action" href="/protected-ips?ip={{ shun.ip }}" title="Automatically unblock this IP when detected">Protect</a>
+<a class="text-action" href="/shuns/{{ shun.ip }}#ip-actions">Details</a>
+</div>
 {% endmacro %}
 
 {% macro badge(shun) %}

@@ -4,7 +4,10 @@
 <div class="page-heading"><h1>IP: {{ ip }}</h1>
 {% if refresh %}{% include "refresh-panel.html" %}{% endif %}
 </div>
-<section id="protection-notice" data-live-region>{% if is_trusted_policy_ip %}<p class="protected-ip-notice"><strong>Protected IP.</strong> This address is in the trusted-IP automatic-removal policy.</p>{% elif is_disabled_policy_ip %}<p class="disabled-protection-notice"><strong>Protection disabled{% if shuns %} — currently shunned{% endif %}.</strong> This address is saved in Protected IPs, but automatic removal is off.</p>{% endif %}</section>
+{% if ip_context_enabled | default(false) and ip_context_target %}{% from "ip-context.html" import card %}
+<section id="ip-registration" data-live-region>{{ card(ip_context_target, ip_context) }}</section>{% endif %}
+
+<section id="protection-notice" data-live-region>{% if is_trusted_policy_ip %}<p class="protected-ip-notice"><strong>Protected IP.</strong> The service queues an unblock whenever a device check finds this IP blocked.</p>{% elif is_disabled_policy_ip %}<p class="disabled-protection-notice"><strong>Protection disabled{% if shuns %} — currently shunned{% endif %}.</strong> This address is saved in Protected IPs, but automatic unblocking is off.</p>{% endif %}</section>
 {% include "ip-actions.html" %}
 <h2>Device observations</h2>
 <p class="preview-help">Unblocking a device removes all verified matching interfaces on that device.</p>
@@ -23,7 +26,7 @@ Verified <time class="local-timestamp" datetime="{{ origin.verified_at }}">{{ or
 </ul>
 <section id="bulk-removal" data-live-region>
 {% if shuns and (refresh or {}).manual_mutations_available is not sameas false and shuns | selectattr('maintained', 'sameas', false) | list | length == shuns | length and ('Operator' in identity.roles or 'Administrator' in identity.roles) %}
-<h2>Remove from all listed devices</h2><form method="post" action="/shuns/{{ ip }}/remove-all" class="remove-all-form" data-queue-form><input type="hidden" name="csrf" value="{{ csrf_token }}"><input type="hidden" name="request_id" value="{{ new_operation_key() }}"><label>Type {{ ip }} to confirm <input name="confirm_ip" required></label><button>Queue removal from all devices</button></form>
+<h2>Unblock everywhere</h2><form method="post" action="/shuns/{{ ip }}/remove-all" class="remove-all-form" data-queue-form data-open-action><input type="hidden" name="csrf" value="{{ csrf_token }}"><input type="hidden" name="request_id" value="{{ new_operation_key() }}"><button>Unblock on all devices…</button></form>
 {% endif %}
 </section>
 <section id="ip-history" data-live-region>

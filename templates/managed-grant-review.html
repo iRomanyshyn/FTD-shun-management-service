@@ -1,6 +1,9 @@
 {% extends "base.html" %}
 {% block content %}
 <h1>Review standing shun maintenance</h1>
+{% if ip_context_enabled | default(false) and ip_context_target %}{% from "ip-context.html" import card %}
+<section id="ip-registration" data-live-region>{{ card(ip_context_target, ip_context) }}</section>{% endif %}
+
 {% if refresh %}{% include "refresh-panel.html" %}{% endif %}
 <p class="policy-warning"><strong>Persistent policy, not a one-time import.</strong> This authorizes the service to add this shun after a fresh complete read confirms it is missing, and restore it after later disappearance, until you explicitly stop maintaining it. SSH deletion alone does not stop this policy. Enabled Protected IPs always win.</p>
 {% if message %}<p class="preview-error" role="alert">{{ message }}</p>{% endif %}

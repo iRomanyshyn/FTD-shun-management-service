@@ -241,7 +241,7 @@ class ReadyRemovalRequest(BaseModel):
     reason: str = Field(default='', max_length=500)
 
 
-class OrderedPredecessorEvidence(BaseModel):
+class OrderedPredecessorIdentity(BaseModel):
     model_config = ConfigDict(extra='forbid', strict=True)
     request_id: str = Field(min_length=36, max_length=36)
     job_id: str = Field(min_length=36, max_length=36)
@@ -257,15 +257,24 @@ class OrderedPredecessorEvidence(BaseModel):
     started_at: str = Field(min_length=24, max_length=24)
     executor_owner: str = Field(min_length=36, max_length=36)
     executor_epoch: int = Field(ge=1, le=2**63 - 1)
-    lease_until: str = Field(min_length=24, max_length=24)
     claim_event_id: str = Field(min_length=36, max_length=36)
     evidence_digest: str = Field(pattern=r'^[0-9a-f]{64}$')
+
+
+class OrderedPredecessorEvidence(OrderedPredecessorIdentity):
+    lease_until: str = Field(min_length=24, max_length=24)
+
+
+class SettledOrderedPredecessorEvidence(OrderedPredecessorIdentity):
+    kind: Literal['AWAITING_CONFIRMATION']
+    pending_session_id: str = Field(min_length=36, max_length=36)
+    settled_at: str = Field(min_length=24, max_length=24)
 
 
 class OrderedPredecessor(BaseModel):
     model_config = ConfigDict(extra='forbid', strict=True)
     device_id: int = Field(ge=1, le=65535)
-    evidence: OrderedPredecessorEvidence
+    evidence: OrderedPredecessorEvidence | SettledOrderedPredecessorEvidence
 
 
 class OrderedRemovalRequest(ReadyRemovalRequest):
@@ -1249,6 +1258,8 @@ def main(argv=None) -> None:
         raise
     if args.check:
         print(json.dumps({'event': 'api.runtime.checked', 'runtime_mode': settings.api_runtime,
+                          'batch_session_version': settings.batch_session_version,
+                          'deferred_confirmation_enabled': settings.deferred_confirmation_enabled,
                           'execution_started': False, 'migration_performed': False}), flush=True)
         return
     uvicorn.run(app, uds=settings.api_socket, log_level="info")

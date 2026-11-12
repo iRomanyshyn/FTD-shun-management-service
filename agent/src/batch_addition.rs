@@ -5,7 +5,7 @@ use super::*;
 pub(super) const VERSION: u8 = 4;
 pub(super) const SHARED_END_VERSION: u8 = 5;
 pub(super) const MULTI_GROUP_VERSION: u8 = 6;
-// Transport foundation only: configuration still refuses selecting this version.
+// Experimental: configuration also requires the explicit deferred capability.
 pub(super) const PENDING_END_VERSION: u8 = 7;
 pub(super) const STAGE: u8 = 0x1a;
 pub(super) const VERIFY: u8 = 0x1b;

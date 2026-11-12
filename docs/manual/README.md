@@ -17,7 +17,7 @@ not a runbook or permission to change gates, initialize schemas or run new fixtu
 | Manual | Purpose |
 | --- | --- |
 | [Development](development.md) | Local setup, test commands, and mock agent boundaries. |
-| [Fresh Working-Version Lab](fresh-development.md) | Non-overwriting clean v2 setup, configured managed API/Web, lab Compose cutover, usage and rollback. |
+| [Fresh Working-Version Lab](fresh-development.md) | Non-overwriting verified setup, optional deferred development storage, configured managed API/Web and lab cutover. |
 | [Working-Version Plan](../working-version-plan.md) | Agreed product behavior, working-version priorities, implementation gaps and deferred SMTP notifications; not yet an operating procedure. |
 | [Versioning](versioning.md) | Mandatory delivery increments, public source-build identity, footer/package checks and release boundary. |
 | [Operator Workspace](operator-workspace.md) | Compact tables, intact IP/badge labels, action shortcuts, reference disclosures and responsive layouts. |
@@ -98,7 +98,11 @@ not a runbook or permission to change gates, initialize schemas or run new fixtu
 | [Large Snapshots](large-snapshots.md) | Default-off versioned multi-frame reads, complete-snapshot checks, console/transfer budgets and lab rollout/rollback. |
 | [Grouped Additions](batch-additions.md) | Default-off v5 shared final verification (retained v4 transport), fenced pending queue, priority/drain/failure behavior and rollout limits. |
 | [Multi-group Import Sessions](multi-group-sessions.md) | Explicit matched v6, up to 64 attempts in 240 seconds, fresh bounded refill between verified groups, retained priority/cancellation and uncertainty. |
-| [Deferred First Confirmation](deferred-confirmation.md) | Source-only v7 evidence, handoff, fresh retries, continuous scheduling, later disappearance restoration and ready cleanup; no unknown replay, configured mode or live activation. |
+| [Deferred First Confirmation](deferred-confirmation.md) | Default-off configured v7, exact fresh storage, handoff/confirmation, lost-terminal lookup and retries; no unknown replay or live activation. |
+| [Interrupted Pending Handoff](pending-restart-recovery.md) | Exact API-crash recovery from a pre-END checkpoint and completed agent journal; no old ADD replay or historical unknown release. |
+| [IP Actions](ip-actions.md) | Visible row actions, compact unblock dialogs, explicit button consent and original-request retry. |
+| [IP Registration Information](ip-context.md) | Optional isolated IPFire dataset, local backfill/periodic refresh and country/ASN/operator in rows and dialogs. |
+| [IP Context Plan](ip-context-plan.md) | Original design constraints and later delivery alignment. |
 | [Extended Session Recovery](extended-session-recovery.md) | Explicit offline 17–64-claim v6 review, compact immutable receipts, unknown preservation, quiescence/backup and profile-aware restart. |
 | [Exact Pre-write-DEFER Recovery](prewrite-epoch-recovery.md) | Separate offline v6 proof for one final expired/cancelled pre-write claim, immutable full-scope marker, no outcome change or replay. |
 | [FTD Laboratory Validation](ftd-lab-validation.md) | Controlled agent, snapshot, and parser-fixture validation. |

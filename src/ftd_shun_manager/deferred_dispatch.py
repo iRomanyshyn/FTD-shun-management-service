@@ -7,6 +7,7 @@ from .continuous_dispatch import ContinuousDispatcher
 from .deferred_worker import DeferredParallelSynchronizer
 from .device_leases import device_uncertain
 from .import_preparations import _stamp
+from .managed_addition_controls import paused_for
 from .operation_queue import QueueConflict
 from .pending_execution import PendingExecution
 from .pending_retries import retry_candidates, retry_window
@@ -14,7 +15,7 @@ from .safety import mutations_suspended
 
 
 class DeferredContinuousDispatcher(ContinuousDispatcher):
-    """Default-disabled internal composition; current configured runtime stays v6.
+    """Default-disabled composition on the exact prepared deferred profile.
 
     Scheduling samples are advisory. Timer expiry requests a new complete read;
     the worker, never this selector, validates permission and creates fresh jobs.
@@ -44,13 +45,16 @@ class DeferredContinuousDispatcher(ContinuousDispatcher):
             held = device_uncertain(db, device)
             paused = mutations_suspended(db) or bool(db.execute(
                 'SELECT restoration_suspended FROM managed_bulk_registry').fetchone()[0])
-            due, checked = None, 0
+            due, checked, operator_paused = None, 0, 0
             cursor = self._deferred_cursors.get(device, b'')
             if device in self.runner.configuration['addition_device_ids'] and not held and not paused:
                 rows = retry_candidates(db, device, cursor)
                 for row in rows[:64]:
                     checked += 1
                     cursor = row['ip']
+                    if paused_for(db, row):
+                        operator_paused += 1
+                        continue  # Paused retry timers must not create extra SSH visits.
                     try:
                         eligible = retry_window(db, row, now)[3]
                     except QueueConflict:
@@ -66,6 +70,7 @@ class DeferredContinuousDispatcher(ContinuousDispatcher):
                 'confirmation_in_seconds': max(0, (not_before - now).total_seconds()) if not_before else None,
                 'confirmation_not_before': _stamp(not_before) if not_before else None,
                 'checked_retry_candidates': checked, 'counts_are_sampled': True,
+                'operator_paused_candidates': operator_paused,
                 'held': held, 'mutations_paused': paused,
                 'sampled_at': _stamp(now), 'sampled_monotonic': current,
             }

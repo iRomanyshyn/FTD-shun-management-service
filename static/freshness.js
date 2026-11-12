@@ -167,7 +167,7 @@
   const readInitial = (root) => parseStatus(JSON.parse(
     root.querySelector("[data-refresh-initial]").textContent,
   ));
-  const version = (status) => `${status.instance_id}:${status.data_revision}:${status.cycle_revision}:${status.queue?.revision || 0}:${status.policy_revision || 0}:${status.managed_policy_revision ?? 0}:${Boolean(status.managed_policy_initialized)}:${status.managed_policy_available ?? true}:${status.managed_addition_controls?.imports?.revision ?? 0}:${status.managed_addition_controls?.restoration?.revision ?? 0}`;
+  const version = (status) => `${status.instance_id}:${status.data_revision}:${status.cycle_revision}:${status.queue?.revision || 0}:${status.policy_revision || 0}:${status.managed_policy_revision ?? 0}:${Boolean(status.managed_policy_initialized)}:${status.managed_policy_available ?? true}:${status.managed_addition_controls?.imports?.revision ?? 0}:${status.managed_addition_controls?.restoration?.revision ?? 0}:${document.querySelector('[data-ip-context-list], #ip-registration') ? status.ip_context_revision ?? 0 : 0}`;
   // Template JSON and BFF JSON may order object keys differently. Equivalent
   // metadata must not restart native progress animations or replace controls.
   const stableSignature = (value) => JSON.stringify(value, (_key, entry) =>
@@ -819,6 +819,7 @@
       if (!busy) schedule(0);
     };
     document.addEventListener("submit", (event) => {
+      if (event.defaultPrevented) return;
       if (!event.target.matches("[data-queue-form], [data-policy-form], [data-managed-cancel-form], [data-managed-control-form]")) return;
       event.preventDefault();
       submitAction(event.target.action, new FormData(event.target), event.submitter, event.target);

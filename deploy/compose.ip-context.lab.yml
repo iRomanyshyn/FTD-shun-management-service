@@ -1,0 +1,73 @@
+# Optional desk-lab profile, after the three existing lab overlays.
+services:
+  web:
+    environment:
+      FTD_SHUN_IP_CONTEXT_CACHE: /ip-context/location-cache.db
+    volumes:
+      - ip-context-cache:/ip-context:ro
+
+  ip-context-init:
+    image: alpine:3.21
+    profiles: [ip-context]
+    command: ["/bin/sh", "-ec", "mkdir -p /cache /feed && chown 0:0 /cache /feed && chmod 0750 /cache /feed && chown 10001:10001 /cache /feed"]
+    volumes:
+      - ip-context-cache:/cache
+      - ip-context-feed:/feed
+    network_mode: none
+    read_only: true
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    cap_add: [CHOWN]
+
+  ip-context-feed:
+    image: ftd-shun-ip-context:lab
+    build: ..
+    profiles: [ip-context]
+    restart: unless-stopped
+    command: ["python", "-m", "ftd_shun_manager.observation_feed", "--source", "/observations/managed-v2.db", "--socket", "/run/ip-context/feed.sock"]
+    volumes:
+      # Query-only SQLite, RW solely for WAL/SHM bookkeeping. No network.
+      - state:/observations
+      - ip-context-feed:/run/ip-context
+    depends_on:
+      ip-context-init:
+        condition: service_completed_successfully
+    network_mode: none
+    read_only: true
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    tmpfs: ["/tmp:rw,noexec,nosuid,nodev"]
+    mem_limit: 384m
+
+  ip-context-worker:
+    image: ftd-shun-ip-context-location:lab
+    build:
+      context: ..
+      target: ip-context
+    profiles: [ip-context]
+    restart: unless-stopped
+    command: ["python", "-m", "ftd_shun_manager.location_context", "--feed-socket", "/run/ip-context/feed.sock", "--cache", "/ip-context/location-cache.db", "--database", "/ip-context/location.db"]
+    environment:
+      FTD_SHUN_LOCATION_UPDATE_INTERVAL_SECONDS: ${FTD_SHUN_LOCATION_UPDATE_INTERVAL_SECONDS:-86400}
+      FTD_SHUN_IP_CONTEXT_REFRESH_INTERVAL_SECONDS: ${FTD_SHUN_IP_CONTEXT_REFRESH_INTERVAL_SECONDS:-604800}
+    volumes:
+      - ip-context-feed:/run/ip-context:ro
+      - ip-context-cache:/ip-context
+    depends_on:
+      ip-context-init:
+        condition: service_completed_successfully
+      ip-context-feed:
+        condition: service_started
+    # No original DB, credentials, API/agent socket, device or edge network.
+    networks: [ip-context-outbound]
+    read_only: true
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    tmpfs: ["/tmp:rw,noexec,nosuid,nodev"]
+    mem_limit: 384m
+
+networks:
+  ip-context-outbound: {}
+volumes:
+  ip-context-cache: {}
+  ip-context-feed: {}

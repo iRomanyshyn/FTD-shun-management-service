@@ -56,6 +56,18 @@ For documentation-only changes, validate links and `git diff --check`; do not ru
 unrelated full code/browser/agent suites. Code, protocol and deployment changes
 still get the applicable regression checks below and in `AGENTS.md`.
 
+## Operator-facing wording
+
+Describe the action and its result before internal mechanisms. For example,
+Protected IPs **automatically unblocks**; managed auto-restore **keeps an IP
+blocked and recreates a missing block**. Explain what turning either off does.
+Do not make operators interpret "matching managed maintenance", "old policy",
+intent generations, saved revisions or authority ledgers to use a normal form.
+Describe a concurrent edit as another person's saved change and give the reload
+step, including whether it discards unsaved edits. Keep implementation evidence
+in technical details without hiding actual consequences, blockers or uncertainty.
+Reuse these meanings in page help, IP notices and the operator manuals.
+
 ## Import execution responsiveness and whole-task progress
 
 Agent-side CLI diagnostics regressions use:
@@ -227,6 +239,29 @@ drift, canonical inventory ordering, independent gates and one lifecycle owner.
 Only the lifecycle test substitutes semantic fake RPCs. No live DB/inventory,
 credential, service or FTD is accessed. See [Configured Runtime](configured-runtime.md)
 for the preflight/backup/rollback boundaries; it is not lab activation approval.
+
+## Configured deferred-confirmation checks
+
+The v0.6.0 restart-recovery tests use disposable SQLite profiles and synthetic
+local seqpacket peers. Include `tests/test_pending_restart.py` with
+`tests/test_pending_completion_lookup.py`; they cover original expired fences,
+causal confirmation, the 64-claim visit, retention, rollback, cancellation drain
+and missing/foreign journal proof. They send no commands to the laboratory FTD.
+See [Interrupted Pending Handoff](pending-restart-recovery.md).
+
+```bash
+python3 -m pytest -q tests/test_configured_deferred.py tests/test_configured_managed.py tests/test_configured_runtime.py tests/test_pending_completion_lookup.py
+cargo test --locked --manifest-path agent/Cargo.toml
+```
+
+Disposable fresh profiles and local seqpacket peers exercise the explicit
+default-off capability, strict paired version7/client/dispatcher selection,
+no-init/check/GET behavior and API import through actual binary framing. The
+final group waits for a later causal complete read, without creation attribution
+or duplicate ADD. Wrong flags/profiles/controls/inventory refuse before execution.
+Rust process-isolated configuration tests retain canonical false defaults and
+require the separate literal agent capability. No lab credential, target or
+service is used. See [Deferred First Confirmation](deferred-confirmation.md).
 
 ## Fenced concurrent standing-admission checks
 

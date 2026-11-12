@@ -83,7 +83,7 @@ def test_review_is_frozen_non_executable_and_server_refuses_direct_submission(la
             assert "Preparatory review only" in page.text and "one exact device/IP target" in page.text
             assert "Not currently observed" in page.text and "lab-1 (1)" in page.text
             assert "&lt;img" in page.text and "<img src=x" not in page.text
-            assert "disabled>Stop maintenance" in page.text
+            assert 'value="unblock" disabled' in page.text
             assert 'data-frozen-view="true"' in page.text and 'data-auto-request="false"' in page.text
             fields = {"csrf": client.cookies.get("ftd_shun_csrf"), "review": token(page), "confirm_ip": str(IP)}
             response = await client.post("/managed-shuns/removal-confirm", data=fields)

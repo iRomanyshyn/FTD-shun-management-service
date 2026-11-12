@@ -22,6 +22,8 @@ from .device_leases import DeviceLeases
 from .inventory import load_public_inventory
 from .maintenance import _actor
 from .operation_queue import OperationQueue, stamp
+from .pending_confirmation import PendingConfirmations
+from .pending_execution import PendingExecution
 from .store import Store
 
 
@@ -46,7 +48,10 @@ def _protection(path):
     return rows
 
 
-def _build(store, entries, concurrency, protection, subject):
+PROFILES = ('verified', 'deferred-confirmation')
+
+
+def _build(store, entries, concurrency, protection, subject, profile='verified'):
     store.initialize()
     queue = OperationQueue(store)
     queue.initialize()
@@ -63,6 +68,11 @@ def _build(store, entries, concurrency, protection, subject):
     BulkDispatch(store, queue).initialize()
     scope = frozenset(entry.device.id for entry in entries if entry.device.enabled)
     DeviceLeases(store, queue).initialize(scope, concurrency=concurrency)
+    if profile == 'deferred-confirmation':
+        # Only the new private staging DB is changed. No conversion, old jobs,
+        # existing authority, configured runtime or remote connection is used.
+        PendingConfirmations(store, queue).initialize()
+        PendingExecution(store, queue).initialize_empty()
     BulkOrderedWaits(store, queue).initialize(enabled=True)
     BulkOrderedPromoter(store, queue).initialize(enabled=True)
     from .managed_addition_controls import ManagedAdditionControls
@@ -79,7 +89,7 @@ def _build(store, entries, concurrency, protection, subject):
         db.execute('UPDATE managed_bulk_registry SET restoration_suspended=0,dispatch_resume_after=?', (timestamp,))
         db.execute('UPDATE operation_executor SET mutations_suspended=0')
         store._insert_event(db, 'DEV_PROFILE_INITIALIZED', None, None, None, subject, 'Development setup', (), key,
-                            {'device_ids': sorted(scope), 'concurrency': concurrency,
+                            {'device_ids': sorted(scope), 'concurrency': concurrency, 'profile': profile,
                              'protected_ips_copied': len(protection), 'managed_targets': 0}, timestamp)
         _state(db)
         if db.execute('PRAGMA foreign_key_check').fetchone() or db.execute('PRAGMA quick_check').fetchone()[0] != 'ok':
@@ -88,13 +98,15 @@ def _build(store, entries, concurrency, protection, subject):
         result = db.execute('PRAGMA wal_checkpoint(TRUNCATE)').fetchone()
         if result[0] != 0 or result[1] != 0:
             raise ValueError('Fresh profile could not checkpoint before publication.')
-    return {'device_ids': sorted(scope), 'device_count': len(entries), 'concurrency': concurrency,
+    return {'profile': profile, 'device_ids': sorted(scope), 'device_count': len(entries), 'concurrency': concurrency,
             'protected_ips_copied': len(protection), 'managed_targets': 0, 'jobs': 0}
 
 
-def initialize(database, inventory, *, concurrency=1, protection_from=None, actor='development-setup'):
+def initialize(database, inventory, *, concurrency=1, protection_from=None, actor='development-setup', profile='verified'):
     """Build privately and hard-link the completed file exclusively on Linux."""
     subject = _actor(actor)
+    if type(profile) is not str or profile not in PROFILES:
+        raise ValueError('Select the verified or deferred-confirmation development profile.')
     if not database.is_absolute() or not inventory.is_absolute() or type(concurrency) is not int or not 1 <= concurrency <= 10:
         raise ValueError('Absolute destination/inventory paths and literal concurrency 1..10 are required.')
     parent = database.parent.resolve(strict=True)
@@ -110,7 +122,7 @@ def initialize(database, inventory, *, concurrency=1, protection_from=None, acto
         # Restrict the file before any data is written, independently of umask.
         fd = os.open(staging, os.O_CREAT | os.O_EXCL | os.O_WRONLY | os.O_NOFOLLOW, 0o600)
         os.close(fd)
-        result = _build(Store(staging), entries, concurrency, protection, subject)
+        result = _build(Store(staging), entries, concurrency, protection, subject, profile)
         if load_public_inventory(inventory) != entries:
             raise ValueError('Public inventory changed during setup; nothing was published.')
         with staging.open('rb') as source:
@@ -130,12 +142,14 @@ def main(argv=None):
     parser.add_argument('--database', type=Path, required=True)
     parser.add_argument('--inventory', type=Path, required=True)
     parser.add_argument('--concurrency', type=int, default=1)
+    parser.add_argument('--profile', choices=PROFILES, default='verified',
+                        help='Storage profile only; deferred-confirmation does not enable a configured v7 runtime')
     parser.add_argument('--protection-from', type=Path, help='Explicit readonly settings copy; no old managed policy, queues or history')
     parser.add_argument('--actor', default='development-setup', help='Trusted maintenance label, not a Web identity')
     args = parser.parse_args(argv)
     try:
         result = initialize(args.database, args.inventory, concurrency=args.concurrency,
-                            protection_from=args.protection_from, actor=args.actor)
+                            protection_from=args.protection_from, actor=args.actor, profile=args.profile)
     except (OSError, ValueError, TypeError, sqlite3.Error):
         parser.exit(2, 'Fresh setup refused. No existing database was overwritten. If a destination was published, it was retained; inspect it before retrying.\n')
     print(json.dumps(result, sort_keys=True), flush=True)

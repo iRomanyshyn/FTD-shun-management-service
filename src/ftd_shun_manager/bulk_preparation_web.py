@@ -82,9 +82,10 @@ def register_bulk_preparation_web(app, settings, *, render, identity_for, operat
         return key
 
     @app.get(WEB)
-    def index(request: Request, ip: IPv4Address | None = None):
+    def index(request: Request, ip: IPv4Address | None = None, device_id: int | None = Query(None, ge=1, le=65535)):
         return workspace(request, identity_for(request, settings.development_auth),
-                         fields={'text': [str(ip)]} if ip is not None else None)
+                         fields={'text': [str(ip)], 'device_ids': [str(device_id)] if device_id is not None else []}
+                         if ip is not None else None)
 
     @app.post(WEB + '/prepare')
     async def prepare(request: Request):

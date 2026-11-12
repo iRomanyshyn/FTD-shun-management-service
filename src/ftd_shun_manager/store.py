@@ -647,7 +647,14 @@ class Store:
                     WHERE m.claim_event_id=shun_events.id OR (shun_events.event_type='SHUN_OPERATION_DEFERRED'
                         AND shun_events.request_id=json_extract(m.predecessor_json,'$.request_id')))'''
             if pending_present(db):
+                from .pending_restart import RETAINED_CLAIMS
+
                 bulk_state(db)  # Missing/corrupt retained evidence must refuse all deletion.
+                preserve += ' AND NOT EXISTS (SELECT 1 FROM (' + RETAINED_CLAIMS + ''') h
+                    WHERE shun_events.request_id=h.request_id OR (shun_events.event_type='DEVICE_LEASE_CLAIMED'
+                        AND shun_events.device_id=h.device_id
+                        AND json_extract(shun_events.details_json,'$.owner')=h.owner
+                        AND json_extract(shun_events.details_json,'$.epoch')=h.epoch))'''
                 preserve += ''' AND NOT EXISTS (SELECT 1 FROM managed_bulk_pending_members m
                     WHERE m.attempt_id=shun_events.request_id)
                     AND NOT EXISTS (SELECT 1 FROM managed_bulk_pending_sessions s

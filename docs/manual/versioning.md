@@ -26,7 +26,7 @@ are required before and after this boundary, not postponed until release.
 
 The product version is assigned manually in
 [`src/ftd_shun_manager/__init__.py`](../../src/ftd_shun_manager/__init__.py)
-as `__version__ = "0.2.5"`. This is the single source for the Python package
+as `__version__ = "0.9.0"`. This is the single source for the Python package
 version and the Web footer. Hatch reads it through `tool.hatch.version` in
 [`pyproject.toml`](../../pyproject.toml); Jinja displays it with a `v` prefix.
 The prefix is presentation only, not part of the stored package version.
@@ -37,7 +37,7 @@ test run. This is a contributor/agent responsibility, not an automatic counter
 on restart. Rebuilding identical source keeps its version.
 
 Container builds also generate `/app/build-info.json` once, displaying
-`v0.2.5 · <12-character source ID>` in the footer. The full SHA-256 binds sorted,
+`v0.9.0 · <12-character source ID>` in the footer. The full SHA-256 binds sorted,
 length-framed public Python source, templates, static CSS/JS/SVG and pyproject
 bytes. It identifies dirty public source without consulting Git. Private `.env`,
 inventory, credentials, deployment configuration, DBs and host information are

@@ -113,6 +113,65 @@ fn extended_batch_profile_requires_canonical_selection_and_enabled_grouped_mode(
 }
 
 #[test]
+fn deferred_profile_requires_its_own_literal_capability_and_version() -> Result<()> {
+    let fixture = Fixture::new()?;
+    let configure = || {
+        let mut command = fixture.command();
+        command
+            .env("FTD_SHUN_AGENT_BATCH_ADDITIONS_ENABLED", "true")
+            .env("FTD_SHUN_AGENT_ADDITIONS_ENABLED", "true")
+            .env("FTD_SHUN_AGENT_CYCLES_ENABLED", "true")
+            .env("FTD_SHUN_LARGE_SNAPSHOTS_ENABLED", "true");
+        command
+    };
+    for flag in ["false", "1", "True", " true", ""] {
+        assert!(
+            !fixture
+                .run(
+                    configure()
+                        .env("FTD_SHUN_DEFERRED_CONFIRMATION_ENABLED", flag)
+                        .env("FTD_SHUN_AGENT_BATCH_SESSION_VERSION", "7")
+                )?
+                .status
+                .success()
+        );
+    }
+    for version in ["5", "6", "07", "+7", "7.0", " 7", ""] {
+        assert!(
+            !fixture
+                .run(
+                    configure()
+                        .env("FTD_SHUN_DEFERRED_CONFIRMATION_ENABLED", "true")
+                        .env("FTD_SHUN_AGENT_BATCH_SESSION_VERSION", version)
+                )?
+                .status
+                .success()
+        );
+    }
+    let output = fixture.run(
+        configure()
+            .env("FTD_SHUN_DEFERRED_CONFIRMATION_ENABLED", "true")
+            .env("FTD_SHUN_AGENT_BATCH_SESSION_VERSION", "7"),
+    )?;
+    assert!(output.status.success());
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout)?;
+    assert_eq!(value["batch_session_version"], 7);
+    assert_eq!(value["deferred_confirmation_enabled"], true);
+    assert!(
+        !fixture
+            .run(
+                fixture
+                    .command()
+                    .env("FTD_SHUN_DEFERRED_CONFIRMATION_ENABLED", "true")
+                    .env("FTD_SHUN_AGENT_BATCH_SESSION_VERSION", "7")
+            )?
+            .status
+            .success()
+    );
+    Ok(())
+}
+
+#[test]
 fn invalid_and_incomplete_per_device_mode_never_uses_valid_shared_credentials() -> Result<()> {
     let fixture = Fixture::new()?;
     for mode in ["", "per_device", "unexpected"] {

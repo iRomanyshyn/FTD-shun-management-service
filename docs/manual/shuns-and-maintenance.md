@@ -24,6 +24,12 @@ Only enabled Protected-IP policy provides automatic unblocking; an off/retired
 managed record is not a whitelist entry. Importing/adopting an unmanaged IP into
 maintenance still requires the normal selected-device import review and consent.
 
+**Protection is the opposite of keeping an IP blocked.** Turning it on queues
+unblocks and turns off auto-restore for that IP on every device. Turning it off
+does not add a block or turn auto-restore back on. If you want the service to keep
+the IP blocked again, disable protection and create a new import. See
+[Protected IPs](protected-ips.md#what-the-switches-mean) for an example.
+
 ## Browsing and search
 
 Both observed lists display at most **100 observations per page**. Counts include

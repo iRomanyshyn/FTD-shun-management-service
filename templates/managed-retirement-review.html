@@ -1,6 +1,9 @@
 {% extends "base.html" %}
 {% block content %}
 <h1>Turn off auto-restore only</h1>
+{% if ip_context_enabled | default(false) and ip_context_target %}{% from "ip-context.html" import card %}
+<section id="ip-registration" data-live-region>{{ card(ip_context_target, ip_context) }}</section>{% endif %}
+
 {% if refresh %}{% include "refresh-panel.html" %}{% endif %}
 <p class="preview-boundary"><strong>No device command.</strong> Leave the device unchanged; do not restore this block again. This turns off automatic restoration for the reviewed device/IP. It does not remove an existing block or automatically remove a later FTD-created block. Use Protected IPs if the address must be unblocked whenever detected.</p>
 <p class="preview-help">Already submitted independent jobs, a running addition or separate removal are not cancelled. They may still finish; inspect Queue separately. Turning this rule off does not turn it back on later.</p>
@@ -26,9 +29,7 @@
 <form method="post" action="/managed-shuns/retirement-confirm" class="import-confirm-form">
 <input type="hidden" name="csrf" value="{{ csrf_token }}">
 <input type="hidden" name="review" value="{{ review.token }}">
-<label for="confirm-retirement-ip">Type {{ review.ip }} to turn off auto-restoration for this device/IP only</label>
-<input id="confirm-retirement-ip" name="confirm_ip" value="{{ confirm_ip }}" autocomplete="off" inputmode="decimal" required>
-<button type="submit">Confirm stop restoring</button>
+<button type="submit" name="confirm_action" value="stop-restoring">Turn off auto-restore for {{ review.ip }}</button>
 </form>
 {% endif %}
 <p class="preview-help">This frozen review is bound to your subject and CSRF cookie, expires within ten minutes and is lost on Web restart. It cannot authorize creation, re-enable, removal or resumption of restoration.</p>

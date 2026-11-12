@@ -1,0 +1,20 @@
+# Explicit experimental lab overlay, after compose.yml, local-lab and managed-lab.
+# Prepare this separate DB first; keep the original managed-v2.db unchanged.
+# Use matching validated API/Web/agent images. Never change only the wire version.
+x-deferred: &deferred
+  FTD_SHUN_DEFERRED_CONFIRMATION_ENABLED: "true"
+  FTD_SHUN_AGENT_BATCH_ADDITIONS_ENABLED: "true"
+  FTD_SHUN_AGENT_BATCH_SESSION_VERSION: "7"
+
+services:
+  api:
+    environment:
+      <<: *deferred
+      FTD_SHUN_DATABASE: /var/lib/ftd-shun-manager/deferred-v7.db
+  web:
+    environment:
+      <<: *deferred
+      FTD_SHUN_DATABASE: /var/lib/ftd-shun-manager/deferred-v7.db
+  agent:
+    environment:
+      <<: *deferred

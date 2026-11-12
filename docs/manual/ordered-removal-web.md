@@ -1,5 +1,14 @@
 # Version-2 Ordered Removal in the Web Interface
 
+Source0.3.0 adds explicit settled-pending predecessors to the existing ordered
+purpose. A review can say **Wait for confirmation** after the original SSH session
+has finished. The running and settled evidence shapes are strict alternatives,
+never a fabricated live lease or a mode change after confirmation. A fresh read
+arriving during review causes a conflict/new review, not silent ready admission.
+See [Deferred Confirmation](deferred-confirmation.md#new-consent-while-already-awaiting-source-only030-2026-11-11).
+Configured deferred service/transport/recovery activation remains unfinished;
+this is not a lab rollout or permission to widen selectors.
+
 Current IP workspace, 2026-11-11: one **Unblock…** action chooses the appropriate
 review from a validated complete preflight **before consent**. A running addition
 prepares the waiting contract described here; an idle target prepares the ordinary

@@ -5,6 +5,7 @@ from contextlib import closing, contextmanager
 
 from .agent_client import UnixAgentClient
 from .continuous_dispatch import ContinuousDispatcher
+from .deferred_dispatch import DeferredContinuousDispatcher
 from .inventory import load_public_inventory
 from .operation_queue import QueueConflict
 from .store import Store
@@ -68,8 +69,10 @@ def configured_dispatcher(settings, store):
                             large_snapshots=True, settled_cycles=True, recoverable_cycles=True, tracked_cycles=True,
                             additions_enabled=managed, addition_device_ids=addition_ids,
                             batch_additions=settings.batch_additions_enabled,
-                            batch_session_version=settings.batch_session_version)
-    return ContinuousDispatcher(store, agent, enabled=True, agent_concurrency=settings.agent_concurrency,
+                            batch_session_version=settings.batch_session_version,
+                            deferred_confirmation=settings.deferred_confirmation_enabled)
+    dispatcher = DeferredContinuousDispatcher if settings.deferred_confirmation_enabled else ContinuousDispatcher
+    return dispatcher(store, agent, enabled=True, agent_concurrency=settings.agent_concurrency,
                                 bulk_dispatch_enabled=managed, addition_device_ids=addition_ids,
                                 batch_additions_enabled=settings.batch_additions_enabled,
                                 ordered_promotion_enabled=managed,

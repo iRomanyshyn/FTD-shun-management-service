@@ -7,6 +7,7 @@ use anyhow::{Context, Result, bail};
 
 pub(super) const BEGIN: u8 = 0x18;
 pub(super) const LOOKUP: u8 = 0x19;
+pub(super) const LOOKUP_PENDING: u8 = 0x1e;
 const CAPACITY: usize = 4096;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -17,10 +18,11 @@ pub(super) struct Key {
 }
 
 pub(super) fn decode(packet: &[u8], operation: u8) -> Result<Key> {
-    if !matches!(operation, BEGIN | LOOKUP)
+    if !matches!(operation, BEGIN | LOOKUP | LOOKUP_PENDING)
         || packet.len() != 20
         || packet[0] != operation
         || !matches!(packet[1], 1..=7)
+        || (operation == LOOKUP_PENDING && packet[1] != 7)
     {
         bail!("invalid bound session packet");
     }
@@ -36,10 +38,16 @@ pub(super) fn decode(packet: &[u8], operation: u8) -> Result<Key> {
     })
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 enum State {
-    Active { prepared: bool },
-    Complete { read_only: bool },
+    Active {
+        prepared: bool,
+        pending: Option<Vec<u8>>,
+    },
+    Complete {
+        read_only: bool,
+        pending: Option<Vec<u8>>,
+    },
 }
 
 #[derive(Default)]
@@ -67,9 +75,13 @@ impl Sessions {
                 .context("session journal has no completed capacity")?;
             journal.entries.remove(&oldest);
         }
-        journal
-            .entries
-            .insert(key, State::Active { prepared: false });
+        journal.entries.insert(
+            key,
+            State::Active {
+                prepared: false,
+                pending: None,
+            },
+        );
         Ok(())
     }
 
@@ -79,11 +91,39 @@ impl Sessions {
             .lock()
             .map_err(|_| anyhow::anyhow!("session journal unavailable"))?;
         match journal.entries.get_mut(&key) {
-            Some(State::Active { prepared }) => {
+            Some(State::Active {
+                prepared,
+                pending: None,
+            }) => {
                 *prepared = true;
                 Ok(())
             }
             _ => bail!("session is not active"),
+        }
+    }
+
+    /// Prepare only after END_PENDING executed and transport cleanup succeeded.
+    /// Still invisible until the handler, device guard and worker have settled.
+    pub(super) fn prepare_pending(
+        &self,
+        key: Key,
+        sequence: u8,
+        targets: &[std::net::Ipv4Addr],
+    ) -> Result<()> {
+        let packet = super::batch_addition::pending_end(targets, sequence, key.version)?;
+        let mut journal = self
+            .0
+            .lock()
+            .map_err(|_| anyhow::anyhow!("session journal unavailable"))?;
+        match journal.entries.get_mut(&key) {
+            Some(State::Active {
+                prepared: false,
+                pending,
+            }) if pending.is_none() => {
+                *pending = Some(packet);
+                Ok(())
+            }
+            _ => bail!("pending settlement is not an unprepared active session"),
         }
     }
 
@@ -92,12 +132,13 @@ impl Sessions {
             .0
             .lock()
             .map_err(|_| anyhow::anyhow!("session journal unavailable"))?;
-        match journal.entries.get(&key).copied() {
-            Some(State::Active { prepared }) => {
+        match journal.entries.get(&key).cloned() {
+            Some(State::Active { prepared, pending }) => {
                 journal.entries.insert(
                     key,
                     State::Complete {
                         read_only: prepared,
+                        pending,
                     },
                 );
                 journal.completed.push_back(key);
@@ -113,13 +154,38 @@ impl Sessions {
             .lock()
             .map_err(|_| anyhow::anyhow!("session journal unavailable"))?;
         let status = match journal.entries.get(&key) {
-            Some(State::Complete { read_only: true }) => 0,
+            Some(State::Complete {
+                read_only: true, ..
+            }) => 0,
             Some(State::Active { .. }) => 2,
             _ => 1,
         };
         let mut packet = vec![status, key.version, LOOKUP];
         packet.extend(key.device.to_be_bytes());
         packet.extend(key.id);
+        Ok(packet)
+    }
+
+    pub(super) fn lookup_pending(&self, key: Key) -> Result<Vec<u8>> {
+        if key.version != 7 {
+            bail!("pending lookup requires version 7");
+        }
+        let journal = self
+            .0
+            .lock()
+            .map_err(|_| anyhow::anyhow!("session journal unavailable"))?;
+        let (status, receipt) = match journal.entries.get(&key) {
+            Some(State::Complete {
+                read_only: false,
+                pending: Some(packet),
+            }) => (0, packet.as_slice()),
+            Some(State::Active { .. }) => (2, &[][..]),
+            _ => (1, &[][..]),
+        };
+        let mut packet = vec![status, key.version, LOOKUP_PENDING];
+        packet.extend(key.device.to_be_bytes());
+        packet.extend(key.id);
+        packet.extend(receipt);
         Ok(packet)
     }
 }
@@ -134,6 +200,100 @@ mod tests {
             device: 7,
             id: number.to_be_bytes(),
         }
+    }
+
+    #[test]
+    fn pending_lookup_requires_postamble_and_never_becomes_read_only() -> Result<()> {
+        let vectors: serde_json::Value =
+            serde_json::from_str(include_str!("../../tests/fixtures/pending-lookup-v7.json"))?;
+        let hex = |packet: Vec<u8>| -> String {
+            packet.iter().map(|byte| format!("{byte:02x}")).collect()
+        };
+        let first = Key {
+            version: 7,
+            ..key(1)
+        };
+        let targets = ["198.51.100.251".parse()?, "198.51.100.252".parse()?];
+        let sessions = Sessions::default();
+        assert_eq!(hex(sessions.lookup_pending(first)?), vectors["unknown"]);
+        assert!(sessions.prepare_pending(first, 4, &targets).is_err());
+        sessions.reserve(first)?;
+        assert_eq!(hex(sessions.lookup_pending(first)?), vectors["active"]);
+        assert!(sessions.prepare_pending(first, 4, &[]).is_err());
+        assert!(
+            sessions
+                .prepare_pending(first, 4, &[targets[0], targets[0]])
+                .is_err()
+        );
+        sessions.prepare_pending(first, 4, &targets)?;
+        assert_eq!(hex(sessions.lookup_pending(first)?), vectors["active"]);
+        assert!(sessions.prepare_read_only(first).is_err());
+        assert!(sessions.prepare_pending(first, 4, &targets).is_err());
+        sessions.complete(first)?;
+        assert_eq!(hex(sessions.lookup_pending(first)?), vectors["complete"]);
+        assert_eq!(sessions.lookup(first)?[0], 1); // Never read-only release proof.
+        for foreign in [
+            Key { device: 8, ..first },
+            Key {
+                id: [2; 16],
+                ..first
+            },
+        ] {
+            assert_eq!(sessions.lookup_pending(foreign)?[0], 1);
+        }
+        assert!(
+            sessions
+                .lookup_pending(Key {
+                    version: 6,
+                    ..first
+                })
+                .is_err()
+        );
+        assert_eq!(Sessions::default().lookup_pending(first)?[0], 1);
+        let read = Key {
+            id: [3; 16],
+            ..first
+        };
+        sessions.reserve(read)?;
+        sessions.prepare_read_only(read)?;
+        assert!(sessions.prepare_pending(read, 4, &targets).is_err());
+        sessions.complete(read)?;
+        assert_eq!(sessions.lookup_pending(read)?[0], 1);
+        let failed = Key {
+            id: [4; 16],
+            ..first
+        };
+        sessions.reserve(failed)?;
+        sessions.complete(failed)?;
+        assert_eq!(sessions.lookup_pending(failed)?[0], 1);
+        let mut request = vec![LOOKUP_PENDING, 7, 0, 7];
+        request.extend(first.id);
+        assert_eq!(hex(request.clone()), vectors["lookup"]);
+        assert_eq!(decode(&request, LOOKUP_PENDING)?, first);
+        for version in [0, 1, 6, 8] {
+            request[1] = version;
+            assert!(decode(&request, LOOKUP_PENDING).is_err());
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn pending_receipts_share_bounded_eviction_without_evicting_active_work() -> Result<()> {
+        let sessions = Sessions::default();
+        let first = Key {
+            version: 7,
+            ..key(1)
+        };
+        sessions.reserve(first)?;
+        sessions.prepare_pending(first, 2, &["198.51.100.251".parse()?])?;
+        sessions.complete(first)?;
+        for number in 2..=CAPACITY {
+            sessions.reserve(key(number as u128))?;
+        }
+        sessions.reserve(key(5000))?;
+        assert_eq!(sessions.lookup_pending(first)?[0], 1);
+        assert!(sessions.reserve(key(5001)).is_err());
+        Ok(())
     }
 
     #[test]

@@ -59,10 +59,14 @@ def inspect_ordered(value, ip, *, device_id=None):
     predecessors = captured(value)
     if predecessors:
         canonical_ordered_removal(scope, predecessors)
-        if any(row['evidence']['started_at'] > value['inspected_at']
-               or min(row['evidence']['expires_at'], row['evidence']['lease_until']) <= value['inspected_at']
-               for row in predecessors):
-            raise ValueError('Predecessor was not live at inspection.')
+        for row in predecessors:
+            evidence = row['evidence']
+            if evidence.get('kind') == 'AWAITING_CONFIRMATION':
+                if evidence['settled_at'] > value['inspected_at']:
+                    raise ValueError('Pending settlement was not complete at inspection.')
+            elif (evidence['started_at'] > value['inspected_at']
+                    or min(evidence['expires_at'], evidence['lease_until']) <= value['inspected_at']):
+                raise ValueError('Predecessor was not live at inspection.')
     blocked = sum(row['disposition'] == 'BLOCKED' for row in rows)
     waiting = len(predecessors)
     if (type(value['global_blockers']) is not list or value['global_blockers'] not in ([], ['MUTATIONS_PAUSED'])

@@ -91,6 +91,10 @@ def test_ip_links_prefill_editors_without_saving_or_selecting_devices(compositio
             assert '>198.51.100.77</textarea>' in response.text
             assert 'name="device_ids" value="1" checked' not in response.text
             assert not writes(calls)
+            selected = await client.get(WEB + '?ip=198.51.100.77&device_id=1')
+            assert selected.status_code == 200 and 'name="device_ids" value="1" checked' in selected.text
+            assert (await client.get(WEB + '?ip=198.51.100.77&device_id=0')).status_code == 422
+            assert not writes(calls)
             response = await client.get('/protected-ips?ip=198.51.100.77')
             assert response.status_code == 200
             assert 'id="add-protected-ip" class="policy-editor" open' in response.text

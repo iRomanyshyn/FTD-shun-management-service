@@ -104,7 +104,7 @@ def test_independent_gates_allow_inspection_but_never_submit(composition, bulk, 
     async def scenario():
         async with surface(api_enabled=api_gate, web_enabled=web_gate) as (client, _, calls):
             page, fields = await review(client)
-            assert 'Inspection only' in page.text and 'button type="submit" disabled' in page.text
+            assert 'Inspection only' in page.text and re.search(r'<button[^>]*name="confirm_action"[^>]* disabled', page.text)
             response = await client.post(CONFIRM, data=fields)
             assert response.status_code == 503 and not posts(calls)
     asyncio.run(scenario())
@@ -187,7 +187,7 @@ def test_unified_unblock_selects_only_before_consent(composition, bulk, leases, 
             assert ('action="/managed-shuns/v2/removal-confirm"' in page.text) == (mode == 'ready')
             assert ('action="/managed-shuns/v2/ordered-removal-confirm"' in page.text) == (mode == 'waiting')
             assert ('name="review"' in page.text) == (mode != 'blocked')
-            assert 'No confirmation token was created' in page.text if mode == 'blocked' else 'Confirm' in page.text
+            assert 'No confirmation token was created' in page.text if mode == 'blocked' else 'name="confirm_action"' in page.text
             if mode == 'blocked':
                 assert 'Device is disabled.' in page.text
     asyncio.run(scenario())
@@ -288,7 +288,7 @@ def test_unified_unblock_without_ordered_capability_uses_only_ready_inspection(c
                 'csrf': client.cookies.get('ftd_shun_csrf'), 'target': f'1:{IP}'})
             assert page.status_code == 200 and 'action="/managed-shuns/v2/removal-confirm"' in page.text
             assert [path for _, path, _ in calls] == ['/api/v1/status', f'/api/v2/managed-removal-scope/{IP}']
-            assert 'button type="submit" disabled' in page.text  # No gate is enabled by selection.
+            assert re.search(r'<button[^>]*name="confirm_action"[^>]* disabled', page.text)  # No gate is enabled by selection.
     asyncio.run(scenario())
     assert dump(composition[1]) == before and not composition[2].seen
 

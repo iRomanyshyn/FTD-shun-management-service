@@ -205,12 +205,24 @@ impl Agent {
         if batch_additions_enabled && !additions_enabled {
             bail!("batch additions require explicitly enabled additions");
         }
+        let deferred_confirmation =
+            match env::var("FTD_SHUN_DEFERRED_CONFIRMATION_ENABLED").as_deref() {
+                Ok("true") => true,
+                Ok("false") | Err(env::VarError::NotPresent) => false,
+                _ => bail!("FTD_SHUN_DEFERRED_CONFIRMATION_ENABLED must be true or false"),
+            };
         let batch_session_version =
             match env::var("FTD_SHUN_AGENT_BATCH_SESSION_VERSION").as_deref() {
                 Ok("5") | Err(env::VarError::NotPresent) => 5,
                 Ok("6") if batch_additions_enabled => 6,
-                _ => bail!("batch session version must be 5, or 6 with grouped additions enabled"),
+                Ok("7") if deferred_confirmation && batch_additions_enabled => 7,
+                _ => bail!(
+                    "batch session version requires 5, grouped 6, or explicitly enabled deferred 7"
+                ),
             };
+        if deferred_confirmation && batch_session_version != 7 {
+            bail!("deferred confirmation requires explicit grouped session version 7");
+        }
         for device in devices.values() {
             if let Some(profile) = device.addition_profile {
                 profile.validate(&device.allowed_interfaces)?;
@@ -893,8 +905,8 @@ fn handle_connection(
         Ok(_) => return Reply::Packet(RESPONSE_REJECTED.to_vec()),
         Err(_) => return Reply::Packet(RESPONSE_REJECTED.to_vec()),
     };
-    if packet[0] == sessions::LOOKUP {
-        return sessions::decode(&packet[..received], sessions::LOOKUP)
+    if matches!(packet[0], sessions::LOOKUP | sessions::LOOKUP_PENDING) {
+        return sessions::decode(&packet[..received], packet[0])
             .and_then(|key| {
                 if !agent
                     .devices
@@ -903,7 +915,11 @@ fn handle_connection(
                 {
                     bail!("unknown or disabled lookup device");
                 }
-                agent.sessions.lookup(key)
+                if packet[0] == sessions::LOOKUP_PENDING {
+                    agent.sessions.lookup_pending(key)
+                } else {
+                    agent.sessions.lookup(key)
+                }
             })
             .map(Reply::Packet)
             .unwrap_or_else(|_| Reply::Packet(RESPONSE_REJECTED.to_vec()));
@@ -1175,6 +1191,7 @@ async fn main() -> Result<()> {
                 "credential_mode": agent.credentials.mode(),
                 "max_concurrent_devices": agent.max_concurrent_devices,
                 "batch_session_version": agent.batch_session_version,
+                "deferred_confirmation_enabled": agent.batch_session_version == 7,
             })
         );
         return Ok(());
@@ -1633,6 +1650,70 @@ mod tests {
             Reply::Packet(vec![1])
         );
         assert_eq!(agent.sessions.lookup(key)?[0], 0);
+        Ok(())
+    }
+
+    #[test]
+    fn pending_completion_lookup_is_distinct_and_never_enters_a_busy_device() -> Result<()> {
+        use nix::sys::socket::socketpair;
+        let agent = synthetic_dispatch_agent()?;
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()?;
+        let guards = dispatch::DeviceGuards::new([(1, Ipv4Addr::new(192, 0, 2, 1))]);
+        let key = sessions::Key {
+            version: 7,
+            device: 1,
+            id: [7; 16],
+        };
+        agent.sessions.reserve(key)?;
+        agent.sessions.prepare_pending(
+            key,
+            4,
+            &[
+                Ipv4Addr::new(198, 51, 100, 251),
+                Ipv4Addr::new(198, 51, 100, 252),
+            ],
+        )?;
+        assert_eq!(agent.sessions.lookup_pending(key)?[0], 2);
+        let (peer, server) = socketpair(
+            AddressFamily::Unix,
+            SockType::SeqPacket,
+            None,
+            SockFlag::SOCK_CLOEXEC,
+        )?;
+        drop(peer); // Real terminal send failure cannot erase the completed journal.
+        ConnectionCompletion {
+            connection: server,
+            settlement: Some([0, 7, sessions::BEGIN, 4]),
+            tracked: Some((Arc::clone(&agent.sessions), key)),
+        }
+        .complete();
+        assert_eq!(agent.sessions.lookup_pending(key)?[0], 0);
+        assert_eq!(agent.sessions.lookup(key)?[0], 1);
+        let (peer, server) = socketpair(
+            AddressFamily::Unix,
+            SockType::SeqPacket,
+            None,
+            SockFlag::SOCK_CLOEXEC,
+        )?;
+        let mut packet = vec![sessions::LOOKUP_PENDING, 7, 0, 1];
+        packet.extend(key.id);
+        send(peer.as_raw_fd(), &packet, MsgFlags::MSG_NOSIGNAL)?;
+        let response = guards
+            .run(1, || {
+                handle_connection(&agent, &server, runtime.handle(), &guards)
+            })
+            .context("held guard")?;
+        assert_eq!(response, Reply::Packet(agent.sessions.lookup_pending(key)?));
+        for version in [1, 6, 8] {
+            packet[1] = version;
+            send(peer.as_raw_fd(), &packet, MsgFlags::MSG_NOSIGNAL)?;
+            assert_eq!(
+                handle_connection(&agent, &server, runtime.handle(), &guards),
+                Reply::Packet(vec![1])
+            );
+        }
         Ok(())
     }
 

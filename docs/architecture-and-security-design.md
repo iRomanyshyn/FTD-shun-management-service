@@ -1,5 +1,140 @@
 # FTD Shun Management Service
 
+## Local IPFire context and periodic refresh — 2026-11-12
+
+The operator replaces the once-per-occurrence RDAP-only product target with a
+local IPFire Location dataset. Populate missing context for existing observations
+as well as newly detected IPs. Update the signed source once daily by default,
+then refresh cached active entries locally in bounded batches; also recheck entries
+after seven days if the source generation is unchanged. These intervals are
+configurable. Page views never invoke provider work. No individual IP list is
+sent externally for local enrichment. Retain a last verified dataset and previous
+successful context if an update or local read fails; retry failures with backoff.
+Missing data may be retried after source change or the configured interval.
+
+Preserve separate cache/observation-feed isolation and advisory-only semantics.
+The optional worker alone gets native libloc tools and outbound database download
+access. Fetch only the fixed official HTTPS database URL, cap compressed/expanded
+bytes, verify the dataset signature with libloc's packaged vendor key before atomic
+replacement, and keep the source version/time and attribution visible. Never
+change FTD credentials, control authority or original execution evidence. Country
+is approximate source data, ASN/name identifies an announced network, and neither
+may change blocking policy. Team Cymru remains a possible supplemental provider,
+not a mandatory second dependency or automatic per-IP fallback. The old RDAP cache
+is retained; its old no-backfill/no-periodic-refresh rule is superseded for this
+new explicitly selected local provider only. See manual/ip-context.md.
+
+## Isolated advisory IP registration cache — 2026-11-12
+
+The operator authorized background RDAP on the known desk lab. This optional
+component is default-off and does not grant outbound access to Web/API/agent.
+Use a separate internet-connected worker with only its own cache and a dedicated
+read-only observation-feed UDS. It must never receive the original DB, secrets,
+API/agent control sockets, device network or edge network. The feed has no network,
+opens the existing source in query-only transactions and exposes only bounded
+observation/audit fields. Its source mount permits SQLite WAL/SHM housekeeping;
+no source DML/DDL or initialization is performed. The separate low-write cache
+uses rollback journals so Web's strictly read-only mount works after worker exit;
+the original database keeps its existing WAL mode.
+
+Persist one attempt per global observed IP occurrence, shared across devices and
+interfaces. Additional sightings, page views, dialogs, polling, age and restart
+never repeat it. Only confirmed complete disappearance/removal followed by a new
+detection permits another attempt. Consume interrupted/failed attempts rather
+than replaying them. Initial baseline and audit-gap/source-replacement baselines
+do not backfill. Explicit first-cache priming is bounded to ten existing public
+IPs; this lab's initial sample is two. No FTD commands are part of this feature.
+
+Use normal TLS verification, the fixed IANA bootstrap, allowlisted RIR HTTPS
+hosts and exact-IP referral paths, response/time/rate/capacity bounds and provider
+throttling. No arbitrary registry links, contacts, email or postal records are
+retained. Application destination checks are not a host egress firewall. Missing,
+malformed or unavailable metadata never changes policy, authorization or command
+outcomes. Web reads and revalidates only displayed-page cache entries, rendering
+escaped registration country/network/organization and trusted source links.
+Metadata revisions may refresh lists without a device hint or external request;
+frozen action dialogs remain unchanged. See [IP Context](manual/ip-context.md).
+
+## Button consent and independent IP action dialogs — 2026-11-12
+
+For individual-IP unblock (single device or reviewed fleet) and policy-only
+retirement, the operator explicitly replaces typed-IP consent with a named
+confirmation button in a review dialog. Keep the exact frozen scope, original
+request key, subject/CSRF cookie binding, expiry, independent Web/API gates,
+current revision/authority checks, ready/ordered separation and uncertain-outcome
+rules. The new `confirm_action` value must match this review's action. Missing,
+wrong or ambiguous mixed consent refuses. Legacy correctly typed confirmations
+from old tabs remain accepted through their original bindings. This supersedes
+older requirements to retype the IP for these actions only; no hidden field may
+pretend the user typed it. Bulk-import count, emergency and protection-deletion
+workflows remain separate.
+
+Progressively enhance normal same-origin POST forms with a native dialog.
+Preparation alone cannot mutate policy or devices. The legacy ordinary-block
+HTML flow also prepares before its explicit submit; final API guards remain.
+Existing non-HTML legacy API-client behavior is unchanged. Closing before consent
+has no effect; closing after submission cannot cancel a running request. Rendering
+uses server-escaped same-origin main content, strips scripts/refresh controllers
+and keeps the review DOM outside live list replacement. No additional automatic
+hint, FTD query, grant renewal, mode fallback or write retry is introduced.
+Lost/malformed/5xx confirmation replies retain the captured body/token/key for
+explicit same-request retry; do not start replacement work while it is unresolved.
+Browser form exceptions/validation return HTML; explicit JSON clients keep JSON.
+
+Lists expose Unblock, Make managed, Protect and Details under existing access/
+capability checks. Adoption links only prefill an IP and optional device; GET
+does not save a draft, create authority or dispatch work. Disabled devices remain
+guarded. The separately authorized optional occurrence-driven RDAP cache is
+described above; these dialogs do not initiate lookups. See
+[IP Actions](manual/ip-actions.md) and [IP Context Plan](manual/ip-context-plan.md).
+
+## Completed pending-END API crash recovery — 2026-11-12
+
+The optional deferred v7 worker may automatically finish one exact original
+handoff after an API crash, before generic lease-expiry processing changes its
+RUNNING outcomes. This amendment does not authorize automatic recovery of
+historical UNVERIFIED work or an ATTENTION fence. The current v6 lab is unchanged.
+
+Before sending END_PENDING, commit an append-only checkpoint on the exact live
+lease. Bind device/owner/epoch, terminal sequence, ordered jobs/ACKs/group and a
+digest of the public device inventory, original lease claim and all original
+visit claims/jobs/attempts/audit. Every claim outside the final RUNNING ADD group
+must have its exact VERIFIED/NOOP result; failed/cancelled/deferred prefixes are
+outside this initial contract. Keep all original request/authority checks. The
+checkpoint alone is never proof of device execution or session settlement.
+
+Recovery inspects only the unchanged expired LEASED row and the exact checkpoint,
+with no device uncertainty. The real configured matching v7 Unix client performs
+one <=5s local 0x1e lookup using the original owner/session identity and exact
+terminal/ordered ACK scope. Only an exact completed agent journal record is
+acceptable; unknown/active/malformed/foreign evidence leaves the original fence
+and jobs intact. No BEGIN/ADD/END, new SSH connection, grant renewal or command
+replay is permitted. Agent process loss/eviction remains a conservative refusal.
+
+Under BEGIN IMMEDIATE, recheck the entire original evidence, inventory and exact
+expired row after lookup. Reuse the original pending receipt/member validation,
+insert the retained pending ledger, transition original jobs/attempts to
+AWAITING_CONFIRMATION, append recovery audit and release exactly that old fence
+atomically. The specialized expired-fence checker grants handoff only, never
+another claim, lease renewal or arbitrary expired-lease permission. Ordinary
+handoff still requires its original live lease. A concurrent owner/epoch change,
+expiry-to-uncertainty, clock reversal or local persistence failure rolls back
+the complete recovery. Original outcomes, claim/ACK audit and authority remain.
+
+Return to the scheduler before any new visit so its existing strict causal read
+barrier applies. Only a later complete snapshot may classify OBSERVED_PRESENT or
+CONFIRMED_ABSENT; no creation provenance is inferred. Current policy/protection/
+pause/backoff/rate/new-job checks still govern fresh attempts. Cancellation drains
+the bounded lookup/atomic handoff before another task can proceed. Retention
+preserves checkpoint, request-linked audit, lease claim and known prefix jobs
+behind an unreleased visit. Use existing audit/exact pending storage: no DDL on
+startup/GET, new recovery endpoint, default activation or schema conversion.
+
+This supersedes the blanket "general crash recovery unfinished" description only
+for this completed-END window. Lost stage ACKs, missing checkpoint/journal,
+historical unknowns, held epochs and real-device acceptance remain separate.
+See [Interrupted Pending Handoff](manual/pending-restart-recovery.md).
+
 ## Host-assisted queue recovery — 2026-11-10
 
 Expose read-only local queue-recovery inspection and an authenticated guidance/
@@ -6675,6 +6810,35 @@ attention. Removing historical UI must not change raw outcomes, attention
 validation/fallback, retention, authority, recovery fences or execution. Existing
 audit/IP-detail/import records remain separate from operational progress.
 
+### Settled-pending ordered consent — 2026-11-11
+
+An exact fresh deferred profile may prepare new ordered cleanup consent for an
+already-AWAITING_CONFIRMATION maintained device/IP with original settled-session
+proof and no first read. This is not a RUNNING alias. Its strict descriptor replaces
+live `lease_until` with literal `kind=AWAITING_CONFIRMATION`, `pending_session_id`
+and canonical `settled_at`, retaining original request/intent/generation/snapshot/
+claim/owner/epoch and a digest of immutable original claim/ACK/member/session.
+The complete existing pending profile must validate before inspecting these rows.
+Original ADD authorization may have expired; new cleanup consent cannot renew it
+or authorize another ADD. Require real current actor, full exact current scope,
+protection/inventory/policy/fence checks, fresh cleanup key/deadline and capacity.
+
+Running/settled variants are mutually exclusive and may coexist across a frozen
+fleet. Reservation re-reads them atomically; a first observation arriving after
+review preparation rejects instead of converting scope/mode/key. Future/stale/
+foreign/unknown/malformed descriptors and extra live-lease fields cannot gain
+authority. After acceptance, retain/recheck exact immutable settled proof even
+after observation, revocation, expiry or retention. Promotion still waits for the
+causal complete first read and normal serialized verified REMOVE execution.
+Do not touch a successor lease or replay/relabel original attempts.
+
+No DDL/CLI/binary-wire/runtime-selector change accompanies this additive consent
+variant. Earlier running payloads retain their exact canonical bytes; older
+writers refuse new-variant stored roots. Use matching API/Web before selecting a
+fresh deferred profile. Current configured/lab modes still refuse v7. This
+supersedes the earlier initial-awaiting-capture prohibition below, not its
+unknown/recovery, complete-proof or multi-RUNNING preflight guards.
+
 ### Captured ordered cleanup after deferred handoff — 2026-11-11
 
 The explicit fresh deferred execution profile may recognize the existing exact
@@ -6743,3 +6907,96 @@ they must not select devices, save a draft/policy or enqueue work. Existing fina
 consent, identity/CSRF, revision, capability, disabled-device, uncertainty and
 no-replay contracts remain. Short button labels do not replace the review's
 visible consequences. No new API endpoint, schema, protocol or executor change.
+
+### Exact pending-terminal response recovery — 2026-11-12
+
+Tracked v7 may recover a lost END_PENDING response using a separate fixed binary
+process-local journal lookup (`0x1e`). This is distinct from read-only completion
+lookup (`0x19`): a mutated session never acquires read-only release authority.
+Record only the exact successfully executed END_PENDING sequence/ordered targets,
+including when its local response send fails. Require successful SSH disconnect,
+actual handler/resource drop, device-guard release and worker-IDLE postamble
+before publishing that receipt. Failed cleanup, active/absent/restarted/evicted
+sessions and wrong device/version/nonce never produce completed pending proof.
+Use the existing bounded 4096-entry journal; never evict active work.
+
+The original caller may perform one local lookup, at most five seconds, only
+after a fully sent END_PENDING loses a response through EOF/socket failure/timeout.
+Close the original connection first. Malformed/truncated/foreign response evidence,
+lost stage ACK or incomplete terminal send cannot select recovery. Validate exact
+device/version/nonce, terminal sequence, count and ordered targets against all
+locally retained original ACKs. No BEGIN/ADD/END replay, SSH reconnect, CLI command,
+polling, snapshot publication or verified-creation inference occurs in this lookup.
+
+The resulting typed settled-pending value goes through the unchanged atomic
+handoff: exact original live lease, RUNNING claims, ACK/root/delegation evidence,
+all members, durable ledger and original lease release. It becomes
+AWAITING_CONFIRMATION, requiring the next causal complete read. Storage failure,
+stale/successor lease or unavailable proof retains existing unknown outcomes and
+holds; this cannot relabel historical UNVERIFIED work or recover arbitrary API/
+agent crashes. Old agents refuse the new query safely. No schema/configuration
+selector or live-v7 activation accompanies this source-only recovery refinement.
+
+### Operator-facing protection wording — 2026-11-12
+
+Describe Protected IPs as automatic unblocking after a successful device check,
+with all-enabled-device scope and queued execution. Explain the lifecycle using
+operator actions: enabling protection also turns off auto-restore for the IP
+across devices; disabling/deleting stops automatic unblocking, adds no block and
+does not turn auto-restore back on. A new reviewed import is needed to maintain
+the block again. Use an example instead of making operators interpret "old
+rules", "managed maintenance" or generations. Explain concurrent-edit conflicts
+and draft-discarding reloads directly. Internal revision/authority/retirement
+evidence remains available in technical documentation. This is presentation only;
+existing permanent retirement, queue cancellation, running-command, revision,
+identity, CSRF and uncertainty checks are unchanged.
+
+### Fresh deferred profile and pause-aware retries — 2026-11-12
+
+The non-overwriting development initializer may explicitly select
+`deferred-confirmation` storage, defaulting to the existing `verified` layout.
+Build pending evidence/execution/retry storage before ordered cleanup/promotion,
+then both operator controls, entirely in a private new staging database. Preserve
+existing absent-destination, exact-profile, integrity/checkpoint, inventory-drift
+and exclusive-publication checks. Record profile selection in the setup audit and
+report. Explicit protection settings copying never transfers old queue/history or
+managed authority. No environment, SSH, live conversion, startup/GET initialization
+or runtime-selector widening follows. Ordinary verified workers refuse this DB.
+
+Deferred retry timing and worker discovery must skip targets paused by their
+relevant existing import/restoration control, advancing bounded cursors without
+granting work. Paused retry deadlines must not cause repeated extra SSH visits.
+Sampled pause counts are scheduling diagnostics, not failure or completion.
+Current claim/admission and strict post-Resume read barriers remain authoritative.
+Already claimed groups settle; causal first confirmation, scheduled/manual reads,
+urgent removals and Protected-IP unblocking continue. Pauses and fresh storage
+never release unknown holds. Configured composition, crash/held-epoch recovery
+and bounded deferred-v7 lab acceptance remain separate unfinished work.
+
+### Explicit configured deferred composition — 2026-11-12
+
+Matching API/Web/agent may opt into the existing prepared deferred execution
+profile with literal `FTD_SHUN_DEFERRED_CONFIRMATION_ENABLED=true`, grouped ADDs
+and protocol7. The API remains in the `continuous-managed` workflow family with
+an explicit status boolean. No new endpoint, role, arbitrary command or consent
+purpose is introduced. Defaults remain false/verified; version7 alone is invalid.
+Settings, real client and agent require exact matching prerequisites. Client ADD
+scope is explicit, nonempty and bounded. All legacy controllers remain off and
+production-style trusted authentication remains required.
+
+Configured construction selects exactly DeferredContinuousDispatcher and the
+real strict Unix client, existing complete pending execution/ordered promotion
+storage and both operator controls. No injected client/dispatcher substitution,
+missing-file creation, storage repair, implicit migration or fallback to verified
+work is permitted. Lifecycle start rechecks frozen selection, transport, inventory
+and schema before launching tasks. Current guard/authority/read/barrier/queue/
+priority/protection/uncertainty contracts remain. A sent final group is awaiting
+confirmation; only a later causal complete read may classify presence/absence,
+never infer original creation. Unknown writes are not replayed or relabelled.
+
+Both non-executing preflights report version/selection. The optional lab overlay
+uses a distinct `deferred-v7.db`; original v6 DB, images, inventory and credentials
+are not replaced by adding source support. General crash/held-epoch recovery and
+bounded real-device acceptance remain required before the planned lab cutover.
+This supersedes earlier source-only prohibitions on configured selection, not
+their default-off behavior, exact-profile guards or uncertainty rules.

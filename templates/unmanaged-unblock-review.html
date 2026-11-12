@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Unblock {{ ip }}?</h1>
+{% if ip_context_enabled | default(false) and ip_context_target %}{% from "ip-context.html" import card %}
+<section id="ip-registration" data-live-region>{{ card(ip_context_target, ip_context) }}</section>{% endif %}
+
+<p>Remove the block {{ 'from this device' if device_id is not none else 'from all devices currently reporting it' }}. This address is not automatically restored by the service.</p>
+<ul class="unblock-targets">{% for target in targets %}<li><strong>{{ target.device_hostname }}</strong> · <span class="interface-name">{{ target.interface }}</span></li>{% endfor %}</ul>
+<p class="preview-help">Confirmation queues the request. Check Queue for its result; confirmation does not mean the block has already been removed.</p>
+<form method="post" action="{{ '/devices/' ~ device_id ~ '/shuns/' ~ ip ~ '/remove' if device_id is not none else '/shuns/' ~ ip ~ '/remove-all' }}">
+<input type="hidden" name="csrf" value="{{ csrf_token }}"><input type="hidden" name="request_id" value="{{ request_id }}">
+<button type="submit" name="confirm_action" value="unblock">Unblock {{ ip }}</button>
+</form>
+<p><a href="/shuns/{{ ip }}">Back to IP</a></p>
+{% endblock %}

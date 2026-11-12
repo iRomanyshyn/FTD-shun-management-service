@@ -102,7 +102,13 @@ class BulkOrderedRemovalScopes:
         elif job['action'] != 'ADD':
             blockers.append('PENDING_REMOVE')
         elif job['state'] == 'AWAITING_CONFIRMATION':
-            blockers.append('ADD_AWAITING_CONFIRMATION')
+            if not blockers:
+                from .pending_ordered import capture
+
+                try:
+                    predecessor = capture(db, target, job, fence, now)
+                except (ValueError, TypeError, KeyError, ManagedStateUnavailable):
+                    blockers.append('ADD_BINDING_UNAVAILABLE')
         elif job['state'] != 'RUNNING':
             blockers.append('ADD_NOT_RUNNING')
         elif not blockers:

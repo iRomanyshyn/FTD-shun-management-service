@@ -3,6 +3,52 @@
 Agreed with the operator: 2026-10-20.
 Status: approved target behavior and delivery plan; not a deployment procedure.
 
+Completed-handoff crash recovery, 2026-11-12 (source0.6.0, not activated): a
+pre-END checkpoint binds the original visit; an exact completed agent journal
+receipt can atomically finish the expired original LEASED handoff to awaiting
+confirmation. The next causal full read confirms presence/absence. No old ADD is
+replayed and no historical unknown/ATTENTION is released. General held recovery
+and bounded real-device acceptance remain before the separate fresh-store cutover.
+See manual/pending-restart-recovery.md.
+
+Configured deferred mode, 2026-11-12 (source0.5.0, not activated): explicit default-off
+API/client/agent capability now selects matched version7 and exact prepared deferred
+storage. The configured factory binds the real strict client/deferred dispatcher,
+controls and ordered workflows; old settings or wrong profiles never fall back.
+Local binary API lifecycle confirms final pending groups on a new read without
+creation attribution or repeated ADD. General crash/held-epoch recovery and
+bounded real-device acceptance remain next before applying the separate lab overlay.
+
+Deferred setup and pauses, 2026-11-12 (source-only0.4.0): the development initializer
+can create a separate exact deferred profile, including ordered cleanup and both
+independent pauses, without old-data conversion or runtime activation. Deferred
+retry timing/discovery now skip operator-paused targets, avoiding extra retry-only
+SSH visits. Confirmation, ordinary/manual reads and protected unblocking continue;
+Resume still needs a new read. Configured matching transport/API composition,
+crash/held-epoch recovery and bounded lab activation remain next.
+
+Protection wording, 2026-11-12 (0.3.2): explain automatic unblocking, turning off
+auto-restore and creating a new import in plain task language across Protected IPs,
+IP notices, shared help and operator manuals. No policy behavior or API/agent
+change. Contributor guidance now requires these outcome-based explanations.
+
+Lost-terminal recovery, 2026-11-12 (source-only0.3.1): one bounded local query can
+recover exact pending-v7 settlement after response loss, without replaying ADD
+or opening SSH. Only a completed original session with exact retained ACK scope
+can reach the unchanged atomic pending handoff and next causal confirmation.
+Active/absent/foreign/malformed proof, lost stage ACK and persistence failure
+retain uncertainty. No historical unknowns are resolved and no lab mode changes.
+General crash/held-epoch recovery and configured fresh-store acceptance remain.
+
+Initial settled-pending consent, 2026-11-11 (source-only0.3.0): new cleanup requests
+can capture an exact awaiting target after its original SSH session settled.
+Strict mutually exclusive running/settled descriptors support mixed fleets;
+fresh consent never fabricates a live lease, renews ADD, replays unknowns or
+silently switches mode after an intervening confirmation read. New-key cleanup
+still retires maintenance and waits for complete causal observation. Current lab
+is unchanged. Next compatible deferred recovery and deliberately configured
+fresh-store composition/acceptance; original multiple-RUNNING guards remain.
+
 Deferred cleanup increment, 2026-11-11 (source-only0.2.5): an accepted qualifying
 RUNNING-ADD reservation now waits across settled-v7 handoff and the next complete
 causal observation, then promotes exact urgent cleanup without another ADD.
@@ -732,7 +778,22 @@ The later email digest must emphasize these correlated addresses too. Preserve
 the existing local timestamp display with explicit timezone and history/search
 behavior while reorganizing the interface.
 
-### Deferred IP context / enrichment — requested 2026-10-21
+### Local IP context / enrichment — requested 2026-10-21
+
+2026-11-12 follow-up: the operator chose IPFire Location for local enrichment of
+all current/missing IPs, daily signed-source updates and periodic cache refresh.
+Team Cymru is a possible supplement only. See the latest architecture amendment
+and manual/ip-context.md; the prior once-per-occurrence/no-backfill restriction
+is superseded for the local provider.
+
+Earlier2026-11-12 update: the operator authorized isolated background RDAP on the known
+lab. Source0.8.0 implements a query-only UDS observation feed, separate bounded
+worker/cache and cache-only Web rows/reviews. No network/control socket or original
+DB is given to the internet-connected worker. Initial announced sample: two
+existing public IPs, no FTD writes or full-list backfill. This acceptance is complete:
+one result is ready, one referral is unavailable; the worker and Web0.8.0 are running.
+Follow manual/ip-context.md and current status/log for evidence; original lifecycle rules
+below remain, and the older no-outbound-permission sentence is superseded.
 
 Add minimal informational context for each IP in the Web UI, using RDAP or an
 equivalent source to be evaluated later. This is a follow-up idea, not implemented

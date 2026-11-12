@@ -4,6 +4,9 @@
 <div class="page-heading"><h1>Imports</h1>
 {% if refresh %}{% include "refresh-panel.html" %}{% endif %}
 </div>
+{% if ip_context_enabled | default(false) and ip_context_target %}{% from "ip-context.html" import card %}
+<section id="ip-registration" data-live-region>{{ card(ip_context_target, ip_context) }}</section>{% endif %}
+
 <p class="page-intro">Block addresses on selected devices and automatically restore their blocks if they disappear. Review the list before confirming; nothing is applied at this step.</p>
 {{ steps(1) }}
 {% if message %}<p class="preview-error" role="alert">{{ message }}</p>{% endif %}

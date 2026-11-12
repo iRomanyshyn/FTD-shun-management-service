@@ -48,6 +48,35 @@ new audit records identify this settings copy. It never imports legacy environme
 policy or old managed generations/jobs/history. Omit it for a completely empty
 policy. The source is opened readonly and is not converted or reset.
 
+### Optional deferred-confirmation development storage
+
+The default `--profile verified` preserves the executable verified-read setup
+used by the steps below. To prepare a **separate** database for deferred-v7
+development, explicitly select:
+
+```bash
+ftd-shun-dev-init \
+  --database /private/lab/deferred-development.db \
+  --inventory /private/lab/devices.json \
+  --concurrency 1 \
+  --profile deferred-confirmation \
+  --actor deferred-development-setup
+```
+
+This builds the existing exact pending-evidence/execution/retry profile before
+ordered cleanup, then includes its promoter and both independent pause controls.
+Jobs, managed targets and observations start empty. The output and setup event
+identify `profile=deferred-confirmation`; the same exclusive publication, private
+permissions, race checks and explicit settings-only copy apply. No old database,
+queue, history or managed policy is converted or reused.
+
+**Storage preparation does not enable v7.** The ordinary verified worker refuses
+this database. Matched v0.5.0 API/agent may explicitly select it with the separate
+deferred capability and version7; protocol selection alone refuses. Do not point
+the running lab at it as part of this command. General crash recovery and bounded
+real-device acceptance remain unfinished. Follow
+[Deferred First Confirmation](deferred-confirmation.md#explicit-configured-selection-v050-2026-11-12).
+
 ## 2. Select the executable profile
 
 Set `FTD_SHUN_API_RUNTIME=continuous-managed` independently for API and Web.
@@ -287,7 +316,7 @@ agent restart or missing/evicted proof retains the original hold.
 ### Synthetic regression
 
 ```bash
-python3 -m pytest -q tests/test_dev_init.py tests/test_configured_managed.py tests/test_configured_runtime.py
+python3 -m pytest -q tests/test_dev_init.py tests/test_deferred_pauses.py tests/test_configured_managed.py tests/test_configured_runtime.py
 ```
 
 These tests use disposable SQLite, actual API/BFF composition and semantic fake

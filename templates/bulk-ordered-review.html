@@ -2,6 +2,8 @@
 {% block content %}
 {% set scope = inspection.scope %}
 {% set admission = review and ordered_removal_local_enabled and refresh and refresh.ordered_removal_admission_enabled is sameas true and refresh.ordered_removal_promotion_enabled is sameas true %}
+{% set work = namespace(running=false, pending=false) %}
+{% for item in inspection.targets %}{% if item.predecessor %}{% if item.predecessor.kind | default('RUNNING') == 'AWAITING_CONFIRMATION' %}{% set work.pending = true %}{% else %}{% set work.running = true %}{% endif %}{% endif %}{% endfor %}
 {% set blocker_labels = {
   'DEVICE_DISABLED': 'Device is disabled.',
   'DEVICE_OUTSIDE_EXECUTOR_SCOPE': 'Device execution is unavailable in this configuration.',
@@ -16,6 +18,9 @@
   'ADD_AWAITING_CONFIRMATION': 'The previous addition is awaiting a complete device read. Request refresh, then review removal again.'
 } %}
 <h1>Unblock {{ scope.ip }}</h1>
+{% if ip_context_enabled | default(false) and ip_context_target %}{% from "ip-context.html" import card %}
+<section id="ip-registration" data-live-region>{{ card(ip_context_target, ip_context) }}</section>{% endif %}
+
 {% if refresh %}{% include "refresh-panel.html" %}{% endif %}
 {% if message %}<p class="preview-error" role="alert">{{ message }}</p>{% endif %}
 {% if inspection.disposition == 'READY' %}
@@ -23,8 +28,13 @@
 {% elif inspection.disposition == 'BLOCKED' %}
 <p class="policy-warning" role="status"><strong>Unblocking needs attention.</strong> Resolve the issue below, then return to this IP and review again. Nothing has changed.</p>
 {% else %}
+{% if work.pending and not work.running %}
+<p>The addition has been sent and its SSH session has finished. Confirm to <strong>turn off auto-restore and unblock after the next complete device check</strong>.</p>
+{% else %}
 <p>An addition is already running. Confirm to <strong>turn off auto-restore and unblock after it finishes</strong>. The running command will not be interrupted.</p>
-<p class="preview-help">If that command or its session cannot be verified, unblocking stops for review in Queue. Cancellation, expiry or failure will not turn auto-restore back on.</p>
+{% if work.pending %}<p class="preview-help">Some selected devices are waiting for a complete device check; all captured work must settle before cleanup.</p>{% endif %}
+{% endif %}
+<p class="preview-help">If required evidence is missing or uncertain, unblocking stops for review in Queue. Cancellation, expiry or failure will not turn auto-restore back on.</p>
 {% if not admission %}<p class="policy-warning">Inspection only — execution is unavailable for new submissions. Check any earlier result below.</p>{% endif %}
 {% endif %}
 {% if inspection.global_blockers %}<p class="preview-error">A system-wide restriction prevents this request. Inspect Status before trying again.</p>{% endif %}
@@ -32,7 +42,7 @@
 {% for target in scope.targets %}{% set item = inspection.targets[loop.index0] %}<tr>
 <td>{{ target.hostname }} ({{ target.device_id }})<br>{{ scope.ip }}<br>{{ 'Device enabled' if target.device_enabled else 'Device disabled — blocks entire scope' }}</td>
 <td>{{ 'Auto-restore on — will turn off' if target.maintenance_enabled else 'Auto-restore off — remove block only' }}<br>{{ 'Observed present' if target.observed_present else 'Not currently observed — retained scope' }}</td>
-<td><span class="state-badge {{ 'policy-disabled' if item.disposition == 'BLOCKED' else '' }}">{{ 'Needs attention' if item.disposition == 'BLOCKED' else 'Wait for addition' if item.disposition == 'WAITING_ADD' else 'Ready to unblock' }}</span>{% for blocker in item.blockers %}<p>{{ blocker_labels[blocker] }}</p>{% endfor %}</td>
+<td><span class="state-badge {{ 'policy-disabled' if item.disposition == 'BLOCKED' else '' }}">{{ 'Needs attention' if item.disposition == 'BLOCKED' else 'Wait for confirmation' if item.predecessor and item.predecessor.kind | default('RUNNING') == 'AWAITING_CONFIRMATION' else 'Wait for addition' if item.disposition == 'WAITING_ADD' else 'Ready to unblock' }}</span>{% for blocker in item.blockers %}<p>{{ blocker_labels[blocker] }}</p>{% endfor %}</td>
 </tr>{% endfor %}</tbody></table></div>
 {% if review %}
 {% if result %}<section aria-label="Ordered reservation receipt"><h2>Waiting reserved — not verified removal</h2>
@@ -41,9 +51,7 @@
 <p>Original expiry: <time class="local-timestamp" datetime="{{ result.expires_at }}">{{ result.expires_at }}</time>.</p></section>
 {% else %}<form method="post" action="/managed-shuns/v2/ordered-removal-confirm" class="import-confirm-form managed-grant-form">
 <input type="hidden" name="csrf" value="{{ csrf_token }}"><input type="hidden" name="review" value="{{ review.token }}">
-<label for="confirm-ordered-ip">Type {{ scope.ip }} to stop maintenance and reserve this exact {{ scope.scope }} removal</label>
-<input id="confirm-ordered-ip" name="confirm_ip" value="{{ scope.ip if message else '' }}" pattern="{{ scope.ip | replace('.', '[.]') }}" autocomplete="off" inputmode="decimal" required>
-<button type="submit"{% if not admission %} disabled{% endif %}>Confirm scheduled unblock{{ ' — unavailable' if not admission else '' }}</button></form>{% endif %}
+<button type="submit" name="confirm_action" value="unblock"{% if not admission %} disabled{% endif %}>Unblock {{ scope.ip }} after current work{{ ' — unavailable' if not admission else '' }}</button></form>{% endif %}
 <p><a href="/managed-shuns/v2/ordered-removals/{{ review.request_id }}">Inspect original request status</a> — available after acceptance, including after Web restart. After an unknown reply, retry only this original review/key.</p>
 {% elif inspection.disposition == 'READY' %}
 <form method="post" action="{{ '/ip-actions/unblock' if scope.scope == 'device' else '/ip-actions/unblock-everywhere' }}" class="import-confirm-form">

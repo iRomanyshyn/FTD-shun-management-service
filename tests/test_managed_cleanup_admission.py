@@ -203,7 +203,7 @@ def test_browser_keeps_scope_key_and_typed_ip_through_unknown_response(lab, scop
             lab[5][failure] = True
             unknown = await confirm(client, opaque)
             assert unknown.status_code == 503 and "outcome is unknown" in unknown.text
-            assert token(unknown) == opaque and f'value="{IP}"' in unknown.text
+            assert token(unknown) == opaque and str(IP) in unknown.text and 'value="unblock"' in unknown.text
             before = dump(lab)
             replay = await confirm(client, opaque)
             assert replay.status_code == 200 and "Original-key receipt replay" in replay.text

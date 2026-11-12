@@ -108,8 +108,9 @@ auto-restore and remove block** also requests removal after a separate review an
 separate wait-for-addition option handles an addition already in progress; an
 unknown result requires attention, not blind retry. Cancelling uncompleted import
 work preserves already-applied/adopted blocks and does not unblock addresses.
-Enabled protection permanently stops matching maintenance; disabling protection
-does not revive the retired import.
+Turning protection on turns off auto-restore for the IP on every device. Turning
+protection off does not block it again or turn auto-restore back on. To keep the
+IP blocked again, disable protection and create a new import.
 
 Quiet off rules appear in collapsed history, not as current restoration work.
 Still-observed blocks, pending work and uncertainty remain visible. Past verified

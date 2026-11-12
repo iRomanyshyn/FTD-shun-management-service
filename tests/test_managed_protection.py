@@ -320,7 +320,7 @@ def test_bff_forwards_reviewed_ack_and_real_identity_without_device_hint(state, 
         async with httpx.AsyncClient(transport=httpx.ASGITransport(app=web.create_app(config)), base_url="https://fixture.test",
                                      headers={"Remote-User": "viewer", "Remote-Groups": "ftd-shun-viewers"}) as client:
             page = await client.get("/protected-ips")
-            assert page.status_code == 200 and "permanently stops matching managed maintenance" in page.text
+            assert page.status_code == 200 and "Turning protection off does not turn auto-restore back on" in page.text
             assert 'name="managed_revision"' in page.text and 'name="confirm_maintenance_resume"' not in page.text
             fields = {"csrf": client.cookies.get("ftd_shun_csrf"), "ip": str(IP), "revision": policy.revision(),
                       "enabled": "false", "managed_revision": registry.snapshot()["revision"] - 1}

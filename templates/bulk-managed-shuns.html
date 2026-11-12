@@ -27,7 +27,7 @@
 {% else %}<p class="preview-help">Operator pause controls are not initialized for this database. No pause button is available.</p>{% endif %}
 </section>
 {% if refresh.runtime_mode != 'continuous-managed' %}<p class="policy-warning">Automatic blocking is unavailable in this service mode. {% if refresh.ready_removal_admission_enabled is not sameas true %}Combined removal is also unavailable.{% endif %} You can still review settings and use available stop-maintaining controls.</p>{% endif %}
-<section id="managed-shun-state" data-live-region>
+<section id="managed-shun-state" data-ip-context-list data-live-region>
 {% if ('Operator' in identity.roles or 'Administrator' in identity.roles) and (refresh.ready_removal_review_available is sameas true or refresh.ordered_removal_review_available is sameas true or (not managed.changed and managed.entries | selectattr('enabled') | list and refresh.managed_policy_retirement_available)) %}
 <nav class="action-shortcuts" aria-label="Managed actions">
 <span class="muted">Rules &amp; device actions</span>
@@ -49,12 +49,12 @@
 {% if entry.enabled is sameas false and entry.observed_present is sameas false and entry.attention is sameas false and entry.missing_unknown_job is sameas false and entry.pending_jobs is integer and entry.pending_jobs == 0 and entry.last_attempt_state is defined and entry.last_attempt_state in (none, 'VERIFIED', 'NOOP') %}
 {% set groups.history = groups.history + [entry] %}{% else %}{% set groups.current = groups.current + [entry] %}{% endif %}
 {% endfor %}
-{% if groups.current %}<h2>Rules and items to review</h2>{{ policy_table(groups.current) }}
+{% if groups.current %}<h2>Rules and items to review</h2>{{ policy_table(groups.current, identity=identity, refresh=refresh, csrf_token=csrf_token, new_operation_key=new_operation_key, ip_context=ip_context | default({})) }}
 {% elif managed.entries %}<p>No auto-restoring rules or active items on this page. Previous rules are kept in the history below; they do not schedule new restoration.</p>
 {% else %}<p>No saved auto-restore rules.</p>{% endif %}
 {% if groups.history %}<details id="managed-restoration-off-history" class="managed-history"><summary>Auto-restore off — history ({{ groups.history | length }} on this page)</summary>
 <p>These rules no longer restore blocks, and no block was seen in the last device read. This is not a list of addresses to unblock automatically. If FTD blocks one again, it remains unmanaged unless you explicitly enable new maintenance or protect the IP.</p>
-{{ policy_table(groups.history, history=true) }}</details>{% endif %}
+{{ policy_table(groups.history, history=true, identity=identity, refresh=refresh, csrf_token=csrf_token, new_operation_key=new_operation_key, ip_context=ip_context | default({})) }}</details>{% endif %}
 {{ pager(managed.page, managed.pages, '/managed-shuns', {'revision': managed.revision}, page_summary, 'Managed policy pagination', 'bottom', 'managed-page', '', '/managed-shuns', 'Current policy') }}
 {% endif %}
 </section>

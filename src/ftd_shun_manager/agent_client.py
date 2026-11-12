@@ -35,6 +35,10 @@ class AgentUnavailable(RuntimeError):
     pass
 
 
+class _AgentResponseLost(AgentUnavailable):
+    """EOF without any packet; malformed/truncated evidence is not transport loss."""
+
+
 class AgentCycleNotStarted(AgentUnavailable):
     """Local connect failed before BEGIN send; never a decoded agent response."""
 
@@ -85,7 +89,8 @@ class UnixAgentClient(AgentClient):
     def __init__(self, socket_path: str, timeout_seconds: int = 125, *, large_snapshots: bool = False,
                  additions_enabled: bool = False, addition_device_ids: frozenset[int] | None = None,
                  settled_cycles: bool = False, recoverable_cycles: bool = False, tracked_cycles: bool = False,
-                 batch_additions: bool = False, batch_session_version: int = 5) -> None:
+                 batch_additions: bool = False, batch_session_version: int = 5,
+                 deferred_confirmation: bool = False) -> None:
         if type(settled_cycles) is not bool:
             raise ValueError('Settled cycle capability must be boolean.')
         if type(recoverable_cycles) is not bool or (recoverable_cycles and not settled_cycles):
@@ -96,9 +101,18 @@ class UnixAgentClient(AgentClient):
             raise ValueError("addition cycles require large snapshots")
         if type(batch_additions) is not bool or (batch_additions and not (additions_enabled and tracked_cycles)):
             raise ValueError('Batch additions require explicit tracked addition cycles.')
-        if (type(batch_session_version) is not int or batch_session_version not in (5, 6)
+        if type(deferred_confirmation) is not bool:
+            raise ValueError('Deferred confirmation capability must be a literal boolean.')
+        if deferred_confirmation and (batch_additions is not True or additions_enabled is not True
+                or large_snapshots is not True or tracked_cycles is not True or recoverable_cycles is not True
+                or type(addition_device_ids) is not frozenset or not 1 <= len(addition_device_ids) <= 10
+                or any(type(device) is not int or not 1 <= device <= 65535 for device in addition_device_ids)):
+            raise ValueError('Deferred confirmation requires exact tracked grouped ADD capabilities and a bounded device scope.')
+        if (type(batch_session_version) is not int
+                or batch_session_version not in ((7,) if deferred_confirmation else (5, 6))
                 or (batch_session_version == 6 and not batch_additions)):
             raise ValueError('Extended sessions require the explicit matching grouped capability.')
+        self.deferred_confirmation = deferred_confirmation
         self.batch_session_version = batch_session_version
         self.socket_path = socket_path
         self.timeout_seconds = timeout_seconds
@@ -186,6 +200,26 @@ class UnixAgentClient(AgentClient):
         except (OSError, ValueError) as error:
             raise AgentUnavailable('Session completion proof unavailable; original hold retained.') from error
 
+    def pending_session_completed(self, device_id, lease_owner, sequence, pending):
+        """One bounded local journal read after restart; never opens SSH."""
+        if (self.deferred_confirmation is not True or self.batch_session_version != 7
+                or type(device_id) is not int or device_id not in self.addition_device_ids):
+            raise AgentUnavailable('Configured deferred completion lookup is unavailable for this device.')
+        session_id = _session_id(lease_owner)
+        # Reject malformed local scope before connecting to the agent.
+        if type(pending) is not tuple or not 1 <= len(pending) <= 16:
+            raise ValueError('Exact bounded original pending acknowledgements are required.')
+        if any(type(ack) is not PendingAddition or type(ack.ip) is not IPv4Address for ack in pending):
+            raise ValueError('Typed original pending acknowledgements are required.')
+        if type(sequence) is not int or not 2 <= sequence <= 130:
+            raise ValueError('Exact original pending terminal sequence is required.')
+        decode_pending_end(bytes([6, 7, 0x1d, sequence, len(pending)]) + b''.join(ack.ip.packed for ack in pending),
+                           sequence, pending, version=7)
+        try:
+            return _lookup_pending(self.socket_path, self.timeout_seconds, device_id, session_id, sequence, pending)
+        except (OSError, ValueError) as error:
+            raise AgentUnavailable('Completed pending session proof unavailable; original fence retained.') from error
+
 
 def _session_id(owner):
     if type(owner) is not str:
@@ -198,8 +232,10 @@ def _session_id(owner):
 
 def _receive_packet(connection: socket) -> bytes:
     packet, _, flags, _ = connection.recvmsg(MAX_AGENT_RESPONSE_BYTES)
-    if flags & MSG_TRUNC or not packet:
+    if flags & MSG_TRUNC:
         raise AgentUnavailable("agent response was truncated or the connection closed")
+    if not packet:
+        raise _AgentResponseLost("agent response was truncated or the connection closed")
     return packet
 
 
@@ -286,6 +322,7 @@ class UnixAgentCycle:
         else:
             encode_session_request(int(operation), version, device_id, session_id)
         self.connection = _connect_cycle(path, timeout_seconds)
+        self.socket_path = path
         self.sequence = 0
         self.closed = False
         self.version = version
@@ -294,6 +331,7 @@ class UnixAgentCycle:
         self.settled_cycles = settled_cycles
         self.begin_operation = operation
         self.settled = False
+        self.pending_settlement_recovered = False
         self.recoverable_cycles = recoverable_cycles
         self.mutation_attempted = False
         self.session_id = session_id
@@ -387,27 +425,45 @@ class UnixAgentCycle:
             self.abort()
 
     def finish_pending_additions(self) -> SettledPendingAdditions:
-        """Transport foundation only: no current worker releases jobs from this.
+        """Settle the exact acknowledged group, without a read or ADD replay.
 
-        End the exact acknowledged group without a verification read. Never
-        substitute this for successful creation or retry a lost response.
+        A lost terminal response permits one local journal lookup after closing
+        this connection. Malformed evidence never selects that recovery path.
         """
-        if self.version != 7 or not self.pending_additions:
+        if self.version != 7 or not self.pending_additions or self.closed:
             raise ValueError('Pending-only end requires a nonempty tracked-v7 group.')
+        sequence, pending = self.sequence, tuple(self.pending_additions)
+        submitted = False
         try:
             deadline = monotonic() + self.timeout_seconds
-            pending = self._exchange(CycleOperation.END_PENDING, _deadline=deadline)
-            sequence = self.sequence - 1
-            decode_cycle_settlement(
-                _receive_before(self.connection, min(deadline, monotonic() + 5)),
-                sequence, version=self.version, begin=self.begin_operation)
+            request = encode_cycle_request(CycleOperation.END_PENDING, sequence, version=7)
+            try:
+                self.connection.settimeout(self.timeout_seconds)
+                if self.connection.send(request) != len(request):
+                    raise AgentUnavailable('Pending-only terminal send was incomplete.')
+                submitted = True
+                decode_pending_end(_receive_before(self.connection, deadline), sequence, pending, version=7)
+                decode_cycle_settlement(
+                    _receive_before(self.connection, min(deadline, monotonic() + 5)),
+                    sequence, version=7, begin=self.begin_operation)
+                receipt = SettledPendingAdditions(self.device_id, self.session_id, sequence, pending)
+            except (OSError, _AgentResponseLost):
+                self.abort()  # Let the original handler disconnect before lookup.
+                if not submitted:
+                    raise
+                receipt = self._lookup_pending_settlement(sequence, pending)
+                self.pending_settlement_recovered = True
             self.settled = True
+            self.sequence = sequence + 1
             self.pending_additions.clear()
-            return SettledPendingAdditions(self.device_id, self.session_id, sequence, pending)
+            return receipt
         except (OSError, ValueError, AgentUnavailable) as error:
             raise AgentUnavailable('Pending-only end/settlement unavailable; no retry attempted.') from error
         finally:
             self.abort()
+
+    def _lookup_pending_settlement(self, sequence, pending):
+        return _lookup_pending(self.socket_path, self.timeout_seconds, self.device_id, self.session_id, sequence, pending)
 
     def _require_verified_additions(self):
         if self.pending_additions:
@@ -435,6 +491,20 @@ class UnixAgentCycle:
         if not self.closed:
             self.closed = True
             self.connection.close()
+
+
+def _lookup_pending(path, timeout, device_id, session_id, sequence, pending):
+    from .agent_protocol import PENDING_SESSION_LOOKUP, decode_pending_lookup
+
+    request = encode_session_request(PENDING_SESSION_LOOKUP, 7, device_id, session_id)
+    deadline = monotonic() + min(5, timeout)
+    with socket(AF_UNIX, SOCK_SEQPACKET) as connection:
+        connection.settimeout(max(0.001, deadline - monotonic()))
+        connection.connect(path)
+        connection.settimeout(max(0.001, deadline - monotonic()))
+        if connection.send(request) != len(request):
+            raise AgentUnavailable('Pending completion lookup send was incomplete.')
+        return decode_pending_lookup(_receive_before(connection, deadline), device_id, session_id, sequence, pending)
 
 
 class MockAgentClient(AgentClient):

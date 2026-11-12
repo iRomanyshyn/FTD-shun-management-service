@@ -230,16 +230,16 @@ def test_pending_confirmation_refuses_ready_cleanup_atomically_and_inspection_is
     with pytest.raises(QueueConflict, match='pending or unresolved'):
         admit(ready, scope)
     inspection = BulkOrderedRemovalScopes(service.store).snapshot(IP, device_id=None if fleet else 1, now=bulk[1][0])
-    assert inspection['disposition'] == 'BLOCKED'
-    assert 'ADD_AWAITING_CONFIRMATION' in inspection['targets'][0]['blockers']
-    assert inspection['targets'][0]['predecessor'] is None
-    assert inspect_ordered(inspection, IP, device_id=None if fleet else 1)['disposition'] == 'BLOCKED'
+    assert inspection['disposition'] == 'WAITING_ADD'
+    assert inspection['targets'][0]['blockers'] == []
+    assert inspection['targets'][0]['predecessor']['kind'] == 'AWAITING_CONFIRMATION'
+    assert inspect_ordered(inspection, IP, device_id=None if fleet else 1)['disposition'] == 'WAITING_ADD'
     from ftd_shun_manager.web import Identity, templates
 
     html = templates.get_template('bulk-ordered-review.html').render(
         identity=Identity('synthetic:lifecycle', 'Lifecycle operator', ('Operator',)),
         inspection=inspection, refresh=None, review=None, message=None)
-    assert 'Request refresh, then review removal again.' in html
+    assert 'SSH session has finished' in html and 'Wait for confirmation' in html
     assert 'No confirmation token was created' in html and 'name="review"' not in html
     assert dump(service.store) == before
 

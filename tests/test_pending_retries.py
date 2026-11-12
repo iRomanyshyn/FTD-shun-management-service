@@ -98,6 +98,30 @@ def test_new_attempt_uses_same_confirming_read_after_backoff_and_preserves_paren
     assert claim(visit[1])['id'] == child['operation_id']
 
 
+def test_operator_resume_requires_new_read_for_a_deferred_retry(bulk, leases, execution):
+    from ftd_shun_manager.managed_addition_controls import ManagedAdditionControls
+
+    controls = ManagedAdditionControls(execution.store, clock=lambda: bulk[1][0])
+    controls.initialize()
+    visit = absent(bulk, leases, execution)
+    controls.change(str(uuid4()), 'imports', 'PAUSE', 0, 'fixture', 'Fixture operator', ('Operator',))
+    bulk[1][0] += timedelta(seconds=6)
+    before = dump(execution.store)
+    with pytest.raises(QueueConflict, match='paused'):
+        admit(execution, visit)
+    assert dump(execution.store) == before
+    controls.change(str(uuid4()), 'imports', 'RESUME', 1, 'fixture', 'Fixture operator', ('Operator',))
+    before = dump(execution.store)
+    with pytest.raises(QueueConflict):
+        admit(execution, visit)  # Original absence predates Resume; no cached-read reuse.
+    assert dump(execution.store) == before
+    bulk[1][0] += timedelta(seconds=1)
+    token, queue, _, parents = visit
+    result = admit(execution, (token, queue, read(bulk), parents))
+    assert not result['replayed'] and not result['device_work_sent']
+    assert result['attempts'][0]['attempt_id'] != parents[0]
+
+
 def test_exponential_delays_and_rolling_hour_limit_are_typed_waits(bulk, leases, execution):
     from ftd_shun_manager.pending_retries import HOURLY_LIMIT
 

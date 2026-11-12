@@ -61,7 +61,281 @@ invent successful results, alter credentials/trust or silently erase the dataset
   require explicit quiescent initialization of the optional control profile;
   startup/GET must not add it. Old writers refuse this profile.
 
-## Source-only v0.2.5 — captured cleanup across deferred handoff, 2026-11-11
+## Current Web/worker v0.9.0 lab — local IPFire context, 2026-11-12
+
+The operator explicitly replaced once-per-occurrence RDAP-only enrichment with
+local IPFire context for all current/missing IPs and periodic refresh. The newer
+architecture amendment supersedes the old no-backfill/no-active-refresh rule
+for this provider. Keep isolated query-only feed/own-cache semantics; do not
+send whole IP lists externally or turn metadata into policy authority.
+
+Web image `e0f1efbe5ece...`, worker `159d343157bb...` share0.9.0/source
+`7456eaac341b`. Web `560959a1c775...` started13:27:15Z; worker `444f6cdc6ff2...`
+started13:27:15Z and was restart-checked at13:29:55Z. API0.2.0, agent, Caddy,
+Authelia and feed0.8.0 retain exact images/containers/start times. Existing three
+lab overlays plus IP-context overlay remain; deferred-v7 stays source-only/off.
+Only the optional worker target installs Debian location/python3-location; no
+native tools or internet were added to Web/API/agent. New `location-cache.db`/
+verified `location.db` live in the existing separate metadata volume. Old RDAP
+`cache.db` and its two consumed attempts are retained, never repurposed.
+
+Default signed-source update daily, cache fallback refresh weekly, immediate
+local refresh after a different source generation. Both intervals configurable.
+Fixed official HTTPS download, signature/readability before atomic replacement,
+bounded download/decompression/native batch execution; preserve good source/data
+on failure. Missing entries retry after source change/interval, native errors
+back off15m, download errors1h. Page/dialog reads never start provider work.
+Follow docs/manual/ip-context.md. Team Cymru remains a documented alternative,
+not enabled as a fallback or recurring bulk stream.
+
+Actual baseline32426: 65 local batches processed32425 public IPs between13:27:33Z
+and13:28:02Z,29045 ready/3380 genuinely not_in_dataset/one special-use skipped.
+No local-lookup failures. Both old sampled IPs now have ASN/operator/country.
+A real worker restart retained the counts/attempt times/daily schedule, with no
+new download or batch. At13:28:42Z integrityok/nine original fingerprints/all26
+unknowns unchanged,3842 IDLE/no RUNNING. At13:28:48Z no last_error/zero unresolved
+attention, original import32425/32425 complete,32426 observations/Unmanaged1.
+No new shun command, policy/job/control/consent/recovery mutation by this change.
+
+Focused Python250/61.39s plus final config/template/core106/1.66s and Browser/
+Node107/174.96s pass. Source checks/package/build/footer/42 templates/66 routes/
+actual readonly API preflight, Web200/ten anonymous401/assets/cache rendering/
+filtered composition/isolation pass. Signed native dataset accepted; initial
+64MiB decompression-limit refusal retained, final128MiB bound verified. Initial
+restricted ASGI test run stalled; the unrestricted core62/1.09s passes. No new
+full Python/Rust suite or live authenticated-browser/production acceptance claimed.
+Evidence `/tmp/ftd-location-20261112`. Web rollback
+`ftd-shun-web:lab-pre-location-20261112` retains0.8.0; old helper image retained as
+`ftd-shun-ip-context:rdap-0.8.0-20261112`. Stop the new worker to stop updates;
+never reset/restore original DB or remove metadata volumes for rollback.
+
+## Previous Web/helpers v0.8.0 lab — isolated IP context, 2026-11-12
+
+Web/feed/worker image `26ffcb45c5e6...` runs0.8.0/source `f57df396aeba`.
+Web `b9c3a9bd978a...` started12:54:25Z, feed `09e1d81a6be3...`12:53:06Z,
+worker `786052dc4a6a...`12:54:03Z. API0.2.0 `454e6336b0b2...`/`6b548900c147...`
+and agent `8d9f196ceea1...`/`4b2aa4744e96...` retain exact start times; neither
+restarted. Original DB/v6/import/all three overlays/seven receipts remain.
+Add `deploy/compose.ip-context.lab.yml --profile ip-context` for the authorized
+RDAP services/cache mount; this is NOT the deferred-v7 overlay/activation.
+
+Outbound worker has only its own cache and dedicated observation UDS, no core
+DB/credentials/control/device/edge access. Networkless feed uses existing source
+query-only reads, RW mount solely for WAL/SHM bookkeeping. Independent low-write
+cache uses rollback journals, not source-WAL changes. Default-off RDAP, one
+persisted attempt per global observed occurrence, no page/restart/age retry or
+silent baseline backfill. Only confirmed disappearance/redetection permits a new
+attempt. Exact fixed HTTPS registry/referral bounds, no retained contact data;
+Web revalidates only displayed cache entries. Follow manual/ip-context.md.
+
+Initial32426-observation baseline attempted exactly two existing public IPs:
+one APNIC TH/TOTNET ready, one unavailable referral outside the allowlist. Do not
+reset/reprime/retry that active occurrence or loosen trust. Five actual readonly
+Web cache reads/renderings kept two attempts. At12:54:56Z integrityok/nine original
+fingerprints/all26 unknowns unchanged,3832 IDLE/no RUNNING. At12:55:02Z no error/
+zero unresolved attention, original import32425/32425 complete,Unmanaged1.
+No new policy/job/control/consent/recovery or FTD command.
+
+Full Python3889 pass/one obsolete attribute-order assertion, fixed and covered by
+final focused159/34.63s; no second clean full run. Browser/Node106/162.62s passes.
+Final journal correction tested by focused SQL and real Docker synthetic feed/
+unchanged source/closed-cache readonly mount. Ruff/compileall/JS/diff, final
+package/build/footer/42 templates/66 routes/actual readonly API preflight pass.
+Web200/ten anonymous401/assets/cache render pass. Browser authentication fixtures
+are synthetic, no live authenticated-browser/device-write acceptance claimed.
+Evidence `/tmp/ftd-rdap-20261112.nnmWxu`, including initial cache failure retained.
+Rollback Web `ftd-shun-web:lab-pre-rdap-20261112` (0.7.0); stop worker for outbound
+shutdown. No original DB reset/rollback or volume cleanup. Reload old tabs.
+
+## Previous Web v0.7.0 lab — IP action dialogs, 2026-11-12
+
+Web `a2519be248ae...` / `4b96861ec4e9...`, source `5c95f3c5609d`, started11:57:20Z.
+Native dialogs progressively enhance unblock/retirement reviews, with explicit
+button consent instead of typed IP. Original scope/CSRF/actor/key/expiry/gates/
+ready-versus-ordered checks remain; correctly typed old-tab submissions remain
+valid. Lost/5xx replies retain exact body/key for explicit retry, no auto resend.
+Ordinary HTML unblock also prepares first. Errors negotiate HTML versus JSON.
+Rows expose Unblock/Make managed/Protect/Details; adoption GET only prefills.
+
+Full Python3840 pass/12 obsolete typed-input/absence-of-row-forms assertions;
+updated assertions and final focused277/76.42s pass, no second full run claimed.
+Browser/Node105/152.73s pass, mobile/light/dark dialog captures; Ruff/compileall/
+JS/diff and actual package/build/footer/41 templates/66 routes/readonly API
+compatibility pass. Web200/ten anonymous401/served assets match. At11:57:51Z
+integrityok/nine original fingerprints/all26 unknowns unchanged,3818 IDLE/no
+RUNNING. API0.2.0 `454e6336b0b2...` / `6b548900c147...` and agent
+`8d9f196ceea1...` / `4b2aa4744e96...` did not restart. Original DB/v6/all three
+overlays/import/seven receipts retained; no consent/policy/job/device test writes.
+Rollback `ftd-shun-web:lab-pre-action-dialogs-20261112`. Evidence
+`/tmp/ftd-action-dialogs-20261112.MrUpBt`. Reload old tabs.
+
+Operator explicitly authorized a separate background RDAP component and outbound
+public-IP lookups on this known lab on2026-11-12. Do not ask again for that scope.
+Keep Web/API/agent isolated; advisory bounded cache, once per detected global IP
+occurrence, no view-triggered requests or silent full-list backfill. The announced
+initial acceptance scope is two existing public IPs, no FTD write. Implementation
+follows; this Web-only delivery has not enabled external lookups.
+
+## Previous source v0.6.0 — completed pending-handoff crash recovery, not activated, 2026-11-12
+
+Pre-END append-only checkpoint binds the original v7 visit, final ordered ACK
+group and known verified/no-op prefix. Before ordinary expired-lease processing,
+one bounded real local agent completion lookup may atomically hand unchanged
+original RUNNING jobs to awaiting confirmation and release that exact expired
+LEASED fence. No renewal/ADD replay/creation attribution; return to scheduler for
+the causal full read. Retention preserves the unreleased checkpoint/prefix.
+Missing/active/foreign proof, changed inventory/evidence, unknowns/ATTENTION or
+persistence failure retain the old fence. Ordinary handoff keeps live checks.
+
+This is source-only on the existing exact pending profile: no DDL, protocol/
+agent/default/configuration/runtime change. Current Web0.3.2/API0.2.0/agent/v6,
+original DB/import and all overlays remain. General held-epoch recovery and
+bounded real-device acceptance remain before fresh-store cutover. Follow
+docs/manual/pending-restart-recovery.md; never use historical receipts as proof.
+Clean full Python3849/730.65s and final focused232/83.81s pass (including all103
+restart/lookup cases). Real seqpacket and fresh-interpreter synthetic
+probe pass: exactly one lookup, two awaiting jobs, unchanged claims/ACKs and
+idempotent local replay. Maximum64-claim prefix/retention, rollback, original
+fence/inventory substitution, missing/foreign proof and cancellation tested.
+Ruff/compileall/diff pass. No Rust/browser rerun: no agent/JS/template changes.
+Build `fd022bf7556b`, app `37b22683c92f...`, local tag
+`ftd-shun-manager:source-0.6.0-pending-restart`; package/footer/39 templates,
+both networkless fresh-profile preflights, wrong-profile refusal and unchanged
+synthetic state/immutable archived-v6 readonly pass. Evidence
+`/tmp/ftd-pending-restart-20261112.3pgwg6`. At11:09:04Z integrityok/nine original
+fingerprints/all26 unknowns unchanged,3809 IDLE/no RUNNING;11:10:40Z running/
+no error/zero unresolved attention,26 reviewed, original import32425/32425
+complete,32426 observations/Unmanaged1. All actual image/container/start identities
+unchanged. No live deployment/profile/consent/control/recovery or FTD command.
+
+## Previous source v0.5.0 — configured deferred selection, not activated, 2026-11-12
+
+Build `c7b297637706`, app `aaa47fe070ea...`, agent `c226db65e833...`, tags
+`ftd-shun-{manager,agent}:source-0.5.0-configured-deferred`. New literal default-off
+`FTD_SHUN_DEFERRED_CONFIRMATION_ENABLED` must match grouped7/client/API/agent and
+existing exact pending execution/ordered/control storage. Old flags/version7 alone
+refuse. Factory binds exact DeferredContinuousDispatcher/real Unix client; no
+injected substitute, initialization, conversion or verified fallback. API remains
+continuous-managed with an explicit status boolean. Preflights report selection.
+Optional compose.deferred-lab.yml selects separate deferred-v7.db after the other
+three overlays; it has NOT been applied. Current defaults/env/data/services stay.
+
+Full Python3793/768.42s, focused223/76.41s, Rust100+8+4/Clippy/locked release/fmt,
+Ruff/compileall/diff pass. No browser rerun (no template/JS change). Real API consent
+through actual local binary client tests pending handoff/later confirmation and
+idempotent replay without duplicate ADD or creation attribution. Candidate package/
+build/footer/39 templates, both actual configured preflights in networkless tmpfs,
+wrong-profile refusal, archived-v6 readonly and release-agent synthetic check pass.
+Composition check filters only flag/path fields, never dumps resolved secrets.
+Evidence `/tmp/ftd-configured-deferred-20261112.5UWIQu`. At10:35:31Z integrityok/
+nine original hashes/all26 unknowns unchanged,3802 IDLE/no RUNNING;10:35:36Z
+running/no error/zero unresolved attention, original import32425/32425 complete,
+32426 observations,Unmanaged1. Web0.3.2/API0.2.0/agent identities/start times/v6
+unchanged. No live gate/schema/consent/control/recovery/device request. Next
+compatible crash/held-epoch recovery and bounded real-device acceptance before
+planned lab cutover. Never use current v6 DB or old receipts to activate this mode.
+
+## Previous source-only v0.4.0 — deferred setup and pauses, 2026-11-12
+
+Build `c9aa7db3143e`, candidate `d367a403102e...` /
+`ftd-shun-manager:source-0.4.0-deferred-profile`. `ftd-shun-dev-init --profile
+deferred-confirmation` creates a separate absent-destination private empty profile:
+pending evidence/execution/retries before ordered cleanup/promotion and both
+controls. Default verified stays unchanged. Report/audit identify profile; no old
+data conversion, environment/SSH read, authority or configured v7 activation.
+Ordinary configured workers refuse the new DB. Retry timing/discovery now skip
+the relevant paused kind before demand/admission, preserving bounded cursors,
+confirmation/manual/periodic reads, protected unblocks and strict Resume barriers.
+
+Full Python3764/728.06s, focused206/103.67s and Ruff/compileall/diff pass. No Rust/
+browser rerun (no agent/frontend change). Candidate installed package/build/
+footer/39 templates, both actual fresh CLI profiles in networkless tmpfs and
+immutable actual-v6 archive read compatibility pass. Evidence
+`/tmp/ftd-deferred-profile-20261112.IQ4AkE`. No live profile/data/configuration,
+service restart, gate, consent/control/recovery or device request. At09:51:52Z
+integrityok/all nine original fingerprints/all26 unknowns unchanged; ordinary
+epoch3792 LEASED, not globally idle. At09:51:56Z running/no error/zero unresolved
+attention, original import32425/32425 complete,32426 observed,Unmanaged1. Current
+Web0.3.2/API0.2.0/agent identities/start times/all overlays/v6 remain unchanged.
+Next matching configured transport/API composition, compatible crash recovery
+and bounded fresh-store lab acceptance; never enable v7 by widening old flags.
+
+## Current Web v0.3.2 lab — plain protection wording, 2026-11-12
+
+Web `6aa4928a4a1e...` / `3bd44ee1e4d9...`, build `2c31c6d962b1`, started09:19:29Z.
+Protected IPs now explains automatic unblocking, disabling without reblocking,
+turning off auto-restore and using a new import to keep an IP blocked again.
+Shared Managed help, IP notices and operator manuals use the same meanings;
+technical details remain separate. Write operator copy as actions/consequences,
+not "matching managed maintenance", "old rules" or hidden revision mechanics.
+No policy/permission/form/guard/API/agent/schema/gate change. Source-only v7
+work below remains unavailable in configured services. API0.2.0 `454e6336b0b2...` /
+`6b548900c147...` and agent `8d9f196ceea1...` / `4b2aa4744e96...` did not restart.
+
+Focused248/45.47s and final browser104/172.63s pass; no full Python/Rust rerun for
+this copy-only increment. Ruff/compileall/JS/diff, all39 templates/66 routes,
+package/build/footer, actual readonly API compatibility and served hashes pass.
+Web200/ten anonymous routes401. At09:19:50Z integrityok/all nine original hashes/
+all26 unknowns unchanged,3785 IDLE/no RUNNING;09:19:54Z running/no error/zero
+unresolved attention, original import32425/32425 complete. No live consent/policy/
+control/recovery/device request. Preserve all overlays/DB/unknowns/seven receipts.
+Rollback `ftd-shun-web:lab-pre-protection-copy-20261112` (0.2.4). Evidence
+`/tmp/ftd-protection-copy-20261112.1emA7G`. Reload old tabs. Browser acceptance is
+synthetic; no actual authenticated-browser/device-write acceptance claimed.
+
+## Previous source-only v0.3.1 — lost pending-terminal response, 2026-11-12
+
+Build `7a2ee3fd0343`, app `e4225632b119...` /
+`ftd-shun-manager:source-0.3.1-pending-lookup`, agent `aaaf7e590015...` /
+`ftd-shun-agent:source-0.3.1-pending-lookup`. New bounded `0x1e` journal query is
+distinct from read-only `0x19`. Publish only exact executed END_PENDING scope
+after successful disconnect and handler/resource/guard/worker-IDLE completion.
+The original live client can query once after fully sent terminal response loss;
+malformed evidence/lost stage ACK never selects it. Exact original ACK scope
+still needs unchanged atomic live-lease handoff; result awaits causal read, never
+VERIFIED creation. Absent/active/restarted/evicted/foreign proof and DB failure
+retain unknowns/holds. No historical unknown recovery, CLI resend or live v7.
+
+Full Python3739/693.26s, focused233/46.81s, Rust100+7+4/locked release/Clippy/fmt,
+Ruff/compileall/diff pass. Candidate package/build/footer/39 templates,
+archived-v6 readonly compatibility and networkless synthetic agent check pass.
+Evidence `/tmp/ftd-pending-lookup-20261112.ZmmzuK`. No lab service restart/schema/
+gate/consent/control/recovery/device operation. At08:47:10Z integrityok/all nine
+fingerprints/all26 unknowns unchanged,3779 IDLE/no RUNNING. At08:47:12Z running/
+no error/zero unresolved attention,26 reviewed, original import32425/32425 complete,
+32426 observations/325pages,Unmanaged1. Both controls Active/revisions2/4/six requests.
+Current Web0.2.4/API0.2.0/agent/v6 stay unchanged; all overlays/evidence retained.
+Next general crash/held-epoch recovery and configured fresh-store acceptance.
+No browser/live-authenticated/FTD-write or throughput acceptance claimed.
+
+## Previous source-only v0.3.0 — initial settled-pending consent, 2026-11-11
+
+Build `1fa9fb5b673b`, validation image `6a239f767131...` /
+`ftd-shun-manager:source-0.3.0-pending-capture`. New consent may capture an exact
+still-maintained AWAITING_CONFIRMATION target after original settled-v7 proof,
+before its first read. Strict running/settled variants support mixed fleets.
+Settled fields use kind/session/settled_at, never fabricated live lease_until;
+digest binds immutable original claim/ACK/member/session. Original ADD expiry
+may be historical; fresh cleanup authority cannot renew/replay that ADD. Current
+full scope/protection/inventory/fences/uncertainty/capacity guards remain. A read
+arriving during review rejects rather than switches mode/key. Retention/promotion
+recheck stable original proof. Multi-RUNNING guards remain; no new schema, CLI,
+binary wire, runtime selector or live v7 activation.
+
+Clean full Python3688/644.99s, final focused271/62.98s/browser104/150.12s pass. Package/
+build/footer/all39 templates and actual-v6 readonly compatibility pass. Actual
+0.2.5 image refuses new-variant data;0.3.0 accepts old and new consent fixtures.
+Evidence `/tmp/ftd-pending-capture-20261111.dgzULM`. Current Web0.2.4/API0.2.0/
+agent/v6 DB/import/all overlays unchanged; no deployment, lab mutation/consent/
+control/recovery. Next compatible deferred recovery, configured fresh-store
+composition and bounded acceptance; do not enable v7 by widening old flags.
+Additional guard refuses legacy outcome substitution for settled predecessors;
+the earlier full run was stopped at33% and restarted on final source. Direct
+readonly live-file validation hit a WAL/checkpoint race; final compatibility uses
+exclusive consistent archive `private-backups/pending-capture-validation-20261111-52158ed5/readonly-v6.db`
+(integrity/FKs ok), never execution/restore authority. No service was stopped.
+
+## Previous source-only v0.2.5 — captured cleanup across deferred handoff, 2026-11-11
 
 Source build `fcd5e3f4e342`, validation image `dadaed3d3b34...` /
 `ftd-shun-manager:source-0.2.5-deferred-ordered`. Exact fresh pending-execution

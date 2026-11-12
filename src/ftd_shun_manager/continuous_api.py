@@ -5,6 +5,7 @@ import re
 from .agent_client import UnixAgentClient
 from .bulk_policy import _state
 from .continuous_dispatch import ContinuousDispatcher
+from .deferred_dispatch import DeferredContinuousDispatcher
 from .operation_queue import QueueConflict
 from .protected_policy import ProtectedPolicy
 
@@ -15,7 +16,8 @@ class ContinuousApiRuntime:
     def __init__(self, settings, store, dispatcher, agent=None, *, ready_removal_admission_enabled=False,
                  ordered_removal_admission_enabled=False, bulk_policy_admission_enabled=False,
                  bulk_policy_device_ids=frozenset(), bulk_policy_concurrent_enabled=False):
-        if type(dispatcher) is not ContinuousDispatcher:
+        expected_dispatcher = DeferredContinuousDispatcher if settings.deferred_confirmation_enabled else ContinuousDispatcher
+        if type(dispatcher) is not expected_dispatcher:
             raise ValueError('An explicit continuous dispatcher is required.')
         self.settings, self.store, self.dispatcher = settings, store, dispatcher
         if type(ready_removal_admission_enabled) is not bool:
@@ -66,6 +68,9 @@ class ContinuousApiRuntime:
             raise ValueError('Bulk policy admission needs a literal capability and separate exact trusted profile scope.')
         settings, service = self.settings, self.dispatcher
         runner, config = service.runner, service.runner.configuration
+        expected_dispatcher = DeferredContinuousDispatcher if settings.deferred_confirmation_enabled else ContinuousDispatcher
+        if type(service) is not expected_dispatcher:
+            raise ValueError('Deferred/verified dispatcher selection changed after composition.')
         if settings.api_runtime != self._runtime_selection:
             raise ValueError('Continuous runtime selection changed after composition.')
         if (runner.store is not self.store or settings.database_path != self.store.path
@@ -107,6 +112,7 @@ class ContinuousApiRuntime:
                 or runner.agent.large_snapshots is not True or runner.agent.settled_cycles is not True
                 or runner.agent.batch_additions is not settings.batch_additions_enabled
                 or runner.agent.batch_session_version != settings.batch_session_version
+                or runner.agent.deferred_confirmation is not settings.deferred_confirmation_enabled
                 or runner.agent.additions_enabled is not self.managed_execution or runner.agent.addition_device_ids != expected_ids):
             raise ValueError('Continuous API requires a matching strict large-read transport and exact selected ADD scope.')
         if (settings.api_runtime in {'continuous-observation', 'continuous-managed'}
@@ -143,6 +149,13 @@ class ContinuousApiRuntime:
             marker = db.execute('SELECT legacy_imported FROM protected_policy WHERE id=1').fetchone()
             if marker is None or marker[0] != 1:
                 raise QueueConflict('Existing Protected IP migration must already be complete; startup will not import environment policy.')
+            if settings.deferred_confirmation_enabled:
+                from .managed_addition_controls import read as read_controls
+                from .pending_execution import PendingExecution
+
+                PendingExecution._profile(db)
+                if not read_controls(db)['available']:
+                    raise QueueConflict('Configured deferred execution requires both prepared operator controls.')
             # Exercise actual base read contracts without ALTER/backfill/DDL.
             db.execute('SELECT occurrence_id,last_changed_at FROM shun_state LIMIT 0')
             db.execute('SELECT batch_id,job_id,occurrence_id,verified_at FROM shun_import_origins LIMIT 0')
@@ -206,6 +219,7 @@ class ContinuousApiRuntime:
         self.managed_metadata()  # Drift is unavailable state, never a legacy/empty fallback.
         return {**self.dispatcher.refresh_status(queue_status=queue_status),
                 'runtime_mode': 'continuous-managed' if self.managed_execution else 'continuous-observation',
+                'deferred_confirmation_enabled': self.settings.deferred_confirmation_enabled,
                 'bulk_execution_enabled': self.managed_execution,
                 'manual_mutations_available': False, 'managed_workflows_available': False,
                 'managed_policy_view_available': True, 'managed_policy_retirement_available': True,

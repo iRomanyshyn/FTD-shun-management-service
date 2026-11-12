@@ -14,6 +14,7 @@ from .bulk_ordered_review import (
     validate_ordered_status,
 )
 from .import_review import ReviewUnavailable
+from .web_confirmation import confirmed
 
 API = '/api/v2/managed-ordered-removals/'
 WEB = '/managed-shuns/v2/ordered-removals/'
@@ -107,14 +108,14 @@ def register_ordered_removal_web(app, settings, *, enabled, render, identity_for
     async def confirm(request: Request):
         identity = identity_for(request, settings.development_auth)
         operator_for(identity)
-        fields = await form_for(request, allowed={'csrf', 'review', 'confirm_ip'}, max_bytes=4096)
+        fields = await form_for(request, allowed={'csrf', 'review', 'confirm_ip', 'confirm_action'}, max_bytes=4096)
         csrf_for(request, fields.get('csrf', [''])[0])
         try:
             review = reviews.get(fields.get('review', [''])[0], identity.subject, request.cookies.get('ftd_shun_csrf', ''))
         except ReviewUnavailable as error:
             raise HTTPException(409, str(error)) from error
-        if fields.get('confirm_ip', [''])[0] != review.scope['ip']:
-            raise HTTPException(422, 'Type the exact IPv4 from this frozen ordered review.')
+        if not confirmed(fields, review.scope['ip'], 'unblock'):
+            raise HTTPException(422, 'Confirm unblocking this reviewed IP after its current work settles.')
         return await run_in_threadpool(save_review, request, identity, review)
 
     def save_review(request, identity, review):

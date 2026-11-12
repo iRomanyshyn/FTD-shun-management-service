@@ -53,6 +53,15 @@ are not automatically resent.
 
 ## Storage and existing lab profiles
 
+The experimental deferred-v7 coordinator also honors both pauses before scheduling
+retry reads. Paused retry candidates do not trigger extra SSH sessions; other
+eligible work can continue. Manual/periodic checks, first confirmation of an
+already sent group and Protected-IP unblocking remain available. A resumed retry
+must use a fresh read after its own control's Resume. Preparing that separate
+profile is documented in [Fresh Working-Version Lab](fresh-development.md#optional-deferred-confirmation-development-storage);
+it does not activate a configured v7 runtime. Matching explicit v0.5.0 selection
+is documented in that manual; current lab/defaults are unchanged.
+
 Fresh explicit development initialization includes this optional profile.
 Startup, GET and browsing never initialize it. Older exact bulk profiles remain
 readable but honestly show pause controls unavailable.

@@ -1,5 +1,30 @@
 :root { color-scheme: light dark; font-family: system-ui, sans-serif; line-height: 1.5; }
 * { box-sizing: border-box; }
+.action-dialog { width: min(52rem, calc(100vw - 2rem)); max-height: calc(100dvh - 2rem); padding: 1.25rem; border: 1px solid #8886; border-radius: .75rem; background: light-dark(#fff, #19202a); color: inherit; box-shadow: 0 1rem 4rem #0006; }
+.action-dialog::backdrop { background: #0008; backdrop-filter: blur(2px); }
+.action-dialog-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-bottom: .75rem; border-bottom: 1px solid #8885; }
+.action-dialog-header h2 { margin: 0; font-size: .9rem; color: light-dark(#62666c, #b9bec7); }
+.action-dialog [data-action-content] > h1 { font-size: 1.4rem; margin-top: 1rem; }
+.action-dialog .refresh-panel, .action-dialog .app-footer { display: none; }
+.action-dialog .import-confirm-form { margin-block: 1rem; }
+.action-dialog [data-action-retry] { margin-block: .75rem; }
+.action-dialog h1:focus { outline: none; }
+.action-dialog button[name="confirm_action"] { background: #1d4ed8; color: #fff; border-color: #1d4ed8; }
+.row-ip-actions { display: flex; flex-wrap: wrap; gap: .35rem; align-items: center; min-width: 12rem; }
+.row-ip-actions form { margin: 0; }
+.row-ip-actions button, .row-ip-actions a { font-size: .78rem; white-space: nowrap; }
+.row-ip-actions button { padding: .35rem .65rem; }
+.row-ip-actions .text-action { padding: .3rem; }
+.unblock-targets { padding-left: 1.25rem; }
+.ip-address-context { min-width: 0; }
+.ip-address-context > a { white-space: nowrap; font-weight: 650; }
+.ip-context-inline { display: block; max-width: 24ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .72rem; font-weight: 400; color: light-dark(#62666c, #b9bec7); }
+.ip-context-card { margin: .7rem 0 1rem; padding: .55rem .8rem; background: light-dark(#f4f6f9, #202938); border-radius: .4rem; font-size: .84rem; }
+.ip-context-card > p { margin: 0; }
+.ip-context-card details { margin-top: .35rem; }
+.ip-context-card dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: .25rem .75rem; }
+.ip-context-card dd { margin: 0; overflow-wrap: anywhere; }
+@media (prefers-reduced-motion: reduce) { .action-dialog::backdrop { backdrop-filter: none; } }
 body { margin: 0; min-height: 100vh; display: flex; flex-direction: column; }
 header { padding: 1rem 2rem; background: #17202a; color: white; display: flex; flex-wrap: wrap; gap: .5rem 2rem; justify-content: space-between; }
 header a { color: white; font-weight: 700; text-decoration: none; }

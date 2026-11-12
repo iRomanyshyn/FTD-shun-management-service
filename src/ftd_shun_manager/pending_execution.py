@@ -223,19 +223,22 @@ class PendingExecution:
             if device_uncertain(db, token.device_id):
                 raise QueueConflict('Unknown device work cannot leave a lease through pending confirmation.')
             session_id = self.evidence.record(token, receipt, job_ids, enabled=True, connection=db)
-            for job_id in job_ids:
-                db.execute("UPDATE operation_jobs SET state=?,reason='Sent; awaiting complete observation' WHERE id=?", (AWAITING, job_id))
-                db.execute('UPDATE managed_bulk_attempts SET state=? WHERE job_id=?', (AWAITING, job_id))
-            self._profile(db)
-            for job_id in job_ids:
-                job = db.execute('SELECT * FROM operation_jobs WHERE id=?', (job_id,)).fetchone()
-                self._audit(db, job, AWAITING, token, session_id)
-            self.queue._bump(db)
+            self._transition_awaiting(db, token, job_ids, session_id)
             self.leases.check(db, token)
             # The state handoff and original lease release commit together;
             # restart cannot observe an awaiting row with an unreleased owner.
             self.leases._release(token, opening_event=None, connection=db)
         return session_id
+
+    def _transition_awaiting(self, db, token, job_ids, session_id):
+        for job_id in job_ids:
+            db.execute("UPDATE operation_jobs SET state=?,reason='Sent; awaiting complete observation' WHERE id=?", (AWAITING, job_id))
+            db.execute('UPDATE managed_bulk_attempts SET state=? WHERE job_id=?', (AWAITING, job_id))
+        self._profile(db)
+        for job_id in job_ids:
+            job = db.execute('SELECT * FROM operation_jobs WHERE id=?', (job_id,)).fetchone()
+            self._audit(db, job, AWAITING, token, session_id)
+        self.queue._bump(db)
 
     def confirm(self, token, session_id, snapshot, *, enabled=False, connection=None):
         """Causal observation under a new live lease; no publication or new ADD."""

@@ -14,11 +14,11 @@ def test_observed_actions_use_policy_aware_review_not_bypassing_managed_consent(
         assert 'data-queue-form' not in html and '/devices/2/shuns/' not in html
         assert 'name="target" value="2:198.51.100.10"' in html
         assert 'name="csrf" value="csrf-fixture"' in html
-        assert 'action="/managed-shuns/' + ('v2/' if format_two else '') + 'removal-review"' in html
+        assert ('action="/ip-actions/unblock"' if format_two else 'action="/managed-shuns/removal-review"') in html
     else:
-        assert 'data-queue-form' in html and 'Queue removal from this device' in html
+        assert 'data-queue-form' in html and '>Unblock</button>' in html
     if maintained:
-        assert 'Review stop restoring and remove' in html
+        assert '>Unblock</button>' in html
     for roles in ((), ('Viewer',)):
         readonly = str(module.removal(shun, Identity('viewer', 'Viewer', roles), state, 'csrf', lambda: 'unused'))
         assert '<form' not in readonly and 'Read-only' in readonly

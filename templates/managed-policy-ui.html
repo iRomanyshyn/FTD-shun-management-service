@@ -9,14 +9,16 @@
 <dl><dt>Shuns</dt><dd>Blocks seen on the devices during the last successful reads. Searching also includes clearly labelled historical records.</dd>
 <dt>Managed shuns · Auto-restore on</dt><dd>The service keeps these addresses blocked and restores a missing block, subject to service pauses and device safety checks.</dd>
 <dt>Managed shuns · Auto-restore off</dt><dd>No future restoration. This does not remove an existing block or automatically remove a later block created by FTD. Already running commands may still finish.</dd>
-<dt>Protected IPs · Protection enabled</dt><dd>If the address is found blocked, the service requests removal. Protection permanently stops matching auto-restoration; disabling protection does not turn the old rule back on.</dd></dl>
+<dt>Protected IPs · Protection enabled</dt><dd>The service automatically unblocks this IP when it is detected blocked. It also turns off auto-restore for this IP on every device. Turning protection off does not block it again or turn auto-restore back on; create a new import if you want the service to keep it blocked.</dd></dl>
 </details>
 {%- endmacro %}
 
-{% macro policy_table(entries, history=false) -%}
+{% from "observed-shun-actions.html" import actions %}
+{% from "ip-context.html" import inline %}
+{% macro policy_table(entries, history=false, identity=none, refresh=none, csrf_token='', new_operation_key=none, ip_context=none) -%}
 <div class="table-scroll"><table class="data-table managed-table" aria-label="{{ 'Restoration-off history' if history else 'Managed policy' }}"><thead><tr><th>Device / IP</th><th>Automatic restoration</th><th>Last device check</th><th>Operations / attention</th><th>Added by</th><th>Actions</th></tr></thead><tbody>
 {% for entry in entries %}<tr data-managed-target="{{ entry.device_id }}:{{ entry.ip }}"{% if entry.protected %} class="protected-shun"{% endif %}>
-<td class="target-cell"><a href="/shuns/{{ entry.ip }}">{{ entry.ip }}</a><span class="cell-secondary">{{ entry.hostname }}</span>{% if not entry.device_enabled %}<strong class="status-label">Device disabled</strong>{% endif %}</td>
+<td class="target-cell"><a href="/shuns/{{ entry.ip }}">{{ entry.ip }}</a>{{ inline(entry.ip, ip_context or {}) }}<span class="cell-secondary">{{ entry.hostname }}</span>{% if not entry.device_enabled %}<strong class="status-label">Device disabled</strong>{% endif %}</td>
 <td>{{ restoration_badge(entry.enabled) }}{% if not entry.enabled %}<p class="preview-help">Does not automatically unblock.</p>{% endif %}</td>
 <td><span class="status-label">{{ 'Block observed on device' if entry.observed_present is sameas true else 'No block observed' if entry.observed_present is sameas false else 'Device observation unavailable' }}</span>{% if entry.protected %}<br><strong class="status-label">Protected IP</strong>{% endif %}{% if entry.enabled is sameas false and entry.observed_present is sameas true %}<p class="policy-warning">Auto-restore is off, but the block is still observed. Remove it separately if you want to unblock.</p>{% endif %}</td>
 <td>{% if entry.attention or (entry.last_attempt_state in ('FAILED', 'UNVERIFIED') and not entry.unknown_reconciled_at) %}<strong class="preview-error">Past addition failed or has an unknown outcome — needs attention</strong><br>{% endif %}{% if entry.unknown_reconciled_at %}<span class="status-label">Unknown outcome reviewed</span><br><small>Original result remains unknown; current managed policy may continue after a fresh check.</small><br>{% endif %}{% if entry.missing_unknown_job %}<strong class="preview-error">Original unknown queue evidence is missing; no success inferred.</strong><br>{% endif %}{% if entry.pending_jobs is integer and entry.pending_jobs >= 0 %}{% if entry.pending_jobs %}{{ entry.pending_jobs }} pending/running job(s).{% else %}No pending operations.{% endif %}{% else %}<strong class="preview-error">Operation status unavailable — inspect Queue.</strong>{% endif %}
@@ -28,5 +30,5 @@
 <p>Original actor: {{ entry.actor_display_name }} ({{ entry.actor_subject }}).</p>
 </details></td>
 <td>{{ entry.actor_display_name }}<span class="cell-secondary"><time class="local-timestamp" datetime="{{ entry.authorized_at }}">{{ entry.authorized_at }}</time></span>{% if entry.label or entry.reason %}<details class="row-details" id="managed-note-{{ entry.device_id }}-{{ entry.ip }}"><summary>Note</summary>{% if entry.label %}<p>{{ entry.label }}</p>{% endif %}{% if entry.reason %}<p class="policy-comment">{{ entry.reason }}</p>{% endif %}</details>{% endif %}</td>
-<td><a class="table-action" href="/shuns/{{ entry.ip }}#ip-actions">Manage IP</a></td></tr>{% endfor %}</tbody></table></div>
+<td>{% if identity %}{{ actions({'ip': entry.ip, 'device_id': entry.device_id, 'device_hostname': entry.hostname, 'device_enabled': entry.device_enabled, 'maintained': entry.enabled}, identity, refresh, csrf_token, new_operation_key, actionable=not history) }}{% else %}<a class="table-action" href="/shuns/{{ entry.ip }}#ip-actions">Manage IP</a>{% endif %}</td></tr>{% endfor %}</tbody></table></div>
 {%- endmacro %}

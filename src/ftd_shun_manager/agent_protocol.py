@@ -48,7 +48,8 @@ class VerifiedAdditionBatch:
 class SettledPendingAdditions:
     """Transport-only ACK/closed-session evidence, NOT presence or creation.
 
-    No current queue/runtime accepts this as a terminal job or release proof.
+    Only the explicit deferred queue can atomically retain it with original
+    claim/ACK proof and release its live lease. Ordinary queues refuse it.
     """
 
     device_id: int
@@ -83,6 +84,7 @@ class CycleOperation(IntEnum):
 
 
 SESSION_LOOKUP = 0x19
+PENDING_SESSION_LOOKUP = 0x1e
 
 
 def max_cycle_sequence(version: int) -> int:
@@ -100,8 +102,9 @@ def max_pending_additions(version: int) -> int:
 
 
 def encode_session_request(operation: int, version: int, device_id: int, session_id: bytes):
-    if (type(operation) is not int or operation not in (0x18, SESSION_LOOKUP)
+    if (type(operation) is not int or operation not in (0x18, SESSION_LOOKUP, PENDING_SESSION_LOOKUP)
             or type(version) is not int or version not in (1, 2, 3, 4, 5, 6, 7)
+            or (operation == PENDING_SESSION_LOOKUP and version != 7)
             or type(device_id) is not int or not 1 <= device_id <= 65535
             or type(session_id) is not bytes or len(session_id) != 16 or not any(session_id)):
         raise ValueError('Invalid exact session binding.')
@@ -253,6 +256,16 @@ def decode_pending_end(packet: bytes, sequence: int, pending: tuple[PendingAddit
     if type(packet) is not bytes or packet != expected:
         raise ValueError('Pending-only end receipt differs from the original pending scope.')
     return pending
+
+
+def decode_pending_lookup(packet: bytes, device_id: int, session_id: bytes, sequence: int,
+                          pending: tuple[PendingAddition, ...]) -> SettledPendingAdditions:
+    """Exact completed journal scope, never read-only proof or verified creation."""
+    request = encode_session_request(PENDING_SESSION_LOOKUP, 7, device_id, session_id)
+    if type(packet) is not bytes or packet[:21] != b'\x00\x07' + bytes([PENDING_SESSION_LOOKUP]) + request[2:]:
+        raise ValueError('Pending completion is unavailable or has a foreign session binding.')
+    acknowledgements = decode_pending_end(packet[21:], sequence, pending, version=7)
+    return SettledPendingAdditions(device_id, session_id, sequence, acknowledgements)
 
 
 def decode_addition_batch(packet: bytes, sequence: int, pending: tuple[IPv4Address, ...], *,

@@ -4,6 +4,9 @@
 {% set disabled_scope = scope.targets | rejectattr('device_enabled') | list %}
 {% set admission = ready_removal_local_enabled and refresh and refresh.ready_removal_admission_enabled is sameas true and not disabled_scope %}
 <h1>Unblock {{ scope.ip }}</h1>
+{% if ip_context_enabled | default(false) and ip_context_target %}{% from "ip-context.html" import card %}
+<section id="ip-registration" data-live-region>{{ card(ip_context_target, ip_context) }}</section>{% endif %}
+
 {% if refresh %}{% include "refresh-panel.html" %}{% endif %}
 {% if not admission %}<p class="policy-warning" role="status">New unblock submissions are currently unavailable. Check any earlier result below.</p>{% endif %}
 {% if message %}<p class="preview-error" role="alert">{{ message }}</p>{% endif %}
@@ -26,9 +29,7 @@
 {% else %}
 <form method="post" action="/managed-shuns/v2/removal-confirm" class="import-confirm-form managed-grant-form">
 <input type="hidden" name="csrf" value="{{ csrf_token }}"><input type="hidden" name="review" value="{{ review.token }}">
-<label for="confirm-ready-ip">Type {{ scope.ip }} to confirm</label>
-<input id="confirm-ready-ip" name="confirm_ip" value="{{ confirm_ip }}" autocomplete="off" inputmode="decimal" required>
-<button type="submit"{% if not admission %} disabled{% endif %}>Confirm unblock{{ ' — unavailable' if not admission else '' }}</button>
+<button type="submit" name="confirm_action" value="unblock"{% if not admission %} disabled{% endif %}>Unblock {{ scope.ip }}{{ ' — unavailable' if not admission else '' }}</button>
 </form>
 {% endif %}
 <details id="unblock-technical-details"><summary>Technical details</summary>
