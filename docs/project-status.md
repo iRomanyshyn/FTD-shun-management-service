@@ -5,10 +5,45 @@ Last updated: 2026-11-12
 ## Next delivery priorities — operator alignment, 2026-11-12
 
 Return to bulk-import/session throughput and deferred confirmation/recovery lab
-acceptance, then integrated lifecycle checks, Emergency Purge and release setup.
+acceptance, then integrated lifecycle checks, per-import unblocking and release
+setup. **Unblock imported IPs…** is now an approved planned feature: review and
+remove only targets still maintained by that import, cancel their unstarted work
+and stop their restoration. Historical membership or a duplicate ALREADY_MANAGED
+entry does not confer current ownership. Show the import label/link from IP and
+Managed views; preserve unrelated policy, unmanaged shuns and Protected IPs.
+This is not implemented. Whole-managed cleanup (previously called Emergency
+Purge) is a lower-priority bulk-action follow-up. See working-version-plan.md §8.
 Team Cymru is now enabled as the optional supplemental metadata source described
 below: bounded background batches/cache for missing IPFire ASN/network information,
 distinct attribution and no page-triggered queries. Local IPFire remains primary.
+
+## Source v0.11.1 — deferred checkpoint/handoff SQLite contention
+
+The existing bounded SQL-only retry helper now also handles the deferred pre-END
+checkpoint and settled pending handoff. Short numeric SQLITE_BUSY errors retry
+only after proved rollback, with fresh original lease/ACK/profile checks. The
+whole handoff/state/lease release commits together; queue memory changes after
+commit. No agent call or SSH session repeats. Exhausted/non-BUSY/expired/changed
+cases keep ordinary uncertainty handling. No schema, wire, agent or gate change.
+
+Full Python3982 pass741.80s, focused163 pass67.27s/new20 pass15.08s; source checks,
+candidate package/build/footer/43 templates and API/agent v7 preflights pass.
+Isolated FPR acceptance imported exactly198.51.100.176–177 using fresh authority.
+Two actual competing SQLite writer locks were injected in a private test-only
+bootstrap; both phases recovered on attempt2. One19.712s SSH visit sent two ADDs
+and one END_PENDING, with one initial full read. The next automatic causal read
+confirmed both; no repeated ADD. Both fixtures were then retired and removed with
+VERIFIED outcomes. Experimental services stopped cleanly; separate evidence kept.
+
+The same original containers/images were restored18:33:27Z: main API0.2.0/v6 and
+Web0.11.0, metadata services unchanged. At18:34:19Z: fresh read18:33:47Z, no error/
+unresolved attention, original import32425 complete,32426 observed, fixtures absent.
+Integrity/nine original fingerprints/all26 unknowns match; executor3925 IDLE.
+Live Web health/auth/assets/package/footer/cache checks pass. Source0.11.1/build
+`5c063b112756`, candidate `18f491778b00...`; persistent v7 cutover is not claimed.
+General held/missing-journal recovery remains; per-import unblocking is still
+planned. See [Storage Retry](manual/result-storage-retry.md). Private evidence:
+`/tmp/ftd-pending-storage-20261112`.
 
 ## Current Web/worker v0.11.0 — approved Cymru activation
 

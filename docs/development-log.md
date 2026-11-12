@@ -11951,6 +11951,90 @@ Rollback image tags remain `ftd-shun-web:lab-pre-cymru-20261112` and
 to stop future queries, retain cache/core data. Reload old tabs for current footer/
 templates. This is known-desk-lab acceptance, not production or load certification.
 
+## 2026-11-12 — plan per-import unblocking before whole-managed cleanup
+
+The operator approved adding **Unblock imported IPs…** to the delivery plan after
+discussing the misleading Emergency Purge name and existing import provenance.
+Prioritize this normal bulk operation after import/recovery/lifecycle work and
+before whole-managed cleanup. Plan readable import labels/receipt links from IP
+details and Managed shuns, with a scope/count preview and progress/results.
+
+Retained membership supplies candidates; only targets still owned by that import's
+current authorization/intent/generation enter cleanup. ALREADY_MANAGED duplicates
+retain their original owner. Confirmation stops matching restoration, cancels
+unstarted scope work and queues urgent removals after running commands settle,
+including retirement of absent maintained targets. Distinguish adopted/addition
+members and preserve other imports, unrelated unmanaged shuns, Protected policy
+and audit. Ordinary cancellation continues leaving applied blocks maintained.
+Whole-managed cleanup remains a lower-priority ordinary additional action; its
+earlier Emergency Purge working name does not imply emptying every device shun.
+
+Updated the working plan, architecture amendment, current status and agent handoff.
+Documentation only; diff checked. No implementation, version bump, service/config/
+database change, queue submission or FTD operation. Existing runtime remains0.11.0
+Web/metadata worker with the approved Cymru behavior.
+
+## 2026-11-12 — source v0.11.1 deferred persistence retries and FPR acceptance
+
+Found a practical recovery gap: grouped ACK/verified results used bounded local
+SQLite retries, but deferred pre-END checkpoint and settled handoff did not. A
+brief lock could turn an already-acknowledged group into unknown work. Both phases
+now use the existing trusted DB-only helper, with three attempts,2s lock waits,
+50/150ms delays and7s retry-start window. Every attempt rechecks original scope,
+ACKs, profile and live lease. Pending execution accepts a caller-owned transaction
+so evidence, awaiting transitions and original lease release commit together;
+memory changes only after successful commit. No RPC/END/SSH repetition or new
+recovery authority. Exhaustion/non-BUSY errors, rollback ambiguity, changed ACKs
+and expired permission keep the existing failure/unknown/hold behavior.
+
+Validation: full Python3982 passed741.80s; focused163 passed67.27s, new20 passed
+15.08s. Real competing writer locks and partial audit rollback, non-BUSY codes,
+exhaustion, current lease expiry and changed ACK proof covered. Initial failing
+lock regressions reproduced before the fix; two test-fixture issues (static-method
+fault injection and expected in-memory unknown cleanup) were corrected before the
+clean final full run. Ruff/compileall/diff and candidate installed package/build/
+footer/all43 templates/both nonexecuting v7 preflights pass. No Rust/browser rerun
+for this backend-only change; agent source/protocol and UI behavior are unchanged.
+
+Candidate image:
+`sha256:18f491778b00af42b12850610222e0acc53d7736ee48b619615cd69da4a27943`,
+source/build `5c063b112756`, version0.11.1. Matching existing agent:
+`sha256:c226db65e8333a5f351b49a005379c8bc090f27341d073c5720574cbefdf16b8`.
+
+Announced bounded known-desk FPR experiment used a new separate storage-retry DB/
+sockets and fresh authority for198.51.100.176–177. Original Web/API/agent drained
+exit0; original epoch3924 IDLE and nine fingerprints/26 unknowns unchanged. After
+a real complete absence read, attributed import
+`a9900a89-574d-4e31-a539-016e6eb7524b` admitted exactly two additions. A private
+test-only API bootstrap, restricted to that DB and exact RUNNING pair, acquired
+one actual competing SQLite writer lock at each persistence phase, without DML
+or bypassing the unchanged product callback/guards. Both phases logged retry and
+recovered on attempt2. The unchanged packaged SQL path and real binary agent were
+used; no fault-injection feature was added to the product or original runtime.
+
+One actual19.712s SSH visit: two ADDs/two target preflights/one initial full read/
+one END_PENDING. Settlement18:29:53.771Z preceded automatic complete read
+18:29:53.850–18:30:02.881Z; both OBSERVED_PRESENT, not VERIFIED creation, no replay.
+Two fresh ready-removal requests retired both targets; both removals VERIFIED,
+fixtures absent and isolated epoch4 IDLE. Experimental API/agent exited0, all
+separate state/requests/logs retained. No generic held recovery decision or
+historical authority reuse occurred.
+
+Same original main agent/API/Web containers/images restarted18:33:27Z; main stays
+tracked-v6/API0.2.0/Web0.11.0. Metadata worker/feed retain exact start identities,
+approved Cymru behavior and existing cache. At18:34:19Z fresh read18:33:47Z,
+no error/unresolved attention, original import32425/32425 complete,32426 observed,
+fixtures absent. Integrity/nine fingerprints/all26 unknowns unchanged; original
+executor3925 IDLE at inspection. Live Web200/ten anonymous401/assets/installed
+package/footer/cached Cymru rendering pass. No main source deployment, policy/
+control/recovery submission, secret/trust/network change or DB conversion/reset.
+
+Private evidence: `/tmp/ftd-pending-storage-20261112`. This is bounded local-lock
+recovery acceptance, not general crash/held-epoch recovery, bulk-load performance,
+persistent v7 activation or actual authenticated-browser acceptance. Next remains
+missing-journal/other lifecycle recovery before cutover, then planned per-import
+unblocking. Never replay consumed lab fixture requests or restore stale authority.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

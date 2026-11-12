@@ -215,10 +215,10 @@ class PendingExecution:
         attempt = db.execute('SELECT * FROM managed_bulk_attempts WHERE job_id=?', (job['id'],)).fetchone()
         attempt_event(db, self.store, attempt, state, _stamp(self.queue._now()), job['reason'])
 
-    def await_confirmation(self, token, receipt, job_ids, *, enabled=False):
+    def await_confirmation(self, token, receipt, job_ids, *, enabled=False, connection=None):
         _enabled(enabled)
         _token(token)
-        with schema_connection(self.store) as db, _atomic(db):
+        with schema_connection(self.store, connection) as db, _atomic(db):
             self._profile(db)
             if device_uncertain(db, token.device_id):
                 raise QueueConflict('Unknown device work cannot leave a lease through pending confirmation.')

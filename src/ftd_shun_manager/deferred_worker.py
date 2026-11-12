@@ -28,6 +28,7 @@ from .parallel_synchronizer import ParallelSynchronizer, _DeviceWorker
 from .pending_execution import PendingExecution
 from .pending_restart import prepare, recover
 from .pending_retries import PendingRetries, RetryDeferred, retry_candidates
+from .result_storage import persist_result
 from .safety import mutations_suspended
 from .schema import schema_connection
 
@@ -47,12 +48,13 @@ class DeferredDeviceOperationQueue(BatchDeviceOperationQueue):
     def handoff(self, owner, receipt):
         if owner != self.token.owner or type(receipt) is not SettledPendingAdditions:
             raise QueueConflict('Deferred handoff requires its actual typed terminal receipt and owner.')
-        with self.store._connection() as db:
-            db.execute('BEGIN')
+        def write(db):
             self._executor(db, owner, self.token.device_id)
             self._pending_evidence(db, receipt.sequence)
-        session = PendingExecution(self.store, self).await_confirmation(
-            self.token, receipt, tuple(self.pending), enabled=True)
+            return PendingExecution(self.store, self).await_confirmation(
+                self.token, receipt, tuple(self.pending), enabled=True, connection=db)
+
+        session = persist_result(self.store, write, phase='pending_handoff')
         # Do not clear memory or claim completion before the whole DB handoff
         # and original lease release have actually committed.
         self.handed_off_session = session

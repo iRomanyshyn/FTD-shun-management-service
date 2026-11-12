@@ -63,12 +63,62 @@ invent successful results, alter credentials/trust or silently erase the dataset
 
 ## Next priorities — operator reminder, 2026-11-12
 
+The operator subsequently approved planning **Unblock imported IPs…**: after
+import/recovery/lifecycle stabilization, prioritize cleanup of one import's
+currently owned device/IP targets before whole-managed cleanup. Historical or
+ALREADY_MANAGED membership is not ownership. Preview scope, retire matching
+maintenance, cancel unstarted scope work and queue removals while preserving
+other imports/unmanaged/Protected policy and audit. Show readable import links in
+IP/Managed views. This is planned only; no endpoint/gate/activation follows.
+The earlier Emergency Purge name is not the intended emergency-style UI framing.
+See working-version-plan.md §8 and its architecture amendment.
+
 Return to bulk-import execution/confirmation and bounded FPR acceptance first.
 Do not forget Team Cymru: the operator explicitly retained it as a planned
 supplement for missing IPFire ASN/network context after that slice. Use bounded
 background bulk/cache work, distinct attribution and no page-triggered queries.
 Current provider remains IPFire; no Cymru activation or runtime change follows
 from this documentation update. See working-version-plan.md and manual/ip-context.md.
+
+## Source v0.11.1 — deferred storage retries accepted on FPR, 2026-11-12
+
+Deferred pre-END checkpoint and settled pending handoff now use the existing
+bounded SQL-only result helper. Three attempts/2s lock waits/50–150ms delays/7s
+retry-start window, exact original live-lease/ACK/profile rechecks and proved
+rollback remain. Only the owning commit may clear queue memory; no ADD, END,
+lookup or SSH retry. Non-BUSY, changed evidence, expired permission or exhausted
+storage retries retain normal unknown/hold handling. No schema/wire/agent/gate
+change or general held recovery. See manual/result-storage-retry.md.
+
+Full Python3982 pass741.80s; focused163 pass67.27s/new20 pass15.08s. Actual writer
+locks, partial-write rollback, error-code/count/expiry/changed-ACK boundaries tested.
+Ruff/compileall/diff, candidate installed package/build/footer/43 templates and
+both nonexecuting v7 preflights pass. No new Rust/browser run: source wire/agent/
+UI unchanged. API candidate `18f491778b00...`, source `5c063b112756`, version0.11.1.
+
+Separate fresh storage-retry DB/sockets; original writers exited0, original epoch
+3924 IDLE, nine fingerprints/26 unknowns unchanged. Fresh maintenance operation
+`a9900a89-574d-4e31-a539-016e6eb7524b` imported only198.51.100.176–177. Private
+test-only bootstrap took a real competing SQLite writer lock once at each phase;
+both production helper calls logged retry then recovered on attempt2. Actual ADD
+visit: one SSH session/two ADDs/one initial full read/one END_PENDING,19.712s.
+Settled18:29:53.771Z; automatic read18:29:53.850–18:30:02.881Z confirmed both
+OBSERVED_PRESENT without another ADD. Two fresh removals VERIFIED; both targets
+retired/absent, isolated executor IDLE, no unknowns. Private harness is not a
+product feature flag or executable-guard bypass. Retain its separate DB/logs/keys;
+consumed fixture authority cannot be reused.
+
+Experimental services exited0 and original API/agent/Web containers/images were
+restarted unchanged18:33:27Z. Main remains v6/API0.2.0/Web0.11.0; the SQL fix is
+validated source for deferred mode, not persistent v7 activation. Metadata worker/
+feed kept exact start identities and approved Cymru behavior. At18:34:19Z fresh
+read18:33:47Z/errornone/attention0/original import32425 complete/32426 observed,
+fixtures absent. Original integrity/nine fingerprints/all26 unknowns match;
+restored epoch3925 IDLE. Live Web200/ten anonymous401/assets/package/footer/cache
+read pass. No main policy/control/recovery submission, secret/trust/network change.
+Evidence `/tmp/ftd-pending-storage-20261112`. Missing-agent-journal/general held
+recovery and other failure/lifecycle acceptance remain before persistent cutover;
+per-import unblocking stays next functional cleanup work.
 
 ## Current Web/worker v0.11.0 — Team Cymru enabled, 2026-11-12
 

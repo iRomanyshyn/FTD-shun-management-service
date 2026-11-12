@@ -18,11 +18,12 @@ def _connect(path):
 def persist_result(store, write, *, phase):
     """Run a trusted DB-only callback with fresh checks after proved rollback.
 
-    Only grouped ACK/result callbacks may call this. They cannot commit, execute
-    device commands or modify queue memory. Successful commit is returned once;
+    Only grouped ACK/result and pending checkpoint/handoff callbacks may call
+    this. They cannot commit, execute device commands or modify queue memory.
+    Successful commit is returned once;
     an error after commit or failed rollback never qualifies for retry.
     """
-    if phase not in {'acknowledgement', 'addition_result'}:
+    if phase not in {'acknowledgement', 'addition_result', 'pending_checkpoint', 'pending_handoff'}:
         raise ValueError('Unsupported local result persistence phase.')
     started = monotonic()
     retry_error = None

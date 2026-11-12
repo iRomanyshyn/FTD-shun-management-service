@@ -98,7 +98,7 @@ Current imports remain one-time and all ADD gates stay
 disabled in the lab. Old imports are not auto-adopted and no live migration
 initializes the new registry yet.
 
-The footer displays the installed package version (source version `v0.11.0`) and a short public
+The footer displays the installed package version (source version `v0.11.1`) and a short public
 application-source build ID. Every material lab delivery advances the version;
 neither identifier implies production readiness. See [Versioning](docs/manual/versioning.md).
 Source-only increments do not update running containers; consult

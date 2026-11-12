@@ -19,6 +19,7 @@ from .import_preparations import _stamp
 from .managed_restoration import validate_binding
 from .operation_queue import OperationQueue, QueueConflict
 from .pending_execution import PendingExecution
+from .result_storage import persist_result
 from .schema import schema_connection
 
 EVENT = 'SHUN_PENDING_END_PREPARED'
@@ -138,7 +139,7 @@ def _scope(db, token, jobs, sequence, timestamp):
 def prepare(queue, sequence):
     """Commit the exact local recovery checkpoint BEFORE END_PENDING is sent."""
     token = queue.token
-    with schema_connection(queue.store) as db, _atomic(db):
+    def write(db):
         PendingExecution._profile(db)
         DeviceLeases(queue.store, queue).check(db, token)
         queue._pending_evidence(db, sequence)
@@ -153,6 +154,8 @@ def prepare(queue, sequence):
         queue.store._insert_event(db, EVENT, token.device_id, None, None, 'system:pending-end-recovery',
                                   'Pending session recovery', (), request['id'], details, timestamp)
         DeviceLeases(queue.store, queue).check(db, token)
+
+    return persist_result(queue.store, write, phase='pending_checkpoint')
 
 
 def _events(db, token):

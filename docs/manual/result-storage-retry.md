@@ -2,15 +2,24 @@
 
 The grouped import worker can briefly retry **local SQLite persistence**, not
 FTD commands. This reduces unnecessary held imports when another local writer
-temporarily owns SQLite during ACK or per-target ADD-result storage.
+temporarily owns SQLite during ACK or per-target ADD-result storage. Source0.11.1
+also covers the deferred worker's pre-END checkpoint and settled pending handoff.
 
 ## What is repeated
 
-Only a DB-only ACK or terminal ADD-result callback, with the same response or
-diagnostic. Each attempt opens a fresh write transaction and repeats all original
+Only a DB-only ACK, terminal ADD-result, pending-checkpoint or pending-handoff
+callback, with the same response or diagnostic. Each attempt opens a fresh write transaction and repeats all original
 executor/profile/job/request/attempt checks. Pending group memory changes only
 after commit. Legacy/global queue paths and other storage operations keep their
 existing behavior; the coordinator's separate scheduling retry is unchanged.
+
+For deferred v7, a checkpoint retry happens before the one END_PENDING request.
+A handoff retry uses the actual already-settled terminal receipt; it does not
+send END_PENDING, ADD or another agent lookup. The whole original group, evidence
+and lease release commit together on the callback's owning transaction. Only
+after successful commit does queue memory record the handoff and clear pending
+members. Every retry rechecks the original live lease/owner, exact ACK scope and
+existing profile/evidence checks. Expiry or changed evidence refuses normally.
 
 Bounds: three attempts, at most two seconds of SQLite lock waiting per attempt,
 50 ms then 150 ms backoff, and no new retry starting after a seven-second local
@@ -34,10 +43,13 @@ locally without becoming proof of remote success.
 
 ## Logs and operation
 
-`queue.result_storage.retry` includes a fixed phase (`acknowledgement` or
-`addition_result`), attempt, numeric SQLite code and short backoff.
+`queue.result_storage.retry` includes a fixed phase (`acknowledgement`,
+`addition_result`, `pending_checkpoint` or `pending_handoff`), attempt, numeric
+SQLite code and short backoff.
 `queue.result_storage.recovered` means only local persistence recovered; an ACK
 still is not verified creation. Neither event is permission to replay a command.
+Recovered pending handoff still means **Awaiting confirmation**, not verified
+creation; a later causal full read must confirm presence or absence.
 No device output, credentials or arbitrary command text is logged here.
 
 No environment setting, schema initialization or data conversion is needed. An

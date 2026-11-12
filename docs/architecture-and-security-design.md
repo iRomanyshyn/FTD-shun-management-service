@@ -1,5 +1,46 @@
 # FTD Shun Management Service
 
+## Deferred checkpoint/handoff storage retries — 2026-11-12
+
+The existing bounded SQL-only result-persistence helper also permits two fixed
+internal phases: `pending_checkpoint` and `pending_handoff`. The checkpoint
+commits before the single END_PENDING request. The handoff reuses the actual
+settled typed receipt and atomically records the whole group, awaiting state and
+original lease release. No callback may issue device RPC, commit independently,
+change pending memory, renew authority or replace its original scope.
+
+Retry only numeric SQLITE_BUSY after a failed pre-write BEGIN or explicit proved
+rollback of a still-open transaction. Keep the existing three-attempt,2s lock
+wait,50/150ms delays and7s retry-start window; do not extend agent/session/lease
+deadlines. Recheck current original lease/owner, exact ACKs and all profile/evidence
+checks on every attempt. Clear pending memory only after the owning commit returns.
+Non-BUSY/ambiguous post-commit/rollback failure, expiry, changed evidence or retry
+exhaustion retain ordinary failure/unknown/hold behavior. Pending success remains
+awaiting causal observation, never VERIFIED creation. No schema, wire, feature
+gate, automatic held release or main-lab mode change follows from this refinement.
+
+## Planned per-import unblocking — operator alignment, 2026-11-12
+
+The operator approved planning **Unblock imported IPs…** ahead of whole-managed
+cleanup. The latter is an ordinary bulk action, not an emergency or permission to
+empty unmanaged device shuns. This amendment defines a future operation, not an
+implemented endpoint, runtime capability or activation.
+
+Retained import membership supplies candidates; current device/IP authorization,
+intent and generation determine ownership and the exact reviewed cleanup scope.
+ALREADY_MANAGED duplicates retain their original authority and do not acquire a
+second owner. Exclude targets now owned by another import or retired policy.
+Include absent but still-owned maintained targets so retirement prevents future
+restoration. Clearly identify adopted as well as addition-proposed members.
+
+After explicit actor-attributed review, cancel unstarted scope work, stop matching
+maintenance and queue urgent cleanup behind already running commands/verification.
+Recheck ownership and existing protection/uncertainty/reservation guards; never
+silently expand a changed scope, replay unknown writes or infer verified removal
+from queue acceptance. Preserve receipts/audit, unrelated current targets,
+unmanaged shuns and Protected-IP configuration. Ordinary import cancellation keeps
+its existing leave-applied-blocks behavior. See working-version-plan.md §8.
+
 ## Optional Team Cymru routing supplement — 2026-11-12
 
 The operator-retained Team Cymru supplement fills missing ASN/network information

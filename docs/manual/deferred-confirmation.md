@@ -5,6 +5,13 @@ uses tracked v6 and complete in-session verification. Matched v0.5.0 API/client/
 agent can explicitly select deferred confirmation on its separate prepared DB,
 using the configuration below. Setting only the wire version to7 still refuses.
 No current database, configuration or running service is switched automatically.
+
+Source0.11.1 extends [local result persistence retries](result-storage-retry.md)
+to the pre-END checkpoint and settled pending handoff. Short typed SQLITE_BUSY
+contention can recover without resending an ADD/END or opening SSH. The same
+live lease and evidence are revalidated; exhausted or invalid cases keep their
+ordinary uncertainty/hold behavior. This does not complete general held recovery
+or switch the main lab from v6.
 Source0.10.2 has completed the bounded isolated normal-path FPR experiment below;
 the original main lab was restored to v6 afterward.
 

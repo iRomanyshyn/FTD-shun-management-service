@@ -6,8 +6,9 @@ Status: approved target behavior and delivery plan; not a deployment procedure.
 ## Next delivery alignment — 2026-11-12
 
 The operator accepted returning to bulk-import execution/confirmation and bounded
-FPR acceptance, followed by integrated lifecycle checks, Emergency Purge and
-working-release preparation. Keep the existing source-only deferred capabilities
+FPR acceptance, followed by integrated lifecycle checks, per-import unblocking and
+working-release preparation. Whole-managed cleanup is a later bulk action, not an
+emergency control. Keep the existing source-only deferred capabilities
 and their remaining recovery/lab gaps distinct from the currently deployed v6.
 
 **Team Cymru is a planned supplemental source**, explicitly reaffirmed by the
@@ -33,6 +34,16 @@ blocking authority. Two real missing entries were filled on a temporary cache
 copy; live enrichment supplements primary IPFire. See current status/log/manual for evidence
 and the exact deployment boundary. This does not close remaining bulk recovery,
 integrated lifecycle, Emergency Purge or release work.
+
+Deferred SQL contention, source v0.11.1 (2026-11-12): pre-END checkpoint and
+settled pending handoff use bounded proved-rollback local retries, retaining
+original lease/evidence checks and failure handling. No device command or terminal
+END repeats. An isolated fresh-profile FPR test imported two addresses while
+actually locking SQLite once at each phase; both recovered on attempt2, a causal
+read confirmed presence, and both removals were VERIFIED. Main v6/data/runtime
+were restored unchanged. This closes transient local contention, not general
+held-epoch/missing-journal recovery or persistent deferred cutover. See current
+status/log and manual/result-storage-retry.md.
 
 Final full-group optimization, source0.10.2 (2026-11-12): deferred visits no longer
 verify a final exact16 before END_PENDING. Bounded advisory scheduling preserves
@@ -886,11 +897,56 @@ bounded redirects to prevent SSRF; treat all returned text/links as untrusted.
 Provider choice, exact fields, cache defaults, worker topology and any schema or
 deployment migration remain future design decisions, not current configuration.
 
-## 8. Emergency Purge
+## 8. Managed cleanup
 
-Emergency Purge is available to every authenticated service user, with explicit
-confirmation and actual actor audit. This decision does not authorize anonymous
-access or invent directory roles. It is an exceptional whole-managed-scope action:
+### 8.1 Unblock imported IPs — planned, approved 2026-11-12
+
+Prioritize **Unblock imported IPs…** for one selected import before whole-managed
+cleanup. This is a new planned operation, not the existing cancellation button.
+Expose the current import's readable label, author/time and receipt link from IP
+details and Managed shuns so operators can find the corresponding import.
+
+Use the selected import's retained membership as candidates, then include only
+device/IP targets whose **current** maintenance still belongs to that import.
+Bind the current authorization request, intent and generation; a historical list
+match alone is insufficient. A later import containing an ALREADY_MANAGED member
+does not become another owner: if A owns the target and B includes it as already
+managed, cleanup of B excludes it. Do not transfer ownership or introduce reference
+counting as part of this feature.
+
+Show a confirmation preview with exact IP/device counts, current observed blocks,
+absent maintained targets, pending work and excluded targets. Distinguish targets
+originally proposed for addition from adopted existing blocks; both can be in
+scope when their current maintenance belongs to this import. Explain that:
+
+1. Unstarted additions/restorations for the selected current scope are cancelled.
+2. Automatic restoration for those targets is permanently turned off, including
+   absent targets, so they cannot return after cleanup or restart.
+3. Matching shuns are queued for urgent removal after current commands and their
+   verification settle. Running commands are not interrupted or blindly replayed.
+4. Other imports' current targets, unrelated unmanaged shuns and Protected-IP
+   configuration remain unchanged.
+
+Confirmation/execution must revalidate current ownership, policy and reservations;
+changed scope requires a fresh review rather than silently including newer policy.
+Keep actor audit, import-level progress and explicit per-device failed/unreachable/
+unverified outcomes. Queue acceptance is not verified removal. Preserve import
+receipts, membership and operation history after cleanup.
+
+Unlike **Cancel uncompleted import work**, this action also removes already
+applied/adopted blocks within its confirmed current scope. It is not implemented
+or enabled by adding this plan.
+
+### 8.2 Whole-managed cleanup — later follow-up
+
+The earlier working name was **Emergency Purge**. Present it as an ordinary
+additional bulk action, provisionally **Unblock all managed IPs…**, rather than an
+emergency or a command to empty every device's shun list. Per-import cleanup has
+higher delivery priority.
+
+The whole-managed action will be available to every authenticated service user,
+with explicit confirmation and actual actor audit. This decision does not
+authorize anonymous access or invent directory roles. Its confirmed scope covers:
 
 1. Cancel current imports and their unexecuted additions/restorations.
 2. Permanently retire all managed targets in the confirmed purge scope.

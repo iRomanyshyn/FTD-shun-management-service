@@ -4,6 +4,14 @@ Source v0.6.0 adds automatic recovery for one specific API crash window in the
 experimental deferred mode. The current laboratory still runs verified v6;
 this increment does not switch its configuration or database.
 
+Source0.11.1 also handles brief SQLite contention before a process crash is
+needed: the checkpoint and ordinary live pending handoff use bounded local-only
+transaction retries after proved rollback. They keep the original live lease and
+exact scope checks. No agent command or completion lookup is repeated. Exhaustion,
+non-BUSY errors, expired permission and changed evidence retain normal failure
+handling; this does not broaden the restart recovery contract below. See
+[Local Result Storage Retry](result-storage-retry.md).
+
 ## What the operator sees
 
 If the API stops after the agent has finished sending a final group and closed
