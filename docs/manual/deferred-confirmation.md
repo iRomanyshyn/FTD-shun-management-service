@@ -15,6 +15,12 @@ or switch the main lab from v6.
 Source0.10.2 has completed the bounded isolated normal-path FPR experiment below;
 the original main lab was restored to v6 afterward.
 
+Source0.12.0 optionally keeps completed pending receipts in a separate private
+agent volume so they can survive an agent restart. The existing exact-checkpoint
+recovery remains unchanged; active/interrupted commands and historical holds do
+not become recoverable. This is source/candidate support, not main-lab activation.
+See [Persistent Agent Completion Evidence](agent-pending-journal.md).
+
 ## Final full groups (source v0.10.2)
 
 A final group of exactly 16 addresses now follows the same deferred path as a

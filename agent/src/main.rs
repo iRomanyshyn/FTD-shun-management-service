@@ -10,6 +10,7 @@ mod cli_timing;
 mod credentials;
 mod cycle;
 mod dispatch;
+mod pending_journal;
 mod sessions;
 mod shutdown;
 mod snapshot;
@@ -68,6 +69,7 @@ struct Agent {
     batch_additions_enabled: bool,
     batch_session_version: u8,
     max_concurrent_devices: usize,
+    pending_journal_directory: Option<PathBuf>,
 }
 
 #[derive(Clone)]
@@ -223,6 +225,13 @@ impl Agent {
         if deferred_confirmation && batch_session_version != 7 {
             bail!("deferred confirmation requires explicit grouped session version 7");
         }
+        let pending_journal_directory = pending_journal::configured(
+            env::var_os("FTD_SHUN_AGENT_PENDING_JOURNAL_DIRECTORY"),
+            batch_session_version,
+        )?;
+        if let Some(path) = &pending_journal_directory {
+            pending_journal::check(path)?;
+        }
         for device in devices.values() {
             if let Some(profile) = device.addition_profile {
                 profile.validate(&device.allowed_interfaces)?;
@@ -243,6 +252,7 @@ impl Agent {
                 batch_additions_enabled,
                 batch_session_version,
                 max_concurrent_devices,
+                pending_journal_directory,
             },
             socket_file,
             peer_uid,
@@ -817,9 +827,12 @@ struct ConnectionCompletion {
 impl dispatch::Completion for ConnectionCompletion {
     fn complete(self) {
         if let Some((sessions, key)) = self.tracked
-            && sessions.complete(key).is_err()
+            && let Err(error) = sessions.complete(key)
         {
-            eprintln!("{{\"event\":\"agent.session.completion_unavailable\"}}");
+            eprintln!(
+                "{}",
+                serde_json::json!({"event": "agent.session.completion_unavailable", "reason": format!("{error:#}")})
+            );
         }
         if let Some(record) = self.settlement {
             // Handler/cleanup/guard have finished and the pool is already IDLE.
@@ -1178,7 +1191,7 @@ async fn main() -> Result<()> {
         [arg] if arg == "--check-config" => true,
         _ => bail!("usage: ftd-shun-agent [--check-config]"),
     };
-    let (agent, socket_file, peer_uid) = Agent::from_environment()?;
+    let (mut agent, socket_file, peer_uid) = Agent::from_environment()?;
     if check_only {
         for device_id in agent.devices.keys() {
             let credential = agent.credentials.for_device(*device_id)?;
@@ -1192,9 +1205,13 @@ async fn main() -> Result<()> {
                 "max_concurrent_devices": agent.max_concurrent_devices,
                 "batch_session_version": agent.batch_session_version,
                 "deferred_confirmation_enabled": agent.batch_session_version == 7,
+                "persistent_pending_journal": agent.pending_journal_directory.is_some(),
             })
         );
         return Ok(());
+    }
+    if let Some(path) = &agent.pending_journal_directory {
+        agent.sessions = Arc::new(sessions::Sessions::persistent(path)?);
     }
     use tokio::signal::unix::{SignalKind, signal};
     let mut terminate =
@@ -1300,6 +1317,7 @@ mod tests {
             batch_additions_enabled: false,
             batch_session_version: 5,
             max_concurrent_devices: 2,
+            pending_journal_directory: None,
         })
     }
 

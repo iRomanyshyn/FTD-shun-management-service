@@ -5,7 +5,7 @@ import json
 import sqlite3
 from dataclasses import replace
 from datetime import timedelta
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from test_batch_session import states, visit
@@ -38,6 +38,102 @@ leases = leases_fixture
 ledger = ledger_fixture
 waits = waits_fixture
 runtime = runtime_fixture
+
+
+@pytest.mark.parametrize('proof', ['complete', 'missing', 'foreign', 'corrupt'])
+def test_real_agent_process_restart_uses_persisted_proof_without_cisco(crash, tmp_path, proof):
+    """Optional cross-language acceptance, explicitly using built local binaries.
+
+    The seed runs only a cfg(test) Rust helper through the actual Sessions writer;
+    the production binary has no seeding switch or test-only fixture code.
+    """
+    import os
+    import subprocess
+    import time
+    from pathlib import Path
+
+    from ftd_shun_manager.agent_client import UnixAgentClient
+
+    binary = os.environ.get('FTD_TEST_AGENT_BINARY')
+    seed = os.environ.get('FTD_TEST_AGENT_JOURNAL_SEED')
+    if not binary or not seed:
+        pytest.skip('Set FTD_TEST_AGENT_BINARY and FTD_TEST_AGENT_JOURNAL_SEED for real-agent acceptance')
+    _, jobs, receipt, recovery = crash
+    directory = tmp_path / 'agent-private'
+    directory.mkdir(mode=0o700)
+    scope = {'device': receipt.device_id, 'id': list(receipt.session_id), 'sequence': receipt.sequence,
+             'targets': [str(ack.ip) for ack in receipt.acknowledgements]}
+    if proof == 'foreign':
+        scope['targets'][0] = '198.51.100.200'
+    clean_env = {key: value for key, value in os.environ.items() if not key.startswith('FTD_')}
+    if proof != 'missing':
+        subprocess.run([seed, '--exact', 'pending_journal::tests::subprocess_write', '--ignored'],
+            env={**clean_env, 'FTD_TEST_PENDING_JOURNAL': str(directory),
+                 'FTD_TEST_PENDING_SCOPE': json.dumps(scope)}, check=True, capture_output=True, timeout=10)
+    if proof == 'corrupt':
+        (directory / 'pending-completions.bin').write_bytes(b'corrupt committed evidence')
+    inventory = tmp_path / 'synthetic-agent.json'
+    inventory.write_text(json.dumps([{'id': 1, 'hostname': 'synthetic-no-cisco', 'management_ip': '192.0.2.1',
+        'ssh_host_key': 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+        'allowed_interfaces': ['management']}]))
+    password = tmp_path / 'synthetic-password'
+    password.write_text('synthetic-only-never-used')
+    # Keep AF_UNIX pathname below the system limit, independently of pytest IDs.
+    import tempfile
+    with tempfile.TemporaryDirectory(prefix='ftd-journal-') as sockets:
+        socket = str(Path(sockets) / 'agent.sock')
+        environment = {**clean_env, 'FTD_SHUN_DEVICE_INVENTORY': str(inventory),
+            'FTD_SHUN_SSH_USERNAME': 'synthetic', 'FTD_SHUN_SSH_PASSWORD_FILE': str(password),
+            'FTD_SHUN_AGENT_SOCKET': socket, 'FTD_SHUN_AGENT_PEER_UID': str(os.getuid()),
+            'FTD_SHUN_AGENT_CYCLES_ENABLED': 'true', 'FTD_SHUN_LARGE_SNAPSHOTS_ENABLED': 'true',
+            'FTD_SHUN_AGENT_ADDITIONS_ENABLED': 'true', 'FTD_SHUN_AGENT_BATCH_ADDITIONS_ENABLED': 'true',
+            'FTD_SHUN_AGENT_BATCH_SESSION_VERSION': '7', 'FTD_SHUN_DEFERRED_CONFIRMATION_ENABLED': 'true',
+            'FTD_SHUN_AGENT_PENDING_JOURNAL_DIRECTORY': str(directory)}
+        before = dump(recovery.store)
+        # A corrupted committed record refuses startup without repairing it.
+        if proof == 'corrupt':
+            result = subprocess.run([binary], env=environment, capture_output=True, timeout=10, check=False)
+            assert result.returncode != 0 and not Path(socket).exists()
+            assert (directory / 'pending-completions.bin').read_bytes() == b'corrupt committed evidence'
+            assert dump(recovery.store) == before
+            return
+        client = UnixAgentClient(socket, 2, large_snapshots=True, additions_enabled=True,
+            addition_device_ids=frozenset({1}), settled_cycles=True, recoverable_cycles=True,
+            tracked_cycles=True, batch_additions=True, batch_session_version=7, deferred_confirmation=True)
+        baseline = (directory / 'pending-completions.bin').read_bytes() if proof != 'missing' else None
+        for attempt in range(2):
+            if attempt and Path(socket).exists():
+                # Stale socket cleanup belongs to the restarted production agent.
+                assert Path(socket).is_socket()
+            with (tmp_path / f'agent-{attempt}.log').open('w+') as log:
+                process = subprocess.Popen([binary], env=environment, stdout=log, stderr=log)
+                try:
+                    deadline = time.monotonic() + 5
+                    while 'agent.listener.ready' not in Path(log.name).read_text():
+                        assert process.poll() is None
+                        assert time.monotonic() < deadline
+                        time.sleep(0.01)
+                    if proof == 'complete':
+                        assert client.pending_session_completed(receipt.device_id,
+                            str(UUID(bytes=receipt.session_id)), receipt.sequence,
+                            receipt.acknowledgements) == receipt
+                        if attempt:
+                            assert pending_restart.recover(recovery.store, 1, client)
+                    else:
+                        with pytest.raises(AgentUnavailable): pending_restart.recover(recovery.store, 1, client)
+                        assert dump(recovery.store) == before
+                finally:
+                    process.kill()  # Hard restart, not graceful receipt reconstruction.
+                    process.wait(timeout=5)
+                assert 'agent.cycle.' not in Path(log.name).read_text()  # Lookup did not enter SSH.
+        if proof == 'complete':
+            assert recovery.inspect(1) is None
+            with recovery.store._connection() as db:
+                assert [row[0] for row in db.execute('SELECT state FROM operation_jobs')] == ['AWAITING_CONFIRMATION'] * len(jobs)
+                assert db.execute('SELECT COUNT(*) FROM shun_import_origins').fetchone()[0] == 0
+                assert db.execute('SELECT COUNT(*) FROM shun_state').fetchone()[0] == 0
+        if baseline is not None:
+            assert (directory / 'pending-completions.bin').read_bytes() == baseline
 
 
 @pytest.fixture

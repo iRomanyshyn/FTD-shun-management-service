@@ -1,6 +1,10 @@
 # Product Manuals
 
-These manuals describe the first implementation increment. The service is safe to run for development and UI work today. Its separate FTD SSH agent implements verified removal for laboratory validation only; production Cisco writes remain unavailable until the documented FTD validation is complete.
+These manuals cover the laboratory product, prepared capabilities and retained
+implementation history. Start with the [System Architecture](system-architecture.md)
+for the current component/database map, then consult
+[Project Status](../project-status.md) for deployed features and acceptance limits.
+Individual historical manuals retain the scope of their original increment.
 
 Current operating context (2026-10-30): unreleased internal development on the
 operator's desk FPR1010, with no production use. Follow the newer
@@ -16,6 +20,7 @@ not a runbook or permission to change gates, initialize schemas or run new fixtu
 
 | Manual | Purpose |
 | --- | --- |
+| [System Architecture and Data Formats](system-architecture.md) | Current component/storage diagrams, trust boundaries, database ownership and formats on every connection; deployed v6 distinguished from prepared v7. |
 | [Development](development.md) | Local setup, test commands, and mock agent boundaries. |
 | [Fresh Working-Version Lab](fresh-development.md) | Non-overwriting verified setup, optional deferred development storage, configured managed API/Web and lab cutover. |
 | [Working-Version Plan](../working-version-plan.md) | Agreed product behavior, working-version priorities, implementation gaps and deferred SMTP notifications; not yet an operating procedure. |
@@ -100,6 +105,7 @@ not a runbook or permission to change gates, initialize schemas or run new fixtu
 | [Multi-group Import Sessions](multi-group-sessions.md) | Explicit matched v6, up to 64 attempts in 240 seconds, fresh bounded refill between verified groups, retained priority/cancellation and uncertainty. |
 | [Deferred First Confirmation](deferred-confirmation.md) | Default-off configured v7, exact fresh storage, handoff/confirmation, lost-terminal lookup and retries; no unknown replay or live activation. |
 | [Interrupted Pending Handoff](pending-restart-recovery.md) | Exact API-crash recovery from a pre-END checkpoint and completed agent journal; no old ADD replay or historical unknown release. |
+| [Persistent Agent Completion Evidence](agent-pending-journal.md) | Optional agent-only completed-v7 journal across restart; strict storage checks, no unknown replay or main-lab activation. |
 | [IP Actions](ip-actions.md) | Visible row actions, compact unblock dialogs, explicit button consent and original-request retry. |
 | [IP Registration Information](ip-context.md) | Optional isolated IPFire dataset, local backfill/periodic refresh and country/ASN/operator in rows and dialogs. |
 | [IP Context Plan](ip-context-plan.md) | Original design constraints and later delivery alignment. |

@@ -5,6 +5,14 @@ Status: approved target behavior and delivery plan; not a deployment procedure.
 
 ## Next delivery alignment — 2026-11-12
 
+Source0.12.0 (2026-11-13) adds optional agent-private persistence for completed
+pending-v7 receipts. Exact existing checkpoint/ACK/fence recovery can use that
+proof after an agent restart; missing/active/corrupt or historical unknown
+evidence retains its hold. Actual agent-process restart plus Python recovery
+passes on disposable synthetic stores. Main v6 stays unchanged. A bounded FPR
+restart/lifecycle test and genuinely missing-proof recovery remain before
+persistent deferred cutover. See manual/agent-pending-journal.md and current status.
+
 The operator accepted returning to bulk-import execution/confirmation and bounded
 FPR acceptance, followed by integrated lifecycle checks, per-import unblocking and
 working-release preparation. Whole-managed cleanup is a later bulk action, not an

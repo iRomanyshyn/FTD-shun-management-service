@@ -4,6 +4,9 @@ Security-focused internal service for monitoring and managing Cisco Secure Firew
 
 The governing specification is the [Architecture and Security Design](docs/architecture-and-security-design.md). The repository contains an executable laboratory Web/BFF, internal state API, Rust SSH agent, deployment assets and structured operator manuals. Consult [Project Status](docs/project-status.md) for actual deployed capabilities and limitations; this is not yet a production release.
 
+See [System Architecture and Data Formats](docs/manual/system-architecture.md)
+for diagrams of the complete system, database ownership and payload formats.
+
 The main views distinguish observations from policy:
 
 - **Shuns**: all currently observed device blocks, with Managed/Unmanaged badges.

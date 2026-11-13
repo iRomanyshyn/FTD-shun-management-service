@@ -58,7 +58,8 @@ const IDLE: u8 = 0;
 const BUSY: u8 = 1;
 const STOPPED: u8 = 2;
 
-/// Only a bounded nonblocking local postamble, never SSH/CLI or peer waiting.
+/// Local completion publication/storage only, never SSH/CLI or peer waiting.
+/// Optional durable storage can delay the reply; device guards are already free.
 pub(super) trait Completion {
     fn complete(self);
 }

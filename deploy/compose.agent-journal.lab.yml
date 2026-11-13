@@ -1,0 +1,26 @@
+# Optional agent-only storage; add after the explicitly selected deferred overlay.
+# Never mount this volume in API/Web or substitute the shared socket/core volume.
+# This does not select v7, initialize a core DB or activate deferred execution.
+services:
+  agent-journal-init:
+    image: alpine:3.21
+    # Mount root only: never traverse, repair or remove retained completion files.
+    command: ["/bin/sh", "-ec", "mkdir -p /journal && chmod 0700 /journal && chown 10002:10002 /journal"]
+    volumes:
+      - agent-pending-journal:/journal
+    network_mode: none
+    read_only: true
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    cap_add: [CHOWN, FOWNER]
+    tmpfs: ["/tmp:rw,noexec,nosuid,nodev"]
+  agent:
+    environment:
+      FTD_SHUN_AGENT_PENDING_JOURNAL_DIRECTORY: /var/lib/ftd-shun-agent-pending
+    volumes:
+      - agent-pending-journal:/var/lib/ftd-shun-agent-pending
+    depends_on:
+      agent-journal-init:
+        condition: service_completed_successfully
+volumes:
+  agent-pending-journal: {}

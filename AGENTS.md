@@ -80,7 +80,32 @@ background bulk/cache work, distinct attribution and no page-triggered queries.
 Current provider remains IPFire; no Cymru activation or runtime change follows
 from this documentation update. See working-version-plan.md and manual/ip-context.md.
 
-## Source v0.11.1 — deferred storage retries accepted on FPR, 2026-11-12
+## Source v0.12.0 — optional persistent pending journal, 2026-11-13
+
+Agent-only `FTD_SHUN_AGENT_PENDING_JOURNAL_DIRECTORY`, unset by default, requires
+explicit deferred7. Separate0700 owner directory/0600 files, exclusive process
+lock, strict bounded checksummed format and atomic file/directory fsync retain
+completed pending receipts after agent restart. Only post-handler/SSH/guard/
+worker-IDLE publication persists; active/prepared/read-only proof does not.
+4096 shared keys; pending eviction commits before identity reuse. Corrupt data
+refuses startup; persistence failure never publishes pending proof or retries
+SSH. Read-only preflight never initializes/repairs. Optional storage overlay
+must not be mounted into API/Web or used to activate v7 by itself. Existing
+original checkpoint/ACK/inventory/expired-fence checks remain; no held/unknown
+release. See manual/agent-pending-journal.md.
+
+Rust110+9+4 pass/one child fixture ignored, Clippy/locked release/fmt pass;
+affected Python249 pass58.02s includes four actual-agent/Python hard restart
+cases. Ruff/compileall/diff, networkless non-root preflight and candidate package/
+build/footer/43 templates pass. App image4141eb12437c..., agent27648ffcb2f2...,
+application source2059b6eb3301/version0.12.0. No full Python/browser or new FPR
+acceptance claimed. No runtime/profile/DB/gate/authority/device change submitted;
+main API0.2.0/v6 and Web/worker0.11.0 keep exact container/image/start identities.
+Evidence `/tmp/ftd-agent-journal-20261113`. Next bounded FPR restart/lifecycle
+acceptance plus genuine missing-proof recovery before persistent v7 cutover;
+per-import unblocking remains the next functional cleanup increment.
+
+## Previous source v0.11.1 — deferred storage retries accepted on FPR, 2026-11-12
 
 Deferred pre-END checkpoint and settled pending handoff now use the existing
 bounded SQL-only result helper. Three attempts/2s lock waits/50–150ms delays/7s
@@ -1756,6 +1781,9 @@ Read these documents before making a material change:
 2. [`docs/project-status.md`](docs/project-status.md) records what is implemented, intentionally unavailable, and next.
 3. [`docs/development-log.md`](docs/development-log.md) is the chronological engineering record.
 4. [`docs/manual/`](docs/manual/README.md) contains contributor, deployment, and operator procedures.
+   [`System Architecture and Data Formats`](docs/manual/system-architecture.md)
+   maps current components, physical stores and wire formats, separately from
+   prepared options; it is descriptive, not a replacement for the normative design.
 
 If an implementation conflicts with the architecture document, stop and resolve the design before continuing. Do not silently weaken the security model to make a feature easier to implement.
 

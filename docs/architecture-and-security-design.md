@@ -1,5 +1,10 @@
 # FTD Shun Management Service
 
+For the implemented component/database diagrams and concrete connection formats,
+see [System Architecture and Data Formats](manual/system-architecture.md).
+That manual maps the current lab deployment separately from prepared options;
+the normative security contracts remain in this document.
+
 ## Deferred checkpoint/handoff storage retries — 2026-11-12
 
 The existing bounded SQL-only result-persistence helper also permits two fixed
@@ -7127,3 +7132,29 @@ are not replaced by adding source support. General crash/held-epoch recovery and
 bounded real-device acceptance remain required before the planned lab cutover.
 This supersedes earlier source-only prohibitions on configured selection, not
 their default-off behavior, exact-profile guards or uncertainty rules.
+
+### Agent-owned pending completion storage — 2026-11-13
+
+An optional agent-only directory may retain completed v7 pending-session receipts
+across agent restarts. Persist only after the original SSH cleanup, handler and
+device guard have finished and the worker has returned to IDLE. Atomic replacement
+and file/directory synchronization precede publication of the retained completion.
+This is completion evidence, never permission to execute or replay a command.
+Read-only receipts and active/prepared sessions remain process-local.
+
+Use a private owner-only directory on a separate persistent mount, never the
+API-writable socket volume or core database. Validate ownership, file types,
+permissions, strict bounded format/checksum and exclusive process ownership.
+Retain at most the existing 4096 completed identities; eviction must remove a
+durable receipt before its identity becomes reusable. Disk failure must not
+publish an unpersisted pending receipt. Storage operations run in the local
+postamble, never while holding a device/SSH guard; slow storage can delay its
+terminal reply, and existing timeouts/uncertainty handling remain authoritative.
+
+Default storage remains process-local. A configured durable path requires the
+explicit deferred-v7 profile; nonexecuting preflight must not create or repair
+storage. Ordinary recovery still requires its exact checkpoint, expired original
+lease, ordered ACKs, unchanged inventory and complete scope. Missing/corrupt proof,
+crashes before completion persistence, unknown work and already-held epochs do
+not gain automatic recovery. No API schema/wire change, historical success
+reconstruction or persistent laboratory cutover follows from this capability.

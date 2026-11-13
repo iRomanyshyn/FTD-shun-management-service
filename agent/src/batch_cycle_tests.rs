@@ -196,6 +196,7 @@ fn configured_agent_refuses_v7_before_inventory_or_ssh_and_mutation_lookup_never
         batch_additions_enabled: true,
         batch_session_version: 5,
         max_concurrent_devices: 1,
+        pending_journal_directory: None,
     };
     for configured in [5, 6] {
         agent.batch_session_version = configured;
@@ -660,6 +661,7 @@ fn batch_mode_is_rejected_before_inventory_lookup_or_ssh_when_gated() -> Result<
         batch_additions_enabled: false,
         batch_session_version: 5,
         max_concurrent_devices: 1,
+        pending_journal_directory: None,
     };
     let (_client, server) = socketpair(
         AddressFamily::Unix,

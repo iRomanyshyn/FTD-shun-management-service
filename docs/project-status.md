@@ -1,6 +1,12 @@
 # Project Status
 
-Last updated: 2026-11-12
+Last updated: 2026-11-13
+
+The [System Architecture and Data Formats](manual/system-architecture.md)
+manual now maps the current browser/authentication/API/agent/device topology,
+the separate observation-feed/IPFire/Cymru path, physical stores and concrete
+payload formats. Deployed v6 is distinguished from prepared deferred-v7/journal
+options. This documentation update does not change source version or runtime.
 
 ## Next delivery priorities — operator alignment, 2026-11-12
 
@@ -17,7 +23,39 @@ Team Cymru is now enabled as the optional supplemental metadata source described
 below: bounded background batches/cache for missing IPFire ASN/network information,
 distinct attribution and no page-triggered queries. Local IPFire remains primary.
 
-## Source v0.11.1 — deferred checkpoint/handoff SQLite contention
+## Source v0.12.0 — agent-owned pending journal across restart
+
+Completed deferred-v7 session receipts can now persist in an optional, separate
+agent-only directory. Atomic synchronized replacement, strict bounded format/
+checksum, owner-only files, exclusive process locking and durable eviction keep
+the existing4096-key bounds and exact completion ordering. Active/prepared and
+read-only records stay process-local. Corrupt committed evidence refuses startup;
+storage failure publishes no pending completion and never retries a command.
+The preflight reads without initialization/repair. The optional storage-only
+Compose overlay grants no API/Web access and does not select v7 or initialize
+core storage. Defaults and all existing API/schema/wire/authority checks remain.
+
+Rust110 unit +9 configuration +4 shutdown tests pass (one cfg(test)-only child
+fixture is normally ignored). Clippy/locked release/fmt pass. Affected Python249
+pass58.02s, including four real-agent/Python cases: completed, missing, foreign
+and corrupt proof. The actual production binary was killed/restarted; only exact
+persisted proof permits the existing original-lease handoff to awaiting
+confirmation. No SSH/ADD, observed presence or creation attribution is invented.
+Ruff/compileall/diff, networkless non-root candidate preflight and installed
+package/build/footer/43 templates pass. No full Python/browser suite or FPR
+restart acceptance is claimed for this increment.
+
+Candidate application `4141eb12437c...`, agent `27648ffcb2f2...`; application
+source `2059b6eb3301`, version0.12.0. These are local candidate images, not a
+release/tag or deployed update. Main remains API0.2.0/v6, Web/worker0.11.0 with
+the same containers/images/start times; no lab policy/job/control/device or
+credentials/trust/network change was submitted. Remaining work: bounded real-FPR
+restart/lifecycle acceptance and recovery when completion proof genuinely does
+not exist, then persistent deferred cutover and per-import unblocking. See
+[Agent Pending Journal](manual/agent-pending-journal.md). Evidence:
+`/tmp/ftd-agent-journal-20261113`.
+
+## Previous source v0.11.1 — deferred checkpoint/handoff SQLite contention
 
 The existing bounded SQL-only retry helper now also handles the deferred pre-END
 checkpoint and settled pending handoff. Short numeric SQLITE_BUSY errors retry

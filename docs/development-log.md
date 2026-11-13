@@ -12035,6 +12035,91 @@ persistent v7 activation or actual authenticated-browser acceptance. Next remain
 missing-journal/other lifecycle recovery before cutover, then planned per-import
 unblocking. Never replay consumed lab fixture requests or restore stale authority.
 
+## 2026-11-13 — v0.12.0 agent-owned pending completion journal (source only)
+
+Added optional `FTD_SHUN_AGENT_PENDING_JOURNAL_DIRECTORY` for explicitly matched
+deferred-v7 agents. A separate owner-only directory persists only actual completed
+pending receipts after the existing SSH/handler/device-guard/worker-IDLE
+postamble. Atomic scratch replacement, file/directory fsync, strict bounded
+binary format/checksum and an exclusive agent process lock protect publication.
+The4096-key shared capacity remains; durable eviction precedes identity reuse.
+Read-only, active and merely prepared sessions stay process-local. Invalid
+committed evidence refuses startup without repair; failed persistence does not
+publish pending proof or repeat a device action. Error logs retain the local cause.
+
+Nonexecuting preflight reports the optional selection and never creates/repairs
+storage. The storage-only Compose overlay grants the directory only to agent
+and its networkless root initializer; API/Web retain no mount. It does not select
+v7 or prepare/convert core state. No API schema, wire, authority, pause, original
+checkpoint/ordered-ACK/inventory/expired-fence check was changed. Missing proof,
+historical unknowns and already-held epochs remain guarded. Added the structured
+manual, normative architecture amendment, version guidance and current handoff.
+
+Validation: Rust110 unit tests +9 configuration +4 shutdown tests pass; one child
+producer fixture is intentionally ignored in ordinary runs and invoked explicitly
+by its parents. Real filesystem locks, immediate process exit, reload,4096-entry
+eviction/refusal, corruption/unsafe file metadata and failed publication are
+covered. An initial sandbox run refused socket operations; the unrestricted
+local-socket suite passes. A fork-inherited lock lifetime race in the concurrent
+test run was corrected with explicit unlock on journal drop. No new dependency.
+Clippy(all targets)/locked release/fmt pass. Affected Python249 pass58.02s,
+including four cross-language cases using the actual production agent and strict
+Unix client: complete, missing, foreign and corrupt retained proof. The process
+was hard-killed/restarted; only the exact completed scope permits the existing
+atomic handoff to AWAITING_CONFIRMATION. Original claims/ACKs remain, no Cisco
+call, observation or creation attribution is invented. The producer exists only
+under Rust cfg(test), not in a production executable or feature flag. Separate
+four-case run also passes0.99s. Ruff/compileall/diff pass; no new full Python,
+browser or FPR restart acceptance claimed.
+
+Built local candidate images, not a deployment: application
+`sha256:4141eb12437c5bbccd37e5415b592b30a17e4a7a95b1d1669671ae670aaf7da4`,
+agent `sha256:27648ffcb2f259a72115f53e8094dbc9bcad62b013ccbddc9b114caa58ecd5cf`.
+Application source2059b6eb3301/version0.12.0 matches installed package/build/
+footer; all43 templates compile. Networkless read-only non-root container
+preflight passes using synthetic inventory/password and an owner0700 tmpfs.
+Merged Compose validation confirms journal mounts only in agent/initializer;
+the overlay was not applied.
+
+All seven original runtime container/image/start identities remained identical,
+including metadata/Cymru services. No live restart, profile/gate initialization,
+DB conversion/reset, job/policy/control/consent/recovery submission, credential/
+trust/network change or FPR write was performed. Main remains API0.2.0/v6 and
+Web/worker0.11.0. Read-only check13:36:07Z: integrityok, executor4258 IDLE,
+32426 observations,26 retained raw unknowns, fresh read13:35:36Z/errornone.
+Private evidence `/tmp/ftd-agent-journal-20261113` retains test/build/preflight
+logs, exact image/runtime identities and filtered composition checks.
+
+Next: bounded genuine FPR restart/lifecycle acceptance, recovery when completed
+proof genuinely does not exist, then persistent deferred cutover and the planned
+per-import unblocking feature. This increment preserves existing completed
+evidence; it does not claim general unknown-write recovery or a release/tag.
+
+## 2026-11-13 — illustrated system/storage/format manual
+
+At the operator's request, added `manual/system-architecture.md` with two Mermaid
+diagrams: browser/Caddy/Authelia/Web/API/core SQLite/agent/FTD, and the isolated
+observation feed/metadata worker/IPFire/Cymru/cache path. Documented socket paths,
+network boundaries, request/response formats and examples of JSON, packed IPv4,
+binary tracked requests/ACKs/snapshot streams and observation-feed cursors.
+
+The storage catalog distinguishes core SQLite/WAL, the rollback-journal context
+cache, native non-SQLite IPFire dataset, Authelia SQLite, configuration/credential
+files and process memory. Logical policy/import/queue/audit groups share the core
+DB. Retained RDAP/old experiment databases and the optional source0.12.0 v7 binary
+journal are explicitly separate from the currently deployed main v6 topology.
+Team Cymru is shown as the actual background DNS TXT supplement, not WHOIS.
+Linked the manual from README, manual index, governing design, current status and
+agent reading guidance; corrected the manual index's stale first-increment intro.
+
+Validation: cross-checked diagrams/tables against tracked Compose/Caddy/Authelia
+configuration, Web/API/agent protocol, SQL schemas and metadata feed/cache/provider
+implementations; local Markdown links and representative schema names checked,
+`git diff --check` passes. No code/protocol/schema/configuration/runtime mutation
+or new test suite run; source version remains0.12.0 and main services remain as
+previously recorded. Mermaid source is provided for Markdown rendering; no
+browser-rendered diagram acceptance is claimed.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

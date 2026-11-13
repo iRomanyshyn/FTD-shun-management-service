@@ -1400,6 +1400,7 @@ mod tests {
             batch_additions_enabled: false,
             batch_session_version: 5,
             max_concurrent_devices: 1,
+            pending_journal_directory: None,
         };
         let (_sender, receiver) = socketpair(
             AddressFamily::Unix,
@@ -1500,6 +1501,7 @@ mod tests {
             batch_additions_enabled: false,
             batch_session_version: 5,
             max_concurrent_devices: 1,
+            pending_journal_directory: None,
         };
         let (sender, receiver) = socketpair(
             AddressFamily::Unix,

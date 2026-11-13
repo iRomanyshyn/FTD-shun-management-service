@@ -1,4 +1,4 @@
-//! Bounded, process-local completion evidence; never durable mutation authority.
+//! Bounded completion evidence; optional agent-private persistence for pending v7.
 
 use std::collections::{BTreeMap, VecDeque};
 use std::sync::Mutex;
@@ -8,7 +8,7 @@ use anyhow::{Context, Result, bail};
 pub(super) const BEGIN: u8 = 0x18;
 pub(super) const LOOKUP: u8 = 0x19;
 pub(super) const LOOKUP_PENDING: u8 = 0x1e;
-const CAPACITY: usize = 4096;
+pub(super) const CAPACITY: usize = 4096;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub(super) struct Key {
@@ -54,12 +54,48 @@ enum State {
 struct Journal {
     entries: BTreeMap<Key, State>,
     completed: VecDeque<Key>,
+    disk: Option<super::pending_journal::PendingJournal>,
+}
+
+impl Journal {
+    fn pending_records(&self, exclude: Option<Key>) -> super::pending_journal::Records {
+        self.completed
+            .iter()
+            .filter(|key| Some(**key) != exclude)
+            .filter_map(|key| match self.entries.get(key) {
+                Some(State::Complete {
+                    read_only: false,
+                    pending: Some(packet),
+                }) => Some((*key, packet.clone())),
+                _ => None,
+            })
+            .collect()
+    }
 }
 
 #[derive(Default)]
 pub(super) struct Sessions(Mutex<Journal>);
 
 impl Sessions {
+    pub(super) fn persistent(directory: &std::path::Path) -> Result<Self> {
+        let (disk, records) = super::pending_journal::PendingJournal::load(directory)?;
+        let mut journal = Journal {
+            disk: Some(disk),
+            ..Journal::default()
+        };
+        for (key, packet) in records {
+            journal.completed.push_back(key);
+            journal.entries.insert(
+                key,
+                State::Complete {
+                    read_only: false,
+                    pending: Some(packet),
+                },
+            );
+        }
+        Ok(Self(Mutex::new(journal)))
+    }
+
     pub(super) fn reserve(&self, key: Key) -> Result<()> {
         let mut journal = self
             .0
@@ -69,10 +105,22 @@ impl Sessions {
             bail!("session identity already retained");
         }
         if journal.entries.len() == CAPACITY {
-            let oldest = journal
+            let oldest = *journal
                 .completed
-                .pop_front()
+                .front()
                 .context("session journal has no completed capacity")?;
+            if let Some(disk) = &journal.disk
+                && matches!(
+                    journal.entries.get(&oldest),
+                    Some(State::Complete {
+                        pending: Some(_),
+                        ..
+                    })
+                )
+            {
+                disk.replace(&journal.pending_records(Some(oldest)))?;
+            }
+            journal.completed.pop_front();
             journal.entries.remove(&oldest);
         }
         journal.entries.insert(
@@ -134,6 +182,11 @@ impl Sessions {
             .map_err(|_| anyhow::anyhow!("session journal unavailable"))?;
         match journal.entries.get(&key).cloned() {
             Some(State::Active { prepared, pending }) => {
+                if let (Some(disk), Some(packet)) = (&journal.disk, &pending) {
+                    let mut records = journal.pending_records(None);
+                    records.push((key, packet.clone()));
+                    disk.replace(&records)?;
+                }
                 journal.entries.insert(
                     key,
                     State::Complete {

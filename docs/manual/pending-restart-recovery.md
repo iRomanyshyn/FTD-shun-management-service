@@ -52,6 +52,12 @@ second timeout. It does not open SSH, replay BEGIN/END, send ADD, reconnect to
 Cisco, or poll the device. The current agent journal is process-local and bounded:
 an agent restart or eviction can remove the required evidence.
 
+Source0.12.0 optionally retains **completed pending-v7** receipts in a private
+agent-only persistent journal. This can preserve the exact proof across an agent
+restart; it does not persist active/prepared sessions or change the recovery
+checks. Default/main-lab behavior stays process-local. See
+[Persistent Agent Completion Evidence](agent-pending-journal.md).
+
 ## Atomic handoff and failure behavior
 
 An immediate SQLite transaction rechecks the unchanged original fence, checkpoint,

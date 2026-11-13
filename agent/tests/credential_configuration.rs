@@ -72,7 +72,59 @@ fn compatibility_check_exits_without_socket_or_ssh() -> Result<()> {
         assert_eq!(result["credential_mode"], "shared");
         assert_eq!(result["devices"], 1);
         assert_eq!(result["max_concurrent_devices"], 1);
+        assert_eq!(result["persistent_pending_journal"], false);
     }
+    Ok(())
+}
+
+#[test]
+fn optional_pending_journal_preflight_is_read_only_and_requires_deferred_v7() -> Result<()> {
+    let fixture = Fixture::new()?;
+    let directory = fixture.0.join("journal");
+    fs::DirBuilder::new().mode(0o700).create(&directory)?;
+    let configure = || {
+        let mut command = fixture.command();
+        command
+            .env("FTD_SHUN_AGENT_BATCH_ADDITIONS_ENABLED", "true")
+            .env("FTD_SHUN_AGENT_ADDITIONS_ENABLED", "true")
+            .env("FTD_SHUN_AGENT_CYCLES_ENABLED", "true")
+            .env("FTD_SHUN_LARGE_SNAPSHOTS_ENABLED", "true")
+            .env("FTD_SHUN_DEFERRED_CONFIRMATION_ENABLED", "true")
+            .env("FTD_SHUN_AGENT_BATCH_SESSION_VERSION", "7")
+            .env("FTD_SHUN_AGENT_PENDING_JOURNAL_DIRECTORY", &directory);
+        command
+    };
+    let output = fixture.run(&mut configure())?;
+    assert!(output.status.success());
+    let result: serde_json::Value = serde_json::from_slice(&output.stdout)?;
+    assert_eq!(result["persistent_pending_journal"], true);
+    assert_eq!(fs::read_dir(&directory)?.count(), 0);
+    for value in ["", "relative", "/tmp/../private"] {
+        assert!(
+            !fixture
+                .run(configure().env("FTD_SHUN_AGENT_PENDING_JOURNAL_DIRECTORY", value))?
+                .status
+                .success()
+        );
+    }
+    assert!(
+        !fixture
+            .run(
+                configure()
+                    .env("FTD_SHUN_DEFERRED_CONFIRMATION_ENABLED", "false")
+                    .env("FTD_SHUN_AGENT_BATCH_SESSION_VERSION", "6")
+            )?
+            .status
+            .success()
+    );
+    fs::write(
+        directory.join("pending-completions.bin"),
+        b"invalid retained evidence",
+    )?;
+    let before = fs::read(directory.join("pending-completions.bin"))?;
+    assert!(!fixture.run(&mut configure())?.status.success());
+    assert_eq!(fs::read(directory.join("pending-completions.bin"))?, before);
+    assert_eq!(fs::read_dir(&directory)?.count(), 1);
     Ok(())
 }
 
