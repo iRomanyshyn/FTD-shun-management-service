@@ -282,7 +282,7 @@ def test_configured_bff_requires_its_own_mode_and_retains_csrf_and_consent(confi
                 assert db.execute('SELECT COUNT(*) FROM managed_shun_targets').fetchone()[0] == 1
                 assert db.execute('SELECT COUNT(*) FROM operation_jobs').fetchone()[0] == 0
             page = await client.get('/managed-shuns')
-            assert page.status_code == 200 and 'ready-removal-preparation' in page.text
+            assert page.status_code == 200 and '<h1>Managed shuns</h1>' in page.text
             review = await client.post('/managed-shuns/v2/removal-review', data={
                 'csrf': client.cookies.get('ftd_shun_csrf'), 'target': '1:198.51.100.253', 'reason': 'Synthetic cleanup'})
             assert review.status_code == 200, review.text[:500]

@@ -57,6 +57,25 @@ def state(cache, ip=IP):
         return dict(row) if row else None
 
 
+def test_feed_cursor_ignores_transient_lease_rows_and_survives_their_removal(context):
+    store, cache, feed, provider, _ = context
+    store.record_observed_shun(1, IP, 'outside')
+    baseline = snapshot(store.path)
+    assert baseline['baseline'] and baseline['cursor'][0]
+    cache.scan(feed)
+    original = state(cache)
+    with store._connection() as db:
+        store._insert_event(db, 'DEVICE_LEASE_CLAIMED', 1, None, None, 'system', 'System', (), None, {})
+    delta = snapshot(store.path, *baseline['cursor'], baseline['source'])
+    assert not delta['baseline'] and delta['events'] == [] and delta['cursor'] == baseline['cursor']
+    with store._connection() as db: db.execute("DELETE FROM shun_events WHERE event_type='DEVICE_LEASE_CLAIMED'")
+    cache.scan(feed)
+    assert state(cache) == original and provider.seen == []
+    store.reconcile_snapshot(1, [])
+    delta = snapshot(store.path, *baseline['cursor'], baseline['source'])
+    assert [row['event_type'] for row in delta['events']] == ['SHUN_DISAPPEARED']
+
+
 def test_no_backfill_or_lookup_on_first_baseline_and_readers_never_create_files(context, tmp_path):
     store, cache, feed, provider, _ = context
     store.record_observed_shun(1, IP, 'outside')

@@ -15,6 +15,19 @@ from ftd_shun_manager.store import Store
 queue = queue_fixture
 
 
+def test_daily_retention_automatically_reclaims_only_disposable_preparations(queue):
+    from ftd_shun_manager.import_preparations import ImportPreparations
+
+    plans = ImportPreparations(queue.store, clock=queue._now)
+    plans.initialize()
+    report = plans.create('198.51.100.123', [1], 'fixture', 'Fixture', ('Operator',))
+    plans.cancel(report['plan_id'], 'fixture')
+    service = ContinuousMaintenance(queue, enabled=True)
+    asyncio.run(service._retain())
+    assert service.status()['retention_error'] is None
+    assert plans.list_for_owner('fixture')['plans'] == []
+
+
 async def until(predicate):
     async with asyncio.timeout(5):
         while not predicate():

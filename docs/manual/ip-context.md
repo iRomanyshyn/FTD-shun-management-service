@@ -5,6 +5,10 @@ under an IP. The shared component keeps address/badges on one stable line and
 reserves a separate line for metadata or its missing-information placeholder. IP pages and addition/unblock dialogs include the network prefix,
 range, source and source-database time. **IPFire Location** is the primary provider;
 an optional **Team Cymru** supplement fills missing routing information.
+IP details and action frames show the available cached fields immediately;
+registration/routing data are not hidden in another disclosure. Cymru registry,
+operator and allocation date are included when supplied, with registry country
+kept separate from IPFire geography. Page/help disclosures do not hide these data.
 This is advisory context: country is approximate, a network operator is not the
 identity of an attacker, and metadata never changes blocking policy. Missing
 information never blocks an action.

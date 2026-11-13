@@ -80,6 +80,29 @@ def test_restore_hex_uuid_anchor_survives_api_uuid_normalization(store):
     assert store.history_page(anchor=str(anchor))["anchor"] == anchor.hex
 
 
+def test_visible_history_filters_counts_and_anchor_without_erasing_internal_evidence(store):
+    append(store, 251)
+    with store._connection() as db:
+        for _ in range(12):
+            store._insert_event(db, 'DEVICE_LEASE_CLAIMED', None, None, None, 'system', 'System', (), None, {})
+    first = store.history_page(meaningful_only=True)
+    assert first['total'] == 251 and first['pages'] == 3 and len(first['events']) == 100
+    for page in range(1, 4):
+        result = store.history_page(page, first['anchor'], meaningful_only=True)
+        assert all(event['event_type'].startswith('EVENT_') for event in result['events'])
+    with store._connection() as db:
+        store._insert_event(db, 'DEVICE_LEASE_RELEASED', None, None, None, 'system', 'System', (), None, {})
+    assert store.history_page(meaningful_only=True) == first
+    assert store.history_page()['total'] == 264
+    assert len(store.list_events(limit=1000)) == 264
+    assert len(store.list_events(limit=1000, meaningful_only=True)) == 251
+    with store._connection() as db:
+        for event in ['SHUN_OPERATION_UNVERIFIED', 'DEVICE_LEASE_OPEN_FAILED', 'FUTURE_IMPORT_ACTION']:
+            store._insert_event(db, event, None, None, None, 'system', 'System', (), None, {})
+    assert store.history_page(meaningful_only=True)['total'] == 254
+    assert store.history_page(1, first['anchor'], meaningful_only=True) == first
+
+
 def test_counts_and_rows_share_snapshot_during_concurrent_append(store):
     append(store, 20)
     with ThreadPoolExecutor(max_workers=1) as pool:

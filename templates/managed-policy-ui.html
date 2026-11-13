@@ -3,7 +3,7 @@
 {%- endmacro %}
 
 {% macro behavior_help(overview=false) -%}
-<details class="managed-behavior-help" id="managed-behavior-help"><summary>Shuns, auto-restoration and protection — what is the difference?</summary>
+<details class="page-help managed-behavior-help" id="managed-behavior-help" data-ui-key="page-help-managed"><summary>{{ 'About Managed shuns' if overview else 'About blocks and protection' }}</summary>
 {% if overview %}<p>Auto-restore rules tell the service which addresses to keep blocked. <strong>Auto-restore off means no future restoration — not automatic unblocking.</strong> The last device check shows whether a block was observed, independently of this setting.</p>
 <p>Turn off auto-restore only leaves the device unchanged. Turn off auto-restore and remove block also requests an unblock after confirmation. Neither interrupts a command already running.</p>{% endif %}
 <dl><dt>Shuns</dt><dd>Blocks seen on the devices during the last successful reads. Searching also includes clearly labelled historical records.</dd>

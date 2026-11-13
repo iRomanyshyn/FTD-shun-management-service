@@ -117,3 +117,27 @@ FTD_TEST_AGENT_JOURNAL_SEED="<absolute path to the Rust unit-test executable>" \
 Use the `ftd_shun_agent-…` **unit-test executable** printed by Cargo, not the
 normal debug agent or the credential/shutdown integration-test executables.
 These are synthetic crash/recovery checks, not FPR acceptance or main-lab cutover.
+
+## Bounded FPR restart acceptance — 2026-11-13
+
+A separate fresh deferred DB/socket/private-journal profile imported only
+198.51.100.178 on the known desk FPR1010. A private test harness exited the API
+after actual settled END but before pending handoff, retaining the original
+RUNNING job, ACK and pre-END checkpoint. The completed/idle agent was then killed
+and restarted: its committed71-byte receipt remained byte-identical. After the
+original lease expired naturally, the restarted production recovery path moved
+the unchanged job to Awaiting confirmation. A subsequent complete FPR read
+confirmed OBSERVED_PRESENT, with no second ADD and no creation attribution.
+
+A fresh reviewed removal retired that test policy and finished VERIFIED; the
+address was absent and the test executor IDLE. Original v6 services/data were
+restored. Four SSH visits in total performed exactly one ADD and one REMOVE.
+The original authority/audit prefix and26 raw unknowns remained unchanged.
+Evidence `/tmp/ftd-fpr-journal-20261113` retains requests, exact runtime identities,
+logs, receipt copies and the separate experimental DB/volumes. The private crash
+harness is not a product feature flag or permission to reuse consumed requests.
+
+This closes one actual completed-session API/agent restart case. Missing proof,
+an interrupted/active session, broader lifecycle acceptance and general held-epoch
+recovery remain separate work. Persistent v7 is still not selected on the main
+stack; do not apply the experiment's overlay to the original v6 DB.

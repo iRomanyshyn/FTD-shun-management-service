@@ -1113,19 +1113,19 @@ def create_app(
 
     @app.get("/api/v1/history")
     def history(limit: int = 200) -> list[dict]:
-        return store.list_events(limit=limit)
+        return store.list_events(limit=limit, meaningful_only=True)
 
     @app.get("/api/v1/history-page")
     def history_page(page: Annotated[int, Query(ge=1, le=2**31 - 1)] = 1,
                      anchor: UUID | None = None) -> dict:
         try:
-            return store.history_page(page, str(anchor) if anchor else None)
+            return store.history_page(page, str(anchor) if anchor else None, meaningful_only=True)
         except HistoryWindowExpired as error:
             raise HTTPException(410, str(error)) from error
 
     @app.get("/api/v1/history/{ip}")
     def history_for_ip(ip: IPv4Address, limit: int = 200) -> list[dict]:
-        return store.list_events(ip=ip, limit=limit)
+        return store.list_events(ip=ip, limit=limit, meaningful_only=True)
 
     @app.get("/api/v1/search")
     def search_ip_history(ip: str) -> list[dict[str, str | int | bool | None]]:

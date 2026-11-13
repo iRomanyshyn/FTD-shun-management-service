@@ -1,5 +1,7 @@
 # FTD Shun Management Service
 
+![FTD Shun Management Service — Monitor. Block. Unblock.](static/branding/banners/readme-banner.png)
+
 Security-focused internal service for monitoring and managing Cisco Secure Firewall Threat Defense (FTD) `shun` entries across multiple devices.
 
 The governing specification is the [Architecture and Security Design](docs/architecture-and-security-design.md). The repository contains an executable laboratory Web/BFF, internal state API, Rust SSH agent, deployment assets and structured operator manuals. Consult [Project Status](docs/project-status.md) for actual deployed capabilities and limitations; this is not yet a production release.

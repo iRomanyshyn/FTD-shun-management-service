@@ -318,7 +318,10 @@ def test_cancellation_controls_required_for_new_confirmation_not_old_replay(lab,
         db.execute("DROP TABLE import_cancellation_targets")
         db.execute("DROP TABLE import_cancellation_decisions")
     before = dump(controls.store)
-    assert confirm(lab, plan, request_id=result["operation_id"])["replayed"]
+    # Replay the original frozen body, without re-reading a reclaimed draft.
+    assert lab[0].confirm(result['operation_id'], plan['plan_id'], plan['digest'], result['accepted_pairs'],
+                          'alice', 'Current author', ('Operator',), maintain_present=True, enabled=True,
+                          addition_device_ids=frozenset({1, 2}))['replayed']
     with pytest.raises(ManagedStateUnavailable, match="cancellation"):
         confirm(lab, next_plan)
     assert dump(controls.store) == before

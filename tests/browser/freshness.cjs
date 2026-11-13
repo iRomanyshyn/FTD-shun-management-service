@@ -353,6 +353,14 @@ test("refresh interaction in real Chromium", { timeout: 240000 }, async (t) => {
     if (url.pathname === "/static/app.css") {
       response.setHeader("Content-Type", "text/css");
       response.end(fs.readFileSync(path.join(root, "static/app.css")));
+    } else if (url.pathname.startsWith('/static/branding/')) {
+      const filename = path.resolve(root, '.' + url.pathname);
+      const prefix = path.join(root, 'static', 'branding') + path.sep;
+      if (!filename.startsWith(prefix) || !fs.existsSync(filename)) {
+        response.writeHead(404); response.end(); return;
+      }
+      response.setHeader('Content-Type', filename.endsWith('.svg') ? 'image/svg+xml' : filename.endsWith('.ico') ? 'image/x-icon' : 'image/png');
+      response.end(fs.readFileSync(filename));
     } else if (["/static/ip-dialog.js", "/static/ui-state.js"].includes(url.pathname)) {
       response.setHeader("Content-Type", "text/javascript");
       response.end(fs.readFileSync(path.join(root, url.pathname)));
@@ -626,6 +634,7 @@ test("refresh interaction in real Chromium", { timeout: 240000 }, async (t) => {
             message: loading.textContent, busy: document.querySelector('main').getAttribute('aria-busy'),
             quiet: document.querySelector('[data-action-warning]').hidden,
             animation: getComputedStyle(document.querySelector('.navigation-loading-bar')).animationName,
+            logoCovered: (() => { const a = loading.getBoundingClientRect(), b = document.querySelector('.brand-link').getBoundingClientRect(); return a.bottom > b.top && a.top < b.bottom && a.right > b.left && a.left < b.right; })(),
           }));
         }).observe(document.querySelector('[data-navigation-loading]'), { attributes: true, attributeFilter: ['hidden'] })`);
         const before = pageReads;
@@ -641,6 +650,7 @@ test("refresh interaction in real Chromium", { timeout: 240000 }, async (t) => {
         assert.match(observed.message, /Loading History/);
         assert.equal(observed.busy, 'true');
         assert.equal(observed.quiet, true);
+        assert.equal(observed.logoCovered, false);
         assert.equal(observed.animation, 'none');
         assert.equal(await page.evaluate("document.querySelector('main').hasAttribute('aria-busy')"), false);
         assert.equal(postCount, hints, 'Navigation never requests device work');
@@ -859,6 +869,8 @@ test("refresh interaction in real Chromium", { timeout: 240000 }, async (t) => {
               return { oneLine, aligned: Math.max(...centers) - Math.min(...centers) < 3,
                 fits: document.documentElement.scrollWidth <= innerWidth,
                 compact: row.getBoundingClientRect().height < 85,
+                brandLoaded: document.querySelector('.brand-link img').complete && document.querySelector('.brand-link img').naturalWidth === 512 && getComputedStyle(document.querySelector('.brand-caption')).display !== 'none',
+                headerCompact: document.querySelector('.app-header').getBoundingClientRect().height < 80,
                 tableTop: document.querySelector('.shuns-table').getBoundingClientRect().top,
                 helpClosed: !document.querySelector('#shuns-page-help').open,
                 action: Boolean(row.querySelector('.table-action')),
@@ -869,6 +881,7 @@ test("refresh interaction in real Chromium", { timeout: 240000 }, async (t) => {
             assert.equal(layout.aligned, true, `${width}px ${theme}: IP and tags share one row`);
             assert.equal(layout.fits, true, `${width}px ${theme}: only the table may scroll`);
             assert.equal(layout.compact, true, `${width}px ${theme}: compact row`);
+            assert.equal(layout.brandLoaded && layout.headerCompact, true, `${width}px ${theme}: loaded compact brand header ${JSON.stringify(layout)}`);
             assert.equal(layout.helpClosed && layout.action && layout.bounded && layout.localScroll, true);
             if (width === 1440) assert.ok(layout.tableTop < 420, `Working table starts at ${layout.tableTop}px`);
             if (width !== 960) await screenshot(page, `compact-shuns-${width}-${theme}`);
@@ -896,7 +909,7 @@ test("refresh interaction in real Chromium", { timeout: 240000 }, async (t) => {
         assert.equal(await page.evaluate("document.querySelector('[name=confirm_ip]').form.checkValidity()"), false);
       } finally { await page.close(); policy = savedPolicy; status = initial(); }
     });
-    await t.test('managed action shortcuts open and focus existing editors without submission', async () => {
+    await t.test('managed overview keeps import and pause controls without duplicate action editors', async () => {
       const savedManaged = managed;
       status = { ...initial(), runtime_mode: 'continuous-managed', ready_removal_review_available: true,
         managed_addition_controls: { available: true, imports: { paused: false, revision: 0 }, restoration: { paused: false, revision: 0 } } };
@@ -907,14 +920,14 @@ test("refresh interaction in real Chromium", { timeout: 240000 }, async (t) => {
       try {
         await page.call('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
         await screenshot(page, 'compact-managed-desktop');
-        await page.evaluate("document.querySelector('#managed-action-menu').open=true; document.querySelector('[data-open-details][href=\"#ready-removal-options\"]').click()");
-        assert.equal(await page.evaluate("document.querySelector('#ready-removal-options').open"), true);
-        assert.equal(await page.evaluate("document.activeElement===document.querySelector('#ready-removal-options > summary')"), true);
-        assert.equal(await page.evaluate("document.querySelector('#managed-action-menu').open"), false);
+        assert.equal(await page.evaluate("document.querySelectorAll('#managed-action-menu, #managed-retirement-preparation, #ready-removal-preparation, #ordered-removal-preparation').length"), 0);
+        assert.equal(await page.evaluate("document.querySelector('#managed-addition-control a').getAttribute('href')"), '/managed-imports/v2');
+        assert.equal(await page.evaluate("document.querySelectorAll('#managed-addition-control button').length"), 2);
+        for (const width of [1440, 375]) {
+          await page.call('Emulation.setDeviceMetricsOverride', {width, height: 1000, deviceScaleFactor: 1, mobile: width === 375});
+          assert.equal(await page.evaluate("document.documentElement.scrollWidth<=innerWidth"), true);
+        }
         assert.equal(executionCount, before);
-        await page.evaluate("document.querySelector('#managed-action-menu').open=true");
-        await page.call('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape' });
-        assert.equal(await page.evaluate("document.querySelector('#managed-action-menu').open"), false);
       } finally { await page.close(); managed = savedManaged; status = initial(); }
     });
     await t.test("one click; slow status; partial updates preserve fields and open status menu", async () => {
@@ -1133,13 +1146,14 @@ test("refresh interaction in real Chromium", { timeout: 240000 }, async (t) => {
         await page.call('Emulation.setDeviceMetricsOverride', {width:375,height:800,deviceScaleFactor:1,mobile:true});
         assert.ok(await page.evaluate("(() => { const r=document.querySelector('[data-ip-dialog]').getBoundingClientRect(); return r.left>=0 && r.right<=innerWidth && r.top>=0 && r.bottom<=innerHeight; })()"));
         await screenshot(page,'ip-overlay-375');
-        await page.evaluate("document.querySelector('[data-ip-dialog] .ip-context-card details').open=true; document.querySelector('[data-ip-dialog] .ip-context-card summary').focus()");
+        assert.equal(await page.evaluate("document.querySelector('[data-ip-dialog] .ip-context-card details')===null && document.querySelector('[data-ip-dialog] .ip-context-details').getBoundingClientRect().height>0"),true);
+        await page.evaluate("document.querySelector('[data-ip-dialog] .ip-page-help').open=true; document.querySelector('[data-ip-dialog] .ip-page-help summary').focus()");
         generation+=1;status.data_revision+=1;status.status_revision+=1;
         await wake(page);
         await page.until(`document.querySelector('#active-shuns').textContent.includes('FIXTURE_EVENT_${generation}')`);
         await page.until(`document.querySelector('[data-ip-dialog] [data-ip-content]').textContent.includes('FIXTURE_EVENT_${generation}')`);
-        assert.equal(await page.evaluate("document.querySelector('[data-ip-dialog] .ip-context-card details').open"),true);
-        assert.equal(await page.evaluate("document.activeElement===document.querySelector('[data-ip-dialog] .ip-context-card summary')"),true);
+        assert.equal(await page.evaluate("document.querySelector('[data-ip-dialog] .ip-page-help').open"),true);
+        assert.equal(await page.evaluate("document.activeElement===document.querySelector('[data-ip-dialog] .ip-page-help summary')"),true);
         assert.equal(await page.evaluate('location.pathname'),'/shuns/198.51.100.10');
         await page.evaluate('history.back()');
         await page.until("!document.querySelector('[data-ip-dialog]').open && location.search==='?q=198.51'");
@@ -1167,14 +1181,14 @@ test("refresh interaction in real Chromium", { timeout: 240000 }, async (t) => {
         // Direct copied links remain complete pages, and anonymous disclosures
         // survive both live replacement and an explicit same-tab reload.
         await page.call('Page.navigate',{url:origin+'/shuns/198.51.100.10'});
-        await page.until("document.querySelector('#ip-registration .ip-context-card details') && document.querySelector('[data-refresh-controller]')");
-        await page.evaluate("document.querySelector('#ip-registration details').open=true");
+        await page.until("document.querySelector('#ip-registration .ip-context-details') && document.querySelector('[data-refresh-controller]')");
+        await page.evaluate("document.querySelector('.ip-page-help').open=true");
         await page.until("Object.values(JSON.parse(sessionStorage.getItem('ftd-disclosures:/shuns/198.51.100.10')||'{}')).includes(true)");
         generation+=1;status.data_revision+=1;status.status_revision+=1;await wake(page);
         await page.until(`document.querySelector('#device-shuns').textContent.includes('FIXTURE_EVENT_${generation}')`);
-        assert.equal(await page.evaluate("document.querySelector('#ip-registration details').open"),true);
+        assert.equal(await page.evaluate("document.querySelector('.ip-page-help').open"),true);
         await page.call('Page.reload');
-        await page.until("document.querySelector('#ip-registration details')?.open===true");
+        await page.until("document.querySelector('.ip-page-help')?.open===true");
       } finally { await page.close();status=initial(); }
     });
     await t.test('row unblock opens a stable responsive dialog; closing never submits', async () => {
@@ -1471,7 +1485,7 @@ test("refresh interaction in real Chromium", { timeout: 240000 }, async (t) => {
         assert.equal(await preview.evaluate("document.querySelector('#import-preview-form button[name=page]').textContent"), "Parse preview");
       } finally { await preview.close(); }
     });
-    await t.test("v2 policy pages stay bounded, preserve drafts, show retained attention and never admit commands", async () => {
+    await t.test("v2 policy pages stay bounded, show retained attention and expose IP links without duplicate forms", async () => {
       const previous = managed;
       status = initial();
       Object.assign(status, { runtime_mode: "continuous-observation", managed_policy_format: 2,
@@ -1495,15 +1509,14 @@ test("refresh interaction in real Chromium", { timeout: 240000 }, async (t) => {
         assert.ok(await page.evaluate("document.querySelector('#managed-shun-state').textContent.includes('Original unknown queue evidence is missing')"));
         assert.equal(await page.evaluate("document.querySelectorAll('#managed-shun-state td b').length"), 0);
         assert.equal(await page.evaluate("document.querySelectorAll('[data-queue-form], [action=\"/managed-shuns/grant-review\"]').length"), 0);
-        await page.evaluate("document.querySelector('#retirement-target').closest('details').open=true; document.querySelector('#retirement-target').value='1:198.18.0.1'; document.querySelector('#retirement-reason').value='Keep this draft'; document.querySelector('#retirement-reason').focus()");
+        assert.equal(await page.evaluate("document.querySelectorAll('#managed-retirement-preparation, #ready-removal-preparation, #ordered-removal-preparation').length"), 0);
+        assert.equal(await page.evaluate("document.querySelector('#managed-shun-state a[href=\"/shuns/198.18.0.1#ip-actions\"]').textContent"), 'Details');
         status.data_revision += 1;
         const reads = pageReads;
         await wake(page);
-        await page.until(`document.querySelector('#retirement-reason').value==='Keep this draft' && document.activeElement.id==='retirement-reason'`);
         const deadline = Date.now() + 8000;
         while (pageReads <= reads && Date.now() < deadline) await delay(50);
         assert.ok(pageReads > reads);
-        assert.equal(await page.evaluate("document.querySelector('#retirement-target').value"), "1:198.18.0.1");
         for (const width of [1100, 375]) {
           await page.call("Emulation.setDeviceMetricsOverride", { width, height: 800, deviceScaleFactor: 1, mobile: width === 375 });
           assert.equal(await page.evaluate("document.documentElement.scrollWidth<=window.innerWidth"), true);
@@ -1521,50 +1534,34 @@ test("refresh interaction in real Chromium", { timeout: 240000 }, async (t) => {
         assert.equal(executionCount, executions);
       } finally { await page.close(); managed = previous; }
     });
-    await t.test("open IP action editors keep their actual controls across refreshes, but accept changed scope and revoked capabilities", async () => {
+    await t.test("managed row actions follow refreshed targets and revoked capabilities without reintroducing old editors", async () => {
       const previous = managed;
-      status = initial();
-      Object.assign(status, { runtime_mode: "continuous-managed", managed_policy_format: 2,
+      status = { ...initial(), runtime_mode: 'continuous-managed', managed_policy_format: 2,
         managed_policy_view_available: true, managed_policy_retirement_available: true,
-        ready_removal_review_available: true, ordered_removal_review_available: true });
+        ready_removal_review_available: true, ordered_removal_review_available: true };
       managed = { initialized: true, intent_format: 2, limit: 200000, revision: 7,
         restoration_suspended: false, attempt_ledger_initialized: true, read_only: true,
-        entries: [{ device_id: 1, hostname: "Fixture FTD", ip: "198.51.100.201", enabled: true,
+        entries: [{ device_id: 1, hostname: 'Fixture FTD', ip: '198.51.100.201', enabled: true,
           device_enabled: true, observed_present: true, protected: false, generation: 1,
-          pending_jobs: 0, attention: false, missing_unknown_job: false, last_attempt_state: "VERIFIED",
-          actor_subject: "fixture", actor_display_name: "Fixture", label: "Original label", reason: "" }] };
+          pending_jobs: 0, attention: false, missing_unknown_job: false, last_attempt_state: 'VERIFIED',
+          actor_subject: 'fixture', actor_display_name: 'Fixture', label: 'Original label', reason: '' }] };
       const hints = postCount, executions = executionCount;
       const page = await connectPage(debugOrigin, `${origin}/managed-shuns`);
       try {
-        await page.evaluate(`window.ipEditors = ['managed-retirement-options', 'ready-removal-options', 'ordered-removal-options'].map(id => document.getElementById(id));
-          ipEditors.forEach(el => el.open = true);
-          window.ipControls = ['retirement-target', 'ready-removal-target', 'ordered-removal-target'].map(id => document.getElementById(id));
-          ipControls.forEach(el => el.value = '1:198.51.100.201');
-          document.querySelector('#ready-removal-reason').value = 'Keep my draft';`);
-        for (const [index, selector] of ['#ready-removal-options summary', '#ready-removal-target', '#ready-removal-options button'].entries()) {
-          await page.evaluate(`document.querySelector(${JSON.stringify(selector)}).focus()`);
-          managed.entries[0].label = `Updated editor fixture ${index}`;
-          status.data_revision += 1;
-          await wake(page);
-          await page.until(`document.querySelector('#managed-shun-state').textContent.includes(${JSON.stringify(managed.entries[0].label)})`);
-          assert.equal(await page.evaluate("ipEditors.every(el => el.isConnected && el.open) && ipControls.every(el => el.isConnected && el.value==='1:198.51.100.201')"), true);
-          assert.equal(await page.evaluate(`document.activeElement === document.querySelector(${JSON.stringify(selector)})`), true);
-          assert.equal(await page.evaluate("document.querySelector('#ready-removal-reason').value"), 'Keep my draft');
-        }
+        assert.equal(await page.evaluate("document.querySelector('#managed-shun-state form[action=\"/ip-actions/unblock\"] [name=target]').value"), '1:198.51.100.201');
         managed.entries.push({ ...managed.entries[0], ip: '198.51.100.202', label: 'Changed target scope' });
         status.data_revision += 1;
         await wake(page);
-        await page.until("document.querySelector('#ready-removal-target option[value=\"1:198.51.100.202\"]')");
-        assert.equal(await page.evaluate("document.querySelector('#ready-removal-options').open"), true);
-        assert.equal(await page.evaluate("document.querySelector('#ready-removal-target') !== ipControls[1]"), true);
-        assert.equal(await page.evaluate("document.querySelector('#ready-removal-reason').value"), 'Keep my draft');
+        await page.until("Boolean(document.querySelector('#managed-shun-state [name=target][value=\"1:198.51.100.202\"]'))");
+        assert.equal(await page.evaluate("document.querySelector('#managed-shun-state a[href=\"/shuns/198.51.100.202#ip-actions\"]').textContent"), 'Details');
         Object.assign(status, { managed_policy_retirement_available: false,
           ready_removal_review_available: false, ordered_removal_review_available: false });
         managed.entries[0].label = 'Capability change applied';
         status.data_revision += 1;
         await wake(page);
         await page.until("document.querySelector('#managed-shun-state').textContent.includes('Capability change applied')");
-        assert.equal(await page.evaluate("document.querySelectorAll('#managed-retirement-options, #ready-removal-options, #ordered-removal-options').length"), 0);
+        assert.equal(await page.evaluate("document.querySelectorAll('#managed-shun-state form[action=\"/ip-actions/unblock\"]').length"), 0);
+        assert.equal(await page.evaluate("document.querySelectorAll('#managed-retirement-preparation, #ready-removal-preparation, #ordered-removal-preparation').length"), 0);
         assert.equal(postCount, hints);
         assert.equal(executionCount, executions);
       } finally { await page.close(); managed = previous; status = initial(); }
@@ -2364,7 +2361,7 @@ test("refresh interaction in real Chromium", { timeout: 240000 }, async (t) => {
         await page.until("document.querySelector('[data-refresh-message]').textContent.includes('Protected IPs changed')");
         assert.equal(policy.entries[0].name, "Office 10", "Stale draft did not overwrite the stored policy");
         await page.call("Page.navigate", { url: `${origin}/protected-ips` });
-        await page.until("document.getElementById('edit-policy-form-198.51.100.10')?.elements.revision.value==='2'");
+        await page.until("document.readyState==='complete' && document.getElementById('edit-policy-form-198.51.100.10')?.elements.revision.value==='2'");
         await page.evaluate(`(() => { const form=document.getElementById('edit-policy-form-198.51.100.10'); form.closest('details').open=true;
           form.elements.name.value='Saved office'; form.elements.enabled.checked=false;
           form.elements.name.dispatchEvent(new Event('input',{bubbles:true})); form.requestSubmit(); })()`);

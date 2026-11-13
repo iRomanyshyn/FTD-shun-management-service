@@ -4,6 +4,7 @@
 <div class="page-heading"><h1>IP: {{ ip }}</h1>
 {% if refresh %}{% include "refresh-panel.html" %}{% endif %}
 </div>
+<details class="page-help ip-page-help" id="ip-page-help" data-ui-key="ip-page-help-{{ ip }}"><summary>About this IP</summary><p>Device observations show the last known blocks. Managed rules restore missing blocks; Protected IPs are automatically unblocked. Actions open a review before anything changes.</p></details>
 {% if ip_context_enabled | default(false) and ip_context_target %}{% from "ip-context.html" import card %}
 <section id="ip-registration" data-live-region>{{ card(ip_context_target, ip_context) }}</section>{% endif %}
 

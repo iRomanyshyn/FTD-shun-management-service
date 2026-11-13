@@ -3,14 +3,17 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{% block title %}FTD Shun Manager{% endblock %}</title>
+    <title>{% block title %}FTD Shun Management Service{% endblock %}</title>
+    <link rel="icon" href="/static/branding/icons/favicon.ico" sizes="any">
+    <link rel="icon" href="/static/branding/source/terminal-banana-mark-simple.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/static/branding/icons/icon-180.png">
     <link rel="stylesheet" href="/static/app.css">
     <script src="/static/ui-state.js" defer></script>
     <script src="/static/ip-dialog.js" defer></script>
   </head>
   <body>
     <div class="navigation-loading" data-navigation-loading hidden role="status" aria-live="polite"><span class="navigation-loading-bar" aria-hidden="true"></span><span data-navigation-message>Loading…</span></div>
-    <header><a href="/">FTD Shun Manager</a>{% if identity %}<span>{{ identity.display_name }} · {{ identity.roles | join(', ') or 'No role' }}</span>{% endif %}</header>
+    <header class="app-header"><a class="brand-link" href="/" aria-label="FTD Shun Management Service — home"><img src="/static/branding/source/terminal-banana-mark.svg" width="36" height="36" alt=""><span class="brand-wordmark"><span class="brand-name">FTD Shun</span><span class="brand-caption">Management Service</span></span></a>{% if identity %}<span class="header-identity" title="{{ identity.display_name }} · {{ identity.roles | join(', ') or 'No role' }}">{{ identity.display_name }} · {{ identity.roles | join(', ') or 'No role' }}</span>{% endif %}</header>
     {% if identity %}<nav class="primary-nav" aria-label="Primary">
       <a href="/"{% if active_page | default('shuns') == 'shuns' %} aria-current="page"{% endif %}>Shuns</a>
       <a href="/unmanaged"{% if active_page == 'unmanaged' %} aria-current="page"{% endif %}>Unmanaged</a>

@@ -1,8 +1,8 @@
 # System Architecture and Data Formats
 
 Architecture map as of **2026-11-13**, for the operator's desk laboratory.
-The main stack selects verified **v6 grouped-addition sessions**, API0.2.0 and
-Web/metadata worker0.11.0. Source0.12.0 additionally contains an optional
+The main stack selects verified **v6 grouped-addition sessions**, API/feed0.13.0,
+Web0.13.1 and metadata worker0.11.0. Source0.12.0 additionally contains an optional
 persistent pending-session journal for experimental deferred v7; that is shown
 separately below and is not enabled on the main stack.
 
@@ -210,6 +210,11 @@ objects containing row ID, event ID/type, device ID, IP, interface and timestamp
 The source identity and cursor let the feed detect a changed source or a lost
 event anchor and return a fresh baseline.
 
+Only events that change observed IP presence advance this cursor. Routine lease
+coordination does not enter the feed. Successfully settled empty v6 visits can
+reclaim their own temporary claim without invalidating the metadata cursor or
+triggering another full baseline/provider attempt.
+
 ## 4. Databases, files and ownership
 
 Paths below are **container paths**. Named volumes give different services
@@ -236,6 +241,14 @@ Within the core DB these are logical groups, not separate databases:
 | Import preparation and membership | `import_preparation_plans`, `import_preparation_targets`, `managed_bulk_manifests`, `managed_bulk_members` | Reviewed source/classification and import membership; historical membership alone does not grant current ownership. |
 | Current policy and protection | `managed_shun_targets`, `managed_shun_requests`, `protected_ips`, `protected_policy` | Current device/IP maintenance authority and fleet-wide automatic-unblock policy. |
 | Queue, attempts and scheduling | `operation_requests`, `operation_jobs`, `operation_links`, `managed_bulk_attempts`, `managed_bulk_device_executors`, `managed_bulk_controls` | Attributed requests, individual jobs/results, original evidence, per-device fences and independent import/restoration pauses. |
+
+Import preparation reports are short-lived: up to four active reviews per owner
+and sixteen overall. A new save and daily maintenance reclaim expired, cancelled
+or confirmed reports; accepted manifests/membership, policy, jobs and receipts
+remain independent. Successful empty visits do not retain redundant lease audit
+pairs. Operator history omits coordination/intermediate bookkeeping, while
+failure, mutation and recovery evidence remains retained. See
+[Operator Workspace](operator-workspace.md#useful-history-and-quiet-device-checks).
 
 IPv4 keys in core/cache tables are four-byte BLOBs. Many descriptors, actor-role
 lists and event/provider details are JSON stored in TEXT columns. IDs and audit

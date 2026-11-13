@@ -6,8 +6,9 @@
 {% include "refresh-panel.html" %}
 </div>
 <section id="recent-events" data-live-region class="recent-events" aria-labelledby="recent-events-heading">
-<h2 id="recent-events-heading">Audit events</h2>
-<details class="list-help" id="history-retention-help"><summary>Newest first · {{ refresh.history_retention_days }}-day history retention</summary>
+<h2 id="recent-events-heading">Changes and actions</h2>
+<details class="page-help" id="history-retention-help" data-ui-key="page-help-history"><summary>About history</summary>
+<p>Detections, block changes, policy decisions and failures. Routine checks and intermediate queue bookkeeping are omitted.</p>
 <p class="history-retention">History retention: {{ refresh.history_retention_days }} days. Expired inactive history is purged daily. Events are shown newest first, 100 per page.</p>
 <p class="history-retention">Unverified operations and unresolved cleanup evidence are kept beyond this period.</p>
 </details>
@@ -22,7 +23,7 @@
 <div class="table-scroll"><table><thead><tr><th>Time</th><th>Event</th><th>IP address</th><th>Device</th><th>Actor</th></tr></thead><tbody>
 {% for event in recent_events %}<tr data-event-id="{{ event.id }}"><td><time class="local-timestamp" datetime="{{ event.timestamp }}">{{ event.timestamp }}</time></td><td><span class="status-label">{{ event.event_type }}</span></td><td>{% if event.ip %}{{ ip_item(event.ip, ip_context) }}{% else %}—{% endif %}</td><td>{{ event.device_hostname or "—" }}</td><td>{{ event.actor_display_name or event.actor_subject or "System" }}</td></tr>{% endfor %}
 </tbody></table></div>
-{% else %}<p>No audit events are retained yet.</p>{% endif %}
+{% else %}<p>No changes or actions to show.</p>{% endif %}
 {{ pager(pagination.page, pagination.pages, '/history', page_params, page_summary, 'History pagination', 'bottom', 'history-page', '', '/history', 'Latest events') }}
 {% endif %}
 </section>

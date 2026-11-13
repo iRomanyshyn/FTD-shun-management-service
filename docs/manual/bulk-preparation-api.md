@@ -99,15 +99,20 @@ Reports may honestly show PREPARED, CANCELLED, EXPIRED or CONFIRMED and the orig
 and `device_work_admitted=false` describe **this non-authoritative operation**,
 not a claim that no earlier separately authorized policy exists. Confirmed draft
 revocation/proposal conflicts; original policy/receipts/jobs remain unchanged.
-Expired/cancelled reports stay inspectable until separately approved pruning.
+Closed reports remain inspectable until automatic draft reclamation. Confirmed
+imports keep their independent durable membership and receipts.
 
 ## Recovery, capacity and cancellation
 
-Maximum four retained drafts per owner/sixteen globally, including expired or
-cancelled records until explicitly pruned. Capacity failure returns 429, never
-evicts another review or leaves part of a product. No automatic pruning endpoint
-or startup cleanup is added; existing retention limitations remain an explicit
-working-version follow-up, not a reason to erase authority/evidence.
+Maximum four active unconfirmed reviews per owner/sixteen globally. A new save
+atomically reclaims cancelled, expired or already-confirmed draft reports before
+checking capacity. Daily owning-service maintenance also reclaims these reports.
+An active review is never evicted; when all slots are active,429 asks the user to
+finish/cancel a review or wait for its ten-minute expiry. A failed save rolls back
+both its new report and reclamation. GETs still never prune or initialize storage.
+Only preparation headers/targets are removed; accepted policy/membership,
+receipts, jobs, attempts and audit remain. Original-key confirmation replay uses
+its independent receipt and remains valid after its preparation is gone.
 
 A lost 201 reply may leave a harmless unconfirmed draft. Recover its original
 reference from the owner list instead of blindly creating another. This is not

@@ -12,6 +12,8 @@ from ipaddress import IPv4Address
 from pathlib import Path
 from uuid import uuid4
 
+from .event_visibility import INTERNAL_EVENTS, history_filter
+
 
 def now() -> str:
     return datetime.now(UTC).isoformat(timespec="milliseconds").replace("+00:00", "Z")
@@ -278,7 +280,9 @@ class Store:
     def active_shuns_for_device_ip(self, device_id: int, ip: IPv4Address) -> list[Shun]:
         return [shun for shun in self.list_active_shuns(ip) if shun.device_id == device_id]
 
-    def list_events(self, ip: IPv4Address | None = None, limit: int = 200) -> list[dict]:
+    def list_events(self, ip: IPv4Address | None = None, limit: int = 200, *, meaningful_only=False) -> list[dict]:
+        if type(meaningful_only) is not bool:
+            raise ValueError('History visibility must be boolean.')
         if not 1 <= limit <= 1000:
             raise ValueError("limit must be between 1 and 1000")
         query = """
@@ -287,11 +291,18 @@ class Store:
                  e.actor_roles_json, e.request_id, e.details_json
           FROM shun_events AS e LEFT JOIN devices AS d ON d.id = e.device_id
         """
-        parameters: tuple[bytes | int, ...] = (limit,)
+        parameters = []
+        conditions = []
         if ip:
-            query += " WHERE e.ip = ?"
-            parameters = (ip.packed, limit)
+            conditions.append('e.ip = ?')
+            parameters.append(ip.packed)
+        if meaningful_only:
+            conditions.append(history_filter('e.'))
+            parameters.extend(INTERNAL_EVENTS)
+        if conditions:
+            query += ' WHERE ' + ' AND '.join(conditions)
         query += " ORDER BY e.timestamp DESC LIMIT ?"
+        parameters.append(limit)
         with self._connection() as db:
             rows = db.execute(query, parameters).fetchall()
         return [self._event_dict(row) for row in rows]
@@ -313,14 +324,18 @@ class Store:
             "details": json.loads(row["details_json"]),
         }
 
-    def history_page(self, page: int = 1, anchor: str | None = None) -> dict:
+    def history_page(self, page: int = 1, anchor: str | None = None, *, meaningful_only=False) -> dict:
         """Bounded retained-history browsing; no new row can enter an anchored window."""
         if not 1 <= page <= 2**31 - 1:
             raise ValueError("page must be between 1 and 2147483647")
+        if type(meaningful_only) is not bool:
+            raise ValueError('History visibility must be boolean.')
+        visible = history_filter() if meaningful_only else '1'
+        values = INTERNAL_EVENTS if meaningful_only else ()
         with self._connection() as db:
             db.execute("BEGIN")
             if anchor is None:
-                boundary = db.execute("SELECT rowid, id FROM shun_events ORDER BY rowid DESC LIMIT 1").fetchone()
+                boundary = db.execute('SELECT rowid,id FROM shun_events WHERE ' + visible + ' ORDER BY rowid DESC LIMIT 1', values).fetchone()
             else:
                 # Offline restore audit IDs may use UUID hex without hyphens.
                 boundary = db.execute("SELECT rowid, id FROM shun_events WHERE id IN (?,?)",
@@ -328,13 +343,15 @@ class Store:
                 if boundary is None:
                     raise HistoryWindowExpired("History window expired. Open Latest events.")
             ceiling = boundary["rowid"] if boundary else 0
-            total = db.execute("SELECT COUNT(*) FROM shun_events WHERE rowid<=?", (ceiling,)).fetchone()[0]
+            total = db.execute('SELECT COUNT(*) FROM shun_events WHERE rowid<=? AND ' + visible,
+                               (ceiling, *values)).fetchone()[0]
             pages = max(1, (total + 99) // 100)
             current = min(page, pages)
             rows = db.execute("""SELECT e.*, d.hostname AS device_hostname
                 FROM shun_events e LEFT JOIN devices d ON d.id=e.device_id
-                WHERE e.rowid<=? ORDER BY e.timestamp DESC, e.rowid DESC LIMIT 100 OFFSET ?""",
-                (ceiling, (current - 1) * 100),
+                WHERE e.rowid<=? AND """ + (history_filter('e.') if meaningful_only else '1') +
+                ' ORDER BY e.timestamp DESC,e.rowid DESC LIMIT 100 OFFSET ?',
+                (ceiling, *values, (current - 1) * 100),
             ).fetchall()
             return {"events": [self._event_dict(row) for row in rows], "page": current,
                     "pages": pages, "total": total, "page_size": 100,

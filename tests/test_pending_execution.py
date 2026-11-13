@@ -31,6 +31,15 @@ ledger = ledger_fixture
 waits = waits_fixture
 
 
+def test_deferred_profile_retains_read_claim_even_without_mutations(execution, leases):
+    from uuid import uuid4
+
+    token = leases.claim(1, str(uuid4()), 135, enabled=True)
+    leases.release(token, quiet_read=True)
+    with leases.store._connection() as db:
+        assert [row[0] for row in db.execute('SELECT event_type FROM shun_events ORDER BY rowid DESC LIMIT 2')] == ['DEVICE_LEASE_RELEASED', 'DEVICE_LEASE_CLAIMED']
+
+
 @pytest.fixture
 def execution(ledger, leases):
     service = PendingExecution(ledger.store, leases.queue)

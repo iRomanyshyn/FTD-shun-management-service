@@ -221,8 +221,10 @@ class DeviceLeases:
             if previous['lease_until'] <= _stamp(self.queue._now()):
                 raise QueueConflict('Original device lease expired during renewal.')
 
-    def release(self, token):
-        self._release(token, opening_event=None)
+    def release(self, token, *, quiet_read=False):
+        if type(quiet_read) is not bool:
+            raise ValueError('Quiet-read retention must be boolean.')
+        self._release(token, opening_event=None, quiet_read=quiet_read)
 
     def release_unsubmitted(self, token):
         """Only a first-open local pre-send failure may use this audited release."""
@@ -240,7 +242,7 @@ class DeviceLeases:
         """Exact bound agent lookup, never old held-state or mutation recovery."""
         self._release(token, opening_event='READ_RECEIPT_RECOVERED')
 
-    def _release(self, token, *, opening_event, connection=None):
+    def _release(self, token, *, opening_event, connection=None, quiet_read=False):
         with schema_connection(self.store, connection) as db, _atomic(db):
             previous = self.check(db, token)
             if db.execute("SELECT 1 FROM operation_jobs WHERE device_id=? AND state='RUNNING'", (token.device_id,)).fetchone():
@@ -257,10 +259,32 @@ class DeviceLeases:
                        (timestamp, token.device_id))
             if opening_event is not None:
                 self._event(db, opening_event, token, timestamp)
-            self._event(db, 'RELEASED', token, timestamp)
+            if not (quiet_read and opening_event is None and self._discard_quiet_claim(db, token)):
+                self._event(db, 'RELEASED', token, timestamp)
             self.queue._bump(db)
             if previous['lease_until'] <= _stamp(self.queue._now()) or _stamp(self.queue._now()) < timestamp:
                 raise QueueConflict('Device lease expired during release.')
+
+    @staticmethod
+    def _discard_quiet_claim(db, token):
+        """Only this successful empty visit's transient coordination row, never old audit."""
+        if device_uncertain(db, token.device_id) or db.execute(
+                "SELECT 1 FROM sqlite_master WHERE name GLOB 'managed_bulk_pending_*' LIMIT 1").fetchone():
+            return False
+        claims = db.execute("""SELECT rowid,* FROM shun_events WHERE device_id=?
+            AND event_type='DEVICE_LEASE_CLAIMED' AND json_extract(details_json,'$.owner')=?
+            AND json_extract(details_json,'$.epoch')=?""", (token.device_id, token.owner, token.epoch)).fetchall()
+        if len(claims) != 1:
+            return False
+        claim = claims[0]
+        if (json.loads(claim['details_json']) != {'owner': token.owner, 'epoch': token.epoch}
+                or claim['ip'] is not None or claim['request_id'] is not None
+                or claim['actor_subject'] != 'system:device-executor'
+                or db.execute('SELECT 1 FROM shun_events WHERE rowid>? AND (device_id=? OR device_id IS NULL) LIMIT 1',
+                              (claim['rowid'], token.device_id)).fetchone()):
+            return False
+        return db.execute("DELETE FROM shun_events WHERE id=? AND event_type='DEVICE_LEASE_CLAIMED'",
+                          (claim['id'],)).rowcount == 1
 
     def _event(self, db, event, token, timestamp):
         self.store._insert_event(db, 'DEVICE_LEASE_' + event, token.device_id, None, None,
@@ -328,4 +352,4 @@ class DeviceOperationQueue(OperationQueue):
     def finish_cycle(self, owner, interval_seconds):
         if owner != self.token.owner:
             raise QueueConflict('Device lease owner differs.')
-        self.leases.release(self.token)
+        self.leases.release(self.token, quiet_read=True)

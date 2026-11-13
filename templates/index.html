@@ -2,12 +2,13 @@
 {% from "observed-shun-actions.html" import badge, actions %}
 {% from "pagination-ui.html" import pager %}
 {% from "ip-item.html" import item as ip_item %}
+{% from "empty-state.html" import empty %}
 {% set list_path = shun_path | default('/') %}
 {% block content %}
 <div class="page-heading"><h1>{{ 'Unmanaged shuns' if unmanaged_view else 'Shuns' }}</h1>
 {% if refresh %}{% include "refresh-panel.html" %}{% endif %}
 </div>
-<details class="page-help" id="shuns-page-help"><summary>About {{ 'unmanaged shuns' if unmanaged_view else 'shuns and search' }}</summary>
+<details class="page-help" id="shuns-page-help" data-ui-key="page-help-shuns"><summary>About {{ 'Unmanaged' if unmanaged_view else 'Shuns' }}</summary>
 <p class="page-intro">Shuns are blocks observed on the devices during the last successful reads. <a href="/managed-shuns">Managed shuns</a> controls which blocks the service restores; <a href="/protected-ips">Protected IPs</a> controls automatic unblocking.</p>
 <p>Search current shuns, Protected IPs and retained history by a full IPv4 address or dotted prefix. This does not issue a Cisco query.</p>
 {% if unmanaged_view %}<p class="page-intro">Only current device/IP blocks without active service maintenance are listed here. They are not automatically restored after disappearance. This does not identify whether Cisco or an external administrator added them. <a href="/">View all current shuns</a>.</p>{% endif %}
@@ -22,7 +23,6 @@
 <span class="search-scope">Current, protected &amp; historical · full IP or prefix</span>
 {% if refresh and refresh.bulk_import_preparation_available is sameas true and ('Operator' in identity.roles or 'Administrator' in identity.roles) %}<a class="text-action" href="/managed-imports/v2">Import addresses</a>{% endif %}
 </form>
-{% if unmanaged_view %}<p class="muted">IP search still includes all current blocks and retained history; the table below stays limited to unmanaged observations.</p>{% endif %}
 </section>
 
 {% if search_results is not none %}
@@ -39,7 +39,7 @@
 <td>{% if result.last_event_at %}<time class="local-timestamp" datetime="{{ result.last_event_at }}">{{ result.last_event_at }}</time>{% else %}—{% endif %}</td>
 <td>{{ result.device_count }}</td>
 </tr>{% endfor %}</tbody></table></div>
-{% else %}<p>No current or retained historical entries match this address or prefix.</p>{% endif %}
+{% else %}{{ empty('No current or retained historical entries match this address or prefix.') }}{% endif %}
 </section>
 {% endif %}
 
@@ -57,7 +57,7 @@
 <td>{% call ip_item(shun.ip, ip_context) %}{{ badge(shun) }}{% if shun.ip in trusted_policy_ips %}<span class="protected-ip-badge">Protected IP</span>{% elif shun.ip in disabled_policy_ips %}<span class="state-badge policy-disabled" title="Automatic removal is off for this address.">Protection disabled</span>{% endif %}{% include "import-origin.html" %}{% endcall %}</td><td>{{ shun.device_hostname }}</td><td><span class="interface-name">{{ shun.interface }}</span></td><td>{% set observed_since = shun.active_since_at | default(shun.first_seen_at) %}<time class="local-timestamp" datetime="{{ observed_since }}">{{ observed_since }}</time></td><td><time class="local-timestamp" datetime="{{ shun.last_seen_at }}">{{ shun.last_seen_at }}</time></td>
 <td>{{ actions(shun, identity, refresh, csrf_token, new_operation_key) }}</td>
 </tr>{% endfor %}</tbody></table></div>
-{% else %}<p>{{ 'No current unmanaged shuns. Active service-maintained blocks are still visible in Shuns and Managed shuns.' if unmanaged_view else 'No active shuns are currently recorded.' }}</p>{% endif %}
+{% else %}{{ empty('No current unmanaged shuns. Active service-maintained blocks are still visible in Shuns and Managed shuns.' if unmanaged_view else 'No active shuns are currently recorded.') }}{% endif %}
 {% if shun_pagination %}{{ pager(shun_pagination.page, shun_pagination.pages, list_path, page_params, page_summary, 'Shuns pagination', 'bottom', 'shun-page', '', list_path, 'Newest shuns') }}{% endif %}
 </section>
 

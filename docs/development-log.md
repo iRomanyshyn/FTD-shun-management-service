@@ -12120,6 +12120,229 @@ or new test suite run; source version remains0.12.0 and main services remain as
 previously recorded. Mermaid source is provided for Markdown rendering; no
 browser-rendered diagram acceptance is claimed.
 
+## 2026-11-13 — v0.12.1 terminal/banana branding, Web-only lab rollout
+
+Adapted the operator-supplied visual proposal after review. Imported25 SVG/PNG/
+ICO assets without executing archive content or installing its README as agent
+instructions. Corrected the dark-logo `{PALE}` placeholder and changed banner
+wording to "Monitor. Block. Unblock."; affected PNGs were exported with local
+Inkscape and visually inspected. Retained editable SVG masters and export notes.
+No external font, runtime asset dependency or repository social-setting change.
+
+Added an accessible compact header/wordmark, SVG/ICO favicon and touch icon.
+Applied navy/teal light/dark tokens to surfaces, controls, fields, progress and
+panels while retaining semantic protection/error/success colors. Small fixed-size
+empty-list illustrations keep original readable HTML messages. Unused removed/
+disconnected illustrations do not imply a device outcome. Preserved pagination,
+actions, disclosure/refresh behavior and authentication/confirmation contracts.
+Added the README banner and workspace guidance. Build hashing now includes PNG/
+ICO assets, covered by byte-change identity tests, rather than omitting raster
+branding from the public source digest. Product version0.12.1 is one PATCH delivery.
+
+Validation: affected Python209 pass63.09s (one existing framework deprecation
+warning). Chromium/Node full assertions110 pass183.65s; the tool session reported
+143 after the result output, so clean exit was independently verified by splitting
+the existing cases into two bounded partitions:35 browser scenarios +38 Node
+presentation cases/parent =74 pass98.49s, and36 browser scenarios/parent =37
+pass88.98s, both exit0. This covers all71 browser scenarios/38 presentation cases
+with the parent wrapper counted twice in the partition total. Initial browser
+launch selected an unprepared system Python; reran using the existing dev venv.
+An earlier layout run caught the new header moving the table to422.92px; reduced
+header padding and retained the original<420px check rather than weakening it.
+Focused compact-theme case2-accounting passes5.21s. Final screenshots at375/1440
+and light/dark inspected; no new full Python/Rust suite was needed or claimed.
+Ruff/compileall/JS syntax/diff pass. Inkscape emitted sandbox font-cache warnings;
+actual exported dimensions and text were checked.
+
+Final image `sha256:fdc616b10a4df65ef2eef275d6094c5274e42c1ced6910533372b6166711cd1c`,
+source942f033744fe/version0.12.1. A disposable networkless candidate using the
+same Web settings/mounts validated installed package/build/footer,44 templates,
+66 routes,25 branding assets/PNG dimensions and actual readonly API/cache
+compatibility (100 rows/context entries). No listener or mutation was started.
+An intermediate local candidate before final CSS refinement was not deployed.
+
+Only Web was recreated at14:31:38.110Z, container
+`16f7c1296243cfec15c665312fab0f83aaf4407ed238d9612fe15d4b844a72d2`.
+All six other runtime container/image/start identities remain identical: API,
+agent, metadata feed/worker, Caddy and Authelia. Main stays API0.2.0/verifiedv6;
+worker0.11.0 retains approved Cymru behavior. No deferred overlay/journal/gate,
+policy/job/control/consent/recovery/device submission, secret/trust/network or
+database initialization/reset was performed. Existing ephemeral reviews must be
+reopened; prior Web image retained as `ftd-shun-web:lab-pre-branding-20261113`.
+
+Live Web health200/ten anonymous401/all33 served root JS/CSS/branding asset byte
+hashes match; installed package/source/footer agree. At14:32:19Z: core integrity
+ok, executor4269 IDLE,32426 observations,26 retained raw unknowns, fresh read
+14:29:29Z/errornone. This is synthetic real-browser and actual readonly deployment
+validation, not authenticated live-browser or new FPR-write acceptance. Existing
+tabs need reload for new assets/footer. Evidence `/tmp/ftd-branding-20261113`
+retains early failures, final logs/screenshots/build/source checks, exact image/
+runtime identities and rollout evidence. Deferred recovery/lifecycle acceptance
+and planned per-import cleanup remain next functional priorities.
+
+## 2026-11-13 — workspace clarity, useful history and reusable draft storage (0.13.0)
+
+The operator requested full mobile branding, immediately visible cached IP data,
+consistent unobtrusive explanations, loading that does not cover the logo,
+meaningful history and usable draft storage instead of lifetime capacity limits.
+
+Kept the full mobile wordmark; navigation now uses a thin progress line with a
+screen-reader announcement. Standardized page help into initially closed About
+disclosures with remembered subsequent choices. IP frames/pages directly show
+cached range/source/time and available Cymru routing operator/registry/allocation
+date/country; explanation alone is collapsible. No view-triggered lookup was added.
+
+Added one shared history filter for all public history routes and their anchored
+pagination/counts. Coordination/intermediate queue/ACK events stay available to
+internal readers; detections, decisions, failures and unknown future event types
+remain visible. Added narrowly bounded quiet-visit retention: only the exact
+ordinary successful visit's temporary CLAIMED event may be removed inside its
+original checked release transaction, and its RELEASED event omitted, when there
+was no subsequent device/global audit activity. Missing/changed evidence,
+uncertainty, failure, mutation and deferred-confirmation profiles retain full
+audit. Final deadline failure rolls the release/deletion back together. No sweep
+of older audit or operation evidence. The feed now cursors only observation
+presence events, preventing temporary-claim removal from resetting metadata.
+
+Draft capacity now bounds live unconfirmed reviews (four/owner, sixteen overall).
+New saves atomically reclaim cancelled, expired or confirmed preparation reports
+before enforcing capacity; existing daily maintenance does the same. Live reviews
+are not evicted, failed saves roll cleanup back, GETs stay read-only. Accepted
+manifests/membership, policy, jobs, receipts and unknown evidence remain independent.
+Architecture amendment/manuals document the retention exception and feed-first
+deployment order. No DDL/profile/protocol/gate change; one MINOR bump to0.13.0.
+
+Tests: initial focused197 had one obsolete confirmed-draft capacity expectation;
+corrected and focused188 pass24.34s. Broad Python3996 pass/four obsolete test
+expectations failed/four skipped718.56s. Those four tests assumed confirmed
+reports survive another save, an old explicit-pruning count, or no legitimate
+branding img in HTML; corrected to use frozen accepted replay bodies and reject
+the exact injected image rather than all images. Final affected307 pass86.88s;
+separate retained-receipt pair passes0.27s. No production source changed after
+the broad run; no second clean full run claimed. All71 Chromium scenarios and38
+Node presentation cases pass in two bounded partitions:74 accounting79.67s and37
+accounting83.72s, both exit0, parent wrapper counted twice. The second partition
+initially caught a native-navigation test readiness race; wait for document
+completion before submitting the newly navigated form, preserving strict CSRF
+validation. Focused browser8 pass23.71s. Ruff/compileall/JS/diff pass; no new Rust
+or live authenticated-browser acceptance claimed.
+
+Retained a consistent SQLite before-copy in the state volume and private evidence
+directory (250949632 bytes, integrityok). Networkless candidate construction on a
+tmpfs copy of that actual backup selected unchanged continuous-managed/verifiedv6,
+deferredfalse. Reclaimed all six closed reports in0.091s, preserving all31
+non-draft table fingerprints, four accepted import roots and26 raw unknowns.
+Each accepted root remains readable; FK/integrity and a fresh copy-only quiet
+lease release pass without a device connection. Package/build/footer/44 templates
+agree:0.13.0/source b821144eec46. Exact candidate image:
+`sha256:db9119b07c0ea79905cb0985c1bcb9cca2807c9228573edcfac7eaa4ba4be90c`.
+
+Deployed only the compatible feed first at15:21:27.742Z, container
+`8a6d506dfbbde303ff7b5dc850474daf1afce9252db73ea2e92f41a753df99a8`.
+Original API/Web then exited0; quiescent executor4281 IDLE/no active jobs.
+Replaced API at15:22:07.484Z, container
+`f8844ef3ebcc8956ba9a2c0c6396165903b7912431caa2c084eca49d8c785d1f`,
+and Web at15:22:07.373Z, container
+`7e61dffc77c24c2aa69d191230f044afd4649d2e3dda217b0b99f2fdfe583b5b`.
+All three use the same candidate image. Agent/worker/Caddy/Authelia retain their
+exact original image/container/start identities. Main remains verifiedv6, no
+deferred activation or persistent agent journal; worker0.11.0 retains approved
+Cymru behavior. No new ADD/REMOVE/policy/control/recovery request or secret/trust/
+network change was made. Existing original data/overlays/receipts remain.
+
+Actual ordinary visit4282 returned IDLE: agent reports0 mutation steps, two full
+reads,15.100s, no ADD/REMOVE. Final read15:22:29Z/errornone/32426 observations.
+Retained lease-event counts stayed exactly4281 CLAIMED/4274 RELEASED, proving no
+new quiet pair accumulated. Original audit prefix SHA-256 and every other
+authority fingerprint remain unchanged, jobs/26 raw unknowns unchanged, four
+confirmed roots retained, six disposable reports reclaimed, integrityok. Actual
+history page100 rows/105980 meaningful total excludes coordination. Metadata
+baseline/last-gap remain2026-11-12T15:47:15Z; existing cursor receives baselinefalse/
+zero events. Worker cache retains32426 contexts/observations,32425 local attempts,
+3387 Cymru entries, with no worker restart/forced provider batch. Live Web200/ten
+anonymous401/all33 served asset hashes/package/build/footer match.
+
+Reload old tabs. Evidence `/tmp/ftd-workspace-history-20261113` retains exact
+images/identities, before DB/fingerprints, copy checks, original test failures and
+final passes. Previous image tags: `ftd-shun-api:lab-pre-history-20261113`,
+`ftd-shun-web:lab-pre-workspace-20261113`,
+`ftd-shun-ip-context:lab-pre-quiet-feed-20261113`. Roll the API back before the old
+feed; retain current DB/cache instead of restoring disposable preparations.
+Deferred recovery/lifecycle acceptance and per-import unblocking remain next.
+
+## 2026-11-13 — direct Managed actions and bounded FPR restart acceptance (0.13.1)
+
+Operator accepted removing duplicate controls below the Managed list and
+continuing the planned work. Removed the current v2 overview's retirement,
+ready-removal and ordered-removal preparation forms, the shortcut Actions menu
+and its unused CSS/navigation handlers. Keep independent pauses, import link,
+pagination, row actions and IP workspace controls. Existing direct review routes,
+frozen consent, guards and automatic ready/ordered choice before consent remain.
+Updated operator manuals and one PATCH version increment to0.13.1.
+
+Validation:192 affected Python tests pass37.45s. Complete browser partitions
+preserve fixture ordering and pass all71 scenarios/38 Node cases:74 accounting
+80.58s and37 accounting88.10s, both exit0; parent counted twice. An earlier
+selective run omitted legacy managed-review setup from a preceding test and
+failed before completing; full ordered partitions pass with all original consent
+assertions. Routine wrong test-path/CLI-option attempts executed no tests/runtime
+and were corrected. Ruff/compileall/JS/diff pass. No full Python or new Rust run
+was needed for these UI-only changes; no live authenticated-browser claim.
+
+Next planned acceptance used the previously validated journal-capable agent
+image27648ffcb2f2... and new application candidate on a fresh isolated DB/socket/
+private-journal profile. Existing initializer and both actual configured preflights
+passed; original API/Web then agent exited0, original fence4294 IDLE/no RUNNING
+and original authority/audit prefix unchanged before experimental writers started.
+No original schema/configuration/credentials/trust/network were changed. Existing
+operator authorization covers the known desk FPR and bounded test writes.
+
+Fresh actor `maintenance:lab-persistent-journal-20261113`, operation
+`b0c401f5-c64c-44e4-b2fb-b8a8a50165a8`, imported only198.51.100.178 after a real
+complete absence read. Actual ADD visit16:19:00.803–16:19:16.975Z sent one ADD,
+one initial full read/one target preflight and settled END_PENDING. Private test
+harness exited API86 before pending SQL handoff, preserving its one RUNNING job,
+single ACK and pre-END checkpoint. The harness does not weaken product guards or
+add a product fault-injection flag. Agent's committed receipt was71 bytes,
+SHA-256 `7e83fa012b91aff18cea991143dc4fc8366171e2479bc878050e285dc27ef6de`.
+
+Only after the agent had completed/settled, killed that isolated process with
+SIGKILL (exit137) and restarted its same container16:20:08Z. Receipt bytes stayed
+identical. Restarted API normally; original lease expired naturally16:20:36.971Z.
+Existing recovery looked up exact proof, committed original pending handoff at
+16:20:41.899Z and released only that epoch. Subsequent complete FPR read confirmed
+OBSERVED_PRESENT, not VERIFIED creation, with no second ADD. Before confirmation,
+the DB correctly retained Awaiting confirmation and no current test observation.
+
+Fresh reviewed cleanup request `93d7a1d9-5f88-442e-b795-be4e5d077d99` retired the
+test policy and queued REMOVE job `75f4df3c-0f80-44f9-b92b-39a8dc8b39ae`.
+Removal finished VERIFIED, final16:21:50Z observation absent, executor4 IDLE/
+integrityok/no unknowns. Four total SSH visits performed exactly one ADD and one
+REMOVE; local completion lookup opened no SSH. Experimental API/agent stopped
+exit0; journal bytes remained identical after cleanup. Their separate containers,
+DB/socket/journal volumes, requests and consumed authority remain retained.
+
+Same original v6 agent/API containers/images restarted16:22:38Z. Only returned
+Web image changed, retaining `ftd-shun-web:lab-pre-managed-actions-20261113`0.13.0:
+new image `sha256:84de72414c43708235c4e109f75cf20d49f53597a4161ac2a4f8211c7728e312`,
+container `22d3f93d6253fa77bfc0ee74ed8ffa76eb90b75c500f82ebfc660d1ec94c1a09`,
+started16:22:39.059Z, version0.13.1/source10373155bd99. API/feed remain0.13.0,
+original agentv6; feed/metadata worker/Caddy/Authelia exact container/image/start
+identities unchanged. Approved Cymru settings remain. No main deferred/journal
+activation or new original policy/control/recovery/device submission.
+
+Restored original read16:23:00Z/errornone/32426 observations, executor4295 IDLE,
+original authority hashes/audit prefix/all26 historical unknowns unchanged,
+integrityok. .178 and its test authority absent from original DB. Actual package/
+build/footer/44 templates/66 routes/readonly API100 rows/cache100 contexts pass;
+live Web200/ten anonymous401/all33 served assets match. Reload old tabs and reopen
+ephemeral reviews after the Web replacement. Rollback only Web to the retained
+tag, keep current DB/cache. Evidence `/tmp/ftd-managed-actions-20261113` and
+`/tmp/ftd-fpr-journal-20261113` records exact images, identities and real failures/
+results. Completed-session restart acceptance is closed; interrupted/missing-proof/
+general held recovery and broader lifecycle remain before persistent v7 cutover.
+Per-import unblocking remains the next functional cleanup increment.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.

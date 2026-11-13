@@ -10,7 +10,11 @@ from uuid import UUID
 import uvicorn
 from fastapi import FastAPI, HTTPException, Query
 
+from .ip_context import ADDED, REMOVED
+
 MAX_PAIRS = 200000
+OBSERVATION_EVENTS = tuple(sorted(ADDED | REMOVED))
+EVENT_FILTER = 'event_type IN (' + ','.join('?' for _ in OBSERVATION_EVENTS) + ')'
 
 
 def snapshot(path, rowid=0, event_id=None, source=None):
@@ -33,12 +37,13 @@ def snapshot(path, rowid=0, event_id=None, source=None):
                               'ORDER BY ip,device_id,interface LIMIT ?', (MAX_PAIRS + 1,)).fetchall()
             if len(rows) > MAX_PAIRS:
                 raise ValueError('Observation feed exceeds bounded capacity.')
-            last = db.execute('SELECT rowid,id FROM shun_events ORDER BY rowid DESC LIMIT 1').fetchone()
+            last = db.execute('SELECT rowid,id FROM shun_events WHERE ' + EVENT_FILTER + ' ORDER BY rowid DESC LIMIT 1', OBSERVATION_EVENTS).fetchone()
             return {'source': identity, 'baseline': True, 'cursor': list(last) if last else [0, None],
                     'observations': [[row['device_id'], str(IPv4Address(row['ip'])), row['interface']] for row in rows],
                     'events': []}
         events = db.execute('SELECT rowid,id,event_type,device_id,ip,interface,timestamp '
-                            'FROM shun_events WHERE rowid>? ORDER BY rowid LIMIT 1000', (rowid,)).fetchall()
+                            'FROM shun_events WHERE rowid>? AND ' + EVENT_FILTER + ' ORDER BY rowid LIMIT 1000',
+                            (rowid, *OBSERVATION_EVENTS)).fetchall()
         return {'source': identity, 'baseline': False, 'cursor': [events[-1]['rowid'], events[-1]['id']] if events else [rowid, event_id],
                 'observations': [], 'events': [{**dict(row), 'ip': str(IPv4Address(row['ip'])) if row['ip'] else None} for row in events]}
     finally:

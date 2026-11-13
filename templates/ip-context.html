@@ -12,7 +12,7 @@
 <aside class="ip-context-card" aria-label="IP information">
 {% if info and info.state == 'ready' %}
 <p><strong>{{ asn_label(info) }}{{ info.organization or info.network or info.registry }}</strong>{% if info.country %} · {{ 'Country' if info.provider | default('') == 'ipfire-location-v1' else 'Registration country' }}: <span class="status-label">{{ info.country }}</span>{% endif %}{% if info.routing_fields %} <span class="preview-help">{{ info.routing_fields | join(', ') }} from Team Cymru</span>{% endif %}</p>
-<details data-ui-key="ip-info-{{ ip }}"><summary>IP information details</summary><dl>
+<div class="ip-context-details"><dl>
 {% if info.network %}<dt>Network</dt><dd>{{ info.network }}</dd>{% endif %}
 <dt>Allocated range</dt><dd>{{ info.range_start }} – {{ info.range_end }}</dd>
 <dt>Source</dt><dd><a href="{{ 'https://www.ipfire.org/location/lookup/' ~ ip if info.provider | default('') == 'ipfire-location-v1' else info.source }}" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">{{ info.registry }}{{ ' · CC BY-SA 4.0' if info.provider | default('') == 'ipfire-location-v1' else ' DNS' if info.provider | default('') == 'team-cymru-dns-v1' else ' RDAP' }}</a></dd>
@@ -20,10 +20,13 @@
 <dt>Retrieved</dt><dd><time class="local-timestamp" datetime="{{ info.fetched_at }}">{{ info.fetched_at }}</time></dd>
 {% if info.routing %}
 <dt>Routing prefix / origin</dt><dd>{{ info.routing.network }} · {% for number in info.routing.asns %}AS{{ number }}{{ ', ' if not loop.last else '' }}{% endfor %}</dd>
+{% if info.routing.organization %}<dt>Routing operator</dt><dd>{{ info.routing.organization }}</dd>{% endif %}
+{% if info.routing.registry %}<dt>Routing registry</dt><dd>{{ info.routing.registry }}</dd>{% endif %}
+{% if info.routing.allocated_at %}<dt>Prefix allocation date</dt><dd>{{ info.routing.allocated_at }}</dd>{% endif %}
 {% if info.routing.registration_country %}<dt>Routing registration country</dt><dd>{{ info.routing.registration_country }} (registry data, not geolocation)</dd>{% endif %}
 <dt>Routing source</dt><dd><a href="{{ info.routing.source }}" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">Team Cymru DNS</a> · <time class="local-timestamp" datetime="{{ info.routing.fetched_at }}">{{ info.routing.fetched_at }}</time>{% if info.routing.stale %} · Last known information; refresh pending or unavailable{% endif %}</dd>
 {% endif %}
-</dl><p class="preview-help">IP information is advisory. Country is approximate; the network name does not identify the attacker.</p></details>
+</dl><p class="preview-help">IP information is advisory. Country is approximate; the network name does not identify the attacker.</p></div>
 {% else %}<p class="preview-help">{{ 'IP information pending.' if info and info.state in ('pending', 'looking_up', 'not_requested') else 'No public IP information for this special-use IP.' if info and info.state == 'skipped' else 'IP information unavailable.' }} Actions do not wait for this information.</p>{% endif %}
 </aside>
 {%- endmacro %}

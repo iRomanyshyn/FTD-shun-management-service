@@ -12,7 +12,7 @@ from . import __version__
 def source_build(root: Path) -> dict:
     """Hash an explicit public input set, never Git, environment or deploy secrets."""
     files = [root / 'pyproject.toml']
-    for directory, suffixes in (('src', {'.py'}), ('templates', {'.html'}), ('static', {'.css', '.js', '.svg'})):
+    for directory, suffixes in (('src', {'.py'}), ('templates', {'.html'}), ('static', {'.css', '.js', '.svg', '.png', '.ico'})):
         if not (root / directory).is_dir() or (root / directory).is_symlink():
             raise ValueError('Build input directories must exist and must not be symlinks.')
         if any(path.is_symlink() for path in (root / directory).rglob('*')):

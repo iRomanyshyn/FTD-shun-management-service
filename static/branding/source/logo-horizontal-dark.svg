@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1150" height="260" viewBox="0 0 1150 260">
+<g transform="translate(22 16) scale(0.4394531)"><rect width="512" height="512" rx="118" fill="#101D2D"/>
+    <rect x="66" y="92" width="380" height="330" rx="48" fill="#0B1624" stroke="#35556C" stroke-width="10"/>
+    <rect x="96" y="122" width="319" height="9" rx="4.5" fill="#2C4860"/>
+    <path d="M127 197 L207 268 L127 339" fill="none" stroke="#E9F4F7" stroke-width="43" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M246 322 C298 354 362 324 394 251 C411 303 393 357 356 378 C310 403 263 371 243 335 Z" fill="#F6CA4D"/>
+    <path d="M274 341 C318 362 375 327 390 277" stroke="#B08123" stroke-width="9" stroke-linecap="round" fill="none"/>
+    <path d="M394 252 L405 239" stroke="#F6CA4D" stroke-width="15" stroke-linecap="round"/></g>
+<text x="285" y="117" fill="#E9F4F7" font-family="DejaVu Sans,Arial,sans-serif" font-size="80" font-weight="700">FTD Shun</text>
+<text x="290" y="181" fill="#9CB2C1" font-family="DejaVu Sans,Arial,sans-serif" font-size="40">Management Service</text>
+</svg>

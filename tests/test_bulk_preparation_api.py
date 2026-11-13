@@ -313,7 +313,7 @@ def test_owner_capacity_no_eviction_and_confirmed_draft_cannot_revoke_policy(com
             before = dump(store)
             assert (await client.post(PREFIX + 'cancel-preparation', json={'actor': ACTOR, 'preparation_id': saved['plan_id']})).status_code == 409
             assert (await proposal(client, saved)).status_code == 409 and dump(store) == before
-            for _ in range(3): assert (await stage(client)).status_code == 201
+            for _ in range(4): assert (await stage(client)).status_code == 201
             before = dump(store)
             assert (await stage(client)).status_code == 429 and dump(store) == before
     asyncio.run(scenario())

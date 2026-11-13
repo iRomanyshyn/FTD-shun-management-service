@@ -99,10 +99,13 @@ conflicting work and retained uncertainty; conflicts require a refreshed review.
 
 ## Lifetime, capacity and cancellation
 
-Preparations expire after ten minutes; maximum four retained per author/sixteen
-globally, including cancelled/expired entries until explicitly pruned. Capacity
-failure never evicts another review or writes part of a plan. Expired/cancelled
-reports can still be inspected until pruning, but never authorize anything.
+Preparations expire after ten minutes; at most four active unconfirmed reviews
+per author and sixteen globally. A new save atomically reclaims cancelled,
+expired or already-confirmed reports before checking capacity; daily maintenance
+also reclaims them. Accepted manifests/membership, policy, jobs and receipts are
+independent and remain retained. Capacity failure never evicts a live review or
+writes part of a plan, and a failed save rolls its cleanup back too. Closed reports
+may be inspected until reclamation, but never authorize anything.
 `verify` can confirm their integrity and still returns `can_execute=false`.
 
 Lost creation responses may leave another harmless unconfirmed preparation;

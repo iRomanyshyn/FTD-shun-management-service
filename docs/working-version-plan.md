@@ -9,9 +9,13 @@ Source0.12.0 (2026-11-13) adds optional agent-private persistence for completed
 pending-v7 receipts. Exact existing checkpoint/ACK/fence recovery can use that
 proof after an agent restart; missing/active/corrupt or historical unknown
 evidence retains its hold. Actual agent-process restart plus Python recovery
-passes on disposable synthetic stores. Main v6 stays unchanged. A bounded FPR
-restart/lifecycle test and genuinely missing-proof recovery remain before
-persistent deferred cutover. See manual/agent-pending-journal.md and current status.
+passes on disposable synthetic stores. On2026-11-13 a separate one-address FPR
+acceptance also passed: API exit after settled END/before handoff, real hard agent
+restart, exact persisted receipt, automatic expired-lease recovery and causal
+presence confirmation without another ADD. Fresh verified cleanup left the test
+address absent. Main v6/original authority remain unchanged. Interrupted-session,
+broader lifecycle and genuinely missing-proof recovery remain before persistent
+deferred cutover. See manual/agent-pending-journal.md and current status.
 
 The operator accepted returning to bulk-import execution/confirmation and bounded
 FPR acceptance, followed by integrated lifecycle checks, per-import unblocking and

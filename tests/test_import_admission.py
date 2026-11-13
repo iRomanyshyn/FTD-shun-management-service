@@ -390,7 +390,7 @@ def test_origin_rendering_is_current_only_and_escaped(queue):
     }
     html = templates.get_template("detail.html").render(**context)
     assert "Manually imported" in html and "Import provenance" in html
-    assert "<img" not in html and "<script>reason" not in html
+    assert "<img src=x onerror=alert(1)>" not in html and "<script>reason" not in html
     assert "&lt;img" in html and "&lt;script&gt;reason" in html
     value["manual_imports"] = []
     assert "Manually imported" not in templates.get_template("detail.html").render(**context)

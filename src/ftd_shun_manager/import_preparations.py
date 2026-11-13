@@ -162,6 +162,17 @@ class ImportPreparations:
             if not _present(db):
                 execute_schema(db, _DDL)
 
+    @staticmethod
+    def _discard_inactive(db, timestamp):
+        """Prepared reports are disposable; accepted policy/receipts are independent."""
+        rows = db.execute('SELECT * FROM import_preparation_plans ORDER BY created_at,id').fetchall()
+        if len(rows) > MAX_PLANS:
+            raise PreparationUnavailable('Retained preparation storage exceeds its supported bound.')
+        discard = [row['id'] for row in rows if row['cancelled_at'] or row['expires_at'] <= timestamp
+                   or _confirmed_operation(db, row)]
+        db.executemany('DELETE FROM import_preparation_plans WHERE id=?', [(plan,) for plan in discard])
+        return len(discard)
+
     def create(self, text, device_ids, subject, display_name, roles, *, label="", reason=""):
         """Freeze proposed local actions, not accepted policy or a fresh Cisco read."""
         if (not isinstance(subject, str) or not subject.strip() or len(subject) > 255
@@ -194,10 +205,11 @@ class ImportPreparations:
             db.execute("BEGIN IMMEDIATE")
             if not _present(db):
                 raise PreparationUnavailable("Preparation journal is not initialized.")
+            self._discard_inactive(db, created)
             if (db.execute("SELECT COUNT(*) FROM import_preparation_plans").fetchone()[0] >= MAX_PLANS
                     or db.execute("SELECT COUNT(*) FROM import_preparation_plans WHERE actor_subject=?",
                                   (subject,)).fetchone()[0] >= MAX_OWNER_PLANS):
-                raise PreparationCapacity("Preparation capacity reached; expired drafts require explicit pruning.")
+                raise PreparationCapacity("Too many active reviews. Finish or cancel an existing draft, or wait for its ten-minute expiry.")
             state = self._managed_state(db)  # Unknown is never an invented unmanaged set.
             marks = ",".join("?" for _ in device_ids)
             devices = db.execute(f"SELECT id,hostname FROM devices WHERE enabled=1 AND id IN ({marks}) ORDER BY id",
@@ -397,10 +409,10 @@ class ImportPreparations:
         return True
 
     def prune_expired(self):
-        """Explicit draft-only retention; no policy/queue/attempt/audit deletion."""
+        """Reclaim closed/expired reports; no policy/queue/attempt/audit deletion."""
         timestamp = _stamp(self.clock())
         with self.store._connection() as db:
             db.execute("BEGIN IMMEDIATE")
             if not _present(db):
                 return 0
-            return db.execute("DELETE FROM import_preparation_plans WHERE expires_at<=?", (timestamp,)).rowcount
+            return self._discard_inactive(db, timestamp)

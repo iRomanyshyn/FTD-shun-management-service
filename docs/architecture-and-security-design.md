@@ -1,5 +1,30 @@
 # FTD Shun Management Service
 
+## Quiet visits, useful history and reusable draft capacity — 2026-11-13
+
+Operator history should present changes, user decisions and failures, excluding
+routine lease acquire/release and intermediate queue bookkeeping. Keep underlying
+operation/uncertainty/recovery evidence available to internal readers. An ordinary
+successfully completed visit may discard only its own temporary claim event and
+omit its release event when the same live fenced transaction proves there was no
+device/global audit activity since that claim and no deferred-confirmation profile
+is present. This is bounded coordination-record retention, not rewriting operation
+audit or sweeping old history. Missing/changed claims, failed sessions, meaningful
+activity, mutations and deferred evidence retain the full original audit.
+
+The observation feed must cursor only over events relevant to observed-IP changes,
+so temporary lease-record removal cannot invalidate metadata cursors or force a
+full baseline on every quiet check. Keep its existing source/anchor checks and
+complete baseline/delta format. Deploy this compatible feed before quiet retention.
+
+Draft capacity bounds simultaneously active, unconfirmed reviews. A new save may
+atomically reclaim expired, cancelled or already-confirmed preparations; periodic
+maintenance may do the same. Confirmed policy/membership, receipts, jobs, attempts,
+audit and unresolved evidence are independent and must remain unchanged. GETs
+remain read-only, live reviews are never evicted, and failed saves roll back their
+cleanup too. This supersedes older manual-only pruning requirements for drafts;
+it does not authorize clearing accepted work or reusing expired confirmation.
+
 For the implemented component/database diagrams and concrete connection formats,
 see [System Architecture and Data Formats](manual/system-architecture.md).
 That manual maps the current lab deployment separately from prepared options;

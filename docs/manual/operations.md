@@ -12,9 +12,17 @@ See [Shuns and Maintenance](shuns-and-maintenance.md) for scope, paging and cons
 
 ## Loading tabs and temporary waits
 
-Primary tabs show a slim **Loading …** indicator while their normal page request
-is pending. Existing content stays visible until arrival; reduced-motion settings
+Primary tabs show a thin progress line above the header and announce **Loading …**
+to screen readers while their normal page request is pending. The logo remains
+visible. Existing content stays visible until arrival; reduced-motion settings
 disable the animation. Navigation does not request device writes or replay forms.
+
+History lists meaningful changes/actions/errors and omits routine lease and
+intermediate queue bookkeeping. A successful check with no audit activity keeps
+current device state/freshness but reclaims its temporary coordination claim.
+Mutation, failure, uncertainty and deferred-confirmation evidence remains intact.
+Closed/expired import draft reports are automatically reclaimed on a new save
+or daily maintenance; active reviews and accepted import records are preserved.
 
 A brief background-read interruption keeps the last displayed data and shows
 **Loading latest information…** with retry details in **Status**, rather than
@@ -41,12 +49,12 @@ browser controls only inspect/prepare guidance; host quiescence remains required
 
 ## Using IP actions while information updates
 
-The action panels at the bottom of **Managed shuns** stay open during automatic
-updates. Unchanged review-preparation forms retain their actual controls, so
-the IP selector, typed reason and keyboard focus are not reset by device polling.
-Status, Queue and observed results continue updating. If the server changes the
-available targets or capabilities, controls still update or disappear; opening
-a panel does not reserve permission. Review and confirmation remain separate.
+Use the actions beside a Managed row or open its IP workspace. The list has no
+duplicate action forms below it. An open IP frame and its action review remain
+usable while Status, Queue and observed results update. Review scopes stay frozen
+until explicit confirmation; opening a frame does not reserve permission or
+override changed capabilities. Stop restoring leaves the device block unchanged;
+Unblock turns off restoration and requests removal after confirmation.
 
 ## Browsing long Shuns lists
 
@@ -266,6 +274,13 @@ normal page reload/sign-in; there is no authentication bypass.
 newest first. Use Previous/Next or the Page/Go control; the summary shows the
 page, available total and displayed range. Tied timestamps use reverse insertion
 order. The first `/history` page updates dynamically as new events arrive.
+
+History presents detections, changes, decisions and failures. Routine lease
+coordination and intermediate queue/ACK records are omitted from both rows and
+pagination totals. Technical execution/recovery evidence stays available to
+internal readers; a successfully completed empty ordinary visit reclaims only
+its own temporary claim. Failed/uncertain visits and deferred-confirmation
+profiles keep their original evidence. Existing historical rows are not swept.
 
 Navigation carries an event-ID anchor: new events cannot move records between
 the older pages being read. **Latest events** returns to the live first page.

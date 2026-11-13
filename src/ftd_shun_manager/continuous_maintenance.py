@@ -156,6 +156,12 @@ class ContinuousMaintenance:
             result = await self._call(self.queue.store.prune_expired_history, self.history_retention_days,
                                       reference_time=self.queue._now())
             self._changed(any(result[field] for field in ('events_deleted', 'inactive_state_deleted', 'import_origins_deleted')))
+            if self._stopping:
+                return
+            self._phase('pruning_drafts')
+            from .import_preparations import ImportPreparations
+
+            await self._call(ImportPreparations(self.queue.store, clock=self.queue._now).prune_expired)
         except (ValueError, OSError, sqlite3.Error) as error:
             self._failure('retention', error)
             self._next_retention = self.clock() + FAILURE_SECONDS

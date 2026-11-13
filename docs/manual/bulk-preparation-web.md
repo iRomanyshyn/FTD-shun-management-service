@@ -60,9 +60,12 @@ A lost/malformed reply is **unknown**, not import success/failure. Transient tex
 metadata and device choices remain, but repeat creation on that uncertain form is
 disabled. Inspect **Saved preparations** before explicitly opening a new form.
 Recovered references are not automatically selected as the successful result;
-there is no automatic repost. Capacity remains four retained drafts per owner /
-sixteen globally, including expired/cancelled entries until approved pruning.
-Nothing is evicted; automatic pruning/executable idempotency is not implemented.
+there is no automatic repost. Capacity is four active reviews per owner / sixteen
+globally. New saves and daily maintenance automatically reclaim closed/expired
+reports; active reviews are never evicted. Confirmed imports retain their own
+receipts, membership and policy after the draft report is gone. A failed save
+rolls back reclamation, and GETs remain read-only. Draft creation itself does not
+gain executable idempotency or device authority.
 
 ## 3. Inspect a frozen report
 

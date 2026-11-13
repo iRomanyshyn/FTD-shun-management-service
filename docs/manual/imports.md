@@ -131,9 +131,12 @@ additions are historical, not proof that an address is currently blocked. See
   troubleshooting. Import storage/protocol versions are implementation details,
   not workflow choices. The product version remains in the footer.
 
-Saved drafts have bounded storage (four per owner / sixteen globally, including
-expired and cancelled drafts). Nothing is silently evicted when full. Missing or
-unavailable storage is a service problem, not an empty successful import.
+Up to four active reviews per user and sixteen overall can be open at once.
+Expired, cancelled or confirmed draft reports are reclaimed automatically on the
+next save or daily maintenance. Confirmed imports retain their own durable
+records. Active reviews are never evicted: finish/cancel one or wait for its
+ten-minute expiry if all slots are in use. Missing or unavailable storage is a
+service problem, not an empty successful import.
 
 For implementation contracts, see [Preparation Web](bulk-preparation-web.md),
 [Standing Confirmation](bulk-standing-confirmation.md),

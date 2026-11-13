@@ -171,7 +171,7 @@ def test_receipt_survives_pruning_retirement_new_generation_restart_and_original
     current = policy.policy_page()['entries'][0]
     assert current['generation'] == 2 and current['intent_id'] != old['intent_id']
     clock[0] += timedelta(minutes=10)
-    assert policy.preparations.prune_expired() == 2
+    assert policy.preparations.prune_expired() == 1  # Earlier confirmed draft was reclaimed on the next save.
     restarted = BulkPolicies(Store(policy.store.path), clock=lambda: clock[0])
     before = dump(policy.store)
     assert restarted.page(result['operation_id'], 'alice')['result'] == result

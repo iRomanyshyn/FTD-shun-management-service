@@ -170,9 +170,9 @@ def test_owner_checks_cancellation_expiry_and_pruning_never_touch_independent_wo
     assert not plans.cancel(saved["plan_id"], "alice")
     assert plans.page(saved["plan_id"], "alice")["state"] == "CANCELLED"
     assert plans.verify(saved["plan_id"], "alice", saved["digest"])["integrity_verified"]
-    assert plans.prune_expired() == 0
+    assert plans.prune_expired() == 1  # Cancellation releases disposable draft storage immediately.
     clock[0] += timedelta(minutes=10)
-    assert plans.prune_expired() == 1
+    assert plans.prune_expired() == 0
     with pytest.raises(PreparationUnavailable):
         plans.page(saved["plan_id"], "alice")
     with plans.store._connection() as db:
@@ -276,6 +276,35 @@ def test_per_owner_and_global_limits_are_atomic_and_explicitly_reclaimed(journal
     clock[0] += timedelta(minutes=10)
     assert plans.prune_expired() == 16
     assert prepare(journal, subject="eve")["can_execute"] is False
+
+
+def test_new_save_reclaims_cancelled_and_expired_drafts_without_evicting_active_reviews(journal):
+    plans, clock = journal
+    original = outside(plans.store)
+    saved = [prepare(journal) for _ in range(4)]
+    plans.cancel(saved[0]['plan_id'], 'alice')
+    fresh = prepare(journal)
+    assert len(plans.list_for_owner('alice')['plans']) == 4
+    for report in saved[1:]: assert plans.page(report['plan_id'], 'alice')['state'] == 'PREPARED'
+    with pytest.raises(PreparationUnavailable): plans.page(saved[0]['plan_id'], 'alice')
+    with pytest.raises(PreparationCapacity): prepare(journal)
+    clock[0] += timedelta(minutes=10)
+    latest = prepare(journal)
+    assert [row['plan_id'] for row in plans.list_for_owner('alice')['plans']] == [latest['plan_id']]
+    with pytest.raises(PreparationUnavailable): plans.page(fresh['plan_id'], 'alice')
+    assert outside(plans.store) == original
+
+
+def test_failed_save_rolls_back_automatic_draft_cleanup(journal):
+    plans, _ = journal
+    saved = prepare(journal)
+    plans.cancel(saved['plan_id'], 'alice')
+    with plans.store._connection() as db:
+        db.execute("CREATE TRIGGER synthetic_new_draft_failure BEFORE INSERT ON import_preparation_targets BEGIN SELECT RAISE(ABORT,'synthetic draft write'); END")
+        before = tuple(db.iterdump())
+    with pytest.raises(sqlite3.IntegrityError): prepare(journal)
+    with plans.store._connection() as db: assert tuple(db.iterdump()) == before
+    assert plans.page(saved['plan_id'], 'alice')['state'] == 'CANCELLED'
 
 
 def test_concurrent_preparation_cannot_overflow_owner_bound(journal):

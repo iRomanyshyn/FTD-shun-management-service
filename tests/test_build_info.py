@@ -37,6 +37,17 @@ def test_checkout_is_unlabelled_and_mismatched_metadata_refused(tmp_path):
     with pytest.raises(ValueError): load_build(tmp_path)
 
 
+@pytest.mark.parametrize('name', ['mark.svg', 'banner.png', 'favicon.ico'])
+def test_build_binds_served_branding_bytes_including_raster_and_favicon(tmp_path, name):
+    root = inputs(tmp_path)
+    path = root / 'static' / 'branding' / name
+    path.parent.mkdir()
+    path.write_bytes(b'public asset version one')
+    first = source_build(root)
+    path.write_bytes(b'public asset version two')
+    assert source_build(root)['source_id'] != first['source_id']
+
+
 @pytest.mark.parametrize('target', ['static', 'src/secret.py'])
 def test_build_never_follows_symlinks_to_unrelated_inputs(tmp_path, target):
     root = inputs(tmp_path)

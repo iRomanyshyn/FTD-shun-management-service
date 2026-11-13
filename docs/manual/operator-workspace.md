@@ -5,6 +5,15 @@ Status and Queue remain beside the page heading on wide screens, and below it
 on narrow screens. Their existing activity/error indicators and live updates are
 unchanged. Open either panel for execution details.
 
+The compact **FTD Shun** header uses the terminal/banana symbol and a shared
+navy/teal palette. Light and dark browser themes keep distinct high-contrast
+action colors. Yellow is a restrained brand accent; protection/error/success
+badges retain their red/green meanings. Empty lists show a small decorative
+illustration beside readable state text. Banners stay in documentation, keeping
+search, actions and data near the top of working pages. See the
+[branding asset notes](../../static/branding/README.md) for editable masters and
+export instructions.
+
 Protected IPs describes what the service does: **automatically unblock this IP**
 on enabled devices after a successful check. Turning it off stops automatic
 unblocking; it does not add a block or turn auto-restore back on. If an imported
@@ -34,6 +43,32 @@ within its own frame when it cannot fit. No addresses, states or actions are
 truncated to fit the screen. Explanations and user-entered notes may still wrap.
 The layout supports both light and dark browser themes.
 
+The full product wordmark remains visible on narrow screens. Native tab loading
+uses a thin progress line above the header and a screen-reader announcement;
+it does not place a message over the logo. Page explanations use a consistent
+**About …** disclosure, initially closed, with the user's subsequent open/closed
+choice retained. Critical errors and confirmation consequences stay visible.
+
+Opening an IP frame or page shows all available cached registration/routing
+fields immediately, including separate Cymru registry/country/operator/date
+information when supplied. There is no second disclosure for these data. Only
+explanatory help is collapsible; opening the page still starts no provider query.
+
+## Useful history and quiet device checks
+
+History shows detections, changes, decisions and failures, omitting routine
+lease acquire/release and intermediate queue/ACK bookkeeping. Pagination counts
+and anchors use the same filtered event set. Original technical operation audit
+is still retained for execution/recovery and internal inspection.
+
+For a successfully completed ordinary visit without any device/global audit
+activity, only the original visit's temporary claim row is reclaimed and no
+release row is added. Current observations/last-check times still update.
+Operations, changes, failed/unknown sessions and deferred-confirmation profiles
+retain their original claim/settlement evidence. Old history is not bulk-erased.
+The metadata feed consumes observation events only, keeping its cursor stable
+when temporary coordination records disappear.
+
 Search is still universal across current, protected and historical addresses;
 it does not issue a Cisco command. The Unmanaged table's narrower filter does
 not restrict universal search. Observed/maintained states retain their meanings:
@@ -55,6 +90,10 @@ are read-only and preserve disclosures/focus; an open action review stays frozen
 
 The visible device cards in the IP workspace offer **Unblock…** and **Stop restoring…**.
 No disclosure must be opened first. There is no execution-mode choice to make.
+The current Managed overview keeps its paginated rules, import link, independent
+pauses and row actions. It has no separate action menu or duplicate address-selection
+forms below the list. Use a row's **Unblock**, **Protect** or **Details** action;
+the IP workspace provides policy-only stopping and complete multi-device actions.
 Unblock stops matching restoration and requests cleanup; Stop restoring leaves
 the existing device block unchanged. Device-disabled and protection warnings stay
 visible. **Unblock everywhere…** appears only for multiple devices and reviews
@@ -93,11 +132,10 @@ change policy or enqueue work. The same roles, CSRF, revision checks, explicit
 device selection, frozen review and final consent remain required. Normal page
 refresh hints are unchanged; reading local scope sends no device command.
 
-In Managed shuns, **Actions** above the list opens and focuses an existing
-editor below it. This shortcut does not submit a request. The same capability,
-identity, typed confirmation, frozen review and final consent checks still apply.
-Escape or clicking outside closes the shortcut menu. Each row's **Note** and
-**Activity** disclosures expose its author/import context and historical evidence.
+Each Managed row's **Note** and **Activity** disclosures expose its author/import
+context and historical evidence. Address actions belong to the row or IP workspace;
+there is no second address selector below the table. Frozen review and explicit
+confirmation still precede changes.
 
 Static reference text is available under **About**, **Rule details**, **What
 does pausing do?**, **Formats and limits**, and retention disclosures. Real errors,

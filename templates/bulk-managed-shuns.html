@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% from "managed-policy-ui.html" import behavior_help, policy_table %}
 {% from "pagination-ui.html" import pager %}
+{% from "empty-state.html" import empty %}
 {% block content %}
 <div class="page-heading"><h1>Managed shuns</h1>
 {% include "refresh-panel.html" %}
@@ -28,14 +29,6 @@
 </section>
 {% if refresh.runtime_mode != 'continuous-managed' %}<p class="policy-warning">Automatic blocking is unavailable in this service mode. {% if refresh.ready_removal_admission_enabled is not sameas true %}Combined removal is also unavailable.{% endif %} You can still review settings and use available stop-maintaining controls.</p>{% endif %}
 <section id="managed-shun-state" data-ip-context-list data-live-region>
-{% if ('Operator' in identity.roles or 'Administrator' in identity.roles) and (refresh.ready_removal_review_available is sameas true or refresh.ordered_removal_review_available is sameas true or (not managed.changed and managed.entries | selectattr('enabled') | list and refresh.managed_policy_retirement_available)) %}
-<nav class="action-shortcuts" aria-label="Managed actions">
-<span class="muted">Rules &amp; device actions</span>
-<details id="managed-action-menu" class="action-menu"><summary>Actions</summary><div>
-{% if not managed.changed and managed.entries | selectattr('enabled') | list and refresh.managed_policy_retirement_available %}<a href="#managed-retirement-options" data-open-details>Turn off auto-restore only</a>{% endif %}
-{% if refresh.ready_removal_review_available is sameas true %}<a href="#ready-removal-options" data-open-details>Turn off auto-restore and remove block</a>{% endif %}
-{% if refresh.ordered_removal_review_available is sameas true %}<a href="#ordered-removal-options" data-open-details>Remove after an addition in progress</a>{% endif %}
-</div></details></nav>{% endif %}
 {% if managed.changed %}
 <p role="status" class="policy-warning">Policy changed while browsing. <a href="/managed-shuns">Open the current policy</a> before continuing. No scope was rebased.</p>
 {% else %}
@@ -51,52 +44,12 @@
 {% endfor %}
 {% if groups.current %}<h2>Rules and items to review</h2>{{ policy_table(groups.current, identity=identity, refresh=refresh, csrf_token=csrf_token, new_operation_key=new_operation_key, ip_context=ip_context | default({})) }}
 {% elif managed.entries %}<p>No auto-restoring rules or active items on this page. Previous rules are kept in the history below; they do not schedule new restoration.</p>
-{% else %}<p>No saved auto-restore rules.</p>{% endif %}
+{% else %}{{ empty('No saved auto-restore rules.') }}{% endif %}
 {% if groups.history %}<details id="managed-restoration-off-history" class="managed-history"><summary>Auto-restore off — history ({{ groups.history | length }} on this page)</summary>
 <p>These rules no longer restore blocks, and no block was seen in the last device read. This is not a list of addresses to unblock automatically. If FTD blocks one again, it remains unmanaged unless you explicitly enable new maintenance or protect the IP.</p>
 {{ policy_table(groups.history, history=true, identity=identity, refresh=refresh, csrf_token=csrf_token, new_operation_key=new_operation_key, ip_context=ip_context | default({})) }}</details>{% endif %}
 {{ pager(managed.page, managed.pages, '/managed-shuns', {'revision': managed.revision}, page_summary, 'Managed policy pagination', 'bottom', 'managed-page', '', '/managed-shuns', 'Current policy') }}
 {% endif %}
-</section>
-<section id="managed-retirement-preparation" data-live-region data-live-editor>
-{% if not managed.changed and refresh.managed_policy_retirement_available and ('Operator' in identity.roles or 'Administrator' in identity.roles) %}
-{% set maintained = managed.entries | selectattr('enabled') | list %}{% if maintained %}
-<details id="managed-retirement-options"><summary>Turn off auto-restore only — leave device unchanged</summary>
-<p>This does not unblock the address or automatically remove future FTD-created blocks. Use Protected IPs for automatic unblocking.</p>
-<form method="post" action="/managed-shuns/retirement-review" class="import-confirm-form">
-<input type="hidden" name="csrf" value="{{ csrf_token }}"><label for="retirement-target">Exact target on this page</label><select id="retirement-target" name="target" required><option value="">Choose one device/IP</option>{% for entry in maintained %}<option value="{{ entry.device_id }}:{{ entry.ip }}">{{ entry.hostname }} — {{ entry.ip }}</option>{% endfor %}</select>
-<label for="retirement-reason">Reason (optional)</label><input id="retirement-reason" name="reason" maxlength="500"><button type="submit">Review turning off auto-restore</button></form>
-</details>{% endif %}{% endif %}
-</section>
-<section id="ready-removal-preparation" data-live-region data-live-editor>
-{% if refresh.ready_removal_review_available is sameas true and ('Operator' in identity.roles or 'Administrator' in identity.roles) %}
-<details id="ready-removal-options"><summary>Turn off auto-restore and remove block</summary>
-<p>Review first, then confirm. This option requires no conflicting work on the selected addresses. Disabled devices or unresolved operations block the whole request; nothing is silently skipped.</p>
-{% if not managed.changed and managed.entries %}
-<form method="post" action="/managed-shuns/v2/removal-review" class="import-confirm-form">
-<input type="hidden" name="csrf" value="{{ csrf_token }}">
-<label for="ready-removal-target">One exact target on this page</label><select id="ready-removal-target" name="target" required><option value="">Choose one device/IP</option>{% for entry in managed.entries %}<option value="{{ entry.device_id }}:{{ entry.ip }}">{{ entry.hostname }} — {{ entry.ip }}</option>{% endfor %}</select>
-<label for="ready-removal-reason">Reason (optional)</label><input id="ready-removal-reason" name="reason" maxlength="500"><button type="submit">Review one-device removal</button></form>
-{% endif %}
-<form method="post" action="/managed-shuns/v2/fleet-removal-review" class="import-confirm-form">
-<input type="hidden" name="csrf" value="{{ csrf_token }}">
-<label for="ready-fleet-ip">Exact IPv4 across all observed or maintained devices</label><input id="ready-fleet-ip" name="ip" autocomplete="off" inputmode="decimal" required>
-<label for="ready-fleet-reason">Reason (optional)</label><input id="ready-fleet-reason" name="reason" maxlength="500"><button type="submit">Review complete fleet scope</button></form>
-</details>{% endif %}
-</section>
-<section id="ordered-removal-preparation" data-live-region data-live-editor>
-{% if refresh.ordered_removal_review_available is sameas true and ('Operator' in identity.roles or 'Administrator' in identity.roles) %}
-<details id="ordered-removal-options"><summary>Remove after an addition already in progress</summary>
-<p>Stop maintaining and wait for the current addition to finish before removing the block. This needs separate confirmation. An unknown result stops the removal for attention; it is not retried automatically. Reviewing changes nothing.</p>
-{% if not managed.changed and managed.entries %}<form method="post" action="/managed-shuns/v2/ordered-removal-review" class="import-confirm-form">
-<input type="hidden" name="csrf" value="{{ csrf_token }}"><label for="ordered-removal-target">One exact target on this page</label>
-<select id="ordered-removal-target" name="target" required><option value="">Choose one device/IP</option>{% for entry in managed.entries %}<option value="{{ entry.device_id }}:{{ entry.ip }}">{{ entry.hostname }} — {{ entry.ip }}</option>{% endfor %}</select>
-<label for="ordered-removal-reason">Reason (optional)</label><input id="ordered-removal-reason" name="reason" maxlength="500"><button type="submit">Inspect one-device ordered removal</button></form>{% endif %}
-<form method="post" action="/managed-shuns/v2/ordered-fleet-removal-review" class="import-confirm-form">
-<input type="hidden" name="csrf" value="{{ csrf_token }}"><label for="ordered-fleet-ip">Exact IPv4 across all observed or maintained devices</label>
-<input id="ordered-fleet-ip" name="ip" autocomplete="off" inputmode="decimal" required><label for="ordered-fleet-reason">Reason (optional)</label>
-<input id="ordered-fleet-reason" name="reason" maxlength="500"><button type="submit">Inspect complete ordered fleet scope</button></form>
-</details>{% endif %}
 </section>
 <script src="/static/freshness.js" defer></script>
 {% endblock %}

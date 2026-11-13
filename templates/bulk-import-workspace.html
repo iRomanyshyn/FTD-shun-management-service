@@ -7,7 +7,7 @@
 {% if ip_context_enabled | default(false) and ip_context_target %}{% from "ip-context.html" import card %}
 <section id="ip-registration" data-live-region>{{ card(ip_context_target, ip_context) }}</section>{% endif %}
 
-<p class="page-intro">Block addresses on selected devices and automatically restore their blocks if they disappear. Review the list before confirming; nothing is applied at this step.</p>
+<details class="page-help" id="imports-page-help" data-ui-key="page-help-imports"><summary>About imports</summary><p class="page-intro">Block addresses on selected devices and automatically restore their blocks if they disappear. Review the list before confirming; nothing is applied at this step.</p></details>
 {{ steps(1) }}
 {% if message %}<p class="preview-error" role="alert">{{ message }}</p>{% endif %}
 {% if drafts is none %}<p class="policy-warning">Saved drafts could not be loaded. Creating an import is unavailable until the service recovers.</p>
@@ -43,7 +43,7 @@
 {% if receipts %}<div class="table-scroll"><table aria-label="Saved import confirmations"><thead><tr><th>Import</th><th>Accepted device/IP pairs</th><th>Confirmed</th></tr></thead><tbody>
 {% for item in receipts['items'] %}<tr><td><a href="/managed-imports/v2/receipts/{{ item.id }}" title="{{ item.id }}">View confirmation · {{ item.id[:8] }}</a></td><td>{{ item.accepted_count }} / {{ item.pair_count }}</td><td><time class="local-timestamp" datetime="{{ item.requested_at }}">{{ item.requested_at }}</time></td></tr>{% else %}<tr><td colspan="3">No confirmed imports yet.</td></tr>{% endfor %}
 </tbody></table></div>{% else %}<p class="policy-warning">Historical receipt state is unavailable; no empty/successful policy history is inferred.</p>{% endif %}
-<details class="technical-details"><summary>Storage limits</summary><p>Four retained drafts per owner / sixteen globally, including expired and cancelled drafts. They are not automatically deleted; service maintenance is needed when storage is full.</p></details>
+<p class="preview-help">Up to four active reviews per user and sixteen overall. Closed or expired drafts are cleaned up automatically on the next save or daily maintenance. Confirmed imports keep their own records.</p>
 <p><a href="/managed-imports/v2">Reload drafts / start a new import</a> · <a href="/imports">Text parser preview</a></p>
 <script src="/static/freshness.js" defer></script>
 <script src="/static/import-preview.js" defer></script>

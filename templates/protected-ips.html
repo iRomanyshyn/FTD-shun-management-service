@@ -1,12 +1,13 @@
 {% extends "base.html" %}
 {% from "ip-item.html" import item as ip_item %}
+{% from "empty-state.html" import empty %}
 {% block content %}
 <div class="page-heading"><h1>Protected IPs</h1>
 {% include "refresh-panel.html" %}
 </div>
 <p class="page-intro">Keep these IPs unblocked on all enabled devices. If a protected IP appears in Shuns, the service queues its removal.</p>
 <p class="compact-warning">Turning protection off does not block the IP again.</p>
-<details class="page-help" id="protected-page-help"><summary>How protection works</summary>
+<details class="page-help" id="protected-page-help" data-ui-key="page-help-protected"><summary>About Protected IPs</summary>
 <dl><dt>Protection on</dt><dd>After each successful device check, the service queues removal of any block for this IP. Saving does not unblock it immediately; follow progress in Queue.</dd>
 <dt>Protection off</dt><dd>The address stays in this list, but automatic unblocking stops. FTD may block it again. Deleting the entry also stops automatic unblocking.</dd>
 <dt>Previously imported IPs</dt><dd>Turning protection on also turns off auto-restore for this IP on every device. Turning protection off does not turn auto-restore back on. To have the service keep the IP blocked again, disable protection and create a new import.</dd></dl>
@@ -51,7 +52,7 @@
 <label>Type {{ entry.ip }} to confirm <input name="confirm_ip" required autocomplete="off"></label><button type="submit">Delete protected IP</button>
 </form></details>
 </article>
-{% else %}<p>No protected IPs. Automatic removal is disabled.</p>{% endfor %}
+{% else %}{{ empty('No protected IPs. Automatic removal is disabled.') }}{% endfor %}
 </section>
 <script src="/static/freshness.js" defer></script>
 {% endblock %}

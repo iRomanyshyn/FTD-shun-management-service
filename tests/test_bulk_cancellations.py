@@ -168,7 +168,7 @@ def test_retry_after_expiry_pruning_restart_and_new_grant_never_retires_new_gene
     _, newer = prepare(bulk)
     confirm(bulk, newer)
     clock[0] += timedelta(days=1)
-    assert policy.preparations.prune_expired() == 2
+    assert policy.preparations.prune_expired() == 1  # Earlier confirmed draft was reclaimed on the next save.
     restarted = BulkCancellations(Store(policy.store.path), clock=policy.clock)
     before = dump(policy.store)
     assert restarted.cancel(**args) == {**result, 'replayed': True}

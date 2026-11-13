@@ -77,7 +77,7 @@ def surface(composition, ordered, monkeypatch):
 
 async def review(client, *, fleet=False):
     page = await client.get('/managed-shuns')
-    assert page.status_code == 200 and 'ordered-removal-preparation' in page.text
+    assert page.status_code == 200 and '<h1>Managed shuns</h1>' in page.text
     response = await client.post('/managed-shuns/v2/' + ('ordered-fleet-removal-review' if fleet else 'ordered-removal-review'),
         data={'csrf': client.cookies.get('ftd_shun_csrf'), 'reason': 'Synthetic ordered removal',
               **({'ip': str(IP)} if fleet else {'target': f'1:{IP}'})})
