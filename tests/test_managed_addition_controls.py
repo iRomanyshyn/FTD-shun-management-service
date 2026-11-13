@@ -63,7 +63,8 @@ def test_explicit_initialization_is_idempotent_and_preserves_original_policy(bul
 
 def test_control_profile_is_not_silently_accepted_by_old_writer(bulk, controls, monkeypatch):
     original = bulk_policy._expected
-    monkeypatch.setattr(bulk_policy, '_expected', lambda *args: original(*args[:-1]))
+    # This simulated writer predates both controls and the later offline-v7 flag.
+    monkeypatch.setattr(bulk_policy, '_expected', lambda *args: original(*args[:13]))
     with controls.store._connection() as db, pytest.raises(BulkUnavailable):
         _state(db)
 

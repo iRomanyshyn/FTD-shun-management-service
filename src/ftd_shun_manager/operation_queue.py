@@ -1021,6 +1021,10 @@ class OperationQueue:
                 preserve += """ AND NOT EXISTS (SELECT 1 FROM managed_bulk_pending_members m
                     WHERE m.job_id=operation_jobs.id)"""
                 preserve += ' AND NOT EXISTS (SELECT 1 FROM (' + RETAINED_CLAIMS + ') h WHERE h.job_id=operation_jobs.id)'
+                from .pending_offline import present as offline_pending_present
+                if offline_pending_present(db):
+                    preserve += """ AND NOT EXISTS(SELECT 1 FROM managed_bulk_pending_classifications c,
+                        json_each(c.receipt_json,'$.claims') b WHERE json_extract(b.value,'$[0]')=operation_jobs.id)"""
             if retries_present(db):
                 validate_retained_jobs(db)
                 preserve += """ AND NOT EXISTS (SELECT 1 FROM managed_bulk_pending_retries r

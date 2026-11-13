@@ -260,6 +260,14 @@ profile-specific checks bind these records together.
 
 These stores are **not additional active peers** in the main diagrams:
 
+- Source0.14.0's explicit offline-v7 recovery extends only an experimental DB
+  with `managed_bulk_pending_classifications` and
+  `managed_bulk_pending_offline_recovery`. Immutable JSON classification records
+  bind original epoch/actor/review and job/attempt SHA-256 hashes; compact receipt
+  markers link the separate decision to shared reconciliation/recovery evidence.
+  There is no new socket/network or agent authority. The original main v6 DB has
+  neither table. See [Interrupted v7 Recovery](interrupted-v7-recovery.md).
+
 - `state.db` and other retained experimental DBs are older/separate lab state.
   They are not synchronized with `managed-v2.db` or silently selected at startup.
 - The old RDAP `cache.db` remains retained in the metadata volume. The current

@@ -263,7 +263,19 @@ def refresh_metadata(refresh: object) -> dict[str, object]:
         "interactive_min_interval_seconds",
         "interactive_refresh_state",
     )
-    return {field: refresh.get(field) for field in fields}
+    return {**{field: refresh.get(field) for field in fields},
+            "protected_counts": protected_counts(refresh)}
+
+
+def protected_counts(refresh: dict) -> dict[str, int] | None:
+    """Summarize existing status data; missing policy data is not an empty policy."""
+    groups = [refresh.get(key) for key in ('trusted_auto_remove_ips', 'disabled_protected_ips')]
+    if any(not isinstance(group, list) for group in groups):
+        return None
+    if any(not isinstance(entry, dict) or not isinstance(entry.get('ip'), str)
+           for group in groups for entry in group):
+        return None
+    return dict(zip(('enabled', 'disabled'), (len(group) for group in groups), strict=True))
 
 
 def create_app(settings: Settings | None = None, *, ready_removal_admission_enabled=False,
@@ -308,6 +320,9 @@ def create_app(settings: Settings | None = None, *, ready_removal_admission_enab
 
     def render(request: Request, name: str, context: dict, status_code: int = 200) -> HTMLResponse:
         context = dict(context)
+        context.setdefault('control_request_ids', {kind: str(uuid4()) for kind in ('imports', 'restoration')})
+        if type(context.get('refresh')) is dict:
+            context['refresh'] = {**context['refresh'], 'protected_counts': protected_counts(context['refresh'])}
         target = context.get('ip')
         review = context.get('review')
         if target is None and review is not None:
@@ -710,7 +725,7 @@ def create_app(settings: Settings | None = None, *, ready_removal_admission_enab
                 response = client.post('/api/v2/managed-additions/control', headers={'Idempotency-Key': str(request_id)},
                                        json={'actor': identity.__dict__, 'kind': kind, 'action': action.upper(), 'revision': revision})
         except httpx.HTTPError as error:
-            raise HTTPException(503, 'Pause status is unknown. Check Managed shuns; retry only the same request key.') from error
+            raise HTTPException(503, 'Pause status is unknown. Check Status; retry only the same request key.') from error
         return queued_result(request, response, '/managed-shuns')
 
     def require_managed_operator(identity):

@@ -9,22 +9,24 @@ const initial = () => ({ refresh_schedule_mode: "per_device", refresh_enabled: t
   devices: { "1": { state: "ready", active: false, refresh_pending: false } }, device_cycles: {} });
 const timing = (baseline = 270, interactive = 30) => (key) => ({ baseline, interactive })[key] ?? null;
 
-test('operator ADD pause is neutral and does not hide real attention', () => {
-  const status = { managed_addition_controls: { available: true, imports: { paused: true }, restoration: { paused: true } }, queue: { counts: { QUEUED: 16 } } };
-  const view = queuePresentation(status);
-  assert.equal(view.activity, 'paused');
-  assert.equal(view.attention, false);
-  assert.equal(view.badge, 'ADD paused');
-  assert.match(view.description, /Monitoring, removals and Protected-IP unblocking continue/);
+test('operator scheduling pauses belong to Status while Queue keeps work counts', () => {
+  const status = { ...initial(), managed_addition_controls: { available: true, imports: { paused: true }, restoration: { paused: true } }, queue: { counts: { QUEUED: 16 } } };
+  assert.equal(queuePresentation(status).activity, 'waiting');
+  assert.equal(queuePresentation(status).badge, '16');
+  assert.equal(refreshPresentation(status, timing()).badge, '2 paused');
+  assert.equal(refreshPresentation(status, timing()).activity, 'paused');
+  assert.equal(refreshPresentation(status, timing()).attention, false);
+  assert.match(refreshPresentation(status, timing()).description, /Imports paused.*Automatic restoration paused/);
   status.managed_addition_controls.restoration.paused = false;
-  assert.equal(queuePresentation(status).badge, 'Imports paused');
-  status.managed_addition_controls.imports.paused = false;
-  status.managed_addition_controls.restoration.paused = true;
-  assert.equal(queuePresentation(status).badge, 'Restore paused');
+  assert.equal(refreshPresentation(status, timing()).badge, '1 paused');
+  status.pending_refresh_device_count = 1;
+  assert.equal(refreshPresentation(status, timing()).badge, '30s · 1 paused');
   status.queue.counts.UNVERIFIED = 1;
   assert.equal(queuePresentation(status).attention, true);
   status.queue.counts.RUNNING = 1;
   assert.equal(queuePresentation(status).activity, 'busy');
+  status.managed_addition_controls.available = false;
+  assert.doesNotMatch(refreshPresentation(status, timing()).badge, /paused/);
 });
 
 test('pending confirmation is neutral waiting, not a failed or completed write', () => {

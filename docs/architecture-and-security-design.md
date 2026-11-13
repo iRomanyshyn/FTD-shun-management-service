@@ -1,5 +1,29 @@
 # FTD Shun Management Service
 
+## Explicit offline interrupted-v7 recovery — 2026-11-13
+
+An expired interrupted tracked-v7 ADD visit without usable completion proof may
+be handled by a separate explicit offline procedure after API/Web/agent are
+actually stopped. It must not manufacture END settlement or observation. First
+classify only the exact original RUNNING managed ADD claims as UNVERIFIED and
+retain the original claim/ACK/checkpoint audit, while leaving an ATTENTION fence.
+Existing terminal outcomes remain unchanged. A separate fresh whole-database
+review may then reconcile the complete unknown scope and release that same epoch,
+retaining original unknowns and policy. No command is replayed. The next scheduler
+visit must start a complete device read after the recovery decision before new
+currently authorized work can be admitted.
+
+The optional storage marker and immutable classification/compact receipt records
+must be installed only by explicit offline apply, never startup or GET. Existing
+profiles and old writers keep their refusal behavior. Bound the complete visit to
+64 managed v7 ADD claims, at most16 unfinished claims, with no queued/awaiting,
+foreign owned, failed or captured cleanup work. No REMOVE uncertainty is covered.
+Every apply requires an unexpired exact review, fresh maintenance identity/key,
+caller-owned transaction and exclusive checked backup. Classification alone never
+releases the fence; reconciliation never infers success from later presence.
+
+This is a source capability, not persistent v7 activation on the original lab.
+
 ## Quiet visits, useful history and reusable draft capacity — 2026-11-13
 
 Operator history should present changes, user decisions and failures, excluding

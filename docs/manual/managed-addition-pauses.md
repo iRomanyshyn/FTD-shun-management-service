@@ -2,7 +2,7 @@
 
 ## Operator controls
 
-Open **Managed shuns → Pause controls**. Operators and Administrators have two
+Open **Status → Scheduling** from any working page. Operators and Administrators have two
 independent controls:
 
 | Control | Stops new work | Keeps working |
@@ -17,9 +17,12 @@ is checked transactionally before the next claim/admission, not by interrupting
 SSH. Normal request expiry still applies to unsent jobs; saved standing rules
 remain and can produce fresh eligible work later.
 
-Queue shows a neutral **Imports paused**, **Restore paused** or **ADD paused**
-badge. Real running work/errors remain visible. Status describes the active pause
-and links back to its controls. Operator pause is not a red error.
+Status shows a neutral **1 paused** or **2 paused** count and keeps both Pause/
+Resume buttons next to their named state. The Managed shuns navigation link repeats
+this count of paused scheduling controls (not a count of blocked addresses).
+Monitoring, activity and error indicators stay independent. Queue keeps its actual
+work counts; it does not use operator pauses as a substitute for queue progress.
+An operator pause is not a red error.
 
 ## Initial application versus restoration
 

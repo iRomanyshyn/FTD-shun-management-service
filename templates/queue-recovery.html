@@ -12,7 +12,11 @@
 <section>
 <h2>{{ device.hostname }}</h2>
 <p>Session {{ device.epoch }} · <span class="state-badge">{{ device.state }}</span></p>
-{% if device.eligible %}
+{% if device.pending_v7_phase | default('') %}
+<p>{{ device.claims }} original operation(s), including {{ device.unknown }} interrupted or unverified. Stop API/Web/agent before applying the separate offline v7 procedure.</p>
+<p>{% if device.pending_v7_phase == 'classify' %}First classify the interrupted operations as unknown. This keeps the device on hold. Then obtain a fresh reconciliation review.{% else %}The interrupted operations have been classified. A fresh reconciliation review can release this session while preserving their unknown outcomes.{% endif %}</p>
+<p>Use <code>python -m ftd_shun_manager.pending_offline {{ 'inspect' if device.pending_v7_phase == 'classify' else 'inspect-reconciliation' }} --database /absolute/path/to/test.db --device {{ device.id }}</code> on the trusted host or stopped-service maintenance container. Follow <code>docs/manual/interrupted-v7-recovery.md</code> for checked backups and apply commands. The verified-v6 lab helper does not support this profile.</p>
+{% elif device.eligible %}
 <p>{{ device.claims }} original operation(s), including {{ device.unknown }} unverified. Eligible for a fresh offline recovery review, not authorization to replay them.</p>
 {% if device.lab_assistance %}
 <p>Known single-device desk lab only. This command briefly stops the entire lab API/Web/agent, not just this page.</p>

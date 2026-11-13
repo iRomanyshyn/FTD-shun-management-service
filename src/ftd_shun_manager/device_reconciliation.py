@@ -121,7 +121,7 @@ def validate(db):
             raise BulkUnavailable('The complete reconciled unknown scope is missing or inconsistent.')
 
 
-def inspect(database, device_id, *, now=None, extended_v6=False):
+def inspect(database, device_id, *, now=None, extended_v6=False, pending_v7=False):
     current = now or datetime.now(UTC)
     if current.tzinfo is None or current.utcoffset() != timedelta(0):
         raise ValueError('Reconciliation time must be explicit UTC.')
@@ -129,14 +129,16 @@ def inspect(database, device_id, *, now=None, extended_v6=False):
     with closing(sqlite3.connect(path.as_uri() + '?mode=ro', uri=True)) as db:
         db.row_factory = sqlite3.Row
         db.execute('BEGIN')
-        review = _review(db, Store(path), device_id, current, reconcile=True, extended_v6=extended_v6)
-        return {**review, 'mode': MODE, 'reviewed_at': stamp(current), 'review_digest': _digest(db, extended_v6=extended_v6),
+        review = _review(db, Store(path), device_id, current, reconcile=True, extended_v6=extended_v6, pending_v7=pending_v7)
+        return {**review, 'mode': MODE, 'reviewed_at': stamp(current), 'review_digest': _digest(db, extended_v6=extended_v6, pending_v7=pending_v7),
                 'read_only': True, 'original_outcomes_unchanged': True}
 
 
-def reconcile(db, store, device_id, key, actor, reviewed_at, review_digest, *, offline=False, now=None, extended_v6=False):
+def reconcile(db, store, device_id, key, actor, reviewed_at, review_digest, *, offline=False, now=None, extended_v6=False, pending_v7=False):
     if type(extended_v6) is not bool:
         raise ValueError('Extended v6 recovery requires a literal explicit selection.')
+    if type(pending_v7) is not bool or (pending_v7 and extended_v6):
+        raise ValueError('Select one literal offline recovery profile.')
     if offline is not True or not db.in_transaction:
         raise ValueError('Stop API/Web/agent and explicitly attest offline quiescence.')
     if type(device_id) is not int or not 1 <= device_id <= 65535:
@@ -153,21 +155,25 @@ def reconcile(db, store, device_id, key, actor, reviewed_at, review_digest, *, o
                 receipt = json.loads(old['receipt_json'])
                 if (old['device_id'], old['actor_subject'], old['review_digest'], receipt.get('mode')) != (device_id, subject, review_digest, MODE):
                     raise ValueError('Reconciliation key is bound to another decision.')
-                if (receipt.get('recovery_profile') == 'tracked-v6') is not extended_v6:
+                if ((receipt.get('recovery_profile') == 'tracked-v6') is not extended_v6
+                        or (receipt.get('recovery_profile') == 'tracked-v7-interrupted') is not pending_v7):
                     raise ValueError('Reconciliation key belongs to another profile selection.')
                 return {**expanded(receipt), 'replayed': True}
         reviewed = datetime.fromisoformat(reviewed_at)
         if (reviewed.tzinfo is None or reviewed.utcoffset() != timedelta(0) or stamp(reviewed) != reviewed_at
                 or not reviewed <= current <= reviewed + timedelta(minutes=5)
                 or type(review_digest) is not str or len(review_digest) != 64
-                or not hmac.compare_digest(_digest(db, extended_v6=extended_v6), review_digest)):
+                or not hmac.compare_digest(_digest(db, extended_v6=extended_v6, pending_v7=pending_v7), review_digest)):
             raise ValueError('The review is expired or the database changed; inspect again.')
-        review = _review(db, store, device_id, current, reconcile=True, extended_v6=extended_v6)
+        review = _review(db, store, device_id, current, reconcile=True, extended_v6=extended_v6, pending_v7=pending_v7)
         _key_free(db, key)
         if not recovery_present(db):
             execute_schema(db, RECOVERY_DDL)
         if not present(db):
             execute_schema(db, DDL)
+        if pending_v7 and not db.execute("SELECT 1 FROM sqlite_master WHERE name='managed_bulk_pending_offline_release'").fetchone():
+            from .pending_offline import RELEASE_DDL
+            execute_schema(db, RELEASE_DDL)
         unknown = [claim for claim in review['claims'] if claim['state'] == 'UNVERIFIED']
         if (db.execute(f'SELECT COUNT(*) FROM {TABLE}').fetchone()[0] + len(unknown) > LIMIT
                 or db.execute('SELECT COUNT(*) FROM managed_bulk_device_recovery').fetchone()[0] >= 4096):

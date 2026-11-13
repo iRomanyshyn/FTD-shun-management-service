@@ -2,8 +2,8 @@
 
 The interface puts search, observations and actions before reference material.
 Status and Queue remain beside the page heading on wide screens, and below it
-on narrow screens. Their existing activity/error indicators and live updates are
-unchanged. Open either panel for execution details.
+on narrow screens. Status holds monitoring and scheduling controls; Queue shows current work and
+unresolved results. Both retain independent activity/error indicators and live updates.
 
 The compact **FTD Shun** header uses the terminal/banana symbol and a shared
 navy/teal palette. Light and dark browser themes keep distinct high-contrast
@@ -22,9 +22,17 @@ The short page explanation stays visible; timing, concurrent edits and the
 imported-IP example live under **How protection works** and in the
 [Protected IPs manual](protected-ips.md#what-the-switches-mean).
 
-Each execution pause has its own compact outlined group: name, state and button
-stay together rather than stretching across the available width. The groups
-wrap independently on small screens.
+Open **Status → Scheduling** to pause or resume imports and automatic restoration
+independently, from any working page. Each name, state and button stays in one
+outlined group, wrapping on narrow screens. Managed shuns shows a compact pause
+count in navigation and a Status shortcut rather than a second control panel.
+
+Protected IPs navigation shows **enabled / disabled** counts in green/red, with
+text labels in its tooltip/accessibility description. These summarize the existing
+policy status, not the number currently blocked. Missing policy data hides counts
+instead of inventing zeroes. Counts update through ordinary status polling; they
+do not query FTD or metadata providers. Navigation loading messages use the tab
+name, without its changing counts. Adjacent labels and actions share one text size.
 
 Queue is for current work and unresolved attention, not a history viewer.
 Finished operations, completed/cancelled imports without attention, and reviewed

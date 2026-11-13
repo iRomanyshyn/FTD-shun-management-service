@@ -14,6 +14,12 @@ exact host command for the known **single-device fpr1010-lab** inventory only.
 For other targets use [the existing offline procedure](quiescent-managed-reconciliation.md).
 No online fence-release endpoint or automatic unknown-write replay exists.
 
+Experimental interrupted-v7 visits use a separate source0.14.0
+[offline procedure](interrupted-v7-recovery.md). Their report identifies whether
+classification or a new reconciliation review is needed, and does not advertise
+the verified-v6 lab helper. Actual quiescence and separate checked backups remain
+required; no old outcome becomes verified and no original job is replayed.
+
 On the Docker host, open the repository root and activate its Python environment.
 Use the command shown on the page, for example (values are placeholders):
 

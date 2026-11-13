@@ -105,6 +105,7 @@ not a runbook or permission to change gates, initialize schemas or run new fixtu
 | [Multi-group Import Sessions](multi-group-sessions.md) | Explicit matched v6, up to 64 attempts in 240 seconds, fresh bounded refill between verified groups, retained priority/cancellation and uncertainty. |
 | [Deferred First Confirmation](deferred-confirmation.md) | Default-off configured v7, exact fresh storage, handoff/confirmation, lost-terminal lookup and retries; no unknown replay or live activation. |
 | [Interrupted Pending Handoff](pending-restart-recovery.md) | Exact API-crash recovery from a pre-END checkpoint and completed agent journal; no old ADD replay or historical unknown release. |
+| [Interrupted v7 Without Completion Proof](interrupted-v7-recovery.md) | Explicit stopped-executor classification and separately reviewed reconciliation; original unknowns retained, no old ADD replay, mandatory new device read. |
 | [Persistent Agent Completion Evidence](agent-pending-journal.md) | Optional agent-only completed-v7 journal across restart; strict storage checks, no unknown replay or main-lab activation. |
 | [IP Actions](ip-actions.md) | Visible row actions, compact unblock dialogs, explicit button consent and original-request retry. |
 | [IP Registration Information](ip-context.md) | Optional isolated IPFire dataset, local backfill/periodic refresh and country/ASN/operator in rows and dialogs. |

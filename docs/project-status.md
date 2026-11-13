@@ -23,6 +23,99 @@ Team Cymru is now enabled as the optional supplemental metadata source described
 below: bounded background batches/cache for missing IPFire ASN/network information,
 distinct attribution and no page-triggered queries. Local IPFire remains primary.
 
+## Web v0.14.1 lab — Status scheduling and compact navigation, 2026-11-13
+
+Import/restoration Pause and Resume now live together in **Status → Scheduling**
+on working pages. The two controls remain independent; existing blocks, reads,
+removals and Protected-IP unblocking continue. Status and Managed navigation show
+one/two paused controls without hiding activity or errors. Queue keeps actual
+work/attention counts. Managed retains a small Status shortcut and Import action.
+Protected navigation shows green enabled / red disabled counts from existing
+status data, with accessible descriptions; unavailable data is not zero. Initial
+HTML and ordinary polling agree, with no extra API/device/provider lookup.
+Adjacent action/control typography is shared; mobile groups stay together.
+Interrupted control replies retain the exact action/revision/key for explicit
+retry; polling does not repeat the POST. Real actor/CSRF/revision/gates remain.
+
+Affected Python345 pass65.79s; final Chromium partitions35+36 scenarios and38 pure
+presentation checks pass95.40s/89.98s (two harness parents). Initial partition0
+had one obsolete hidden-text assertion plus parent failure; corrected and repeated
+clean. Final dedicated controls subcase+parent2 pass23.65s,70 skipped, covers lost
+reply/exact retry, live counts and375/960/1440/1920px. Light/dark screenshots were
+inspected. Ruff/compileall/JS/diff pass. No new full Python/Rust run or live
+operator-control/device-write acceptance is claimed; fixtures are synthetic.
+
+Only Web replaced at18:30:49.068997708Z: image
+`sha256:c892197c679bac2d5e09e0a94ca5a4ff17e4b142d4adba5764469f74d958c872`,
+container `c59b95d07f1e58af56d656062b3d30233defb2512d1e9cd0790859bc94493acd`,
+version/source0.14.1/`d632cacd1756`. Package/build/footer/45 templates/66 routes,
+actual readonly v6 API/cache preflight, Web200/ten anonymous401/33 served assets
+match. Six other service image/container/start identities remain exact, including
+API/feed0.13.0, current v6 agent and approved Cymru worker0.11.0. Integrityok,
+27 authority fingerprints, original audit prefix and all26 unknown outcomes match;
+32426 observations retained. Fresh read18:30:57Z/errornone, epoch4323 IDLE.
+No live pause/resume/policy/job/recovery request or FTD command was submitted.
+Prepared source-v0.14.0 recovery code/gates are not activated by this Web rollout.
+Rollback `ftd-shun-web:lab-pre-status-controls-20261113`; evidence
+`/tmp/ftd-status-controls-20261113`. Reload existing tabs. Next bulk recovery/
+lifecycle acceptance and planned per-import unblocking remain.
+
+## Source v0.14.0 — explicit interrupted-v7 offline recovery
+
+Added a separate two-step offline procedure when a bounded managed-v7 ADD visit
+lacks usable completion proof. Classification changes only original unfinished
+ADD claims to UNVERIFIED, retains known outcomes/audit and keeps ATTENTION.
+A fresh whole-DB reconciliation review can release that original epoch while
+retaining unknown results and policy. No ADD/END/SSH is replayed. Normal scheduling
+requires a complete device read starting after the decision before new work.
+Current import/restoration pauses, protection and retirement remain effective.
+
+The explicit optional profile retains immutable classification and compact-v7
+receipt markers, exact job/attempt hashes, original audit and key reservations.
+Old writers refuse it. No startup/GET initialization, legacy converter, online
+fence release or agent/wire change. Scope:1–64 managed ADD claims, at most16
+unfinished, no queued/awaiting/foreign unknown/captured cleanup work. The report
+distinguishes classification from reconciliation and does not offer the v6 host
+helper. See [Offline v7 Recovery](manual/interrupted-v7-recovery.md).
+
+Full Python4025 pass/two obsolete test expectations failed/four optional skips
+in748.06s. Corrected the removed Managed form expectation and the old-writer
+simulator's positional flag slicing. Final affected109 pass17.41s, focused255
+pass126.74s/four skips; read-only Queue Chromium subcase+parent2 pass4.87s.
+Late tests include missing final stage ACK, recorded failure after last renewal,
+old-writer rejection and unclassified ATTENTION guidance. Ruff/compileall/diff
+pass. No clean second full Python, new Rust or authenticated live-browser claimed.
+
+Actual separate-profile FPR acceptance imported only198.51.100.179, intentionally
+lost process-local completion proof after a settled ADD, retained the hold, then
+used the real CLI with two checked backups/fresh keys. Original ADD stayed
+UNVERIFIED, next causal read found presence, attention0/reviewed history1,
+no repeated ADD or fabricated completion/creation. Fresh cleanup REMOVE VERIFIED,
+policy retired/fixture absent/test executor IDLE. Four SSH visits/one ADD/one
+REMOVE. Original writers exited0 before test, test writers exited0 before return.
+Original API/agent/Web containers/images restarted18:02:36Z; main remains v6,
+API/feed0.13.0/Web0.13.1/worker0.11.0. No main profile/authority/credential/trust/
+network change. Feed/worker/Caddy/Authelia exact start identities unchanged.
+Read18:02:58Z/errornone/32426 observed/26 historical unknowns, integrityok/original
+authority hashes/audit prefix unchanged; fixture/authority/new profile absent.
+Web200/ten anonymous401/33 assets/package/footer/build match.
+
+Execution acceptance image `ed543e34e527...`/source2945b163eae0/version0.14.0.
+Final source artifact `888cd8e588ba...`/source1cc51cc4a1ad differs only by the
+read-only unclassified-ATTENTION guidance correction; final affected tests and
+actual recovered-profile preflight/package/build/footer/44 templates pass.
+Neither image replaced a main service. Evidence `/tmp/ftd-pending-offline-20261113`
+and `/tmp/ftd-fpr-offline-20261113`, including checked before copies, original
+failures/final passes and retained separate volumes/consumed requests. Next
+broader live-interruption/lifecycle checks and deliberate fresh-store v7 cutover;
+per-import unblocking remains the next functional cleanup feature.
+
+Known next recovery gap: a before-checkpoint restart can reach ordinary lease
+expiry, whose global-queue finishing path does not retain per-device terminal
+attribution. This new fallback deliberately refuses that incomplete audit.
+Extend the real expiry path/evidence contract and test it before claiming general
+active-session recovery or persistent cutover; do not invent/backdate audit.
+
 ## Current Web v0.13.1 — direct Managed actions and real restart acceptance
 
 Removed the current Managed overview's duplicate bottom retirement/ready/ordered

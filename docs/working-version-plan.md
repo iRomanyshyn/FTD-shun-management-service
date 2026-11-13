@@ -5,6 +5,12 @@ Status: approved target behavior and delivery plan; not a deployment procedure.
 
 ## Next delivery alignment — 2026-11-12
 
+Web0.14.1 (2026-11-13) keeps independent import/restoration pauses and Resume in
+Status, with compact Managed pause and Protected enabled/disabled navigation
+counts. Queue is reserved for current work/attention. This Web-only lab delivery
+does not activate prepared recovery profiles or alter the bulk delivery order.
+See manual/operator-workspace.md and current status.
+
 Source0.12.0 (2026-11-13) adds optional agent-private persistence for completed
 pending-v7 receipts. Exact existing checkpoint/ACK/fence recovery can use that
 proof after an agent restart; missing/active/corrupt or historical unknown
@@ -13,9 +19,15 @@ passes on disposable synthetic stores. On2026-11-13 a separate one-address FPR
 acceptance also passed: API exit after settled END/before handoff, real hard agent
 restart, exact persisted receipt, automatic expired-lease recovery and causal
 presence confirmation without another ADD. Fresh verified cleanup left the test
-address absent. Main v6/original authority remain unchanged. Interrupted-session,
-broader lifecycle and genuinely missing-proof recovery remain before persistent
-deferred cutover. See manual/agent-pending-journal.md and current status.
+address absent. Main v6/original authority remain unchanged. Source0.14.0 now
+provides a separate explicit offline fallback for interrupted managed-v7 ADDs
+without completion proof: classify unfinished claims as unknown, then separately
+review/reconcile their whole scope. Original results/policy remain and a new
+complete read is mandatory before new work. Bounded actual FPR missing-proof
+acceptance passed with one ADD/one verified cleanup, without another ADD.
+Broader live-interruption/lifecycle acceptance and deliberate fresh-store cutover
+remain; uncertain REMOVE and captured cleanup are outside this fallback. See
+manual/interrupted-v7-recovery.md, manual/agent-pending-journal.md and current status.
 
 The operator accepted returning to bulk-import execution/confirmation and bounded
 FPR acceptance, followed by integrated lifecycle checks, per-import unblocking and

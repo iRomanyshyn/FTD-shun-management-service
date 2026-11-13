@@ -80,6 +80,97 @@ background bulk/cache work, distinct attribution and no page-triggered queries.
 Current provider remains IPFire; no Cymru activation or runtime change follows
 from this documentation update. See working-version-plan.md and manual/ip-context.md.
 
+## Web v0.14.1 lab — Status scheduling and compact navigation, 2026-11-13
+
+Import/restoration Pause and Resume now live together in **Status → Scheduling**
+on working pages. The two controls remain independent; existing blocks, reads,
+removals and Protected-IP unblocking continue. Status and Managed navigation show
+one/two paused controls without hiding activity or errors. Queue keeps actual
+work/attention counts. Managed retains a small Status shortcut and Import action.
+Protected navigation shows green enabled / red disabled counts from existing
+status data, with accessible descriptions; unavailable data is not zero. Initial
+HTML and ordinary polling agree, with no extra API/device/provider lookup.
+Adjacent action/control typography is shared; mobile groups stay together.
+Interrupted control replies retain the exact action/revision/key for explicit
+retry; polling does not repeat the POST. Real actor/CSRF/revision/gates remain.
+
+Affected Python345 pass65.79s; final Chromium partitions35+36 scenarios and38 pure
+presentation checks pass95.40s/89.98s (two harness parents). Initial partition0
+had one obsolete hidden-text assertion plus parent failure; corrected and repeated
+clean. Final dedicated controls subcase+parent2 pass23.65s,70 skipped, covers lost
+reply/exact retry, live counts and375/960/1440/1920px. Light/dark screenshots were
+inspected. Ruff/compileall/JS/diff pass. No new full Python/Rust run or live
+operator-control/device-write acceptance is claimed; fixtures are synthetic.
+
+Only Web replaced at18:30:49.068997708Z: image
+`sha256:c892197c679bac2d5e09e0a94ca5a4ff17e4b142d4adba5764469f74d958c872`,
+container `c59b95d07f1e58af56d656062b3d30233defb2512d1e9cd0790859bc94493acd`,
+version/source0.14.1/`d632cacd1756`. Package/build/footer/45 templates/66 routes,
+actual readonly v6 API/cache preflight, Web200/ten anonymous401/33 served assets
+match. Six other service image/container/start identities remain exact, including
+API/feed0.13.0, current v6 agent and approved Cymru worker0.11.0. Integrityok,
+27 authority fingerprints, original audit prefix and all26 unknown outcomes match;
+32426 observations retained. Fresh read18:30:57Z/errornone, epoch4323 IDLE.
+No live pause/resume/policy/job/recovery request or FTD command was submitted.
+Prepared source-v0.14.0 recovery code/gates are not activated by this Web rollout.
+Rollback `ftd-shun-web:lab-pre-status-controls-20261113`; evidence
+`/tmp/ftd-status-controls-20261113`. Reload existing tabs. Next bulk recovery/
+lifecycle acceptance and planned per-import unblocking remain.
+
+## Source v0.14.0 — interrupted-v7 offline recovery accepted, 2026-11-13
+
+Separate explicit stopped-executor procedure, not automatic missing-proof success:
+`python -m ftd_shun_manager.pending_offline` inspect/classify, then a fresh
+inspect-reconciliation/reconcile. Classify only exact unfinished managed-v7 ADDs
+as UNVERIFIED and retain ATTENTION. Second backup/review/decision can release only
+that original epoch, retaining unknowns/policy. No command replay or fabricated
+END/creation. A post-decision complete read is required before new current-policy
+work. Both pauses/Protected/retired rules stay effective.1–64 complete claims,
+<=16 unfinished, no queued/awaiting/foreign unresolved/captured cleanup/uncertain
+REMOVE. Optional immutable classification/compact marker profile; no GET/startup
+initialization or v6 conversion. Old writers refuse it. Preserve referenced job/
+attempt hashes, claims/ACK/checkpoint/classification audit and key reservations.
+Queue report distinguishes phases and never offers the v6 helper for this mode.
+See manual/interrupted-v7-recovery.md and normative architecture amendment.
+
+Python full4025 pass/two obsolete expectations failed/four optional skips748.06s.
+Removed-form expectation and old control-writer positional simulator corrected;
+final affected109 pass17.41s, focused255 pass126.74s/four skips. Late tests include
+lost stage ACK, last-renewal timing, unknown ATTENTION phase and exact old-writer
+refusal. Chromium recovery subcase+parent2 pass4.87s. Ruff/compileall/diff pass.
+No clean second full Python/new Rust/live authenticated-browser claim.
+
+Real separate-profile test only198.51.100.179: one settled ADD, API test exit86
+before handoff, hard agent exit137/restart with process-local proof genuinely
+lost, original RUNNING/expired lease retained. Both writers then exited0. Real
+CLI classification50726c63... and fresh reconciliationf34be643... took two checked
+backups, retained old ADD UNVERIFIED and policy, released exact epoch2. Next causal
+read17:59:13Z found present with attention0/reviewed history1/no repeated ADD.
+Fresh REMOVE VERIFIED/read18:00:29Z, target retired/absent, executor4 IDLE. Four
+SSH visits/one ADD/one REMOVE. No persistent journal was deleted or manufactured.
+Keep separate volumes/DB/requests/backups/evidence; consumed keys are historical.
+
+Execution imageed543e34e527.../source2945b163eae0. Final artifact888cd8e588ba.../
+source1cc51cc4a1ad/version0.14.0 adds only the readonly unclassified-ATTENTION
+guidance correction; final tests, real recovered-profile preflight, installed
+package/source/footer/44 templates pass. Neither replaced a main service.
+Original main agent/API/Web containers/images restarted18:02:36Z, same verifiedv6/
+API+feed0.13.0/Web0.13.1; feed/worker/Caddy/Authelia start identities unchanged,
+worker0.11.0/Cymru still approved. Read18:02:58Z/errornone/32426 observed, executor
+4315 IDLE/integrityok, original authority/audit prefix/all26 unknowns unchanged.
+Fixture/authority/new schema absent in original DB. Web200/ten401/33 assets pass.
+No main gate/profile/credential/trust/network change or GitHub publication.
+Evidence `/tmp/ftd-pending-offline-20261113`, `/tmp/ftd-fpr-offline-20261113`.
+Next broader live-interruption/lifecycle acceptance, deliberate separate-store v7
+cutover, then per-import cleanup. Main remains unchanged, not v0.14 activation.
+Specific next gap: before-checkpoint API restart may fall through ordinary
+DeviceLeases.claim expiry using the global queue; its terminal events lack
+device_executor attribution (and expiry timestamps precede per-job finishes).
+Current strict fallback refuses this, correctly. Implement a compatible audited
+expiry contract/tests rather than synthesizing/backdating events or relaxing all
+legacy checks. Worker-bound unknown ATTENTION and direct offline RUNNING cases
+are covered; this does not claim general active-interruption acceptance.
+
 ## Current Web v0.13.1 — direct actions/FPR journal acceptance, 2026-11-13
 
 Current v2 Managed overview has no duplicate bottom action forms/shortcut menu.

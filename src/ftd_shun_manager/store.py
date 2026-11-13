@@ -667,6 +667,20 @@ class Store:
                 from .pending_restart import RETAINED_CLAIMS
 
                 bulk_state(db)  # Missing/corrupt retained evidence must refuse all deletion.
+                from .pending_offline import present as offline_pending_present
+                if offline_pending_present(db):
+                    preserve += ''' AND NOT EXISTS(SELECT 1 FROM managed_bulk_pending_classifications c
+                        WHERE shun_events.request_id=c.id OR EXISTS(
+                            SELECT 1 FROM managed_bulk_pending_offline_recovery r
+                            WHERE r.classification_id=c.id AND r.recovery_id=shun_events.request_id)
+                        OR (shun_events.device_id=c.device_id AND (
+                            (json_extract(shun_events.details_json,'$.owner')=c.owner
+                             AND json_extract(shun_events.details_json,'$.epoch')=c.epoch)
+                            OR (json_extract(shun_events.details_json,'$.device_executor.owner')=c.owner
+                             AND json_extract(shun_events.details_json,'$.device_executor.epoch')=c.epoch))))
+                        AND NOT EXISTS(SELECT 1 FROM managed_bulk_pending_classifications c,
+                            json_each(c.receipt_json,'$.claims') b JOIN managed_bulk_attempts a
+                            ON a.job_id=json_extract(b.value,'$[0]') WHERE a.id=shun_events.request_id)'''
                 preserve += ' AND NOT EXISTS (SELECT 1 FROM (' + RETAINED_CLAIMS + ''') h
                     WHERE shun_events.request_id=h.request_id OR (shun_events.event_type='DEVICE_LEASE_CLAIMED'
                         AND shun_events.device_id=h.device_id

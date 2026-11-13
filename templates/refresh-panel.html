@@ -5,9 +5,8 @@
 <details id="status-menu" class="utility-menu" data-utility-menu data-activity="idle" data-attention="false">
 <summary><span class="utility-icon" aria-hidden="true"></span><span>Status</span><span class="utility-badge" data-menu-badge data-status-indicator aria-hidden="true"></span><span class="utility-alert" data-menu-alert aria-hidden="true" hidden>!</span></summary>
 <div class="utility-panel">
-<h2 id="refresh-heading">Refresh status</h2>
-{% set controls = refresh.managed_addition_controls | default({}) %}
-<p class="preview-help" data-additions-pause-notice{% if not controls.available or (not controls.imports.paused and not controls.restoration.paused) %} hidden{% endif %}><span data-additions-pause-label>Managed work is paused.</span> Monitoring, removals and Protected-IP automatic unblocking continue. <a href="/managed-shuns">Manage pauses</a>.</p>
+<h2 id="refresh-heading">Service status</h2>
+{% include "managed-controls.html" %}
 <p class="loading-note" data-read-retry hidden role="status"></p>
 <p data-runtime-notice{% if refresh.runtime_mode | default('legacy') != 'continuous-observation' %} hidden{% endif %}>Continuous observation profile: {% if refresh.managed_policy_view_available %}managed policy viewing is available; {% endif %}{% if refresh.managed_policy_retirement_available %}stop-maintaining is available; {% endif %}{% if refresh.ordered_removal_admission_enabled is sameas true %}ordered removal API admission is available with separate Web confirmation; ADD/import admission remains unavailable.{% elif refresh.ready_removal_admission_enabled is sameas true %}ready-only removal API admission is available with separate Web confirmation; ADD/import admission remains unavailable.{% else %}ADD/import admission and device-removal admission are unavailable.{% endif %} Protected-IP policy and its automatic removal remain active under the existing safety checks.</p>
 <p class="refresh-status">Data last confirmed: <time class="last-successful-refresh" datetime="{{ refresh.last_successful_refresh or '' }}">{{ refresh.last_successful_refresh or "not yet available" }}</time>. <span data-refresh-timing-label>Next periodic check</span>: <span class="baseline-countdown">{{ refresh.next_baseline_refresh or "not scheduled" }}</span>.</p>

@@ -379,3 +379,30 @@ a[href^="/shuns/"] { white-space: nowrap; overflow-wrap: normal; font-variant-nu
   #active-shuns, .search-results { overflow-x: visible; min-width: 0; }
   .page-help, .list-help { max-width: 100%; }
 }
+
+/* Shared action typography: adjacent labels, links and buttons use one UI size. */
+:root { --ui-text-size: .875rem; --meta-text-size: .8rem; }
+.utility-panel, .utility-panel p, .utility-panel table,
+.managed-control-item h4, .managed-control-item button,
+.managed-toolbar, .managed-toolbar p, .managed-toolbar a,
+.data-table button, .table-action, .outline-action,
+.policy-card, .policy-card .policy-editor > summary { font-size: var(--ui-text-size); }
+.managed-addition-control { margin: 0 0 1rem; padding: .75rem; }
+.managed-addition-control h3 { margin: 0; font-size: var(--ui-text-size); }
+.managed-control-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr)); gap: .6rem; }
+.managed-control-item { display: flex; align-items: center; gap: .5rem .7rem; }
+.managed-control-item h4 { margin: 0; }
+.managed-control-item .state-badge { margin-left: .3rem; }
+.managed-control-item button { white-space: nowrap; }
+.managed-toolbar { display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; gap: .5rem 1rem; margin-block: .75rem; }
+.managed-toolbar p { margin: 0; }
+.text-button { border: 0; background: none; color: var(--link); text-decoration: underline; padding: 0; font: inherit; cursor: pointer; }
+.primary-nav a { display: inline-flex; align-items: center; gap: .45rem; white-space: nowrap; }
+.nav-count { display: inline-flex; gap: .2rem; align-items: baseline; font-size: var(--meta-text-size); font-variant-numeric: tabular-nums; }
+.nav-paused { color: var(--muted); }
+.count-enabled { color: #13753f; }
+.count-disabled { color: #b42331; }
+@media (prefers-color-scheme: dark) {
+  .count-enabled { color: #6dde9a; }
+  .count-disabled { color: #ff929a; }
+}

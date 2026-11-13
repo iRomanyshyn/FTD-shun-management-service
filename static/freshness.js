@@ -17,6 +17,8 @@
   };
   const count = (value) => Number.isSafeInteger(value) && value >= 0 ? value : 0;
   const compactCount = (value) => value > 99 ? "99+" : String(value);
+  const pausedKinds = (status) => status.managed_addition_controls?.available === true
+    ? ['imports', 'restoration'].filter(kind => status.managed_addition_controls[kind]?.paused === true) : [];
   const briefStorageRetry = (status) => status.execution_recovery?.state === 'retrying'
     && Number.isSafeInteger(status.execution_recovery.attempts)
     && status.execution_recovery.attempts > 0 && status.execution_recovery.attempts < 3;
@@ -102,7 +104,13 @@
     }
     if (attention && result.phase === "idle") result.summary = "Device information needs attention";
     if (localError) result.timingHelp = "Timings are last reported. Check the warning; elapsed time does not confirm a successful refresh.";
+    const pauses = pausedKinds(status);
+    if (pauses.length) {
+      result.badge = [result.badge, `${pauses.length} paused`].filter(Boolean).join(' · ');
+      if (result.activity === 'idle') result.activity = 'paused';
+    }
     result.description = `${result.summary}. ${pending ? `${pending} device refresh request(s) pending. ` : ""}`
+      + (pauses.length ? `${pauses.includes('imports') ? 'Imports paused. ' : ''}${pauses.includes('restoration') ? 'Automatic restoration paused. ' : ''}Manage scheduling in Status. ` : '')
       + (result.attention ? `Needs attention. ${localError || status.last_error || "Check device details."}` : "");
     return result;
   };
@@ -119,19 +127,15 @@
     const attention = Math.max(count(attentionCounts.FAILED) + count(attentionCounts.UNVERIFIED),
       (imports?.tasks || []).reduce((sum, task) => sum + count(task.attention), 0));
     const paused = status.queue?.mutations_suspended === true;
-    const importsPaused = status.managed_addition_controls?.imports?.paused === true;
-    const restorationPaused = status.managed_addition_controls?.restoration?.paused === true;
-    const additionsPaused = importsPaused || restorationPaused;
-    const pauseLabel = importsPaused && restorationPaused ? 'ADD paused' : importsPaused ? 'Imports paused' : 'Restore paused';
     const recovery = status.execution_recovery;
     const stopped = recovery?.state === 'stopped';
     const problem = Boolean(attention || deviceError || paused || stopped
       || (recovery?.state === 'retrying' && !briefStorageRetry(status))
       || localError || status.managed_removal_worker_error || status.managed_restoration_error);
     const total = running + queued + awaiting;
-    return { activity: running ? "busy" : paused || stopped || additionsPaused ? "paused" : queued || awaiting || retryWait || submitting || importWaiting || recovery?.state === 'retrying' ? "waiting" : "idle",
+    return { activity: running ? "busy" : paused || stopped ? "paused" : queued || awaiting || retryWait || submitting || importWaiting || recovery?.state === 'retrying' ? "waiting" : "idle",
       attention: problem,
-      badge: [additionsPaused ? pauseLabel : total ? compactCount(total) : submitting || importWaiting || retryWait ? "…" : paused ? "Paused" : "",
+      badge: [total ? compactCount(total) : submitting || importWaiting || retryWait ? "…" : paused ? "Paused" : "",
         attention ? `!${compactCount(attention)}` : problem ? "!" : ""].filter(Boolean).join(" · "),
       description: `Queue: ${running} running; ${queued} queued; ${attention} need attention.`
         + (awaiting ? ` ${awaiting} awaiting a complete device read; not yet confirmed.` : '')
@@ -139,7 +143,6 @@
         + (importWaiting ? ' An import has addresses waiting for rolling dispatch.' : '')
         + (deviceError ? ' Some device work needs attention; open Status. Healthy devices can continue.' : '')
         + (paused ? " Device mutations are paused; monitoring continues." : "")
-        + (additionsPaused ? ` ${pauseLabel}. Monitoring, removals and Protected-IP unblocking continue.` : '')
         + (recovery?.state === 'retrying' ? " Storage is busy; scheduling retries automatically. The import is retained." : "")
         + (stopped ? ` Execution stopped. ${recovery.operator_action || 'Open Status for operator instructions.'}` : "")
         + (submitting ? " Submitting operation; acceptance is not verified success." : "")
@@ -439,15 +442,49 @@
     };
 
     const render = () => {
-      const additionNotice = panel.querySelector('[data-additions-pause-notice]');
-      if (additionNotice) {
-        const importsPaused = status.managed_addition_controls?.imports?.paused === true;
-        const restorationPaused = status.managed_addition_controls?.restoration?.paused === true;
-        additionNotice.hidden = !importsPaused && !restorationPaused;
-        const label = additionNotice.querySelector('[data-additions-pause-label]');
-        if (label) label.textContent = importsPaused && restorationPaused ? 'Imports and automatic restoration are paused.'
-          : importsPaused ? 'Imports are paused.' : 'Automatic restoration is paused.';
+      const pauses = pausedKinds(status);
+      const pauseCount = document.querySelector('[data-managed-pause-count]');
+      if (pauseCount) {
+        pauseCount.hidden = !pauses.length;
+        pauseCount.textContent = pauses.length ? `${pauses.length} paused` : '';
+        pauseCount.title = pauses.map(kind => kind === 'imports' ? 'Imports paused' : 'Automatic restoration paused').join('; ');
       }
+      const protectedCounts = document.querySelector('[data-protected-counts]');
+      const policy = status.protected_counts;
+      if (protectedCounts) {
+        const known = policy && ['enabled', 'disabled'].every(key => Number.isSafeInteger(policy[key]) && policy[key] >= 0);
+        protectedCounts.hidden = !known;
+        if (known) {
+          protectedCounts.title = `${policy.enabled} enabled / ${policy.disabled} disabled`;
+          protectedCounts.setAttribute('aria-label', protectedCounts.title);
+          protectedCounts.querySelector('[data-protected-enabled]').textContent = policy.enabled;
+          protectedCounts.querySelector('[data-protected-disabled]').textContent = policy.disabled;
+        }
+      }
+      panel.querySelectorAll('[data-control-kind]').forEach(item => {
+        const kind = item.dataset.controlKind;
+        const selected = status.managed_addition_controls?.[kind];
+        const controlForm = item.querySelector('[data-managed-control-form]');
+        // An interrupted POST keeps its exact key, action and revision for an
+        // explicit retry. Unrelated status polling must not turn it into a new request.
+        if (!selected || actionPending?.sourceForm === controlForm) return;
+        if (failedAction?.sourceForm === controlForm) {
+          controlForm.querySelector('button').textContent = `Retry ${new URL(failedAction.url).pathname.endsWith('/pause') ? 'pause' : 'resume'} request`;
+          return;
+        }
+        const state = item.querySelector('[data-control-state]');
+        state.textContent = selected.paused ? 'Paused' : 'Active';
+        state.className = `state-badge ${selected.paused ? 'policy-disabled' : 'policy-enabled'}`;
+        if (controlForm) {
+          const revision = controlForm.elements.namedItem('revision');
+          if (revision.value !== String(selected.revision)) {
+            controlForm.elements.namedItem('request_id').value = crypto.randomUUID();
+            revision.value = selected.revision;
+          }
+          controlForm.action = `/managed-additions/${kind}/${selected.paused ? 'resume' : 'pause'}`;
+          controlForm.querySelector('button').textContent = `${selected.paused ? 'Resume' : 'Pause'} ${kind === 'imports' ? 'imports' : 'automatic restoration'}`;
+        }
+      });
       const runtimeNotice = panel.querySelector("[data-runtime-notice]");
       if (runtimeNotice) {
         runtimeNotice.hidden = status.runtime_mode !== "continuous-observation";
@@ -836,6 +873,11 @@
       const policyForm = event.target.closest("[data-policy-form]");
       if (policyForm) policyForm.dataset.dirty = "true";
     });
+    document.querySelectorAll('[data-open-status]').forEach(trigger => trigger.addEventListener('click', () => {
+      const menu = panel.querySelector('#status-menu');
+      menu.open = true;
+      menu.querySelector('summary').focus();
+    }));
     panel.addEventListener("click", (event) => {
       const cancel = event.target.closest("[data-operation-cancel]");
       if (!cancel) return;
@@ -862,7 +904,7 @@
     if (menu.open) menus.filter((other) => other !== menu).forEach((other) => { other.open = false; });
   }));
   document.addEventListener("click", (event) => {
-    menus.filter((menu) => !menu.contains(event.target)).forEach((menu) => { menu.open = false; });
+    menus.filter((menu) => !menu.contains(event.target) && !event.target.closest("[data-open-status]")).forEach((menu) => { menu.open = false; });
   });
   document.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") return;

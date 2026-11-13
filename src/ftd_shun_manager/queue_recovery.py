@@ -20,6 +20,28 @@ def report(store, *, now=None):
         for row in rows:
             item = dict(row)
             item.update(eligible=False, extended_v6=False, claims=0, unknown=0, reason=None)
+            if db.execute("SELECT 1 FROM sqlite_master WHERE name='managed_bulk_pending_execution'").fetchone() and row['state'] != 'IDLE':
+                try:
+                    from .pending_offline import _scope, present
+                    classified = present(db) and db.execute(
+                        'SELECT 1 FROM managed_bulk_pending_classifications WHERE device_id=? AND epoch=?',
+                        (row['id'], row['epoch'])).fetchone() is not None
+                    if row['state'] == 'ATTENTION' and classified:
+                        reviewed = _review(db, store, row['id'], now or datetime.now(UTC), reconcile=True, pending_v7=True)
+                        count = len(reviewed['claims'])
+                        unknown = sum(c['state'] == 'UNVERIFIED' for c in reviewed['claims'])
+                        phase = 'reconcile'
+                    else:
+                        _, jobs = _scope(db, row['id'], now or datetime.now(UTC))
+                        count, unknown = len(jobs), sum(j['state'] in ('RUNNING', 'UNVERIFIED') for j in jobs)
+                        phase = 'classify'
+                    item.update(pending_v7_phase=phase, claims=count, unknown=unknown,
+                                reason='A separate stopped-executor v7 recovery review is available. Original outcomes stay unknown.')
+                except ValueError as error:
+                    item['reason'] = str(error)
+                item['lab_assistance'] = False  # Never advertise the verified-v6 host helper for this profile.
+                devices.append(item)
+                continue
             if row['state'] == 'ATTENTION':
                 # Inspect both literal existing contracts; this does not select an
                 # execution profile, initialize storage or authorize any recovery.

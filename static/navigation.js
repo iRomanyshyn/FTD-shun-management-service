@@ -18,7 +18,7 @@
     event.preventDefault();
     reset();
     const selected = navigation;
-    indicator.querySelector('[data-navigation-message]').textContent = `Loading ${link.textContent.trim()}…`;
+    indicator.querySelector('[data-navigation-message]').textContent = `Loading ${link.dataset.navLabel || link.textContent.trim()}…`;
     indicator.hidden = false;
     document.querySelector('main')?.setAttribute('aria-busy', 'true');
     link.setAttribute('data-navigation-pending', 'true');

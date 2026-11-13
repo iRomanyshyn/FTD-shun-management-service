@@ -12343,7 +12343,140 @@ results. Completed-session restart acceptance is closed; interrupted/missing-pro
 general held recovery and broader lifecycle remain before persistent v7 cutover.
 Per-import unblocking remains the next functional cleanup increment.
 
+## 2026-11-13 — explicit offline interrupted-v7 recovery (source0.14.0)
+
+Continued after completed-session restart acceptance. Automatic recovery must
+keep refusing missing completion proof, but a genuinely stopped experimental
+v7 executor needs an explicit way to preserve unknowns and continue current policy.
+Added pending_offline.py with separate inspect/classify and freshly reviewed
+inspect-reconciliation/reconcile commands. Each apply uses existing exclusive
+checked-backup/concurrent-write protection, canonical key/maintenance actor and
+five-minute exact whole-DB review. Classification turns only original RUNNING
+managed ADDs into UNVERIFIED, preserves terminal results and keeps ATTENTION.
+Separate reconciliation retains unknowns and policy, releases only the original
+epoch and requires a later complete device read before new currently eligible work.
+
+Added an explicit optional immutable classification/compact-v7 receipt profile,
+shared exact schema recognition, original-row hashes, key reservation, legacy
+writer refusal and SQL-bound same-epoch release. Retention preserves all referenced
+jobs and claim/ACK/checkpoint/classification audit, including verified prefixes.
+Scope1–64 complete managed-v7 ADD claims/<=16 unfinished, refusing queued/awaiting,
+unrelated unknown, other owned devices, failed prefixes, captured cleanup and
+uncertain REMOVE. Expired/revoked request outcomes can be classified without
+renewing their permission. Both scheduling pauses, protection and retirement
+remain current. No agent/wire change, legacy converter, startup/GET initialization
+or automatic unknown-to-success transition. Readonly recovery report now identifies
+the correct phase and does not advertise the incompatible v6 host helper. Added
+structured manual/architecture/version/plan records; one MINOR bump to0.14.0.
+
+Validation: original focused recovery138 pass/four optional skips53.29s; affected
+255 pass/four skips126.74s. Full Python4025 pass/two obsolete expectations failed/
+four skips748.06s, one framework deprecation warning. The failures expected the
+removed bottom Managed form and simulated an older writer by dropping what was
+formerly the final controls flag; corrected that simulator to exclude both later
+flags and added actual previous-with-controls refusal coverage. Final affected109
+pass17.41s covers those fixes, real checked backups/FKs, rollback of DDL/outcomes/
+audit,1/16/17/64 claims, known prefixes, expired/revoked requests, current controls/
+protection/retirement, mandatory fresh-read barrier, missing stage ACK and exact
+old-writer refusal. Late timing test found known failure audit can follow the last
+renewal while a fence is still LEASED; bound it by current offline time, retaining
+the stricter held_at bound once ATTENTION. Late readonly guidance fix offers
+classification for an unclassified ATTENTION state. These are covered by final
+tests; no clean second full run claimed. Chromium recovery subcase+parent2 pass
+4.87s/70 skipped. Ruff/compileall/diff pass. No new Rust or authenticated live
+browser claimed; Rust source/wire unchanged.
+
+Prepared a fresh isolated pending-offline.db/socket volume using the existing
+deferred initializer and checked API/agent configuration. Agent completion mode
+was deliberately process-local, not a deleted persistent journal. Before test,
+original API/Web then agent actually exited0; original executor4314 IDLE/no RUNNING,
+authority/audit prefix unchanged. New consent actor
+`maintenance:lab-missing-proof-20261113`, operation
+`44b6b912-9cd4-4c22-aee0-289ab0d2067d`, imported only198.51.100.179 after a complete
+absence read. ADD visit17:52:57.971–17:53:13.710Z sent one ADD/one target preflight/
+one initial full read and settled END_PENDING. Private test-only harness exited
+API86 before pending handoff; this is not a product flag or guard bypass.
+
+After actual agent completion/IDLE, hard-stopped that agent (exit137) and restarted
+it without persistent storage, losing its process-local completion record. API
+restart correctly retained original RUNNING jobfb1fc7f9... and expired epoch2;
+local failed lookups opened no SSH and no old ADD was repeated. Readonly guidance
+offered classification. Both experimental writers then actually exited0 before
+maintenance. The real CLI made before-classify.db and before-reconcile.db
+checked backups, with fresh classification
+`50726c63-2fbd-44f1-8462-af0e0bc2fd16` at17:57:14.570Z, then separately inspected
+and reconciled as `f34be643-45b8-447c-a911-916984cfae42` at17:58:05.957Z. Original
+job stayed UNVERIFIED, with no fabricated pending session/creation. Compatible
+configured preflight passed; restarted test API's normal complete read17:59:13Z
+found presence after the decision. Queue retained raw unknown1/reviewed history1,
+current attention0, no repeated ADD and no policy change.
+
+Fresh reviewed cleanup REMOVE45cf3fd3... retired the one test target and finished
+VERIFIED. Read18:00:29Z absent, executor4 IDLE/integrityok. Four total SSH visits
+performed exactly one ADD and one REMOVE. Test API/agent then stopped exit0; retained
+their containers/DB/socket volumes, both checked backups, requests, receipts and
+logs. The experiment used image
+`sha256:ed543e34e527e8ee438740ad07b255dad970a9269497a28cd61a2443a49dd5ac`,
+source2945b163eae0/version0.14.0. Final artifact
+`sha256:888cd8e588ba0629965cd1742ba33a07f9cf98d245d0cca097796aa65b0907de`,
+source1cc51cc4a1ad/version0.14.0 includes only the later readonly ATTENTION guidance
+correction; exact final package/source/footer/44 templates and actual recovered
+experimental-profile nonexecuting preflight pass. Original-v6 configured source
+preflight also passes without initialization or execution. No final-image FPR
+write or broad live authenticated-browser acceptance is claimed.
+
+Restored the same original agent/API/Web containers/images at18:02:36Z, no new
+image rollout: main remains verifiedv6/API+feed0.13.0/Web0.13.1, persistent v7/journal
+off. Feed/metadata worker/Caddy/Authelia exact image/container/start identities
+unchanged; approved Cymru settings unchanged. Original read18:02:58Z/errornone,
+32426 observations, executor4315 IDLE/integrityok, all original authority hashes/
+audit prefix/26 raw historical unknowns unchanged. .179, its authority and the
+new optional schema are absent in original DB. Live Web200/ten anonymous401/all33
+assets/package/footer/source match. No original policy/control/recovery request,
+secret/trust/network change or GitHub publication. Retain evidence
+`/tmp/ftd-pending-offline-20261113` and `/tmp/ftd-fpr-offline-20261113`; do not replay
+consumed test authority or apply its overlay to main. Next broader active-session/
+lifecycle acceptance and deliberate fresh-store v7 cutover, then per-import cleanup.
+
 ## Adding future entries
 
 Append a new entry for every material code, security, deployment, schema, protocol, authentication, or operational change. State what changed, what was verified, and what remains risky or incomplete. Update [`project-status.md`](project-status.md) in the same change.
+
+
+## 2026-11-13 — Web v0.14.1: scheduling controls in Status and compact counters
+
+Import/restoration Pause and Resume now live together in **Status → Scheduling**
+on working pages. The two controls remain independent; existing blocks, reads,
+removals and Protected-IP unblocking continue. Status and Managed navigation show
+one/two paused controls without hiding activity or errors. Queue keeps actual
+work/attention counts. Managed retains a small Status shortcut and Import action.
+Protected navigation shows green enabled / red disabled counts from existing
+status data, with accessible descriptions; unavailable data is not zero. Initial
+HTML and ordinary polling agree, with no extra API/device/provider lookup.
+Adjacent action/control typography is shared; mobile groups stay together.
+Interrupted control replies retain the exact action/revision/key for explicit
+retry; polling does not repeat the POST. Real actor/CSRF/revision/gates remain.
+
+Affected Python345 pass65.79s; final Chromium partitions35+36 scenarios and38 pure
+presentation checks pass95.40s/89.98s (two harness parents). Initial partition0
+had one obsolete hidden-text assertion plus parent failure; corrected and repeated
+clean. Final dedicated controls subcase+parent2 pass23.65s,70 skipped, covers lost
+reply/exact retry, live counts and375/960/1440/1920px. Light/dark screenshots were
+inspected. Ruff/compileall/JS/diff pass. No new full Python/Rust run or live
+operator-control/device-write acceptance is claimed; fixtures are synthetic.
+
+Only Web replaced at18:30:49.068997708Z: image
+`sha256:c892197c679bac2d5e09e0a94ca5a4ff17e4b142d4adba5764469f74d958c872`,
+container `c59b95d07f1e58af56d656062b3d30233defb2512d1e9cd0790859bc94493acd`,
+version/source0.14.1/`d632cacd1756`. Package/build/footer/45 templates/66 routes,
+actual readonly v6 API/cache preflight, Web200/ten anonymous401/33 served assets
+match. Six other service image/container/start identities remain exact, including
+API/feed0.13.0, current v6 agent and approved Cymru worker0.11.0. Integrityok,
+27 authority fingerprints, original audit prefix and all26 unknown outcomes match;
+32426 observations retained. Fresh read18:30:57Z/errornone, epoch4323 IDLE.
+No live pause/resume/policy/job/recovery request or FTD command was submitted.
+Prepared source-v0.14.0 recovery code/gates are not activated by this Web rollout.
+Rollback `ftd-shun-web:lab-pre-status-controls-20261113`; evidence
+`/tmp/ftd-status-controls-20261113`. Reload existing tabs. Next bulk recovery/
+lifecycle acceptance and planned per-import unblocking remain.
 

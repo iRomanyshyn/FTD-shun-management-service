@@ -14,11 +14,14 @@
   <body>
     <div class="navigation-loading" data-navigation-loading hidden role="status" aria-live="polite"><span class="navigation-loading-bar" aria-hidden="true"></span><span data-navigation-message>Loading…</span></div>
     <header class="app-header"><a class="brand-link" href="/" aria-label="FTD Shun Management Service — home"><img src="/static/branding/source/terminal-banana-mark.svg" width="36" height="36" alt=""><span class="brand-wordmark"><span class="brand-name">FTD Shun</span><span class="brand-caption">Management Service</span></span></a>{% if identity %}<span class="header-identity" title="{{ identity.display_name }} · {{ identity.roles | join(', ') or 'No role' }}">{{ identity.display_name }} · {{ identity.roles | join(', ') or 'No role' }}</span>{% endif %}</header>
+    {% set nav_control = (refresh or {}).managed_addition_controls | default({}) %}
+    {% set nav_pauses = ((nav_control.imports | default({})).paused is sameas true) | int + ((nav_control.restoration | default({})).paused is sameas true) | int if nav_control.available is sameas true else 0 %}
+    {% set nav_policy = (refresh or {}).protected_counts | default(none) %}
     {% if identity %}<nav class="primary-nav" aria-label="Primary">
       <a href="/"{% if active_page | default('shuns') == 'shuns' %} aria-current="page"{% endif %}>Shuns</a>
       <a href="/unmanaged"{% if active_page == 'unmanaged' %} aria-current="page"{% endif %}>Unmanaged</a>
-      {% if (refresh or {}).managed_policy_view_available | default(false) or (refresh or {}).managed_workflows_available is not sameas false %}<a href="/managed-shuns"{% if active_page == 'managed' %} aria-current="page"{% endif %}>Managed shuns</a>{% endif %}
-      <a href="/protected-ips"{% if active_page == 'protected' %} aria-current="page"{% endif %}>Protected IPs</a>
+      {% if (refresh or {}).managed_policy_view_available | default(false) or (refresh or {}).managed_workflows_available is not sameas false %}<a href="/managed-shuns"{% if active_page == 'managed' %} aria-current="page"{% endif %} data-nav-label="Managed shuns">Managed shuns<span class="nav-count nav-paused" data-managed-pause-count{% if not nav_pauses %} hidden{% endif %}>{{ (nav_pauses ~ ' paused') if nav_pauses else '' }}</span></a>{% endif %}
+      <a href="/protected-ips"{% if active_page == 'protected' %} aria-current="page"{% endif %} data-nav-label="Protected IPs">Protected IPs<span class="nav-count" data-protected-counts role="img"{% if not nav_policy %} hidden{% else %} title="{{ nav_policy.enabled }} enabled / {{ nav_policy.disabled }} disabled" aria-label="{{ nav_policy.enabled }} enabled / {{ nav_policy.disabled }} disabled"{% endif %}><span class="count-enabled" data-protected-enabled>{{ nav_policy.enabled if nav_policy else '' }}</span><span aria-hidden="true">/</span><span class="count-disabled" data-protected-disabled>{{ nav_policy.disabled if nav_policy else '' }}</span></span></a>
       <a href="/history"{% if active_page == 'history' %} aria-current="page"{% endif %}>History</a>
       {% set managed_imports_available = (refresh or {}).managed_workflows_available is not sameas false and ('Operator' in identity.roles or 'Administrator' in identity.roles) %}
       {% set bulk_drafts_available = (refresh or {}).bulk_import_preparation_available is sameas true %}

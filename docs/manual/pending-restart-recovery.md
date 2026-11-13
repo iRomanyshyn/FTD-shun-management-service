@@ -87,7 +87,11 @@ The live-lease handoff still enforces its original live lease checks.
 Crashes before the checkpoint, lost stage ACKs, missing agent completion evidence,
 failed/cancelled prefixes, historical unknown results and already-held epochs
 remain outside this automatic recovery. Keep their evidence and use only a
-compatible explicit recovery procedure. General held-epoch recovery and bounded
-real-device acceptance remain separate work before laboratory cutover. See
+compatible explicit recovery procedure. Source0.14.0 adds a separate
+[offline interrupted-v7 procedure](interrupted-v7-recovery.md) for a complete
+bounded managed ADD scope, retaining unknown outcomes and requiring actual
+executor quiescence. This does not broaden automatic journal recovery or cover
+uncertain REMOVE/captured cleanup. Broader lifecycle acceptance remains before
+laboratory cutover. See
 [Deferred First Confirmation](deferred-confirmation.md) and
 [Queue Recovery](queue-recovery.md).

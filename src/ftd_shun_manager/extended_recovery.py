@@ -52,18 +52,21 @@ def _digest(rows):
 
 
 def claims(receipt):
+    from .pending_offline import FORMAT as PENDING_FORMAT
+    from .pending_offline import PROFILE as PENDING_PROFILE
     from .prewrite_recovery import FORMAT as PREWRITE_FORMAT
     from .prewrite_recovery import PROFILE as PREWRITE_PROFILE
 
     prewrite = receipt.get('recovery_profile') == PREWRITE_PROFILE
+    pending = receipt.get('recovery_profile') == PENDING_PROFILE
     if 'claims_format' not in receipt and 'compact_claims' not in receipt:
-        if receipt.get('recovery_profile') in {'tracked-v6', PREWRITE_PROFILE}:
+        if receipt.get('recovery_profile') in {'tracked-v6', PREWRITE_PROFILE, PENDING_PROFILE}:
             raise BulkUnavailable('Extended receipt is missing its exact compact format.')
         return receipt.get('claims', [])
     rows = receipt.get('compact_claims')
-    if (receipt.get('claims_format') != (PREWRITE_FORMAT if prewrite else FORMAT)
-            or receipt.get('recovery_profile') != (PREWRITE_PROFILE if prewrite else 'tracked-v6')
-            or 'claims' in receipt or type(rows) is not list or not 17 <= len(rows) <= 64):
+    if (receipt.get('claims_format') != (PENDING_FORMAT if pending else PREWRITE_FORMAT if prewrite else FORMAT)
+            or receipt.get('recovery_profile') != (PENDING_PROFILE if pending else PREWRITE_PROFILE if prewrite else 'tracked-v6')
+            or 'claims' in receipt or type(rows) is not list or not (1 if pending else 17) <= len(rows) <= 64):
         raise BulkUnavailable('Extended recovery receipt has an invalid format or scope.')
     result = []
     previous = ''
@@ -89,12 +92,15 @@ def claims(receipt):
 
 def encode(receipt, extended_v6):
     stored = dict(receipt)
-    if extended_v6:
+    from .pending_offline import FORMAT as PENDING_FORMAT
+    from .pending_offline import PROFILE as PENDING_PROFILE
+    pending = stored.get('recovery_profile') == PENDING_PROFILE
+    if extended_v6 or pending:
         stored['compact_claims'] = [[claim[field] for field in FIELDS] for claim in stored.pop('claims')]
         from .prewrite_recovery import FORMAT as PREWRITE_FORMAT
         from .prewrite_recovery import PROFILE as PREWRITE_PROFILE
 
-        stored['claims_format'] = PREWRITE_FORMAT if stored.get('recovery_profile') == PREWRITE_PROFILE else FORMAT
+        stored['claims_format'] = PENDING_FORMAT if pending else PREWRITE_FORMAT if stored.get('recovery_profile') == PREWRITE_PROFILE else FORMAT
         claims(stored)  # Validate literal bounds/identities before any schema write.
     text = json.dumps(stored, sort_keys=True, separators=(',', ':') if extended_v6 else None)
     if len(text.encode('utf-8')) > 16384:
@@ -110,7 +116,13 @@ def expanded(receipt):
 
 def record(db, receipt):
     """Only explicit offline apply, after parent INSERT and before fence release."""
-    from . import prewrite_recovery
+    from . import pending_offline, prewrite_recovery
+
+    if receipt.get('claims_format') == pending_offline.FORMAT:
+        scope = claims(receipt)
+        db.execute(f'INSERT INTO {pending_offline.MARKERS} VALUES (?,?,?,?)',
+                   (receipt['operation_id'], receipt['classification_id'], len(scope), _digest(receipt['compact_claims'])))
+        return
 
     if receipt.get('claims_format') == prewrite_recovery.FORMAT:
         claims(receipt)
@@ -134,9 +146,13 @@ def validate(db):
            OR json_extract(receipt_json,'$.recovery_profile')='tracked-v6'""")}
     deferred = {key: row for key, row in declared.items()
                 if json.loads(row['receipt_json']).get('recovery_profile') == prewrite_recovery.PROFILE}
+    from . import pending_offline
+    pending = {key: row for key, row in declared.items()
+               if json.loads(row['receipt_json']).get('recovery_profile') == pending_offline.PROFILE}
+    pending_offline.validate_recoveries(db, pending)
     prewrite_recovery.validate(db, deferred)
     markers = list(db.execute(f'SELECT * FROM {TABLE}')) if present(db) else []
-    if len(markers) + len(deferred) > 4096 or {row['recovery_id'] for row in markers} != set(declared) - set(deferred):
+    if len(markers) + len(deferred) + len(pending) > 4096 or {row['recovery_id'] for row in markers} != set(declared) - set(deferred) - set(pending):
         raise BulkUnavailable('Extended recovery markers and complete receipt scope disagree.')
     prewrite_markers = list(db.execute('SELECT * FROM managed_bulk_prewrite_recovery')) if prewrite_recovery.present(db) else []
     for marker in [*markers, *prewrite_markers]:

@@ -46,8 +46,16 @@ def test_independent_pause_api_and_bff_are_attributed_csrf_protected_and_do_not_
         monkeypatch.setattr(web, 'api_client', lambda _: httpx.Client(transport=httpx.MockTransport(internal), base_url='http://internal'))
         async with httpx.AsyncClient(transport=httpx.ASGITransport(web.create_app(settings)), base_url='https://fixture.test',
                 headers={'Remote-User': 'alice', 'Remote-Groups': 'ftd-shun-operators'}) as client:
-            page = await client.get('/managed-shuns')
-            assert page.status_code == 200 and 'Pause imports' in page.text and 'Pause automatic restoration' in page.text
+            keys = set()
+            for path in ('/', '/managed-shuns', '/protected-ips', '/history'):
+                page = await client.get(path)
+                assert page.status_code == 200 and 'Pause imports' in page.text and 'Pause automatic restoration' in page.text
+                status_panel = page.text.split('id="status-menu"', 1)[1].split('id="queue-menu"', 1)[0]
+                assert 'id="managed-addition-control"' in status_panel
+                request_keys = re.findall(r'name="request_id" value="([^"]+)"', status_panel)
+                assert len(request_keys) == 2 and not keys.intersection(request_keys)
+                keys.update(request_keys)
+                assert not any(request.method == 'POST' for request in calls)
             fields = {'csrf': client.cookies.get('ftd_shun_csrf'), 'revision': '0', 'request_id': str(uuid4())}
             before = dump(store)
             assert (await client.post('/managed-additions/imports/pause', data=fields | {'csrf': 'bad'})).status_code == 403

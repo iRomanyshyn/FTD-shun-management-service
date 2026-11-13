@@ -118,3 +118,28 @@ def test_bff_queue_submission_uses_trusted_identity_and_preserves_operation_key(
             assert json.loads(captured[0].content) == {"subject": "alice", "display_name": "alice", "roles": ["Operator"]}
 
     asyncio.run(scenario())
+
+
+@pytest.mark.parametrize('enabled,disabled,expected', [
+    ([], [], {'enabled': 0, 'disabled': 0}),
+    ([{'ip': '198.51.100.1'}], [{'ip': '198.51.100.2'}, {'ip': '198.51.100.3'}], {'enabled': 1, 'disabled': 2}),
+    (None, [], None), ([], None, None), ([{}], [], None),
+])
+def test_browser_policy_counts_use_existing_status_and_preserve_unknown(enabled, disabled, expected):
+    source = {'trusted_auto_remove_ips': enabled, 'disabled_protected_ips': disabled}
+    assert web.refresh_metadata(source)['protected_counts'] == expected
+    assert 'trusted_auto_remove_ips' not in web.refresh_metadata(source)
+    assert web.protected_counts({}) is None
+
+
+@pytest.mark.parametrize('pauses', [0, 1, 2])
+def test_navigation_counts_render_without_javascript(pauses):
+    state = {'managed_addition_controls': {'available': True,
+             'imports': {'paused': pauses > 0}, 'restoration': {'paused': pauses > 1}},
+             'protected_counts': {'enabled': 9, 'disabled': 2}}
+    html = web.templates.get_template('base.html').render(
+        identity=web.Identity('viewer', 'Viewer', ('Viewer',)), refresh=state)
+    assert (f'>{pauses} paused</span>' in html) if pauses else ('data-managed-pause-count hidden></span>' in html)
+    assert 'title="9 enabled / 2 disabled"' in html
+    assert 'data-protected-enabled>9</span>' in html
+    assert 'data-protected-disabled>2</span>' in html

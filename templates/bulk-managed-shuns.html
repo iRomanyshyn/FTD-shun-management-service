@@ -7,26 +7,7 @@
 {% include "refresh-panel.html" %}
 </div>
 {{ behavior_help(overview=true) }}
-<section id="managed-addition-control" class="managed-addition-control" data-live-region data-live-editor>
-{% set control = refresh.managed_addition_controls | default({}) %}
-{% if control.available is sameas true %}
-<div class="section-heading"><h2>Execution</h2><a class="text-action" href="/managed-imports/v2">Import addresses</a></div>
-<div class="managed-control-grid">
-{% for kind, title in [('imports', 'Imports'), ('restoration', 'Automatic restoration')] %}
-{% set selected = control[kind] %}
-<section class="managed-control-item"><h3>{{ title }} <span class="state-badge {{ 'policy-disabled' if selected.paused else 'policy-enabled' }}">{{ 'Paused' if selected.paused else 'Active' }}</span></h3>
-{% if refresh.runtime_mode == 'continuous-managed' and ('Operator' in identity.roles or 'Administrator' in identity.roles) %}
-<form method="post" action="/managed-additions/{{ kind }}/{{ 'resume' if selected.paused else 'pause' }}" data-managed-control-form>
-<input type="hidden" name="csrf" value="{{ csrf_token }}"><input type="hidden" name="request_id" value="{{ control_request_ids[kind] }}"><input type="hidden" name="revision" value="{{ selected.revision }}">
-<button type="submit">{{ 'Resume' if selected.paused else 'Pause' }} {{ title | lower }}</button>
-</form>{% endif %}
-</section>{% endfor %}</div>
-<details class="list-help" id="pause-behavior-help"><summary>What does pausing do?</summary>
-<p>Existing blocks stay on the devices and continue to be monitored. Removals and Protected-IP automatic unblocking continue. An operation already in progress finishes and is checked.</p>
-<p>Imports pauses initial application; automatic restoration pauses re-adding previously applied or observed blocks. Saved imports and rules are retained, not cancelled.</p>
-<p class="preview-help">The two pauses are independent. Resuming uses a fresh device check before scheduling missing addresses; it does not clear errors or replay unknown commands.</p></details>
-{% else %}<p class="preview-help">Operator pause controls are not initialized for this database. No pause button is available.</p>{% endif %}
-</section>
+<div class="managed-toolbar"><p class="preview-help">Scheduling and pause controls are in <button type="button" class="text-button" data-open-status>Status</button>.</p><a class="outline-action" href="/managed-imports/v2">Import addresses</a></div>
 {% if refresh.runtime_mode != 'continuous-managed' %}<p class="policy-warning">Automatic blocking is unavailable in this service mode. {% if refresh.ready_removal_admission_enabled is not sameas true %}Combined removal is also unavailable.{% endif %} You can still review settings and use available stop-maintaining controls.</p>{% endif %}
 <section id="managed-shun-state" data-ip-context-list data-live-region>
 {% if managed.changed %}

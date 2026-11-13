@@ -148,3 +148,30 @@ def test_bff_requires_identity_and_only_reads_report(tmp_path, monkeypatch):
             assert (await client.post('/queue-recovery')).status_code == 405
         assert not settings.database_path.exists()
     asyncio.run(scenario())
+
+
+@pytest.mark.parametrize('phase', ['classify', 'reconcile'])
+def test_bff_pending_guidance_does_not_offer_verified_v6_helper(tmp_path, monkeypatch, phase):
+    requests = []
+    value = {'supported': True, 'devices': [{'id': 1, 'hostname': 'fpr1010-lab', 'state': 'ATTENTION',
+             'epoch': 42, 'claims': 16, 'unknown': 16, 'extended_v6': False, 'eligible': False,
+             'lab_assistance': False, 'pending_v7_phase': phase}]}
+    def send(request):
+        requests.append(request)
+        assert request.method == 'GET' and request.url.path == '/api/v1/queue-recovery'
+        return httpx.Response(200, json=value)
+    monkeypatch.setattr(web, 'api_client', lambda _: httpx.Client(transport=httpx.MockTransport(send), base_url='http://internal'))
+    settings = replace(Settings.from_environment(), database_path=tmp_path/'absent.db',
+                       device_inventory_path=None, development_auth=False)
+    async def scenario():
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=web.create_app(settings)), base_url='https://fixture.test',
+                                     headers={'Remote-User': 'fixture-operator'}) as client:
+            response = await client.get('/queue-recovery')
+            assert response.status_code == 200 and 'ftd_shun_manager.pending_offline' in response.text
+            assert 'ftd_shun_manager.lab_recovery' not in response.text
+            assert 'inspect-reconciliation' in response.text if phase == 'reconcile' else 'First classify' in response.text
+            downloaded = await client.get('/queue-recovery?download=true')
+            assert downloaded.json()['devices'][0]['pending_v7_phase'] == phase
+            assert (await client.post('/queue-recovery')).status_code == 405
+        assert not settings.database_path.exists()
+    asyncio.run(scenario())

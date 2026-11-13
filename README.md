@@ -103,12 +103,12 @@ Current imports remain one-time and all ADD gates stay
 disabled in the lab. Old imports are not auto-adopted and no live migration
 initializes the new registry yet.
 
-The footer displays the installed package version (source version `v0.11.1`) and a short public
+The footer displays the installed package version (source version `v0.14.1`) and a short public
 application-source build ID. Every material lab delivery advances the version;
 neither identifier implies production readiness. See [Versioning](docs/manual/versioning.md).
 Source-only increments do not update running containers; consult
 [Project Status](docs/project-status.md) for the actual laboratory version.
-Managed shuns has independent [import/restoration pauses](docs/manual/managed-addition-pauses.md):
+Status has independent [import/restoration pauses](docs/manual/managed-addition-pauses.md):
 existing blocks stay, while monitoring, removals and Protected-IP unblocking continue.
 
 ## Design goals

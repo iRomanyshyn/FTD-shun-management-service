@@ -83,8 +83,9 @@ def fresh_after_recovery(db, device_id, started):
     return row is None or started > row[0]
 
 
-def _digest(db, *, extended_v6=False, prewrite_defer=False):
-    digest = hashlib.sha256(b'ftd-shun:offline-prewrite-v6-recovery:v1\n' if prewrite_defer else
+def _digest(db, *, extended_v6=False, prewrite_defer=False, pending_v7=False):
+    digest = hashlib.sha256(b'ftd-shun:offline-interrupted-v7-recovery:v1\n' if pending_v7 else
+        b'ftd-shun:offline-prewrite-v6-recovery:v1\n' if prewrite_defer else
         b'ftd-shun:offline-extended-v6-recovery:v1\n' if extended_v6 else b'ftd-shun:offline-verified-device-recovery:v1\n')
     for statement in db.iterdump():
         digest.update(statement.encode())
@@ -92,7 +93,7 @@ def _digest(db, *, extended_v6=False, prewrite_defer=False):
     return digest.hexdigest()
 
 
-def _review(db, store, device_id, current, *, reconcile=False, extended_v6=False, prewrite_defer=False):
+def _review(db, store, device_id, current, *, reconcile=False, extended_v6=False, prewrite_defer=False, pending_v7=False):
     from .bulk_ordered_waits import held_count, validate_held_predecessors
     from .bulk_ordered_waits import present as ordered_present
     from .bulk_waits import present as waits_present
@@ -102,6 +103,8 @@ def _review(db, store, device_id, current, *, reconcile=False, extended_v6=False
 
     if type(extended_v6) is not bool:
         raise ValueError('Extended v6 recovery requires a literal explicit selection.')
+    if type(pending_v7) is not bool or (pending_v7 and (extended_v6 or prewrite_defer or not reconcile)):
+        raise ValueError('Interrupted v7 recovery requires its separate explicit reconciliation mode.')
     if type(prewrite_defer) is not bool or (prewrite_defer and (not extended_v6 or reconcile)):
         raise ValueError('Pre-write recovery needs explicit extended v6 and cannot reconcile unknowns.')
     if type(device_id) is not int or not 1 <= device_id <= 65535:
@@ -111,10 +114,18 @@ def _review(db, store, device_id, current, *, reconcile=False, extended_v6=False
     tables = {row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
     if 'managed_bulk_device_executors' not in tables:
         raise BulkUnavailable('Fenced device storage is required.')
+    if ('managed_bulk_pending_execution' in tables) is not pending_v7:
+        raise ValueError('Select the exact verified or interrupted-v7 recovery contract.')
     fence = db.execute('SELECT * FROM managed_bulk_device_executors WHERE device_id=?', (device_id,)).fetchone()
     if (fence is None or fence['state'] != 'ATTENTION'
             or not fence['lease_until'] < fence['updated_at'] < stamp(current)):
         raise ValueError('An exact expired ATTENTION epoch is required.')
+    classification_id = None
+    if pending_v7:
+        from .pending_offline import classification
+        classification_id = classification(db, dict(fence))['id']
+        if db.execute("SELECT 1 FROM operation_jobs WHERE state='AWAITING_CONFIRMATION'").fetchone():
+            raise ValueError('Awaiting device work prevents offline reconciliation.')
     if (db.execute("SELECT 1 FROM managed_bulk_device_executors WHERE device_id!=? AND state!='IDLE'", (device_id,)).fetchone()
             or db.execute("SELECT 1 FROM operation_jobs WHERE state IN ('QUEUED','RUNNING','RECONCILED_ABSENT')").fetchone()
             or (not reconcile and db.execute("SELECT 1 FROM operation_jobs WHERE state='UNVERIFIED' AND " + unresolved(db, 'id')).fetchone())
@@ -160,7 +171,7 @@ def _review(db, store, device_id, current, *, reconcile=False, extended_v6=False
                 or job_id in target or not openings[0][0] <= event['timestamp'] <= fence['updated_at']):
             raise ValueError('Original epoch has unknown, duplicated or inconsistent claim results.')
         target[job_id] = dict(event)
-    if not (17 <= len(claims) <= 64 if extended_v6 else 1 <= len(claims) <= 16) or claims.keys() != terminal.keys():
+    if not (1 <= len(claims) <= 64 if pending_v7 else 17 <= len(claims) <= 64 if extended_v6 else 1 <= len(claims) <= 16) or claims.keys() != terminal.keys():
         raise ValueError('Every original mutation claim needs its retained terminal verification.')
     window = {row[0] for row in db.execute('SELECT id FROM operation_jobs WHERE device_id=? AND started_at>=? AND started_at<=?',
                                           (device_id, openings[0][0], fence['updated_at']))}
@@ -190,14 +201,16 @@ def _review(db, store, device_id, current, *, reconcile=False, extended_v6=False
                 or not openings[0][0] <= job['started_at'] <= claim['timestamp'] <= job['completed_at'] <= result['timestamp']
                 or any(json.loads(event['details_json']).get('action') != job['action'] for event in (claim, result))):
             raise ValueError('Original job and terminal audit disagree; no outcome is inferred.')
-        if extended_v6:
+        if extended_v6 or pending_v7:
             claim_details = json.loads(claim['details_json'])
             result_details = json.loads(result['details_json'])
             if (job['action'] != 'ADD'
-                    or any(type(d.get('batch_session_version')) is not int or d['batch_session_version'] != 6
-                           for d in (claim_details, result_details))
+                    or type(claim_details.get('batch_session_version')) is not int
+                    or claim_details['batch_session_version'] != (7 if pending_v7 else 6)
+                    or (not pending_v7 and (type(result_details.get('batch_session_version')) is not int
+                                            or result_details['batch_session_version'] != 6))
                     or claim_details.get('source') != 'managed_shun_policy'
-                    or result_details.get('addition_group') != claim_details.get('addition_group')):
+                    or (not pending_v7 and result_details.get('addition_group') != claim_details.get('addition_group'))):
                 raise ValueError('Extended recovery requires exact matching v6 system ADD audit.')
             _uuid(claim_details.get('addition_group'))
         attempt = attempt_for_job(db, key)
@@ -205,8 +218,10 @@ def _review(db, store, device_id, current, *, reconcile=False, extended_v6=False
             validate_binding(db, attempt, job)
             if attempt['completed_at'] != job['completed_at']:
                 raise ValueError('Original attempt and verified job disagree.')
-            if reconcile and db.execute('SELECT state FROM operation_requests WHERE id=?', (attempt['id'],)).fetchone()[0] != 'CANCELLED':
-                raise ValueError('Original terminal system request must remain revoked, never renewed.')
+            if reconcile:
+                request_state = db.execute('SELECT state FROM operation_requests WHERE id=?', (attempt['id'],)).fetchone()[0]
+                if request_state not in (('CANCELLED', 'EXPIRED') if pending_v7 else ('CANCELLED',)):
+                    raise ValueError('Original terminal system request must remain revoked, never renewed.')
         elif job['action'] == 'ADD':
             raise ValueError('A held ADD requires its retained system attempt evidence.')
         evidence.append({'job_id': key, 'action': job['action'], 'state': job['state'],
@@ -221,7 +236,8 @@ def _review(db, store, device_id, current, *, reconcile=False, extended_v6=False
         if set(diagnostics) != unknown or any(diagnostics[key]['timestamp'] < terminal[key]['timestamp'] for key in unknown):
             raise ValueError('Original unknown ADD diagnostic audit is missing or inconsistent.')
     return {'device_id': device_id, 'epoch': fence['epoch'], 'claims': evidence, 'original_fence': dict(fence),
-            **({'recovery_profile': 'tracked-v6-prewrite', 'prewrite_proof': deferred_proof,
+            **({'recovery_profile': 'tracked-v7-interrupted', 'classification_id': classification_id} if pending_v7 else
+               {'recovery_profile': 'tracked-v6-prewrite', 'prewrite_proof': deferred_proof,
                 'original_outcomes_unchanged': True} if prewrite_defer
                else {'recovery_profile': 'tracked-v6'} if extended_v6 else {})}
 

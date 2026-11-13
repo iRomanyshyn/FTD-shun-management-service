@@ -13,6 +13,7 @@ const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const future = (seconds) => new Date(Date.now() + seconds * 1000).toISOString();
 const renderScript = `
 import json, sys
+from ftd_shun_manager.web import protected_counts
 from ftd_shun_manager.import_preview import MAX_TEXT_BYTES, paginate_preview, parse_blocklist, summarize_preview
 from ftd_shun_manager.import_review import ImportReviews
 from ftd_shun_manager.managed_review import ManagedRemovalReviews
@@ -197,6 +198,7 @@ if p["template"] in ("bulk-import-workspace.html", "bulk-import-report.html", "b
                 settled=bool(outcome),page=current,pages=2,result=result,current_counts=current_counts,attention_count=int(outcome=="UNVERIFIED"),
                 targets=projected[(current-1)*100:current*100])
             validate_status(bulk_cancellation,cancel_key,current)
+p["refresh"]["protected_counts"] = protected_counts(p["refresh"])
 print(templates.get_template(p["template"]).render(identity=Identity("test", "Test Operator", ("Operator",)),
     ip_context=p["refresh"].get("fixture_ip_context",{}),ip_context_enabled="fixture_ip_context" in p["refresh"],
     ip_context_target=shun["ip"] if "fixture_ip_context" in p["refresh"] else None,
@@ -240,7 +242,8 @@ const initial = () => ({
   next_baseline_refresh: future(180), next_interactive_refresh: future(60),
   interactive_refresh_state: "idle", interactive_min_interval_seconds: 60,
   baseline_interval_seconds: 300, history_retention_days: 366,
-  trusted_auto_remove_ips: [], trusted_auto_remove_ip_count: 0,
+  trusted_auto_remove_ips: [], trusted_auto_remove_ip_count: 0, disabled_protected_ips: [],
+  protected_counts: { enabled: 0, disabled: 0 },
   queue: { revision: 0, items: [], counts: {}, next_eligible_at: null },
   devices: { "1": { hostname: "lab-ftd", state: "ready", stale: false,
     last_successful_refresh: "2026-10-15T10:00:00Z", last_error: null } },
@@ -315,6 +318,9 @@ test("refresh interaction in real Chromium", { timeout: 240000 }, async (t) => {
   let executionCount = 0;
   let pageReads = 0;
   let failQueueReply = false;
+  let failControlReply = false;
+  const controlPosts = [];
+  const controlReceipts = new Map();
   const removalKeys = [];
   let policy = { revision: 1, limit: 1000, entries: [] };
   let policyPosts = 0;
@@ -456,11 +462,21 @@ test("refresh interaction in real Chromium", { timeout: 240000 }, async (t) => {
       assert.match(body, /fixture-token/);
       const [, , kind, action] = url.pathname.split('/');
       const control = status.managed_addition_controls[kind];
-      control.paused = action === 'pause';
-      control.revision += 1;
-      status.status_revision += 1;
+      const field = name => body.match(new RegExp('name="' + name + '"\\r\\n\\r\\n([^\\r\\n]*)'))?.[1];
+      const evidence = { path: url.pathname, revision: field('revision'), key: field('request_id') };
+      controlPosts.push(evidence);
+      if (controlReceipts.has(evidence.key)) assert.deepEqual(evidence, controlReceipts.get(evidence.key));
+      else {
+        assert.equal(evidence.revision, String(control.revision));
+        controlReceipts.set(evidence.key, evidence);
+        control.paused = action === 'pause';
+        control.revision += 1;
+        status.status_revision += 1;
+      }
       response.setHeader('Content-Type', 'application/json');
-      response.end(JSON.stringify(stamp()));
+      response.statusCode = failControlReply ? 503 : 200;
+      response.end(JSON.stringify(failControlReply ? { detail: 'Control reply lost. Retry the same request.' } : stamp()));
+      failControlReply = false;
     } else if (url.pathname.startsWith("/protected-ips/") && request.method === "POST") {
       let body = "";
       for await (const chunk of request) body += chunk;
@@ -810,7 +826,7 @@ test("refresh interaction in real Chromium", { timeout: 240000 }, async (t) => {
       } finally { await page.close(); status = initial(); }
     });
 
-    await t.test('independent pause buttons update in place and show neutral queue state', async () => {
+    await t.test('independent Status pause controls and navigation counts update without obscuring queue work', async () => {
       const previousManaged = managed;
       status = { ...initial(), runtime_mode: 'continuous-managed', managed_policy_format: 2,
         managed_addition_controls: { available: true, imports: { paused: false, revision: 0 }, restoration: { paused: false, revision: 0 } } };
@@ -819,11 +835,15 @@ test("refresh interaction in real Chromium", { timeout: 240000 }, async (t) => {
       const page = await connectPage(debugOrigin, `${origin}/managed-shuns`);
       try {
         const controls = "document.querySelector('#managed-addition-control')";
-        for (const width of [1920, 1440, 960, 375]) {
+        await page.evaluate("document.querySelector('[data-open-status]').click()");
+        assert.equal(await page.evaluate("document.querySelector('#status-menu').open"), true);
+        assert.equal(await page.evaluate(`${controls}.closest('#status-menu') !== null`), true);
+        for (const [width, theme] of [[1920, 'dark'], [1440, 'light'], [960, 'dark'], [375, 'dark'], [375, 'light']]) {
+          await page.call('Emulation.setEmulatedMedia', { features: [{name: 'prefers-color-scheme', value: theme}] });
           await page.call('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: width === 375 });
           assert.equal(await page.evaluate(`(() => {
             return [...document.querySelectorAll('.managed-control-item')].every(item => {
-              const label=item.querySelector('h3').getBoundingClientRect();
+              const label=item.querySelector('h4').getBoundingClientRect();
               const button=item.querySelector('button').getBoundingClientRect();
               const sameRow=Math.abs(label.top+label.height/2-button.top-button.height/2)<3;
               return parseFloat(getComputedStyle(item).borderTopWidth)>0 && (sameRow
@@ -831,22 +851,44 @@ test("refresh interaction in real Chromium", { timeout: 240000 }, async (t) => {
                 : button.top>=label.bottom && button.top-label.bottom<20);
             }) && document.documentElement.scrollWidth<=innerWidth;
           })()`), true, `${width}px: each pause button stays with its own label`);
-          if (width === 1920) await screenshot(page, 'grouped-pause-controls');
+          await screenshot(page, `status-controls-${width}-${theme}`);
         }
         await page.evaluate(`${controls}.querySelector('[action="/managed-additions/imports/pause"] button').click()`);
         await page.until("Boolean(document.querySelector('[action=\"/managed-additions/imports/resume\"]'))");
         assert.equal(await page.evaluate("Boolean(document.querySelector('[action=\"/managed-additions/restoration/pause\"]'))"), true);
-        assert.equal(await page.evaluate("document.querySelector('[data-queue-indicator]').textContent"), 'Imports paused');
+        assert.equal(await page.evaluate("document.querySelector('[data-status-indicator]').textContent"), '1 paused');
         await page.evaluate(`${controls}.querySelector('[action="/managed-additions/restoration/pause"] button').click()`);
         await page.until("Boolean(document.querySelector('[action=\"/managed-additions/restoration/resume\"]'))");
-        assert.equal(await page.evaluate("document.querySelector('[data-queue-indicator]').textContent"), 'ADD paused');
+        assert.equal(await page.evaluate("document.querySelector('[data-status-indicator]').textContent"), '2 paused');
         await page.evaluate(`${controls}.querySelector('[action="/managed-additions/imports/resume"] button').click()`);
         await page.until("Boolean(document.querySelector('[action=\"/managed-additions/imports/pause\"]'))");
-        assert.equal(await page.evaluate("document.querySelector('[data-queue-indicator]').textContent"), 'Restore paused');
+        assert.equal(await page.evaluate("document.querySelector('[data-status-indicator]').textContent"), '1 paused');
         assert.equal(await page.evaluate("document.querySelector('#queue-menu').dataset.attention"), 'false');
+        assert.equal(await page.evaluate("document.querySelector('[data-queue-indicator]').textContent"), '');
+        assert.equal(await page.evaluate("document.querySelector('[data-managed-pause-count]').textContent"), '1 paused');
+        assert.equal(await page.evaluate("document.querySelector('#status-menu').open"), true);
+        status.protected_counts = { enabled: 12, disabled: 3 }; status.status_revision += 1;
+        await page.until("document.querySelector('[data-protected-counts]').title === '12 enabled / 3 disabled'");
+        assert.equal(await page.evaluate("getComputedStyle(document.querySelector('.count-enabled')).color !== getComputedStyle(document.querySelector('.count-disabled')).color"), true);
+        status.protected_counts = null; status.status_revision += 1;
+        await page.until("document.querySelector('[data-protected-counts]').hidden");
+        const originalControl = await page.evaluate(`(() => {const f=${controls}.querySelector('[action="/managed-additions/imports/pause"]'); return { key: f.elements.request_id.value, revision: f.elements.revision.value };})()`);
+        const postsBefore = controlPosts.length;
+        failControlReply = true;
+        await page.evaluate(`${controls}.querySelector('[action="/managed-additions/imports/pause"] button').click()`);
+        await page.until("document.querySelector('[data-action-warning]').textContent.includes('Control reply lost')");
+        await page.until("document.querySelector('[data-managed-pause-count]').textContent === '2 paused'");
+        assert.equal(controlPosts.length, postsBefore + 1, 'polling does not resend an interrupted control POST');
+        assert.equal(await page.evaluate(`${controls}.querySelector('[action="/managed-additions/imports/pause"] input[name=request_id]').value`), originalControl.key);
+        assert.equal(await page.evaluate(`${controls}.querySelector('[action="/managed-additions/imports/pause"] button').textContent`), 'Retry pause request');
+        await page.evaluate(`${controls}.querySelector('[action="/managed-additions/imports/pause"] button').click()`);
+        await page.until("Boolean(document.querySelector('[action=\"/managed-additions/imports/resume\"]'))");
+        assert.deepEqual(controlPosts.at(-1), controlPosts.at(-2), 'explicit retry keeps the original action, revision and key');
+
+
         assert.equal(await page.evaluate("document.querySelectorAll('[data-pagination-position=top]').length"), 1);
         assert.equal(await page.evaluate("document.querySelectorAll('[data-pagination-position=bottom]').length"), 1);
-      } finally { await page.close(); managed = previousManaged; status = initial(); }
+      } finally { await page.close(); managed = previousManaged; status = initial(); failControlReply = false; controlReceipts.clear(); }
     });
     await t.test('compact observation workspace keeps IP and badges together without hiding actions', async () => {
       status = { ...initial(), fixture_maintained: true, managed_policy_format: 2,
@@ -921,7 +963,7 @@ test("refresh interaction in real Chromium", { timeout: 240000 }, async (t) => {
         await page.call('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
         await screenshot(page, 'compact-managed-desktop');
         assert.equal(await page.evaluate("document.querySelectorAll('#managed-action-menu, #managed-retirement-preparation, #ready-removal-preparation, #ordered-removal-preparation').length"), 0);
-        assert.equal(await page.evaluate("document.querySelector('#managed-addition-control a').getAttribute('href')"), '/managed-imports/v2');
+        assert.equal(await page.evaluate("document.querySelector('.managed-toolbar a').getAttribute('href')"), '/managed-imports/v2');
         assert.equal(await page.evaluate("document.querySelectorAll('#managed-addition-control button').length"), 2);
         for (const width of [1440, 375]) {
           await page.call('Emulation.setDeviceMetricsOverride', {width, height: 1000, deviceScaleFactor: 1, mobile: width === 375});

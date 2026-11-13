@@ -417,7 +417,8 @@ def test_actual_v2_bff_page_frozen_review_csrf_roles_revocation_and_replay(compo
         async with policy_browser() as (client, calls):
             page = await client.get('/managed-shuns')
             assert page.status_code == 200 and 'Auto-restore rules tell the service' in page.text
-            assert 'Review turning off auto-restore' in page.text and 'Combined removal is also unavailable.' in page.text
+            assert '/shuns/198.51.100.1#ip-actions' in page.text and 'Combined removal is also unavailable.' in page.text
+            assert 'id="managed-retirement-preparation"' not in page.text
             assert (await client.get('/managed-shuns?page=1&revision=0')).status_code == 200
             assert 'No scope was rebased' in (await client.get('/managed-shuns?revision=0')).text
             csrf = client.cookies.get('ftd_shun_csrf')
