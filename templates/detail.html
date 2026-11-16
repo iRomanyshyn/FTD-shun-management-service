@@ -1,10 +1,11 @@
 {% extends "base.html" %}
+{% from "help-ui.html" import topic %}
 {% from "observed-shun-actions.html" import badge %}
 {% block content %}
-<div class="page-heading"><h1>IP: {{ ip }}</h1>
+<div class="page-heading"><div class="page-title"><h1>IP: {{ ip }}</h1>{% call topic('ip-page-help', 'About this IP', kind='page-help ip-page-help', ui_key='ip-page-help-' ~ ip) %}<p>Device observations show the last known blocks. Managed rules restore missing blocks; Protected IPs are automatically unblocked. Actions open a review before anything changes.</p>{% endcall %}</div>
 {% if refresh %}{% include "refresh-panel.html" %}{% endif %}
 </div>
-<details class="page-help ip-page-help" id="ip-page-help" data-ui-key="ip-page-help-{{ ip }}"><summary>About this IP</summary><p>Device observations show the last known blocks. Managed rules restore missing blocks; Protected IPs are automatically unblocked. Actions open a review before anything changes.</p></details>
+
 {% if ip_context_enabled | default(false) and ip_context_target %}{% from "ip-context.html" import card %}
 <section id="ip-registration" data-live-region>{{ card(ip_context_target, ip_context) }}</section>{% endif %}
 

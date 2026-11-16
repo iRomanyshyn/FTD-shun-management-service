@@ -1,18 +1,19 @@
 {% extends "base.html" %}
+{% from "help-ui.html" import topic %}
 {% from "observed-shun-actions.html" import badge, actions %}
 {% from "pagination-ui.html" import pager %}
 {% from "ip-item.html" import item as ip_item %}
 {% from "empty-state.html" import empty %}
 {% set list_path = shun_path | default('/') %}
 {% block content %}
-<div class="page-heading"><h1>{{ 'Unmanaged shuns' if unmanaged_view else 'Shuns' }}</h1>
-{% if refresh %}{% include "refresh-panel.html" %}{% endif %}
-</div>
-<details class="page-help" id="shuns-page-help" data-ui-key="page-help-shuns"><summary>About {{ 'Unmanaged' if unmanaged_view else 'Shuns' }}</summary>
+<div class="page-heading"><div class="page-title"><h1>{{ 'Unmanaged shuns' if unmanaged_view else 'Shuns' }}</h1>{% call topic('shuns-page-help', 'About ' ~ ('Unmanaged' if unmanaged_view else 'Shuns'), kind='page-help', ui_key='page-help-shuns') %}
 <p class="page-intro">Shuns are blocks observed on the devices during the last successful reads. <a href="/managed-shuns">Managed shuns</a> controls which blocks the service restores; <a href="/protected-ips">Protected IPs</a> controls automatic unblocking.</p>
 <p>Search current shuns, Protected IPs and retained history by a full IPv4 address or dotted prefix. This does not issue a Cisco query.</p>
 {% if unmanaged_view %}<p class="page-intro">Only current device/IP blocks without active service maintenance are listed here. They are not automatically restored after disappearance. This does not identify whether Cisco or an external administrator added them. <a href="/">View all current shuns</a>.</p>{% endif %}
-</details>
+{% endcall %}</div>
+{% if refresh %}{% include "refresh-panel.html" %}{% endif %}
+</div>
+
 
 <section class="universal-search" aria-labelledby="ip-search-heading">
 <form method="get" action="{{ list_path }}" class="universal-search-form">
@@ -44,14 +45,14 @@
 {% endif %}
 
 <section id="active-shuns" data-live-region data-ip-context-list aria-labelledby="active-shuns-heading">
-<h2 id="active-shuns-heading">{{ 'Current unmanaged shuns' if unmanaged_view else 'Current active shuns' }}</h2>
+<div class="section-heading"><h2 id="active-shuns-heading">{{ 'Current unmanaged shuns' if unmanaged_view else 'Current active shuns' }}</h2>{% call topic('shun-order-help', 'Protected first · newest observations first', kind='list-help') %}<p>Protected IPs (including disabled) first; newest detections first. Times reflect service observations, not device creation. Live list: new detections and removals may move entries between pages. IP search checks the whole retained dataset, not just this page.</p>{% endcall %}</div>
 {% if shun_pagination %}
 {% set page_params = {'q': search_query} if search_query else {} %}
 {% set page_summary = 'Page ' ~ shun_pagination.page ~ ' of ' ~ shun_pagination.pages ~ ' · ' ~ shun_pagination.total ~ (' unmanaged observations' if unmanaged_view else ' active shuns') ~ ' · 100 per page' %}
 {{ pager(shun_pagination.page, shun_pagination.pages, list_path, page_params, page_summary, 'Shuns pagination', 'top', 'shun-page', 'shun-page-summary', list_path, 'Newest shuns') }}
 {% endif %}
 {% if shuns %}
-<details class="list-help" id="shun-order-help"><summary>Protected first · newest observations first</summary><p>Protected IPs (including disabled) first; newest detections first. Times reflect service observations, not device creation. Live list: new detections and removals may move entries between pages. IP search checks the whole retained dataset, not just this page.</p></details>
+
 <div class="table-scroll" role="region" aria-label="{{ 'Unmanaged shuns' if unmanaged_view else 'Current shuns' }}" tabindex="0"><table class="data-table shuns-table"><thead><tr><th>IP address / labels</th><th>Device</th><th>Interface</th><th>Observed since</th><th>Last seen</th><th>Action</th></tr></thead>
 <tbody>{% for shun in shuns %}<tr{% if shun.ip in trusted_policy_ips %} class="protected-shun"{% elif shun.ip in disabled_policy_ips %} class="disabled-protection-shun"{% endif %}>
 <td>{% call ip_item(shun.ip, ip_context) %}{{ badge(shun) }}{% if shun.ip in trusted_policy_ips %}<span class="protected-ip-badge">Protected IP</span>{% elif shun.ip in disabled_policy_ips %}<span class="state-badge policy-disabled" title="Automatic removal is off for this address.">Protection disabled</span>{% endif %}{% include "import-origin.html" %}{% endcall %}</td><td>{{ shun.device_hostname }}</td><td><span class="interface-name">{{ shun.interface }}</span></td><td>{% set observed_since = shun.active_since_at | default(shun.first_seen_at) %}<time class="local-timestamp" datetime="{{ observed_since }}">{{ observed_since }}</time></td><td><time class="local-timestamp" datetime="{{ shun.last_seen_at }}">{{ shun.last_seen_at }}</time></td>

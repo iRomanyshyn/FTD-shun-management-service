@@ -1,7 +1,11 @@
+{% from "help-ui.html" import topic %}
 <section id="managed-addition-control" class="managed-addition-control">
 {% set control = refresh.managed_addition_controls | default({}) %}
 {% if control.available is sameas true %}
-<div class="section-heading"><h3>Scheduling</h3></div>
+<div class="section-heading"><h3>Scheduling</h3>{% call topic('pause-behavior-help', 'What does pausing do?', kind='list-help') %}
+<p>Existing blocks stay on the devices and continue to be monitored. Removals and Protected-IP automatic unblocking continue. An operation already in progress finishes and is checked.</p>
+<p>Imports pauses initial application; automatic restoration pauses re-adding previously applied or observed blocks. Saved imports and rules are retained, not cancelled.</p>
+<p class="preview-help">The two pauses are independent. Resuming uses a fresh device check before scheduling missing addresses; it does not clear errors or replay unknown commands.</p>{% endcall %}</div>
 <div class="managed-control-grid">
 {% for kind, title in [('imports', 'Imports'), ('restoration', 'Automatic restoration')] %}
 {% set selected = control[kind] %}
@@ -12,9 +16,6 @@
 <button type="submit" aria-label="{{ 'Resume' if selected.paused else 'Pause' }} {{ title | lower }}">{{ 'Resume' if selected.paused else 'Pause' }}</button>
 </form>{% endif %}
 </section>{% endfor %}</div>
-<details class="list-help" id="pause-behavior-help"><summary>What does pausing do?</summary>
-<p>Existing blocks stay on the devices and continue to be monitored. Removals and Protected-IP automatic unblocking continue. An operation already in progress finishes and is checked.</p>
-<p>Imports pauses initial application; automatic restoration pauses re-adding previously applied or observed blocks. Saved imports and rules are retained, not cancelled.</p>
-<p class="preview-help">The two pauses are independent. Resuming uses a fresh device check before scheduling missing addresses; it does not clear errors or replay unknown commands.</p></details>
+
 {% else %}<p class="preview-help">Operator pause controls are not initialized for this database. No pause button is available.</p>{% endif %}
 </section>

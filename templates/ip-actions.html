@@ -1,6 +1,8 @@
-{% macro device_actions(device_id, hostname, maintained, observed, enabled=true) %}
+{% from "import-reference.html" import reference %}
+{% macro device_actions(device_id, hostname, maintained, observed, enabled=true, origin=none) %}
 <article class="ip-device-card" data-ip-device="{{ device_id }}">
 <h3>{{ hostname }}</h3>
+{{ reference(origin, 'Import' if maintained else 'Original import') }}
 <div class="ip-device-state"><span class="state-badge {{ 'maintenance-enabled' if observed else '' }}">{{ 'Block observed' if observed else 'No block observed' }}</span><span class="state-badge">{{ 'Auto-restore on' if maintained is sameas true else 'Auto-restore off' if maintained is sameas false else 'Maintenance unknown' }}</span></div>
 {% if not enabled %}<p class="preview-error">Device disabled. Unblocking cannot execute; stopping auto-restoration remains available.</p>{% endif %}
 {% if 'Operator' in identity.roles or 'Administrator' in identity.roles %}
@@ -23,7 +25,7 @@
 <p class="preview-help">Choose a device below. You will review changes before confirming. Protected IPs are automatically unblocked.</p>
 {% if ip_scope_error %}<p class="policy-warning" role="status">{{ ip_scope_error }} <a href="/managed-shuns">Open Managed shuns</a>.</p>{% endif %}
 <div class="ip-device-grid">
-{% if ip_scope %}{% for target in ip_scope.targets %}{{ device_actions(target.device_id, target.hostname, target.maintenance_enabled, target.observed_present, target.device_enabled) }}{% endfor %}
+{% if ip_scope %}{% for target in ip_scope.targets %}{{ device_actions(target.device_id, target.hostname, target.maintenance_enabled, target.observed_present, target.device_enabled, (ip_imports | default({})).get(target.authorization_request_id)) }}{% endfor %}
 {% else %}{% for device in shuns | groupby('device_id') %}{% set row = device.list[0] %}{{ device_actions(row.device_id, row.device_hostname, row.maintained, true) }}{% else %}<p>No observed blocks. Saved managed policy may still restore a missing block; <a href="/managed-shuns">inspect Managed shuns</a>.</p>{% endfor %}{% endif %}
 </div>
 {% if ip_scope and ip_scope.targets | length > 1 and ('Operator' in identity.roles or 'Administrator' in identity.roles) %}

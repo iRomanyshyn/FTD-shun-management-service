@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% from "help-ui.html" import topic %}
+{% from "pagination-ui.html" import pager %}
+{% from "ip-item.html" import item as ip_item %}
+{% from "observed-shun-actions.html" import removal %}
+{% block content %}
+{% set origin = ownership['import'] %}
+<div class="page-heading"><div class="page-title"><h1>{{ origin.label }}</h1>{% call topic('import-address-help', 'About these addresses', kind='list-help') %}<p>These device/IP pairs still belong to this import. Addresses already managed by another import, replaced rules and rules with auto-restore off are listed separately. This is a local snapshot; reload to see later changes.</p>{% endcall %}</div>{% include "refresh-panel.html" %}</div>
+<p class="preview-help">Imported by {{ origin.actor_display_name }} · <time class="local-timestamp" datetime="{{ origin.requested_at }}">{{ origin.requested_at }}</time>.</p>
+<p><strong>{{ '{:,}'.format(ownership.owned_count) }} managed pairs</strong> · {{ '{:,}'.format(ownership.observed_owned) }} blocked · {{ '{:,}'.format(ownership.absent_owned) }} not observed{% if ownership.pending_jobs %} · {{ ownership.pending_jobs }} pending operations{% endif %}.</p>
+{% if ownership.attention_owned %}<p class="policy-warning">{{ ownership.attention_owned }} owned pair(s) need attention. Open Queue to inspect unresolved results.</p>{% endif %}
+
+<nav aria-label="Import address filters"><a href="?scope=owned">Managed ({{ '{:,}'.format(ownership.owned_count) }})</a> · <a href="?scope=excluded">Other ({{ '{:,}'.format(ownership.member_count - ownership.owned_count) }})</a> · <a href="?scope=all">All ({{ '{:,}'.format(ownership.member_count) }})</a></nav>
+{% set base = '/managed-imports/v2/imports/' ~ origin.id %}
+{% set summary = 'Page ' ~ ownership.page ~ ' of ' ~ ownership.pages ~ ' · ' ~ ownership.selected_count ~ ' device/IP pairs · 100 per page' %}
+{{ pager(ownership.page, ownership.pages, base, {'scope': ownership.scope, 'revision': ownership.managed_revision}, summary, 'Current import address pages', 'top', 'ownership-page', '', base, 'Reload current scope') }}
+{% set labels = {'OWNED_ADDED':'Requested by this import', 'OWNED_ADOPTED':'Existing block adopted', 'RETIRED':'Auto-restore off', 'SUPERSEDED':'Replaced by a later rule', 'ALREADY_MANAGED':'Already managed elsewhere', 'EXCLUDED_PROTECTED':'Skipped: protected at import'} %}
+<div class="table-scroll"><table class="data-table" aria-label="Current import addresses"><thead><tr><th>Device / IP</th><th>Relationship to this import</th><th>Last device check</th><th>Actions</th></tr></thead><tbody>
+{% for target in ownership.targets %}{% set owned = target.ownership in ('OWNED_ADDED','OWNED_ADOPTED') %}
+<tr{% if target.protected %} class="protected-shun"{% endif %}><td>{{ ip_item(target.ip, ip_context) }}<span class="cell-secondary">{{ target.hostname }}</span></td>
+<td><span class="state-badge {{ 'policy-enabled' if owned else '' }}">{{ labels[target.ownership] }}</span>{% if target.current_import_id and target.current_import_id != origin.id %}<span class="cell-secondary"><a href="/managed-imports/v2/imports/{{ target.current_import_id }}">View current import</a></span>{% endif %}</td>
+<td><span class="status-label">{{ 'Block observed' if target.observed_present else 'No block observed' }}</span>{% if target.attention %}<span class="cell-secondary preview-error">Needs attention</span>{% endif %}{% if target.pending_jobs %}<span class="cell-secondary">{{ target.pending_jobs }} pending operation(s)</span>{% endif %}{% if not target.device_enabled %}<span class="cell-secondary">Device disabled</span>{% endif %}{% if target.protected %}<span class="cell-secondary">Protected IP</span>{% endif %}</td>
+<td>{% if owned %}{{ removal({'ip':target.ip,'device_id':target.device_id,'device_hostname':target.hostname,'device_enabled':target.device_enabled,'maintained':true}, identity, refresh, csrf_token, new_operation_key) }}{% else %}<a href="/shuns/{{ target.ip }}">Details</a>{% endif %}</td></tr>
+{% else %}<tr><td colspan="4">No addresses in this category. Other original entries are retained in the filters above.</td></tr>{% endfor %}</tbody></table></div>
+{{ pager(ownership.page, ownership.pages, base, {'scope': ownership.scope, 'revision': ownership.managed_revision}, summary, 'Current import address pages', 'bottom', 'ownership-page', '', base, 'Reload current scope') }}
+<p class="preview-help">Ownership and observations as of <time class="local-timestamp" datetime="{{ ownership.as_of }}">{{ ownership.as_of }}</time>. <a href="{{ base }}?scope={{ ownership.scope }}">Reload current addresses</a>. Opening this page does not request device work. Unblock actions open a separate confirmation for the selected IP/device.</p>
+<details class="technical-details"><summary>Import reference</summary><p>{{ origin.id }} · Policy revision {{ ownership.managed_revision }}.</p></details>
+<p><a href="/managed-imports/v2">Back to Imports</a></p>
+<script src="/static/freshness.js" defer></script>
+{% endblock %}

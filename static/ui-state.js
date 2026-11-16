@@ -4,7 +4,8 @@
   let saved = {};
   try { saved = JSON.parse(sessionStorage.getItem(storageKey) || '{}'); } catch (_) {}
   if (!saved || typeof saved !== 'object' || Array.isArray(saved)) saved = {};
-  const disclosures = root => [...(root.matches?.('details') ? [root] : []), ...root.querySelectorAll('details')];
+  const allDisclosures = root => [...(root.matches?.('details') ? [root] : []), ...root.querySelectorAll('details')];
+  const disclosures = root => allDisclosures(root).filter(element => !element.matches('[data-help-topic]'));
   const key = element => {
     if (element.dataset.uiKey) return `key:${element.dataset.uiKey}`;
     if (element.id) return `id:${element.id}`;
@@ -22,9 +23,9 @@
   };
   const restore = (root, state) => {
     let focus;
-    disclosures(root).forEach(element => {
+    allDisclosures(root).forEach(element => {
       const id = key(element);
-      if (id && state.details.has(id)) element.open = state.details.get(id);
+      if (!element.matches('[data-help-topic]') && id && state.details.has(id)) element.open = state.details.get(id);
       if (id && state.summary === id) focus = element.querySelector(':scope > summary');
     });
     focus?.focus({ preventScroll: true });
@@ -36,6 +37,7 @@
   document.addEventListener('toggle', event => {
     const element = event.target;
     if (!(element instanceof HTMLDetailsElement) || element.closest('dialog')) return;
+    if (element.matches('[data-help-topic]')) return; // Transient help never becomes saved page layout.
     const id = key(element);
     if (!id) return;
     delete saved[id];

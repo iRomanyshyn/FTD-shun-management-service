@@ -3,6 +3,7 @@
 {% from "import-ui.html" import classification %}
 {% from "pagination-ui.html" import pager %}
 {% block content %}
+{% if receipt %}<p><a class="outline-action" href="/managed-imports/v2/imports/{{ receipt.operation_id }}">View current import addresses</a></p>{% endif %}
 <h1>Import confirmation</h1>
 {% if refresh %}{% include "refresh-panel.html" %}{% endif %}
 {% if message %}<p class="preview-error" role="alert">{{ message }}</p>{% endif %}

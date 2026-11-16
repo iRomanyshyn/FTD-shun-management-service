@@ -143,10 +143,16 @@
   dialog.querySelector('[data-ip-retry]').addEventListener('click', () => { if (target) load(target, true); });
   document.addEventListener('ftd:view-updated', () => {
     if (!dialog.open || !target) return;
-    if (document.querySelector('[data-action-dialog][open]')) dirty = true;
+    if (document.querySelector('[data-action-dialog][open], [data-help-dialog][open]')) dirty = true;
     else load(target, true);
   });
-  document.querySelector('[data-action-dialog]')?.addEventListener('close', () => {
-    if (dialog.open && target && dirty) load(target, true);
-  });
+  for (const overlay of document.querySelectorAll('[data-action-dialog], [data-help-dialog]')) {
+    overlay.addEventListener('close', () => {
+      // Let the closing overlay restore focus before the refreshed frame
+      // captures it; otherwise a deferred refresh can discard that focus.
+      window.setTimeout(() => {
+        if (dialog.open && target && dirty && !document.querySelector('[data-action-dialog][open], [data-help-dialog][open]')) load(target, true);
+      }, 0);
+    });
+  }
 })();

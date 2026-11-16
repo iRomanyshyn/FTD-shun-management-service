@@ -556,6 +556,33 @@ def create_app(
         except (sqlite3.DatabaseError, ValueError, TypeError, KeyError) as error:
             raise HTTPException(503, "Managed policy page is unavailable; no policy was changed.") from error
 
+    @app.get('/api/v2/managed-imports/{operation_id}/ownership')
+    def import_ownership(operation_id: UUID, page: Annotated[int, Query(ge=1)] = 1,
+                         scope: Literal['owned', 'excluded', 'all'] = 'owned',
+                         revision: Annotated[int | None, Query(ge=0)] = None) -> dict:
+        if continuous is None:
+            raise HTTPException(503, 'Current import ownership requires the configured managed runtime.')
+        from .import_ownership import ImportOwnership
+        try:
+            return ImportOwnership(store).page(str(operation_id), page=page, scope=scope, revision=revision)
+        except ManagedPageChanged as error:
+            raise HTTPException(409, str(error)) from error
+        except ManagedPageInvalid as error:
+            raise HTTPException(422, str(error)) from error
+        except (sqlite3.DatabaseError, ValueError, TypeError, KeyError) as error:
+            raise HTTPException(503, 'Current import ownership is unavailable; no operation was submitted.') from error
+
+    @app.get('/api/v2/managed-import-labels')
+    def managed_import_labels(keys: Annotated[list[UUID], Query(max_length=100)]) -> dict:
+        from .bulk_policy_views import BulkPolicyViews
+        from .import_ownership import import_labels
+        try:
+            with BulkPolicyViews(store)._snapshot() as db:
+                BulkPolicyViews._metadata(db, None)
+                return {'imports': import_labels(db, [str(key) for key in keys]), 'read_only': True}
+        except (sqlite3.DatabaseError, ValueError, TypeError, KeyError) as error:
+            raise HTTPException(503, 'Import references are unavailable.') from error
+
     @app.post('/api/v2/managed-removals/device', status_code=202)
     def ready_device_removal(change: ReadyRemovalRequest, request: Request) -> dict:
         return ready_removal(change, request, 'device')

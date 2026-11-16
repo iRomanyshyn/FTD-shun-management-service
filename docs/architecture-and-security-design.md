@@ -1,5 +1,48 @@
 # FTD Shun Management Service
 
+## Shared typography and transient local help — 2026-11-16
+
+Use shared relative font-size/weight tokens across lists, controls, metadata,
+badges and dialogs. Keep a consistent hierarchy and readable unbroken IP/status
+labels, responsive table scrolling and bounded pagination. Do not hide current
+errors, execution availability or destructive-action consequences in help.
+
+Explanatory content may use a shared question-mark control beside its heading or
+field. Progressively enhance the native disclosure into a single titled local
+dialog; no request, policy decision, URL change or provider query follows. Clone
+explanations only, excluding forms/controls/scripts/live ownership and duplicate
+IDs. Close/Escape/wholly-outside pointer clicks restore source focus, including a
+replaced live trigger. Preserve the ordinary readable no-JavaScript fallback.
+
+Help remains independent of the IP and frozen action frames. While it is above
+an IP frame, defer that frame's read-only replacement until help closes; capture
+focus after close handlers settle. Transient help is excluded from persisted
+disclosure booleans, while ordinary editor/history/evidence state remains. Native
+modal focus and same-origin CSP are retained; add no external font/UI dependency,
+backend route, execution gate, schema or actor authority. Follow
+manual/operator-workspace.md. Per-import whole-scope cleanup remains separate.
+
+## Read-only current import ownership — 2026-11-16
+
+Expose current import ownership separately from historical membership. Only original
+addition/adoption members whose enabled current policy matches the same authorization
+request, intent and generation belong to that import. ALREADY_MANAGED, protected
+exclusions, retired maintenance and replacement authority do not expand its scope.
+Check retained manifest integrity in one query-only snapshot, stream complete counts
+and an authority digest, and return at most100 rows. Bind pagination to managed
+revision; fail unavailable on missing policy evidence and require reload on changes.
+Observation is advisory and never proves service creation.
+
+Readable import labels/author/time link presented Managed/IP rows to this snapshot.
+Fetch metadata only for presented references and cached IP information only for
+displayed targets; no provider/device request or full-list browser rendering.
+Status updates do not reload the frozen list. Existing per-IP reviews remain the
+only write actions here, with their original confirmation/roles/guards. No new
+cleanup admission, schema, gate, profile or actor authority follows from the two
+read-only API routes. Whole-import confirmed retirement/cancellation/rolling
+removal and progress remain a separate planned execution slice. Follow
+manual/import-ownership.md and working-version-plan.md §8.1.
+
 ## Original-visit audit on ordinary lease expiry — 2026-11-16
 
 When a device lease expires, classify its RUNNING work as UNVERIFIED using the

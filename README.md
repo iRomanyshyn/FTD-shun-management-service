@@ -12,6 +12,8 @@ laboratory device; it has no production deployment.
   with bounded 100-row pages and cached country/provider context.
 - **Managed shuns / Imports:** import pasted IPv4 lists, choose devices and keep
   accepted addresses blocked through automatic restoration after disappearance.
+  Readable import links show which device/IP pairs the import still manages,
+  separately from skipped, replaced and historical entries.
 - **Unblock:** review a device or fleet scope, stop matching restoration and queue
   removal. Interactive refresh and removals take priority over bulk additions.
 - **Protected IPs:** all signed-in users can maintain exact addresses that should
@@ -35,17 +37,21 @@ for the complete component/storage diagram and concrete payload formats.
 
 ## Current delivery boundary
 
-Lab API/Web **0.15.2** fix the original-session audit needed to recover an import
-interrupted before its final checkpoint. A bounded real FPR test confirms recovery
-without replay, followed by verified cleanup. See [Interrupted Import Recovery](docs/manual/interrupted-v7-recovery.md).
+Web **0.17.0** unifies typography and opens contextual **?** help in local dialogs.
+See the [Operator Workspace](docs/manual/operator-workspace.md). The lab API remains
+**0.16.0**, which added [current import addresses](docs/manual/import-ownership.md):
+readable provenance links, complete ownership counts and 100-row pages with existing
+per-IP unblock reviews. Whole-import unblocking remains the next execution slice.
+The earlier original-session expiry audit and bounded recovery/lifecycle acceptance
+remain; see [Interrupted Import Recovery](docs/manual/interrupted-v7-recovery.md).
 Service environment isolation, browser headers and deployment IP protection remain.
 Consult [Project Status](docs/project-status.md) for exact deployed
 images, validation and limitations; a source version does not deploy itself.
 
 The current lab uses the continuous managed runtime with tracked v6 SSH visits.
 Deferred confirmation after a later complete `show shun` read is implemented and
-has bounded separate-profile acceptance, but persistent v7 activation and remaining
-interruption/lifecycle acceptance are still pending. An uncertain historical
+has bounded separate-profile interruption/lifecycle acceptance, but persistent v7
+activation and wider scale/multi-device acceptance remain pending. An uncertain historical
 operation is retained in audit; a later observation does not prove who created it.
 
 Next functional work is [unblocking one import's currently owned targets](docs/working-version-plan.md#81-unblock-imported-ips--planned-approved-2026-11-12)

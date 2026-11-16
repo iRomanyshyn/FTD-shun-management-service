@@ -12624,3 +12624,107 @@ container identities/private checks/rollback tags are in current status/evidence
 Main stays v6 with no new policy/control/recovery/device-mutation submission.
 Next bounded v7 pause/protection/cancellation lifecycle checks, then per-import
 cleanup; no new offline utility, legacy converter or GitHub release/tag.
+
+## 2026-11-16 — v0.15.2 bounded pause, protection and cancellation acceptance
+
+Existing application/agent artifacts unchanged.184 affected Python tests passed
+156.32s. Fresh separate lifecycle DB/sockets tested only198.51.100.181–183 on the
+known desk FPR: import pause with normal reads/no ADD; Resume followed by both
+pauses still confirms a sent ADD; restoration pause preserves deliberate absence
+while new imports proceed. A real API cancellation after .182 stage ACK leaves
+it applied and stops .183 before dispatch, settling with zero attention. Normal
+backoff/read permits .181 restoration; protection at its committed pending handoff
+retires maintenance and queues verified unblocking even while both ADD categories
+pause. Disable protection, verified .182 cleanup, Resume both and restart/read:
+all three absent and retired, protection disabled, executor15 IDLE, no resurrection.
+
+Private callbacks sent existing API actions only after original ACK/handoff; no
+RPC/result/clock/guard substitution.15 tracked cycles completed without failure,
+three ADDs/two queued verified removals plus one separately labelled typed REMOVE
+for disappearance with API actually stopped. Six final jobs: three OBSERVED_PRESENT,
+one never-started CANCELLED, two REMOVE VERIFIED. Exact final32,425 device/IP/
+interface keys match the original snapshot. Both test writers exited0. Retain new
+requests/keys/bootstrap/volumes under /tmp/ftd-lifecycle-20261116; consumed authority
+is not replayable. Private harness filename/startup observer/response-field mistakes
+were corrected without product changes; initial evidence remains.
+
+Exact original main v6 images/containers restored. Four other service start
+identities/Cymru unchanged; private environment hashes/Settings/CA unchanged.
+Integrityok/27 authority hashes/audit prefix/all jobs including26 unknowns/32425
+observations match; read11:51:13Z/errornone/executor5065 IDLE. Package/build/footer/
+45 templates/66 routes/readonly cache/Web200/ten anonymous401/33 assets pass.
+Version/source remain0.15.2/11265edf0bf7; no code/image/flag/schema/secret/trust/
+network change or main policy/control/recovery request. No new full/Rust/browser
+run or release/tag. Updated status/agent guidance/working plan/deferred manual.
+Next functional work: per-import currently owned-target cleanup; persistent main
+v7 selection and wider scale/multi-device acceptance remain separate.
+
+## 2026-11-16 — v0.16.0 current import ownership and readable provenance
+
+Delivered the read-only foundation for per-import cleanup: complete retained-source
+validation/counts/digest, exact current request/intent/generation ownership,100-row
+pages, revision-bound navigation and explicit reload. Duplicate ALREADY_MANAGED,
+protected, retired and replacement entries remain separate. Managed/IP views and
+receipts expose readable import links. Shared cached context selects displayed
+addresses only; Status does not replace this snapshot. Existing per-IP unblock
+reviews remain; no whole-import execution/worker/schema/gate/profile/agent change.
+Updated the operator manual, architecture and plan with this explicit boundary.
+
+Full Python4112 passed/one stale route-list assertion failed/four skips876.25s.
+Updated the expected two GET routes and checked refusal/no initialization on a
+legacy profile: affected64 passed24.24s, final opt-in case1/.54s. No second clean
+full run. Earlier interrupted/stalled attempts are retained, not claimed complete.
+Browser/Node112 pass225.99s; final mobile/wording case plus parent2 pass7.18s/72 skipped.
+The real synthetic100000-pair preparation/confirmation/read keeps complete counts
+and100 presented rows; no FPR capacity/throughput claim. Ruff/compileall/JS/diff
+and final package/source/footer/47 templates/67 Web routes/API/cache preflights pass.
+No new Rust suite or live authenticated-browser/device-write acceptance claimed.
+
+API/Web-only deployment13:29:07Z uses0.16.0/source21a53698bbb3/shared image
+282da1874073753db2b81d81856d7bda0bf29f82952d4b2805d6c5db494d9fb7.
+Original writers exited0/no RUNNING/epoch5083 IDLE; five unrelated service identities,
+Settings/private hashes/CA/Cymru unchanged. Integrityok/27 authority hashes/audit
+prefix/all jobs including26 unknowns/32425 observations/drafts/confirmed roots match.
+Fresh read13:29:33Z/errornone/new epoch5084 IDLE. Actual new UDS routes200 count
+32424 owned/observed pairs from the retained32425-member import,100 rows/325 pages;
+readonly template/cache, Web200/eleven anonymous401/33 assets and TLS/auth headers
+pass. Main stays v6/v7 off; no new policy/control/recovery/device request or secret/
+trust/network change. No GitHub release/tag. Rollback tags and exact image/container
+identities are in current status and `/tmp/ftd-import-ownership-20261116`.
+Next: confirmed whole-import unblocking with bounded urgent work and task progress.
+
+## 2026-11-16 — v0.17.0 shared typography and contextual help
+
+Normalized shared font-size/weight tokens across controls, text, metadata, badges,
+pagination and forms; retained readable compact rows and intact IP/status labels.
+A shared question-mark/native-dialog component replaces explanatory inline help on
+primary tabs, ownership, list order, paste formats and pause behavior. Local escaped
+content only, no fetch/submission or copied forms/tokens/controllers/duplicate IDs.
+Close/Escape/wholly-outside clicks restore focus; inside drags retain the dialog.
+Transient help is not stored as page layout. Native no-JavaScript disclosures and
+ordinary editor/history state remain. Critical warnings, action consent and cached
+IP data stay visible. IP-frame refresh waits for help closure and restored focus.
+
+Full Python4113 pass/four optional skips872.59s; affected155 pass34.85s. Final full
+Browser/Node115 pass242.01s; final focused6 pass33.23s/71 skipped. Seven main views
+cover1440/375px, light/dark, computed typography, local help, keyboard/backdrop/drag,
+source replacement, nested frames and fallback without JS. Initial focused/full
+runs caught close-order focus loss and row-height regression; fixed before final
+clean coverage. A selected legacy-review subset lacked predecessor fixture setup;
+its failed harness log is retained, not claimed as acceptance. Ruff/compileall/JS/
+diff and final package/source/footer/48 templates/67 Web routes/API/cache checks pass.
+No Rust rerun or live authenticated-browser/device-write acceptance claim.
+
+Web-only rollout14:03:27Z uses0.17.0/sourcec6ebed591e01/image
+43728f0650bdc321a2265f653b2781fa4374ac2272ec4c246da5725ca5eaa513.
+Old Web exited0. API0.16.0 plus five other services retain exact container/image/
+start identities; Settings/private hashes/CA/Cymru unchanged. Integrityok/27
+authority hashes/audit prefix/all jobs including26 unknowns/32425 observations/
+drafts/confirmed roots match; latest read14:01:47Z/errornone/epoch5090 IDLE. Live
+Web200/eleven anonymous401/34 assets and TLS/auth/header checks pass. Main v6/v7 off;
+no API/agent restart, new backend/schema/gate/profile or policy/control/recovery/
+device submission, credential/trust/network change or GitHub release/tag. Rollback
+Web0.16.0 tag`ftd-shun-web:lab-pre-help-20261116`; exact identities/logs/screenshots
+retained in`/tmp/ftd-ui-help-20261116`. Manuals/architecture/plan updated. Reload
+old tabs. Next: confirmed whole-import unblocking with bounded urgent work and task
+progress; this delivery completes the requested design pass, not that operation.

@@ -6,6 +6,38 @@ agent can explicitly select deferred confirmation on its separate prepared DB,
 using the configuration below. Setting only the wire version to7 still refuses.
 No current database, configuration or running service is switched automatically.
 
+## Bounded lifecycle acceptance — 2026-11-16
+
+The existing0.15.2 application and guarded agent passed this matrix on the desk
+FPR1010 using a fresh separate DB and only198.51.100.181–183. These are bounded
+device results, not automatic main-v7 activation or a throughput claim.
+
+| Scenario | Observed result |
+| --- | --- |
+| Pause imports, save a new rule, complete a device read | No ADD job or command; monitoring continues. |
+| Resume imports; pause both categories after the real pending handoff | The sent ADD is confirmed OBSERVED_PRESENT and the session finishes. |
+| Pause restoration; remove one applied fixture while API is stopped | Restart/read retains absence and active maintenance without restoring it. |
+| Import new addresses with restoration paused | Initial import still runs independently. |
+| Cancel a two-address import after its first stage ACK | First address confirms and stays applied; second is cancelled before dispatch. Cancellation settles with zero attention. |
+| Resume restoration, then enable protection after its pending handoff | A causal read confirms presence; protection retires maintenance and queues verified unblocking even with both ADD categories paused. |
+| Disable protection, manually clean the remaining block, Resume both and restart API | Retired/cancelled rules remain off; all fixtures stay absent after new complete reads. |
+
+Normal backoff and refresh spacing remained in force. One later ordinary refresh
+after the pair backoff allowed restoration; no timestamp or gate was shortened.
+The final32,425 device/IP/interface keys exactly matched the original observation
+set. Fifteen tracked cycles completed without failure, with three ADDs (two for
+the restored fixture) and two queued verified removals; the simulated disappearance
+used one separately labelled typed REMOVE with verified absence while API was stopped.
+
+Private acceptance callbacks submitted real API control/protection/cancellation
+requests only after their original ACK/handoff committed. They did not replace
+RPC responses, results, clocks or guards and are not product feature flags.
+Evidence, new keys and separate retained volumes: `/tmp/ftd-lifecycle-20261116`.
+Consumed fixtures/receipts must not be replayed. The exact original main v6 images,
+containers, settings and authority were restored; consult current status for checks.
+
+## Related recovery contracts
+
 Source0.11.1 extends [local result persistence retries](result-storage-retry.md)
 to the pre-END checkpoint and settled pending handoff. Short typed SQLITE_BUSY
 contention can recover without resending an ADD/END or opening SSH. The same

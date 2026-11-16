@@ -4,11 +4,11 @@
 {% from "observed-shun-actions.html" import actions %}
 {% from "ip-item.html" import item as ip_item %}
 {% block content %}
-<h1>Managed shuns</h1>
-{% include "refresh-panel.html" %}
-<p>Desired shun presence is separate from observed device state. This page reads retained local data only; it does not query Cisco or adopt existing shuns.</p>
-<p class="page-intro"><strong>Auto-restore off means no future restoration, not automatic unblocking.</strong> Use Protected IPs to automatically remove blocks when they are detected.</p>
-{{ behavior_help() }}
+<div class="page-heading"><div class="page-title"><h1>Managed shuns</h1>{{ behavior_help(overview=true) }}</div>
+{% include "refresh-panel.html" %}</div>
+
+
+
 <section id="managed-shun-state" data-ip-context-list data-live-region>
 {% if not managed.changed %}<p class="policy-warning"><strong>{% if managed.controller_available %}Experimental automatic restoration is {{ 'enabled' if managed.controller_enabled else 'disabled' }}.{% else %}Automatic restoration is not implemented.{% endif %}</strong> Operators may review a standing grant, stop maintaining policy or cancel waiting cleanup. Standing grants and combined cleanup require independent admission gates and explicit migration. Policy resume remains unavailable.</p>{% endif %}
 {% if managed.changed %}

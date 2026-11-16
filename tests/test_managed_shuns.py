@@ -74,6 +74,7 @@ def test_registry_is_opt_in_and_normal_application_does_not_initialize_it(tmp_pa
         assert not db.execute("SELECT name FROM sqlite_master WHERE name LIKE 'managed_shun_%'").fetchall()
     assert {route.path for route in app.routes if "managed" in route.path} == {
         '/api/v2/managed-additions/control',
+        '/api/v2/managed-imports/{operation_id}/ownership', '/api/v2/managed-import-labels',
         "/api/v2/managed-shuns/page", "/api/v2/managed-shuns/selection", "/api/v2/managed-shuns/retire",
         "/api/v2/managed-imports/prepare", "/api/v2/managed-imports/preparations", "/api/v2/managed-imports/preparation",
         "/api/v2/managed-imports/proposal", "/api/v2/managed-imports/cancel-preparation",
@@ -107,6 +108,8 @@ def test_registry_is_opt_in_and_normal_application_does_not_initialize_it(tmp_pa
     async def scenario():
         async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://internal") as client:
             assert (await client.get("/api/v2/managed-shuns/page")).status_code == 503
+            assert (await client.get(f"/api/v2/managed-imports/{uuid4()}/ownership")).status_code == 503
+            assert (await client.get('/api/v2/managed-import-labels', params={'keys': str(uuid4())})).status_code == 503
             assert (await client.get(f"/api/v2/managed-removal-scope/{IP}")).status_code == 503
             assert (await client.post("/api/v2/managed-shuns/selection", json={
                 "targets": [{"device_id": 1, "ip": str(IP)}]})).status_code == 503

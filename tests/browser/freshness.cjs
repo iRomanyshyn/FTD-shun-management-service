@@ -207,14 +207,14 @@ print(templates.get_template(p["template"]).render(identity=Identity("test", "Te
     review=review, report=managed_import_report, accepted=None, result=None, confirm_ip="", message=None, admission_enabled=p["refresh"].get("managed_policy_admission_enabled" if p["template"] == "managed-import-review.html" else "import_admission_enabled", False),
     retry_available=p["refresh"].get("import_admission_enabled", False), execution_enabled=False,
     removal_admission_enabled=p["refresh"].get("managed_removal_admission_enabled", False),
-    frozen_view=p["template"] in ("import-confirm.html", "managed-remove-review.html", "bulk-removal-review.html", "bulk-ordered-review.html", "bulk-import-workspace.html", "bulk-import-report.html", "bulk-confirmation-review.html", "bulk-policy-receipt.html", "bulk-cancellation-review.html", "managed-retirement-review.html", "managed-grant-review.html", "managed-batch-form.html", "managed-batch-review.html"),
+    frozen_view=p["template"] in ("import-ownership.html", "import-confirm.html", "managed-remove-review.html", "bulk-removal-review.html", "bulk-ordered-review.html", "bulk-import-workspace.html", "bulk-import-report.html", "bulk-confirmation-review.html", "bulk-policy-receipt.html", "bulk-cancellation-review.html", "managed-retirement-review.html", "managed-grant-review.html", "managed-batch-form.html", "managed-batch-review.html"),
     ready_removal_local_enabled=p["refresh"].get("fixture_ready_local_enabled",False),
     ordered_removal_local_enabled=p["refresh"].get("fixture_ordered_local_enabled",False),
     inspection=inspection,ordered=ordered_status,operation_id=bulk_cancellation["operation_id"] if bulk_cancellation else ordered_key,cancellation=bulk_cancellation,
     drafts=bulk_drafts,draft=bulk_draft,proposal=bulk_proposal,preparation_id="33333333-3333-4333-8333-333333333333",review_mode=p.get("bulk_review",False),
     creation_unknown=False,draft_label="",draft_reason="",
     bulk_policy_local_enabled=p["refresh"].get("fixture_bulk_policy_local_enabled",False),typed_count="",consent=False,receipts=None,receipt=policy_receipt,
-    bulk_policy_local_concurrent=p["refresh"].get("fixture_bulk_policy_local_concurrent",False),
+    bulk_policy_local_concurrent=p["refresh"].get("fixture_bulk_policy_local_concurrent",False), ownership=p.get("ownership"),
     admission_available=p["refresh"].get("managed_policy_admission_enabled", False),
     page=1, pages=2, page_targets=review.targets[:100] if p["template"] == "managed-batch-review.html" else [],
     confirm_count="", acknowledged=False, import_text_limit=MAX_TEXT_BYTES,
@@ -234,7 +234,7 @@ print(templates.get_template(p["template"]).render(identity=Identity("test", "Te
     selected_devices=[1] if p.get("submitted") else [], preview=preview, preview_error=None,
     devices=[dict(id=1,hostname="lab-ftd",enabled=True),dict(id=2,hostname="disabled-ftd",enabled=False)],
     active_page="unmanaged" if p.get("unmanaged") else "managed" if p["template"].startswith("bulk-ordered-") or p["template"] in ("managed-shuns.html", "bulk-managed-shuns.html", "managed-remove-review.html", "bulk-removal-review.html", "managed-retirement-review.html", "managed-grant-review.html", "managed-batch-form.html", "managed-batch-review.html") else "imports" if p["template"] in ("import-preview.html", "bulk-confirmation-review.html", "bulk-policy-receipt.html", "bulk-cancellation-review.html", "bulk-cancellation-status.html") or p["template"].startswith("bulk-import-") else "protected" if p["template"] == "protected-ips.html" else "history" if p["template"] == "history.html" else "shuns",
-    auto_request=p["template"] not in ("protected-ips.html", "history.html", "import-preview.html", "import-confirm.html", "bulk-import-workspace.html", "bulk-import-report.html", "bulk-confirmation-review.html", "bulk-policy-receipt.html", "bulk-cancellation-review.html", "bulk-cancellation-status.html", "managed-shuns.html", "bulk-managed-shuns.html", "managed-remove-review.html", "bulk-removal-review.html", "bulk-ordered-review.html", "bulk-ordered-status.html", "managed-retirement-review.html", "managed-grant-review.html", "managed-batch-form.html", "managed-batch-review.html")))
+    auto_request=p["template"] not in ("import-ownership.html", "protected-ips.html", "history.html", "import-preview.html", "import-confirm.html", "bulk-import-workspace.html", "bulk-import-report.html", "bulk-confirmation-review.html", "bulk-policy-receipt.html", "bulk-cancellation-review.html", "bulk-cancellation-status.html", "managed-shuns.html", "bulk-managed-shuns.html", "managed-remove-review.html", "bulk-removal-review.html", "bulk-ordered-review.html", "bulk-ordered-status.html", "managed-retirement-review.html", "managed-grant-review.html", "managed-batch-form.html", "managed-batch-review.html")))
 `;
 
 const initial = () => ({
@@ -304,7 +304,7 @@ async function connectPage(debugOrigin, url, readySelector = "[data-refresh-requ
   } };
 }
 
-test("refresh interaction in real Chromium", { timeout: 240000 }, async (t) => {
+test("refresh interaction in real Chromium", { timeout: 300000 }, async (t) => {
   if (process.env.FTD_BROWSER_CASE_PATTERN) {
     const pattern = new RegExp(process.env.FTD_BROWSER_CASE_PATTERN);
     const run = t.test.bind(t);
@@ -375,7 +375,7 @@ test("refresh interaction in real Chromium", { timeout: 240000 }, async (t) => {
       }
       response.setHeader('Content-Type', filename.endsWith('.svg') ? 'image/svg+xml' : filename.endsWith('.ico') ? 'image/x-icon' : 'image/png');
       response.end(fs.readFileSync(filename));
-    } else if (["/static/ip-dialog.js", "/static/ui-state.js"].includes(url.pathname)) {
+    } else if (["/static/ip-dialog.js", "/static/ui-state.js", "/static/help-dialog.js"].includes(url.pathname)) {
       response.setHeader("Content-Type", "text/javascript");
       response.end(fs.readFileSync(path.join(root, url.pathname)));
     } else if (url.pathname === "/static/navigation.js") {
@@ -590,12 +590,20 @@ test("refresh interaction in real Chromium", { timeout: 240000 }, async (t) => {
         ordered_wait: url.searchParams.get("ordered") === "yes", all_devices_enabled: url.searchParams.get("enabled") === "all",
         history, anchor: url.searchParams.get("anchor"),
         ...previewFields,
+        ownership: url.pathname.startsWith('/managed-imports/v2/imports/') ? {
+          import: { id:'11111111-1111-4111-8111-111111111111', label:'Office block import', actor_display_name:'Fixture operator', requested_at:'2026-11-16T10:00:00Z' },
+          owned_count:100000, observed_owned:99800, absent_owned:200, pending_jobs:0, member_count:100001,
+          managed_revision:1, as_of:'2026-11-16T10:00:01Z', scope:'owned', page:Number(url.searchParams.get('page')||1),pages:1000,selected_count:100000,
+          targets:Array.from({length:100}, (_,i)=>({ip:'198.18.0.'+(i+1),device_id:1,hostname:'Synthetic FTD',device_enabled:true,
+            ownership:'OWNED_ADDED',observed_present:true,pending_jobs:0,protected:false})),
+        } : null,
         policy, managed: managedView, handoffs, fleet_cleanup: fleetCleanup, template: ["/", "/unmanaged"].includes(url.pathname) ? "index.html" : url.pathname === "/history" ? "history.html"
           : url.pathname === "/protected-ips" ? "protected-ips.html" : url.pathname === "/imports" ? "import-preview.html"
             : url.pathname === "/imports/review" ? "import-confirm.html" : url.pathname === "/managed-imports/review" ? "managed-import-review.html"
               : url.pathname === "/managed-imports/v2/confirmation-review" ? "bulk-confirmation-review.html"
                 : url.pathname === "/managed-imports/v2/cancellation-review" ? "bulk-cancellation-review.html"
                 : url.pathname.startsWith("/managed-imports/v2/cancellations/") ? "bulk-cancellation-status.html"
+                : url.pathname.startsWith("/managed-imports/v2/imports/") ? "import-ownership.html"
                 : url.pathname.startsWith("/managed-imports/v2/receipts/") ? "bulk-policy-receipt.html"
                 : url.pathname === "/managed-imports/v2" ? "bulk-import-workspace.html" : url.pathname.startsWith("/managed-imports/v2/") ? "bulk-import-report.html"
               : url.pathname === "/managed-shuns" ? (managed.intent_format === 2 ? "bulk-managed-shuns.html" : "managed-shuns.html")
@@ -643,6 +651,129 @@ test("refresh interaction in real Chromium", { timeout: 240000 }, async (t) => {
       const capture = await page.call('Page.captureScreenshot', { format: 'png' });
       fs.writeFileSync(path.join(process.env.FTD_UI_SCREENSHOTS, name + '.png'), Buffer.from(capture.data, 'base64'));
     };
+
+    await t.test('local help dialog keeps focus, survives refresh and never submits work', async () => {
+      status={...initial(),managed_addition_controls:{available:true,imports:{paused:false,revision:0},restoration:{paused:false,revision:0}}};
+      const page=await connectPage(debugOrigin,origin);
+      try {
+        const writes=postCount, executions=executionCount;
+        await page.evaluate("document.querySelector('#shuns-page-help summary').click()");
+        await page.until("document.querySelector('[data-help-dialog]').open");
+        assert.equal(await page.evaluate("document.querySelector('[data-help-title]').textContent"),'About Shuns');
+        assert.equal(await page.evaluate("document.querySelector('#shuns-page-help').open"),false);
+        assert.equal(await page.evaluate("document.querySelector('[data-help-content]').querySelectorAll('form,input,script,[data-live-region],[id]').length"),0);
+        assert.equal(await page.evaluate("document.querySelector('[data-help-dialog]').contains(document.activeElement)"),true);
+        await page.call('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
+        await page.call('Input.dispatchKeyEvent',{type:'keyUp',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
+        await page.until("!document.querySelector('[data-help-dialog]').open");
+        await page.until("document.activeElement===document.querySelector('#shuns-page-help summary')");
+        assert.equal(await page.evaluate("document.activeElement===document.querySelector('#shuns-page-help summary')"),true);
+        await page.evaluate("document.querySelector('#shun-order-help summary').click()");
+        const content=await page.evaluate("document.querySelector('[data-help-content]').textContent");
+        complete();await wake(page);
+        await page.until(`document.querySelector('#active-shuns').textContent.includes('FIXTURE_EVENT_${generation}')`);
+        assert.equal(await page.evaluate("document.querySelector('[data-help-dialog]').open"),true);
+        assert.equal(await page.evaluate("document.querySelector('[data-help-content]').textContent"),content);
+        await page.evaluate("document.querySelector('[data-help-close]').click()");
+        await page.until("document.activeElement===document.querySelector('#shun-order-help summary')");
+        assert.equal(await page.evaluate("document.activeElement===document.querySelector('#shun-order-help summary')"),true);
+        await page.evaluate("document.querySelector('#status-menu').open=true;document.querySelector('#pause-behavior-help summary').click()");
+        await page.until("document.querySelector('[data-help-dialog]').open");
+        await page.call('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
+        await page.call('Input.dispatchKeyEvent',{type:'keyUp',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
+        await page.until("!document.querySelector('[data-help-dialog]').open");
+        await page.until("document.activeElement===document.querySelector('#pause-behavior-help summary')");
+        assert.equal(await page.evaluate("document.querySelector('#status-menu').open"),true);
+        assert.equal(await page.evaluate("document.activeElement===document.querySelector('#pause-behavior-help summary')"),true);
+        await page.evaluate("document.querySelector('#status-menu').open=false;document.querySelector('#shuns-page-help summary').click()");
+        const mouse=async(type,x,y,buttons)=>page.call('Input.dispatchMouseEvent',{type,x,y,button:'left',buttons,clickCount:1});
+        const box=await page.evaluate("(() => {const r=document.querySelector('[data-help-dialog]').getBoundingClientRect();return{x:r.left+3,y:r.top+3};})()");
+        await mouse('mousePressed',box.x,box.y,1);await mouse('mouseReleased',box.x,box.y,0);
+        assert.equal(await page.evaluate("document.querySelector('[data-help-dialog]').open"),true);
+        await mouse('mousePressed',box.x,box.y,1);await mouse('mouseMoved',1,1,1);await mouse('mouseReleased',1,1,0);
+        assert.equal(await page.evaluate("document.querySelector('[data-help-dialog]').open"),true,'Dragging from inside does not dismiss');
+        await mouse('mousePressed',1,1,1);await mouse('mouseReleased',1,1,0);
+        await page.until("!document.querySelector('[data-help-dialog]').open");
+        assert.equal(postCount,writes);assert.equal(executionCount,executions);
+      } finally {await page.close();status=initial();}
+    });
+    await t.test('shared typography and help fit every main tab in light, dark and mobile layouts', async () => {
+      status={...initial(),runtime_mode:'continuous-managed',bulk_import_preparation_available:true,managed_policy_format:2,ready_removal_review_available:true};
+      const previousManaged=managed;
+      managed={initialized:true,intent_format:2,revision:7,total:1,page:1,pages:1,limit:200000,
+        restoration_suspended:false,attempt_ledger_initialized:true,read_only:true,
+        entries:[{device_id:1,hostname:'Synthetic FTD',ip:'198.51.100.10',enabled:true,device_enabled:true,
+          observed_present:true,protected:false,generation:1,pending_jobs:0,attention:false,missing_unknown_job:false,
+          last_attempt_state:'VERIFIED',last_attempt_generation:1,last_verified_application_at:'2026-11-16T10:00:00Z',
+          actor_display_name:'Fixture operator',actor_subject:'fixture',authorized_at:'2026-11-16T10:00:00Z',label:'Office block import',reason:''}]};
+      const page=await connectPage(debugOrigin,origin);
+      const writes=postCount, executions=executionCount;
+      try {
+        const routes=['/','/unmanaged','/managed-shuns','/protected-ips','/history','/managed-imports/v2',
+          '/managed-imports/v2/imports/11111111-1111-4111-8111-111111111111'];
+        for (const [index,route] of routes.entries()) {
+          await page.call('Page.navigate',{url:origin+route});
+          await page.until("document.querySelector('main h1') && document.querySelector('main [data-help-topic] summary') && document.readyState==='complete'");
+          for (const width of [1440,375]) for (const theme of ['light','dark']) {
+            await page.call('Emulation.setDeviceMetricsOverride',{width,height:900,deviceScaleFactor:1,mobile:width===375});
+            await page.call('Emulation.setEmulatedMedia',{features:[{name:'prefers-color-scheme',value:theme}]});
+            const layout=await page.evaluate(`(() => {
+              const style=n=>getComputedStyle(n);
+              const controls=[...document.querySelectorAll('main .utility-menu > summary, main .row-ip-actions button, main .row-ip-actions a, main .outline-action, main .universal-search-form button')];
+              return {fits:document.documentElement.scrollWidth<=innerWidth,controls:controls.map(n=>[style(n).fontSize,style(n).fontWeight]),
+                ip:[...document.querySelectorAll('.ip-item-heading > a')].map(n=>style(n).fontSize),
+                fields:[...document.querySelectorAll('.history-page-form input, .history-page-form button, .import-form input:not([type=hidden]), .import-form textarea, .import-form legend')].map(n=>style(n).fontSize),
+                heading:style(document.querySelector('h1')).fontWeight,
+                help:style(document.querySelector('main .help-trigger')).fontSize};
+            })()`);
+            assert.equal(layout.fits,true,route+' '+width);assert.equal(layout.heading,'600');assert.equal(layout.help,'14px');
+            assert.ok(layout.controls.every(([size,weight])=>size==='14px'&&weight==='600'),JSON.stringify(layout.controls));
+            assert.ok(layout.ip.every(size=>size==='14px'));
+            assert.ok(layout.fields.every(size=>size==='14px'),JSON.stringify(layout.fields));
+            await screenshot(page,`workspace-${index}-${width}-${theme}`);
+            await page.evaluate("document.querySelector('main [data-help-topic] summary').click()");
+            await page.until("document.querySelector('[data-help-dialog]').open");
+            assert.ok(await page.evaluate("(() => {const r=document.querySelector('[data-help-dialog]').getBoundingClientRect();return r.left>=0&&r.right<=innerWidth&&r.top>=0&&r.bottom<=innerHeight;})()"));
+            await screenshot(page,`help-${index}-${width}-${theme}`);
+            await page.evaluate("document.querySelector('[data-help-close]').click()");
+          }
+        }
+        assert.equal(postCount,writes);assert.equal(executionCount,executions);
+      } finally {await page.close();status=initial();managed=previousManaged;}
+    });
+    await t.test('help retains a readable native disclosure when JavaScript is unavailable', async () => {
+      status=initial();const page=await connectPage(debugOrigin,origin);
+      try {
+        await page.call('Emulation.setScriptExecutionDisabled',{value:true});
+        await page.call('Page.reload');await page.until("document.querySelector('#shuns-page-help summary')");
+        const box=await page.evaluate("(() => {const r=document.querySelector('#shuns-page-help summary').getBoundingClientRect();return{x:r.left+r.width/2,y:r.top+r.height/2};})()");
+        for(const [type,buttons] of [['mousePressed',1],['mouseReleased',0]]) await page.call('Input.dispatchMouseEvent',{type,...box,button:'left',buttons,clickCount:1});
+        await page.until("document.querySelector('#shuns-page-help').open");
+        assert.ok(await page.evaluate("document.querySelector('#shuns-page-help [data-help-body]').getBoundingClientRect().height>0"));
+        assert.equal(await page.evaluate("document.querySelector('[data-help-dialog]').open"),false);
+      } finally {await page.close();status=initial();}
+    });
+    await t.test("current import scope stays bounded, wraps on mobile and never auto-requests work", async () => {
+      status = initial();
+      const page = await connectPage(debugOrigin, `${origin}/managed-imports/v2/imports/11111111-1111-4111-8111-111111111111`);
+      try {
+        assert.equal(await page.evaluate("document.querySelectorAll('table[aria-label=\"Current import addresses\"] tbody tr').length"), 100);
+        assert.match(await page.evaluate("document.querySelector('main').textContent"), /100,000 managed pairs/);
+        const hints = postCount, reads = pageReads;
+        complete(); await wake(page); await delay(200);
+        assert.equal(postCount, hints);
+        assert.equal(pageReads, reads, 'A snapshot never repeats full ownership scans on status changes');
+        for (const width of [1440,375]) {
+          await page.call('Emulation.setDeviceMetricsOverride', {width,height:800,deviceScaleFactor:1,mobile:width===375});
+          assert.equal(await page.evaluate('document.documentElement.scrollWidth <= innerWidth'), true);
+          await screenshot(page, 'import-ownership-'+width);
+        }
+        await page.evaluate("document.querySelector('a[rel=next]').click()");
+        await page.until("new URL(location.href).searchParams.get('page')==='2' && document.readyState==='complete'");
+        assert.equal(await page.evaluate("document.querySelectorAll('table[aria-label=\"Current import addresses\"] tbody tr').length"), 100);
+        assert.equal(postCount, hints);
+      } finally { await page.close(); status = initial(); }
+    });
 
     await t.test("native tab navigation paints a quiet loading indicator and resets on arrival", async () => {
       status = initial();
@@ -1199,7 +1330,7 @@ test("refresh interaction in real Chromium", { timeout: 240000 }, async (t) => {
         assert.deepEqual(await bounds(),before);
       } finally { await page.close();status=initial(); }
     });
-    await t.test('IP overlay has a shareable URL, Back/Forward, independent refresh and stable disclosures', async () => {
+    await t.test('IP overlay has a shareable URL, Back/Forward, independent refresh and stable help', async () => {
       status={...initial(),fixture_ip_context:{'198.51.100.10':{state:'ready',country:'UA',asn:6849,
         organization:'Example AS',registry:'IPFire Location',source:'https://www.ipfire.org/location/',
         provider:'ipfire-location-v1',network:'198.51.100.0/24',database_at:'2026-11-12T04:45:06Z'}},ip_context_revision:1};
@@ -1214,12 +1345,17 @@ test("refresh interaction in real Chromium", { timeout: 240000 }, async (t) => {
         assert.ok(await page.evaluate("(() => { const r=document.querySelector('[data-ip-dialog]').getBoundingClientRect(); return r.left>=0 && r.right<=innerWidth && r.top>=0 && r.bottom<=innerHeight; })()"));
         await screenshot(page,'ip-overlay-375');
         assert.equal(await page.evaluate("document.querySelector('[data-ip-dialog] .ip-context-card details')===null && document.querySelector('[data-ip-dialog] .ip-context-details').getBoundingClientRect().height>0"),true);
-        await page.evaluate("document.querySelector('[data-ip-dialog] .ip-page-help').open=true; document.querySelector('[data-ip-dialog] .ip-page-help summary').focus()");
+        await page.evaluate("document.querySelector('[data-ip-dialog] .ip-page-help summary').click()");
+        await page.until("document.querySelector('[data-help-dialog]').open");
+        const helpBody=await page.evaluate("document.querySelector('[data-help-content]').textContent");
         generation+=1;status.data_revision+=1;status.status_revision+=1;
         await wake(page);
         await page.until(`document.querySelector('#active-shuns').textContent.includes('FIXTURE_EVENT_${generation}')`);
+        assert.equal(await page.evaluate("document.querySelector('[data-help-dialog]').open"),true);
+        assert.equal(await page.evaluate("document.querySelector('[data-help-content]').textContent"),helpBody);
+        await page.evaluate("document.querySelector('[data-help-close]').click()");
         await page.until(`document.querySelector('[data-ip-dialog] [data-ip-content]').textContent.includes('FIXTURE_EVENT_${generation}')`);
-        assert.equal(await page.evaluate("document.querySelector('[data-ip-dialog] .ip-page-help').open"),true);
+        assert.equal(await page.evaluate("document.querySelector('[data-ip-dialog] .ip-page-help').open"),false);
         assert.equal(await page.evaluate("document.activeElement===document.querySelector('[data-ip-dialog] .ip-page-help summary')"),true);
         assert.equal(await page.evaluate('location.pathname'),'/shuns/198.51.100.10');
         await page.evaluate('history.back()');
@@ -1245,17 +1381,18 @@ test("refresh interaction in real Chromium", { timeout: 240000 }, async (t) => {
         await page.until("!document.querySelector('[data-ip-dialog]').open");
         assert.equal(await page.evaluate("document.querySelector('[data-action-dialog] [name=request_id]').value"),frozen);
         await page.evaluate("document.querySelector('[data-action-close]').click()");
-        // Direct copied links remain complete pages, and anonymous disclosures
-        // survive both live replacement and an explicit same-tab reload.
+        // Direct copied links remain complete pages. Help is transient and
+        // never reopens as saved inline layout after a same-tab reload.
         await page.call('Page.navigate',{url:origin+'/shuns/198.51.100.10'});
         await page.until("document.querySelector('#ip-registration .ip-context-details') && document.querySelector('[data-refresh-controller]')");
-        await page.evaluate("document.querySelector('.ip-page-help').open=true");
-        await page.until("Object.values(JSON.parse(sessionStorage.getItem('ftd-disclosures:/shuns/198.51.100.10')||'{}')).includes(true)");
+        await page.evaluate("document.querySelector('.ip-page-help summary').click()");
+        await page.until("document.querySelector('[data-help-dialog]').open");
         generation+=1;status.data_revision+=1;status.status_revision+=1;await wake(page);
         await page.until(`document.querySelector('#device-shuns').textContent.includes('FIXTURE_EVENT_${generation}')`);
-        assert.equal(await page.evaluate("document.querySelector('.ip-page-help').open"),true);
+        assert.equal(await page.evaluate("document.querySelector('[data-help-dialog]').open"),true);
         await page.call('Page.reload');
-        await page.until("document.querySelector('.ip-page-help')?.open===true");
+        await page.until("document.querySelector('.ip-page-help') && document.querySelector('[data-help-dialog]') && !document.querySelector('[data-help-dialog]').open");
+        assert.equal(await page.evaluate("document.querySelector('.ip-page-help').open"),false);
       } finally { await page.close();status=initial(); }
     });
     await t.test('row unblock opens a stable responsive dialog; closing never submits', async () => {

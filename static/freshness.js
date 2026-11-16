@@ -908,9 +908,11 @@
     if (menu.open) menus.filter((other) => other !== menu).forEach((other) => { other.open = false; });
   }));
   document.addEventListener("click", (event) => {
+    if (event.target.closest('[data-help-dialog]')) return;
     menus.filter((menu) => !menu.contains(event.target) && !event.target.closest("[data-open-status]")).forEach((menu) => { menu.open = false; });
   });
   document.addEventListener("keydown", (event) => {
+    if (event.target.closest('[data-help-dialog]')) return;
     if (event.key !== "Escape") return;
     const open = menus.find((menu) => menu.open);
     if (open) { open.open = false; open.querySelector("summary").focus(); }

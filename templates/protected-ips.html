@@ -1,19 +1,20 @@
 {% extends "base.html" %}
+{% from "help-ui.html" import topic %}
 {% from "ip-item.html" import item as ip_item %}
 {% from "empty-state.html" import empty %}
 {% block content %}
-<div class="page-heading"><h1>Protected IPs</h1>
-{% include "refresh-panel.html" %}
-</div>
-<p class="page-intro">Keep these IPs unblocked on all enabled devices. If a protected IP appears in Shuns, the service queues its removal.</p>
-<p class="compact-warning">Turning protection off does not block the IP again.</p>
-<details class="page-help" id="protected-page-help" data-ui-key="page-help-protected"><summary>About Protected IPs</summary>
+<div class="page-heading"><div class="page-title"><h1>Protected IPs</h1>{% call topic('protected-page-help', 'About Protected IPs', kind='page-help', ui_key='page-help-protected') %}
 <dl><dt>Protection on</dt><dd>After each successful device check, the service queues removal of any block for this IP. Saving does not unblock it immediately; follow progress in Queue.</dd>
 <dt>Protection off</dt><dd>The address stays in this list, but automatic unblocking stops. FTD may block it again. Deleting the entry also stops automatic unblocking.</dd>
 <dt>Previously imported IPs</dt><dd>Turning protection on also turns off auto-restore for this IP on every device. Turning protection off does not turn auto-restore back on. To have the service keep the IP blocked again, disable protection and create a new import.</dd></dl>
 <p>Turning protection off or deleting an entry cancels automatic unblock requests that have not started. A running command finishes; manually requested unblocks are not cancelled.</p>
 <p>Anyone signed in can edit this list. If someone else saves changes while you are editing, <a href="/protected-ips">reload the list</a> and review their changes before saving again. Reloading discards your unsaved edits.</p>
-</details>
+{% endcall %}</div>
+{% include "refresh-panel.html" %}
+</div>
+<p class="page-intro">Keep these IPs unblocked on all enabled devices. If a protected IP appears in Shuns, the service queues its removal.</p>
+<p class="compact-warning">Turning protection off does not block the IP again.</p>
+
 {% if environment_guard is defined and environment_guard.networks %}<section aria-label="Deployment protection">
 <h2>Protected by deployment configuration</h2><p class="preview-help">These ranges always exclude addresses from imports and automatically unblock matches found on devices. Edit <code>FTD_SHUN_ENV_PROTECTED_NETWORKS</code> in <code>.env</code> and restart API and agent to change them. They cannot be disabled here.</p>
 <p>{% for network in environment_guard.networks %}<code>{{ network }}</code>{{ ', ' if not loop.last else '' }}{% endfor %}</p></section>{% endif %}

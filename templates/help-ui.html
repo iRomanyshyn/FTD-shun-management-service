@@ -1,0 +1,6 @@
+{% macro topic(id, title, kind='page-help', ui_key=none) -%}
+<details class="{{ kind }} help-topic" id="{{ id }}" data-help-topic{% if ui_key %} data-ui-key="{{ ui_key }}"{% endif %}>
+<summary class="help-trigger" title="{{ title }}" aria-label="{{ title }}"><span aria-hidden="true">?</span><span class="visually-hidden">{{ title }}</span></summary>
+<div class="help-source" data-help-body>{{ caller() }}</div>
+</details>
+{%- endmacro %}

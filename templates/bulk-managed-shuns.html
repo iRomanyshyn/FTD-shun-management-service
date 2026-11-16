@@ -1,12 +1,13 @@
 {% extends "base.html" %}
+{% from "help-ui.html" import topic %}
 {% from "managed-policy-ui.html" import behavior_help, policy_table %}
 {% from "pagination-ui.html" import pager %}
 {% from "empty-state.html" import empty %}
 {% block content %}
-<div class="page-heading"><h1>Managed shuns</h1>
+<div class="page-heading"><div class="page-title"><h1>Managed shuns</h1>{{ behavior_help(overview=true) }}</div>
 {% include "refresh-panel.html" %}
 </div>
-{{ behavior_help(overview=true) }}
+
 <div class="managed-toolbar"><p class="preview-help">Scheduling and pause controls are in <button type="button" class="text-button" data-open-status>Status</button>.</p><a class="outline-action" href="/managed-imports/v2">Import addresses</a></div>
 {% if refresh.runtime_mode != 'continuous-managed' %}<p class="policy-warning">Automatic blocking is unavailable in this service mode. {% if refresh.ready_removal_admission_enabled is not sameas true %}Combined removal is also unavailable.{% endif %} You can still review settings and use available stop-maintaining controls.</p>{% endif %}
 <section id="managed-shun-state" data-ip-context-list data-live-region>
@@ -14,7 +15,7 @@
 <p role="status" class="policy-warning">Policy changed while browsing. <a href="/managed-shuns">Open the current policy</a> before continuing. No scope was rebased.</p>
 {% else %}
 {% if managed.restoration_suspended %}<p class="policy-warning"><strong>Execution is suspended by maintenance controls.</strong> Operator Resume does not override this safety hold.</p>{% endif %}
-<details class="list-help" id="managed-policy-details"><summary>Rule details · auto-restore off does not unblock</summary><p>{{ managed.total }} saved device/IP rules, including history. Individual rules and device checks still apply. Open Status and Queue for availability and results.</p><p>Registry revision {{ managed.revision }} · {{ managed.total }} / {{ managed.limit }} retained target keys. Saved settings do not prove a device change.</p></details>
+{% set rule_help %}{% call topic('managed-policy-details', 'Rule details · auto-restore off does not unblock', kind='list-help') %}<p>{{ managed.total }} saved device/IP rules, including history. Individual rules and device checks still apply. Open Status and Queue for availability and results.</p><p>Registry revision {{ managed.revision }} · {{ managed.total }} / {{ managed.limit }} retained target keys. Saved settings do not prove a device change.</p>{% endcall %}{% endset %}
 {% if not managed.attempt_ledger_initialized %}<p class="policy-warning">Attempt ledger is not initialized. No recorded attempt is not proof of a verified outcome.</p>{% endif %}
 {% set page_summary = 'Page ' ~ managed.page ~ ' of ' ~ managed.pages ~ ' · ' ~ managed.total ~ ' saved rules · 100 per page, including collapsed history' %}
 {{ pager(managed.page, managed.pages, '/managed-shuns', {'revision': managed.revision}, page_summary, 'Managed policy pagination', 'top', 'managed-page', '', '/managed-shuns', 'Current policy') }}
@@ -23,7 +24,7 @@
 {% if entry.enabled is sameas false and entry.observed_present is sameas false and entry.attention is sameas false and entry.missing_unknown_job is sameas false and entry.pending_jobs is integer and entry.pending_jobs == 0 and entry.last_attempt_state is defined and entry.last_attempt_state in (none, 'VERIFIED', 'NOOP') %}
 {% set groups.history = groups.history + [entry] %}{% else %}{% set groups.current = groups.current + [entry] %}{% endif %}
 {% endfor %}
-{% if groups.current %}<h2>Rules and items to review</h2>{{ policy_table(groups.current, identity=identity, refresh=refresh, csrf_token=csrf_token, new_operation_key=new_operation_key, ip_context=ip_context | default({})) }}
+{% if groups.current %}<div class="section-heading"><h2>Rules and items to review</h2>{{ rule_help }}</div>{{ policy_table(groups.current, identity=identity, refresh=refresh, csrf_token=csrf_token, new_operation_key=new_operation_key, ip_context=ip_context | default({})) }}
 {% elif managed.entries %}<p>No auto-restoring rules or active items on this page. Previous rules are kept in the history below; they do not schedule new restoration.</p>
 {% else %}{{ empty('No saved auto-restore rules.') }}{% endif %}
 {% if groups.history %}<details id="managed-restoration-off-history" class="managed-history"><summary>Auto-restore off — history ({{ groups.history | length }} on this page)</summary>

@@ -54,9 +54,46 @@ The layout supports both light and dark browser themes.
 
 The full product wordmark remains visible on narrow screens. Native tab loading
 uses a thin progress line above the header and a screen-reader announcement;
-it does not place a message over the logo. Page explanations use a consistent
-**About …** disclosure, initially closed, with the user's subsequent open/closed
-choice retained. Critical errors and confirmation consequences stay visible.
+it does not place a message over the logo. Page explanations open through the
+same **?** control beside the relevant heading. Critical errors, unavailable
+execution and confirmation consequences stay visible on the working page.
+
+## Typography and local help
+
+The workspace uses one relative type scale across tabs, lists, forms, Status,
+Queue, IP frames and action reviews. At the browser's default text size:
+
+| Purpose | Size | Weight |
+| --- | --- | --- |
+| Page heading | 22–28 px, responsive | Semibold |
+| Section / card heading | 18 / 16 px | Semibold |
+| Main prose | 15 px | Regular |
+| Controls, table text and help | 14 px | Regular text; semibold actions |
+| Secondary metadata and timestamps | 13 px | Regular |
+| Short status badges | 12 px | Semibold |
+
+Sizes use `rem` tokens and follow browser text preferences. IPs keep their
+monospace face and unbroken badges. Long tables scroll inside their own frame;
+larger text does not justify truncating addresses, wrapping short statuses or
+rendering the whole dataset. Shared control sizes apply to legacy reviews too.
+
+Choose **?** for an **About …** explanation, list-order details, import formats
+or pause behavior. The title names the topic; help is a separate native dialog.
+Close it with **Close**, Escape or a click wholly outside the frame. A drag
+starting inside does not dismiss it. Keyboard focus returns to the same control,
+including its replacement if a live list changed while help was open.
+
+Help reads the already-rendered explanation. It fetches no data, submits no form,
+changes no URL or setting, and never contains copied action controls or tokens.
+Status updates keep it open. If help is above an IP frame, that frame's pending
+refresh waits until help closes and preserves focus. Help never becomes saved
+expanded page layout or reopens automatically after a reload. Without JavaScript
+or native dialog support, **?** retains an ordinary readable disclosure.
+
+Editors, historical rows and operation evidence keep their existing disclosures;
+they are not explanatory help. IP registration/routing fields remain immediately
+visible. Destructive-action consequences and current failures are not hidden
+behind **?**.
 
 Opening an IP frame or page shows all available cached registration/routing
 fields immediately, including separate Cymru registry/country/operator/date
@@ -95,7 +132,8 @@ ordinary navigation. Opening this frame reads local state only.
 The same IP component and cached data are used across these surfaces; no full
 import input is scanned for metadata, and a view never starts a provider lookup.
 Background list updates remain bound to the original list URL. IP-frame refreshes
-are read-only and preserve disclosures/focus; an open action review stays frozen.
+are read-only and preserve disclosures/focus; open help defers the frame refresh
+and an open action review stays frozen.
 
 The visible device cards in the IP workspace offer **Unblock…** and **Stop restoring…**.
 No disclosure must be opened first. There is no execution-mode choice to make.

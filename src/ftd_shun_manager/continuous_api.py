@@ -182,7 +182,9 @@ class ContinuousApiRuntime:
                         or re.fullmatch(r'/api/v1/(?:shuns|history)/[^/]+', path)
                         or re.fullmatch(r'/api/v2/managed-removal-scope/[^/]+', path)
                         or re.fullmatch(r'/api/v2/managed-ordered-removal-scope/[^/]+', path)
-                        or re.fullmatch(r'/api/v2/managed-ordered-removals/[0-9a-f-]{36}', path))
+                        or re.fullmatch(r'/api/v2/managed-ordered-removals/[0-9a-f-]{36}', path)
+                        or re.fullmatch(r'/api/v2/managed-imports/[0-9a-f-]{36}/ownership', path)
+                        or path == '/api/v2/managed-import-labels')
         if method == 'POST':
             return bool(path in {'/api/v2/managed-additions/control', '/api/v1/refresh-hint', '/api/v1/import-preview',
                                  '/api/v2/managed-shuns/selection', '/api/v2/managed-shuns/retire',

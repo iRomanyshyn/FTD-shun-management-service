@@ -3,6 +3,26 @@
 Agreed with the operator: 2026-10-20.
 Status: approved target behavior and delivery plan; not a deployment procedure.
 
+Workspace follow-up0.17.0 (2026-11-16): shared typography and local question-mark
+help cover primary tabs, import ownership, list order, import formats and pause
+behavior. Preserve critical warnings, actual IP data, action confirmations and
+normal editor/history disclosures. This Web-only refinement adds no cleanup
+execution or API/profile/schema change. Confirmed whole-import unblocking with
+rolling urgent work/progress remains the next functional slice (§8.1).
+
+Current source0.16.0 adds import provenance and a bounded current-ownership view
+with existing per-IP unblock reviews. The next execution slice remains confirmed
+whole-import cleanup with rolling urgent removals and task progress; the new GET
+page neither admits that action nor changes the current main-v6 profile. See §8.1.
+
+Bounded lifecycle matrix accepted2026-11-16 on unchanged0.15.2: independent pauses,
+confirmation while paused, restoration after resumed fresh evidence, cancellation
+between two ADDs, protection during pending confirmation and no resurrection after
+disable/Resume/restart. Only three fixture IPs in a separate profile; original
+main data/images/v6 restored. See manual/deferred-confirmation.md/current status.
+The next functional slice is per-import currently owned-target cleanup. This does
+not activate main v7 or establish100k/multi-device throughput acceptance.
+
 Expiry-recovery follow-up delivered2026-11-16: API/Web0.15.2 retain original
 device/epoch terminal audit and terminal-before-hold timing on ordinary expiry.
 A fresh one-address FPR test covers API death before checkpoint, natural lease
@@ -950,6 +970,13 @@ deployment migration remain future design decisions, not current configuration.
 ## 8. Managed cleanup
 
 ### 8.1 Unblock imported IPs — planned, approved 2026-11-12
+
+First slice,0.16.0 (2026-11-16): current-ownership browsing and readable import
+references are implemented. The query-only page checks complete membership, separates
+currently owned targets from original exclusions/replacements/retirements and renders
+100 rows. Existing per-IP unblock reviews are available. No whole-import submission,
+retirement worker, gate or cleanup queue is introduced; those remain the next slice.
+See [Current Import Addresses](manual/import-ownership.md) and current status.
 
 Prioritize **Unblock imported IPs…** for one selected import before whole-managed
 cleanup. This is a new planned operation, not the existing cancellation button.

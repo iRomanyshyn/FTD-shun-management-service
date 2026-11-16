@@ -69,7 +69,10 @@ currently owned device/IP targets before whole-managed cleanup. Historical or
 ALREADY_MANAGED membership is not ownership. Preview scope, retire matching
 maintenance, cancel unstarted scope work and queue removals while preserving
 other imports/unmanaged/Protected policy and audit. Show readable import links in
-IP/Managed views. This is planned only; no endpoint/gate/activation follows.
+IP/Managed views. Whole-import execution remains planned; no destructive endpoint/
+gate/activation follows from that plan. The0.16.0 read-only ownership page is the
+first delivery slice; follow manual/import-ownership.md. Existing per-IP unblock
+reviews retain their original guards and never treat list membership as ownership.
 The earlier Emergency Purge name is not the intended emergency-style UI framing.
 See working-version-plan.md §8 and its architecture amendment.
 
@@ -79,6 +82,85 @@ supplement for missing IPFire ASN/network context after that slice. Use bounded
 background bulk/cache work, distinct attribution and no page-triggered queries.
 Current provider remains IPFire; no Cymru activation or runtime change follows
 from this documentation update. See working-version-plan.md and manual/ip-context.md.
+
+## Current Web v0.17.0 — typography and local help, 2026-11-16
+
+Only Web updated14:03:27Z:0.17.0/sourcec6ebed591e01/image43728f0650bd.
+Shared relative type/weight tokens, consistent controls/metadata/badges and local
+question-mark help cover primary tabs, ownership, list order, formats and pauses.
+Help never requests/submits data or stores expanded layout; native fallback and
+critical warnings/consent/IP data remain. Preserve transient-modal focus across live
+replacement and defer IP-frame refresh until all close handlers restore focus.
+Do not convert editor/history/operation disclosures into help. Follow
+manual/operator-workspace.md. No backend route/schema/profile/gate/agent change.
+
+Full Python4113 pass/four skips872.59s; final Browser/Node115 pass242.01s (seven
+surfaces/desktop/mobile/light/dark, focus/backdrop/drag/refresh/native fallback).
+Focused155 pass34.85s/final Chromium6 pass33.23s, source checks and installed
+package/build/footer/48 templates/67 routes/cache/Web200/eleven anonymous401/34 assets/
+TLS/auth headers pass. No Rust rerun or live authenticated-browser/device-write claim.
+API0.16.0 and all six other service identities/Settings/private hashes/CA/Cymru
+unchanged. Integrityok/27 authority hashes/audit prefix/jobs including26 unknowns/
+32425 observations retained, latest read14:01:47Z/errornone/epoch5090 IDLE. Main v6/
+v7 off; no policy/control/recovery request, credentials/trust/network or release/tag.
+Rollback`ftd-shun-web:lab-pre-help-20261116`; evidence`/tmp/ftd-ui-help-20261116`.
+Next execution work remains confirmed whole-import cleanup with rolling urgent
+removals/task progress; this UI delivery adds none of that authority. Reload old tabs.
+
+## Current lab v0.16.0 — read-only import ownership, 2026-11-16
+
+API/Web only now0.16.0/source21a53698bbb3/image282da1874073 at13:29:07Z.
+Readable original-import links and query-only complete ownership/counts with100-row
+pages distinguish current binding from ALREADY_MANAGED/exclusions/retirement/
+replacement. Existing per-IP unblock reviews retain their guards. Whole-import
+confirmed retirement/cancellation/rolling removal remains the next execution slice;
+this delivery adds no cleanup authority/schema/gate/profile or agent command.
+Follow manual/import-ownership.md and working-version-plan.md §8.1.
+
+Broad Python4112 pass/one obsolete route-catalog assertion failed/four skips876.25s;
+catalog corrected, final affected64 pass24.24s and added opt-in GET refusal1/.54s.
+No second clean full run. Browser112 pass225.99s/final mobile wording case+parent
+2 pass7.18s; Ruff/compileall/JS/diff and100000-pair scope test pass. Final candidate/
+live package/build/footer/47 templates/67 routes/cache/actual ownership API200,
+Web200/eleven anonymous401/33 assets/TLS/auth headers pass. No Rust rerun or live
+authenticated-browser/device-write claim. All27 authority hashes/audit prefix/jobs
+including26 unknowns/32425 observations retained; integrityok/read13:29:33Z/errornone/
+epoch5084 IDLE. Five other service identities/Settings/private hashes/CA/Cymru
+unchanged, main v6/v7 off. No policy/control/recovery submission, secret/trust/
+network change or release/tag. Rollback tags and exact images/evidence:
+`/tmp/ftd-import-ownership-20261116`, `ftd-shun-{api,web}:lab-pre-import-ownership-20261116`.
+
+## v0.15.2 lifecycle acceptance — 2026-11-16
+
+Existing artifacts unchanged:184 affected Python tests pass156.32s, then fresh
+separate `lifecycle` DB/sockets validate only198.51.100.181–183 on the desk FPR.
+Imports pause while monitoring reads; Resume runs one ADD, and both subsequent
+pauses still permit its pending confirmation. Restoration pause keeps an applied
+fixture absent after a labelled typed REMOVE with API actually stopped; new
+imports remain independent. Real cancellation at the first committed ACK keeps
+.182 applied, stops .183 before dispatch and settles with zero attention.
+After normal backoff/read, restored .181 is protected at committed pending handoff:
+maintenance retires and automatic REMOVE verifies while both ADD categories pause.
+Disable protection, clean .182, Resume both/restart/read: all three absent and
+retired, no resurrection. Final32,425 device/IP/interface keys match the original.
+
+Private callbacks only send existing real API requests after ACK/handoff; no
+RPC/clock/result/guard substitution.15 tracked cycles all complete/three ADDs/two
+queued verified removals, plus the one typed disappearance probe. Six final jobs:
+three OBSERVED_PRESENT, one never-started CANCELLED and two REMOVE VERIFIED;
+executor15 IDLE. Test writers exited0; private new keys/volumes/evidence retained
+under `/tmp/ftd-lifecycle-20261116`, not reusable fixture authority.
+
+Main exact images/containers restored, version/source0.15.2/11265edf0bf7, stillv6.
+Integrityok/27 authority hashes/original audit prefix/all jobs including26 unknowns/
+32425 observations/Settings/environment hashes/CA match; read11:51:13Z/errornone,
+executor5065 IDLE. Four other service start identities unchanged; approved Cymru
+retained. Package/build/footer/45 templates/66 routes/readonly cache/Web200/ten
+anonymous401/33 assets pass. No product code/image/flag/schema/secret/trust/network
+change, main policy/control/recovery submission or release/tag. No version bump
+for acceptance records/restarts; no repeat full/Rust/browser claimed. Next functional
+slice is planned per-import owned-target cleanup; persistent main-v7 cutover and
+wider scale/multi-device acceptance remain separate. See manual/deferred-confirmation.md.
 
 ## Current lab v0.15.2 — original-visit expiry audit, 2026-11-16
 

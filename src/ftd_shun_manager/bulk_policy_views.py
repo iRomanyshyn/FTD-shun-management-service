@@ -86,8 +86,10 @@ class BulkPolicyViews:
     def _entries(db, rows):
         from .device_reconciliation import present as reconciliations_present
         from .device_reconciliation import unresolved
+        from .import_ownership import import_labels
 
         entries, metadata = [], {}
+        imports = import_labels(db, [row['authorization_request_id'] for row in rows])
         attempts = db.execute("SELECT 1 FROM sqlite_master WHERE name='managed_bulk_attempts'").fetchone() is not None
         for row in rows:
             entry = dict(row)
@@ -123,6 +125,7 @@ class BulkPolicyViews:
                          unknown_reconciled_at=reconciled[0] if reconciled else None,
                          missing_unknown_job=bool(latest and latest['state'] == 'UNVERIFIED' and not latest['job_present']))
             entry['ip'] = str(IPv4Address(row['ip']))
+            entry['import'] = imports[row['authorization_request_id']]
             for field in ('enabled', 'device_enabled', 'observed_present', 'protected'):
                 entry[field] = bool(entry[field])
             entries.append(entry)

@@ -1325,6 +1325,35 @@ def create_app(settings: Settings | None = None, *, ready_removal_admission_enab
             "anchored_history": anchor is not None,
             "active_page": "history", "auto_request": False})
 
+    @app.get('/managed-imports/v2/imports/{operation_id}', response_class=HTMLResponse)
+    def current_import(request: Request, operation_id: UUID,
+                       page: Annotated[int, Query(ge=1)] = 1,
+                       scope: Literal['owned', 'excluded', 'all'] = 'owned',
+                       revision: Annotated[int | None, Query(ge=0)] = None):
+        identity = identity_from_request(request, settings.development_auth)
+        parameters = {'page': page, 'scope': scope}
+        if revision is not None:
+            parameters['revision'] = revision
+        try:
+            with api_client(settings) as client:
+                state = client.get('/api/v1/status')
+                result = client.get(f'/api/v2/managed-imports/{operation_id}/ownership', params=parameters)
+            if result.status_code in (409, 422):
+                return render(request, 'error.html', {'identity': identity,
+                    'message': 'Import ownership changed or this page no longer exists. Reopen the import to load its current scope.',
+                    'retry_url': f'/managed-imports/v2/imports/{operation_id}'}, result.status_code)
+            result.raise_for_status(); state.raise_for_status()
+            value = result.json()
+            if (type(value) is not dict or value.get('read_only') is not True or value.get('can_execute') is not False
+                    or value['import']['id'] != str(operation_id) or value['page'] != page
+                    or value['scope'] != scope or value['page_size'] != 100
+                    or type(value['targets']) is not list or len(value['targets']) > 100):
+                raise ValueError('Invalid current import response.')
+        except (httpx.HTTPError, ValueError, TypeError, KeyError) as error:
+            raise HTTPException(503, 'Current import addresses are unavailable. No changes were submitted.') from error
+        return render(request, 'import-ownership.html', {'identity': identity, 'ownership': value,
+            'refresh': state.json(), 'active_page': 'imports', 'auto_request': False, 'frozen_view': True})
+
     @app.post("/refresh")
     def request_refresh(
         request: Request, csrf: str = Form(...), q: str = Form("")
@@ -1373,6 +1402,18 @@ def create_app(settings: Settings | None = None, *, ready_removal_admission_enab
                     ip_scope = validate_ready_inspection(scoped.json(), ip)
             except (httpx.HTTPError, ValueError, TypeError, KeyError):
                 ip_scope_error = 'Device actions could not be loaded. Observations below are not a substitute for managed policy; no change was submitted.'
+        ip_imports = {}
+        if ip_scope:
+            keys = sorted({row['authorization_request_id'] for row in ip_scope['targets'] if row['authorization_request_id']})
+            if keys:
+                try:
+                    with api_client(settings) as client:
+                        labels = client.get('/api/v2/managed-import-labels', params=[('keys', key) for key in keys])
+                    labels.raise_for_status()
+                    if labels.json().get('read_only') is True:
+                        ip_imports = labels.json()['imports']
+                except (httpx.HTTPError, ValueError, TypeError, KeyError):
+                    pass  # Missing advisory labels never remove existing IP actions.
         policy_ips = protected_policy_ips(refresh)
         return render(
             request,
@@ -1385,6 +1426,7 @@ def create_app(settings: Settings | None = None, *, ready_removal_admission_enab
                 "refresh": refresh,
                 "ip_scope": ip_scope,
                 "ip_scope_error": ip_scope_error,
+                "ip_imports": ip_imports,
                 "is_trusted_policy_ip": str(ip) in policy_ips,
                 "is_disabled_policy_ip": str(ip) in protected_policy_ips(refresh, enabled=False),
             },

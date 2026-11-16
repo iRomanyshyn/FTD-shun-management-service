@@ -53,6 +53,16 @@ storage tests do not establish 100,000-shun throughput or FPR1010 device capacit
 
 ## Understand the result
 
+### Which addresses still belong to an import
+
+Use **View current import addresses** on its receipt, or the readable **Import: …**
+link in Managed shuns and IP details. The page counts the complete current scope
+and shows100 rows at a time. Managed addresses are separated from replaced,
+retired, protected and already-managed original entries. Repeating someone else's
+address in a later import does not transfer ownership. Existing per-IP unblock
+reviews are available; unblocking a whole import remains planned. See
+[Current Import Addresses](import-ownership.md).
+
 ### Whole-import progress and stopping the remaining work
 
 Open **Queue** for one progress card per import, not sixteen one-address internal

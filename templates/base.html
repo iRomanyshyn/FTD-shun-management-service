@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="/static/app.css">
     <script src="/static/ui-state.js" defer></script>
     <script src="/static/ip-dialog.js" defer></script>
+    <script src="/static/help-dialog.js" defer></script>
   </head>
   <body>
     <div class="navigation-loading" data-navigation-loading hidden role="status" aria-live="polite"><span class="navigation-loading-bar" aria-hidden="true"></span><span data-navigation-message>Loading…</span></div>
@@ -41,6 +42,10 @@
       <div data-ip-content></div><button type="button" data-ip-retry hidden>Retry loading</button>
     </dialog>
     <script src="/static/action-dialog.js" defer></script>
+    <dialog class="action-dialog help-dialog" data-help-dialog aria-labelledby="help-dialog-title">
+      <div class="action-dialog-header"><h2 id="help-dialog-title" data-help-title>Help</h2><button type="button" data-help-close aria-label="Close help">Close</button></div>
+      <div data-help-content></div>
+    </dialog>
     <script src="/static/navigation.js" defer></script>
   </body>
 </html>

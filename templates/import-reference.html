@@ -1,0 +1,3 @@
+{% macro reference(value, prefix='Import') -%}
+{% if value %}<span class="cell-secondary">{{ prefix }}: <a href="/managed-imports/v2/imports/{{ value.id }}" title="{{ value.actor_display_name }} · {{ value.requested_at }}">{{ value.label }}</a></span>{% endif %}
+{%- endmacro %}
