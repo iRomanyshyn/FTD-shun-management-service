@@ -50,6 +50,17 @@ class ContinuousApiRuntime:
         self.removal_scopes = BulkRemovalScopes(store)
         self.ready_removals = BulkRemovals(store, self.queue)
         self.ordered_removals = BulkOrderedWaits(store, self.queue)
+        from .import_unblock_worker import ImportUnblockWorker
+        from .import_unblocks import ImportUnblocks
+        self.import_unblocks = ImportUnblocks(store,self.queue)
+        if not settings.import_unblocks_enabled:
+            from .import_unblocks import present as unblocks_present
+            with self.import_unblocks.views._snapshot() as db:
+                if unblocks_present(db) and db.execute("SELECT 1 FROM managed_import_unblocks WHERE state='ACTIVE' LIMIT 1").fetchone():
+                    raise QueueConflict('Active import cleanup requires its enabled execution profile.')
+        if settings.import_unblocks_enabled:
+            worker=ImportUnblockWorker(store,self.queue);worker.require_storage()
+            dispatcher.import_unblock_worker=worker
         # Legacy routes are explicitly refused before handler dispatch.
         self.managed_removals = None
 
@@ -184,9 +195,10 @@ class ContinuousApiRuntime:
                         or re.fullmatch(r'/api/v2/managed-ordered-removal-scope/[^/]+', path)
                         or re.fullmatch(r'/api/v2/managed-ordered-removals/[0-9a-f-]{36}', path)
                         or re.fullmatch(r'/api/v2/managed-imports/[0-9a-f-]{36}/ownership', path)
-                        or path == '/api/v2/managed-import-labels')
+                        or path == '/api/v2/managed-import-labels'
+                        or path.startswith('/api/v2/import-unblocks'))
         if method == 'POST':
-            return bool(path in {'/api/v2/managed-additions/control', '/api/v1/refresh-hint', '/api/v1/import-preview',
+            return bool((self.settings.import_unblocks_enabled and path.startswith('/api/v2/import-unblocks')) or path in {'/api/v2/managed-additions/control', '/api/v1/refresh-hint', '/api/v1/import-preview',
                                  '/api/v2/managed-shuns/selection', '/api/v2/managed-shuns/retire',
                                  '/api/v2/managed-imports/prepare', '/api/v2/managed-imports/preparations',
                                  '/api/v2/managed-imports/preparation', '/api/v2/managed-imports/proposal',
@@ -219,10 +231,14 @@ class ContinuousApiRuntime:
 
     def status(self, *, queue_status=None):
         self.managed_metadata()  # Drift is unavailable state, never a legacy/empty fallback.
-        return {**self.dispatcher.refresh_status(queue_status=queue_status),
+        base=self.dispatcher.refresh_status(queue_status=queue_status)
+        if self.settings.import_unblocks_enabled:base['queue']=self.import_unblocks.grouped_queue(base['queue'])
+        return {**base,
                 'runtime_mode': 'continuous-managed' if self.managed_execution else 'continuous-observation',
                 'deferred_confirmation_enabled': self.settings.deferred_confirmation_enabled,
                 'bulk_execution_enabled': self.managed_execution,
+                'import_unblocks_available': self.settings.import_unblocks_enabled,
+                'import_unblocks': self.import_unblocks.status() if self.settings.import_unblocks_enabled else {'tasks':[],'available':False},
                 'manual_mutations_available': False, 'managed_workflows_available': False,
                 'managed_policy_view_available': True, 'managed_policy_retirement_available': True,
                 'ready_removal_review_available': True,

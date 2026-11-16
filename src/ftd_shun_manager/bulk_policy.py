@@ -103,7 +103,7 @@ def _initialize(db):
 @lru_cache(maxsize=18)
 def _expected(cancellation=False, attempts=False, waits=False, dispatch=False, devices=False, ordered=False, promotions=False,
               recovery=False, reconciliation=False, extended_recovery=False, pending_confirmation=False, pending_execution=False,
-              prewrite_recovery=False, controls=False, pending_offline=False):
+              prewrite_recovery=False, controls=False, pending_offline=False, import_unblocks=False):
     with closing(sqlite3.connect(':memory:')) as db:
         db.execute('BEGIN')
         _initialize(db)
@@ -166,11 +166,15 @@ def _expected(cancellation=False, attempts=False, waits=False, dispatch=False, d
             if recovery:
                 from .pending_offline import RELEASE_DDL
                 execute_schema(db, RELEASE_DDL)
+        if import_unblocks:
+            from .import_unblocks import DDL
+            execute_schema(db, DDL)
         return _objects(db)
 
 
 def _state(db):
     objects = _objects(db)
+    import_unblocks = any(name.startswith(('managed_import_unblock', 'idx_managed_import_unblock')) for _,name,_,_ in objects)
     if not objects:
         return None
     cancellation = any(name.startswith('managed_bulk_cancellation') or table.startswith('managed_bulk_cancellation')
@@ -203,8 +207,12 @@ def _state(db):
             or (pending_offline and (not pending_execution or extended_recovery or prewrite_recovery or recovery != reconciliation))
             or (controls and not devices)
             or objects != _expected(cancellation, attempts, waits, dispatch, devices, ordered, promotions, recovery,
-                                    reconciliation, extended_recovery, pending_confirmation, pending_execution, prewrite_recovery, controls, pending_offline)):
+                                    reconciliation, extended_recovery, pending_confirmation, pending_execution, prewrite_recovery, controls, pending_offline, import_unblocks)):
         raise BulkUnavailable('Exact version-2 storage is required; legacy/partial/optional state was not converted.')
+    if import_unblocks:
+        if not devices or not promotions: raise BulkUnavailable('Import cleanup requires the existing complete fenced profile.')
+        from .import_unblocks import validate as validate_unblocks
+        validate_unblocks(db)
     if controls:
         from .managed_addition_controls import validate
         validate(db)
@@ -485,6 +493,13 @@ class BulkPolicies:
                     or db.execute('SELECT COUNT(*) FROM managed_bulk_manifests').fetchone()[0] >= MAX_ROOTS
                     or db.execute('SELECT COUNT(*) FROM managed_bulk_members').fetchone()[0] + summary.pair_count > MAX_MEMBERS):
                 raise ManagedCapacity('Bulk storage capacity/reserved retirement budget reached; nothing was evicted.')
+            from .import_unblocks import present as unblocks_present
+            if unblocks_present(db) and db.execute("""SELECT 1 FROM import_preparation_targets p
+                JOIN managed_import_unblock_members m ON m.device_id=p.device_id AND m.ip=p.ip
+                JOIN managed_import_unblocks u ON u.id=m.root_id WHERE p.plan_id=?
+                AND p.classification!='EXCLUDED_PROTECTED' AND u.state='ACTIVE'
+                AND m.state IN ('WAITING','ADMITTING','QUEUED','FAILED','UNVERIFIED') LIMIT 1""",(plan_id,)).fetchone():
+                raise ManagedConflict('An import cleanup reserves part of this scope.')
             self._validate_current(db, plan_id)
             if concurrent:
                 from .bulk_concurrent import check_admission

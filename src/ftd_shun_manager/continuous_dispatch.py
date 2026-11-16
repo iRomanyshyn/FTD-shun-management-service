@@ -474,6 +474,8 @@ class ContinuousDispatcher:
                 if self.maintenance.status()['broken']:
                     raise QueueConflict('Maintenance stopped unexpectedly; coordinator stopped without rearming work.')
                 try:
+                    cleanup=getattr(self,'import_unblock_worker',None)
+                    if cleanup is not None and await asyncio.to_thread(cleanup.advance): self.note_state_change()
                     self._dispatch_ready()
                 except sqlite3.OperationalError as error:
                     await self._storage_backoff(error)

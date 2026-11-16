@@ -415,7 +415,9 @@ def test_previous_writer_with_controls_refuses_the_new_offline_profile(bulk, cra
     store = bulk[0].store
     apply(bulk, pending_offline.inspect(store.path, 1, now=bulk[1][0]))
     original = bulk_policy._expected
-    monkeypatch.setattr(bulk_policy, '_expected', lambda *args: original(*args[:-1]))
+    # The historical writer predates pending-offline and import-cleanup storage.
+    # Keep its control profile, omitting both subsequently added capability args.
+    monkeypatch.setattr(bulk_policy, '_expected', lambda *args: original(*args[:-2]))
     with store._connection() as db, pytest.raises(BulkUnavailable): _state(db)
 
 

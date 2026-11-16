@@ -666,6 +666,22 @@ class Store:
                 preserve = ''' AND NOT EXISTS (SELECT 1 FROM managed_bulk_ordered_members m
                     WHERE m.claim_event_id=shun_events.id OR (shun_events.event_type='SHUN_OPERATION_DEFERRED'
                         AND shun_events.request_id=json_extract(m.predecessor_json,'$.request_id')))'''
+            from .import_unblocks import present as unblocks_present
+            if unblocks_present(db):
+                from .import_unblock_worker import _predecessor_ready
+
+                bulk_state(db)
+                captured=db.execute('SELECT * FROM managed_import_unblock_members WHERE predecessor_json IS NOT NULL')
+                while chunk := captured.fetchmany(100):
+                    for member in chunk:
+                        _predecessor_ready(db,member,reference_time)
+                preserve += ''' AND NOT EXISTS(SELECT 1 FROM managed_import_unblocks u WHERE u.id=shun_events.request_id)
+                    AND NOT EXISTS(SELECT 1 FROM managed_import_unblock_members m
+                        WHERE m.child_id=shun_events.request_id
+                        OR json_extract(m.predecessor_json,'$.request_id')=shun_events.request_id
+                        OR (shun_events.event_type='DEVICE_LEASE_CLAIMED' AND shun_events.device_id=m.device_id
+                            AND json_extract(m.predecessor_json,'$.executor_owner')=json_extract(shun_events.details_json,'$.owner')
+                            AND json_extract(m.predecessor_json,'$.executor_epoch')=json_extract(shun_events.details_json,'$.epoch')))'''
             if pending_present(db):
                 from .pending_restart import RETAINED_CLAIMS
 

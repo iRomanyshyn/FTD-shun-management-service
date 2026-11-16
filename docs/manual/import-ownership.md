@@ -38,12 +38,11 @@ guards. Opening the import page submits no work. Other rows offer IP details.
 Readable links on historical policy rows identify the original import, not an
 assurance that it still owns the target.
 
-**Whole-import unblocking is not implemented in this increment.** Its next slice
-must review and revalidate the complete current ownership scope, retire matching
-maintenance, cancel unstarted matching work, settle running commands and schedule
-bounded urgent removals with import-level progress. It must preserve other imports,
-unmanaged targets, Protected IPs and original audit. See the
-[approved plan](../working-version-plan.md#81-unblock-imported-ips--planned-approved-2026-11-12).
+With the optional cleanup profile enabled, **Unblock imported IPs…** opens a
+whole-import review. Confirmation stops only currently owned restoration and
+creates one rolling, cancellable task. See [Unblock imported IPs](import-unblocking.md)
+for scope, progress and cancellation. Historical membership never grants cleanup
+authority.
 
 ## Internal read API
 

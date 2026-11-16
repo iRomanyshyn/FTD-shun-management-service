@@ -44,6 +44,12 @@ ordered_key = "88888888-8888-4888-8888-888888888888"
 bulk_draft = bulk_drafts = bulk_proposal = None
 policy_receipt = None
 bulk_cancellation = None
+if p["template"] == "import-unblock-review.html":
+    from ftd_shun_manager.import_unblock_web import Review
+    review = dict(token="fixture-cleanup-review", request_id="22222222-2222-4222-8222-222222222222")
+cleanup_summary = dict(import_id="11111111-1111-4111-8111-111111111111", owned_count=100000,
+    observed_owned=99800, absent_owned=200, disabled_owned=0)
+cleanup_summary["import"] = dict(id=cleanup_summary["import_id"],label="Fixture import cleanup")
 if p.get("submitted"):
     parsed = parse_blocklist(p["source_text"])
     preview = paginate_preview(summarize_preview(parsed, dict(policy_revision=1, devices=[dict(id=1,hostname="lab-ftd")],
@@ -204,10 +210,10 @@ print(templates.get_template(p["template"]).render(identity=Identity("test", "Te
     ip_context=p["refresh"].get("fixture_ip_context",{}),ip_context_enabled="fixture_ip_context" in p["refresh"],
     ip_context_target=shun["ip"] if "fixture_ip_context" in p["refresh"] else None,
     targets=[dict(device_hostname="lab-ftd",interface="outside")],device_id=1,request_id=p.get("request_id",""),target="/shuns/198.51.100.10",
-    review=review, report=managed_import_report, accepted=None, result=None, confirm_ip="", message=None, admission_enabled=p["refresh"].get("managed_policy_admission_enabled" if p["template"] == "managed-import-review.html" else "import_admission_enabled", False),
+    summary=cleanup_summary,task=p.get("cleanup_task"),review=review, report=managed_import_report, accepted=None, result=None, confirm_ip="", message=None, admission_enabled=p["refresh"].get("managed_policy_admission_enabled" if p["template"] == "managed-import-review.html" else "import_admission_enabled", False),
     retry_available=p["refresh"].get("import_admission_enabled", False), execution_enabled=False,
     removal_admission_enabled=p["refresh"].get("managed_removal_admission_enabled", False),
-    frozen_view=p["template"] in ("import-ownership.html", "import-confirm.html", "managed-remove-review.html", "bulk-removal-review.html", "bulk-ordered-review.html", "bulk-import-workspace.html", "bulk-import-report.html", "bulk-confirmation-review.html", "bulk-policy-receipt.html", "bulk-cancellation-review.html", "managed-retirement-review.html", "managed-grant-review.html", "managed-batch-form.html", "managed-batch-review.html"),
+    frozen_view=p["template"] in ("import-unblock-review.html", "import-ownership.html", "import-confirm.html", "managed-remove-review.html", "bulk-removal-review.html", "bulk-ordered-review.html", "bulk-import-workspace.html", "bulk-import-report.html", "bulk-confirmation-review.html", "bulk-policy-receipt.html", "bulk-cancellation-review.html", "managed-retirement-review.html", "managed-grant-review.html", "managed-batch-form.html", "managed-batch-review.html"),
     ready_removal_local_enabled=p["refresh"].get("fixture_ready_local_enabled",False),
     ordered_removal_local_enabled=p["refresh"].get("fixture_ordered_local_enabled",False),
     inspection=inspection,ordered=ordered_status,operation_id=bulk_cancellation["operation_id"] if bulk_cancellation else ordered_key,cancellation=bulk_cancellation,
@@ -234,7 +240,7 @@ print(templates.get_template(p["template"]).render(identity=Identity("test", "Te
     selected_devices=[1] if p.get("submitted") else [], preview=preview, preview_error=None,
     devices=[dict(id=1,hostname="lab-ftd",enabled=True),dict(id=2,hostname="disabled-ftd",enabled=False)],
     active_page="unmanaged" if p.get("unmanaged") else "managed" if p["template"].startswith("bulk-ordered-") or p["template"] in ("managed-shuns.html", "bulk-managed-shuns.html", "managed-remove-review.html", "bulk-removal-review.html", "managed-retirement-review.html", "managed-grant-review.html", "managed-batch-form.html", "managed-batch-review.html") else "imports" if p["template"] in ("import-preview.html", "bulk-confirmation-review.html", "bulk-policy-receipt.html", "bulk-cancellation-review.html", "bulk-cancellation-status.html") or p["template"].startswith("bulk-import-") else "protected" if p["template"] == "protected-ips.html" else "history" if p["template"] == "history.html" else "shuns",
-    auto_request=p["template"] not in ("import-ownership.html", "protected-ips.html", "history.html", "import-preview.html", "import-confirm.html", "bulk-import-workspace.html", "bulk-import-report.html", "bulk-confirmation-review.html", "bulk-policy-receipt.html", "bulk-cancellation-review.html", "bulk-cancellation-status.html", "managed-shuns.html", "bulk-managed-shuns.html", "managed-remove-review.html", "bulk-removal-review.html", "bulk-ordered-review.html", "bulk-ordered-status.html", "managed-retirement-review.html", "managed-grant-review.html", "managed-batch-form.html", "managed-batch-review.html")))
+    auto_request=p["template"] not in ("import-unblock-review.html", "import-unblock-status.html", "import-ownership.html", "protected-ips.html", "history.html", "import-preview.html", "import-confirm.html", "bulk-import-workspace.html", "bulk-import-report.html", "bulk-confirmation-review.html", "bulk-policy-receipt.html", "bulk-cancellation-review.html", "bulk-cancellation-status.html", "managed-shuns.html", "bulk-managed-shuns.html", "managed-remove-review.html", "bulk-removal-review.html", "bulk-ordered-review.html", "bulk-ordered-status.html", "managed-retirement-review.html", "managed-grant-review.html", "managed-batch-form.html", "managed-batch-review.html")))
 `;
 
 const initial = () => ({
@@ -546,7 +552,7 @@ test("refresh interaction in real Chromium", { timeout: 300000 }, async (t) => {
       confirmationPosts += 1;
       response.setHeader("Content-Type", "text/html");
       response.end("<p>Fixture admission received; no device work</p>");
-    } else if (["/", "/unmanaged", "/history", "/protected-ips", "/imports", "/imports/review", "/managed-imports/review", "/managed-shuns", "/managed-shuns/removal-review", "/managed-shuns/fleet-removal-review", "/managed-shuns/v2/removal-review", "/managed-shuns/v2/ordered-removal-review", "/managed-shuns/retirement-review", "/managed-shuns/grant-review", "/managed-shuns/bulk", "/managed-shuns/bulk-review"].includes(url.pathname) || url.pathname.startsWith("/shuns/") || url.pathname.startsWith("/managed-shuns/v2/ordered-removals/") || url.pathname.startsWith("/managed-imports/v2")) {
+    } else if (["/", "/unmanaged", "/history", "/protected-ips", "/imports", "/imports/review", "/managed-imports/review", "/managed-shuns", "/managed-shuns/removal-review", "/managed-shuns/fleet-removal-review", "/managed-shuns/v2/removal-review", "/managed-shuns/v2/ordered-removal-review", "/managed-shuns/retirement-review", "/managed-shuns/grant-review", "/managed-shuns/bulk", "/managed-shuns/bulk-review"].includes(url.pathname) || url.pathname.startsWith("/shuns/") || url.pathname.startsWith("/managed-shuns/v2/ordered-removals/") || url.pathname.startsWith("/managed-imports/v2") || url.pathname.startsWith("/import-unblocks/")) {
       pageReads += 1;
       if (holdNavigation && request.method === 'GET' && url.pathname === '/history') await holdNavigation;
       let previewFields = {};
@@ -590,6 +596,8 @@ test("refresh interaction in real Chromium", { timeout: 300000 }, async (t) => {
         ordered_wait: url.searchParams.get("ordered") === "yes", all_devices_enabled: url.searchParams.get("enabled") === "all",
         history, anchor: url.searchParams.get("anchor"),
         ...previewFields,
+        cleanup_task: status.import_unblocks?.tasks?.[0] ? {...status.import_unblocks.tasks[0],page:1,pages:1000,
+          targets:Array.from({length:100},(_,i)=>({ip:'198.18.0.'+(i+1),device_id:1,device_hostname:'Synthetic FTD',state:'WAITING'}))} : null,
         ownership: url.pathname.startsWith('/managed-imports/v2/imports/') ? {
           import: { id:'11111111-1111-4111-8111-111111111111', label:'Office block import', actor_display_name:'Fixture operator', requested_at:'2026-11-16T10:00:00Z' },
           owned_count:100000, observed_owned:99800, absent_owned:200, pending_jobs:0, member_count:100001,
@@ -597,7 +605,9 @@ test("refresh interaction in real Chromium", { timeout: 300000 }, async (t) => {
           targets:Array.from({length:100}, (_,i)=>({ip:'198.18.0.'+(i+1),device_id:1,hostname:'Synthetic FTD',device_enabled:true,
             ownership:'OWNED_ADDED',observed_present:true,pending_jobs:0,protected:false})),
         } : null,
-        policy, managed: managedView, handoffs, fleet_cleanup: fleetCleanup, template: ["/", "/unmanaged"].includes(url.pathname) ? "index.html" : url.pathname === "/history" ? "history.html"
+        policy, managed: managedView, handoffs, fleet_cleanup: fleetCleanup, template: url.pathname === '/import-unblocks/review' ? 'import-unblock-review.html'
+          : url.pathname.startsWith('/import-unblocks/') ? 'import-unblock-status.html'
+          : ["/", "/unmanaged"].includes(url.pathname) ? "index.html" : url.pathname === "/history" ? "history.html"
           : url.pathname === "/protected-ips" ? "protected-ips.html" : url.pathname === "/imports" ? "import-preview.html"
             : url.pathname === "/imports/review" ? "import-confirm.html" : url.pathname === "/managed-imports/review" ? "managed-import-review.html"
               : url.pathname === "/managed-imports/v2/confirmation-review" ? "bulk-confirmation-review.html"
@@ -2458,6 +2468,49 @@ test("refresh interaction in real Chromium", { timeout: 300000 }, async (t) => {
         assert.equal(postCount, hints);
         assert.equal(executionCount, executions);
       } finally { await page.close(); }
+    });
+    await t.test('import cleanup shows one whole-task progress card and explicit frozen consent', async () => {
+      status=initial();status.import_unblocks_available=true;
+      const task={id:'22222222-2222-4222-8222-222222222222',import_id:'11111111-1111-4111-8111-111111111111',
+        import_label:'Fixture import cleanup',target_count:100000,verified:16,attention:0,actor_subject:'test',actor_display_name:'Test Operator',
+        requested_at:'2026-11-16T10:00:00Z',expires_at:'2026-11-23T10:00:00Z',state:'ACTIVE',counts:{WAITING:99952,QUEUED:32,VERIFIED:16}};
+      status.import_unblocks={available:true,tasks:[task]};status.queue.counts={QUEUED:32};status.queue.grouped_cleanup_operations=32;
+      const page=await connectPage(debugOrigin,origin+'/managed-imports/v2/imports/'+task.import_id);
+      try {
+        const writes=postCount,executions=executionCount;
+        await page.until("document.querySelector('[data-unblock-progress] progress')?.max===100000");
+        assert.equal(await page.evaluate("document.querySelectorAll('[data-unblock-progress] article').length"),1);
+        assert.equal(await page.evaluate("document.querySelector('[data-unblock-progress] progress').value"),16);
+        await page.evaluate("document.querySelector('form[action=\"/import-unblocks/review\"] button').click()");
+        await page.until("document.querySelector('[data-action-dialog]').open && document.querySelector('[data-action-content] [name=review_token]')");
+        assert.match(await page.evaluate("document.querySelector('[data-action-content]').textContent"),/Stop automatic restoration/);
+        const token=await page.evaluate("document.querySelector('[data-action-content] [name=review_token]').value");
+        task.verified=1024;task.counts.VERIFIED=1024;task.counts.WAITING=98944;status.queue.revision++;status.status_revision++;
+        await wake(page);
+        await page.until("document.querySelector('[data-unblock-progress] progress').value===1024");
+        assert.equal(await page.evaluate("document.querySelector('[data-action-content] [name=review_token]').value"),token);
+        assert.equal(await page.evaluate("document.querySelectorAll('[data-action-content] [data-refresh-controller]').length"),0);
+        await page.evaluate("document.querySelector('[data-action-close]').click()");
+        await page.until("document.activeElement===document.querySelector('form[action=\"/import-unblocks/review\"] button')");
+        await page.evaluate("document.querySelector('#queue-menu').open=true;document.querySelector('[data-unblock-progress] button').focus()");
+        task.verified++;status.status_revision++;status.queue.revision++;await wake(page);
+        await page.until("document.querySelector('[data-unblock-progress] progress').value===1025");
+        assert.equal(await page.evaluate("document.activeElement===document.querySelector('[data-unblock-progress] button')"),true);
+        assert.match(await page.evaluate("document.querySelector('[data-queue-summary]').textContent"),/32 in import cleanup/);
+        for(const width of [1100,768,360]){
+          await page.call('Emulation.setDeviceMetricsOverride',{width,height:900,deviceScaleFactor:1,mobile:width===360});
+          assert.equal(await page.evaluate('document.documentElement.scrollWidth<=window.innerWidth'),true);
+        }
+        await screenshot(page,'cleanup-progress-mobile');
+        await page.call('Page.navigate',{url:origin+'/import-unblocks/'+task.id});
+        await page.until("document.querySelectorAll('#import-unblock-state tbody tr').length===100");
+        assert.equal(await page.evaluate("document.querySelectorAll('#import-unblock-state tbody tr').length"),100);
+        task.state='COMPLETE';task.verified=100000;task.counts={VERIFIED:100000};status.data_revision++;status.status_revision++;
+        await wake(page);
+        await page.until("document.querySelector('[data-unblock-state]').dataset.unblockState==='COMPLETE'");
+        await page.until("document.querySelector('[data-unblock-cancel]').hidden");
+        assert.equal(postCount,writes);assert.equal(executionCount,executions);
+      } finally {await page.close();}
     });
     await t.test("request progress counts real jobs, keeps uncertain outcomes distinct, and clears on completion", async () => {
       status = initial();

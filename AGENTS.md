@@ -83,6 +83,38 @@ background bulk/cache work, distinct attribution and no page-triggered queries.
 Current provider remains IPFire; no Cymru activation or runtime change follows
 from this documentation update. See working-version-plan.md and manual/ip-context.md.
 
+## Current lab v0.18.0 — confirmed import cleanup, 2026-11-16
+
+API/Web now0.18.0/source6ee6b8ea7e05/imagef8300214593e at16:49:20Z.
+Optional import-cleanup profile was explicitly initialized quiescent, with private
+backup retained; lab flagtrue/tracked defaultfalse. Original27 hashes/audit/jobs/
+26 reviewed unknowns/32425 observations retained; two new tables empty. Five other
+services/CA/scoped secrets/Cymru unchanged. No original import cleanup submitted;
+main staysv6/v7 off. Only isolated .184–185 acceptance:two ADDs/two REMOVEs VERIFIED,
+one session per pair, restart/no resurrection/original device keys retained.
+Accepted path used8e836/source1e9c before final SQL-only evidence-retention fix.
+Final152 Python plus4 pending cases,116 Browser/Node pass; broad4137 pass/one
+obsolete old-writer assertion corrected/four skips, no clean repeat full run.
+Read current status/manual/import-unblocking.md and newest architecture amendment.
+Evidence`/tmp/ftd-import-unblocks-20261116`; retain consumed test DB/keys/volumes,
+never replay them. Old image tags require compatible storage, not blind rollback.
+Wider failure/scale and persistent deferred cutover remain, whole-managed cleanup
+later. No production/release/tag, credential/trust/network change.
+
+## Source v0.18.0 — whole-import cleanup implementation, 2026-11-16
+
+The earlier planned-only boundary is superseded by the implementation described in
+manual/import-unblocking.md and the newest architecture amendment. Optional explicit
+profile initialization, literal default-off API/Web flag, exact current ownership,
+atomic retirement and captured original ADD settlement are required. Delegate only
+32 outstanding/16-per-batch REMOVE targets under original seven-day parent consent;
+never replay unknown writes or infer command success from later presence. Cancellation
+preserves independent requesters and actual already-claimed terminal audit. Old
+writers refuse the new profile. Current validation/deployment evidence follows in
+project-status.md; source version alone is not runtime activation. Whole-managed
+cleanup remains planned. Known-lab two-address acceptance and validated API/Web
+rollout fit the operator's existing authorization; no repeated fixture permission.
+
 ## Current Web v0.17.0 — typography and local help, 2026-11-16
 
 Only Web updated14:03:27Z:0.17.0/sourcec6ebed591e01/image43728f0650bd.

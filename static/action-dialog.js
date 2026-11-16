@@ -8,7 +8,7 @@
   let busy = false;
   let originalFocus = null;
   let uncertain = null;
-  const reviewPaths = new Set(['/ip-actions/unblock', '/ip-actions/unblock-everywhere',
+  const reviewPaths = new Set(['/import-unblocks/review','/ip-actions/unblock', '/ip-actions/unblock-everywhere',
     '/managed-shuns/removal-review', '/managed-shuns/fleet-removal-review',
     '/managed-shuns/retirement-review', '/managed-shuns/v2/removal-review',
     '/managed-shuns/v2/fleet-removal-review', '/managed-shuns/v2/ordered-removal-review',

@@ -208,6 +208,8 @@ def refresh_metadata(refresh: object) -> dict[str, object]:
         "execution_recovery",
         "runtime_mode",
         "bulk_execution_enabled",
+        "import_unblocks_available",
+        "import_unblocks",
         "manual_mutations_available",
         "managed_workflows_available",
         "managed_policy_format",
@@ -1506,6 +1508,9 @@ def create_app(settings: Settings | None = None, *, ready_removal_admission_enab
             raise HTTPException(503, "Cancellation was not confirmed; check the operation queue.") from error
         return queued_result(request, response, "/")
 
+    from .import_unblock_web import register as register_import_unblocks
+    register_import_unblocks(app,settings,render=render,identity_for=identity_from_request,
+        operator_for=require_managed_operator,client_for=lambda config:api_client(config),form_for=preview_form,csrf_for=require_csrf)
     register_import_web(app, settings, render=render, identity_for=identity_from_request,
                         client_for=lambda config: api_client(config), form_for=preview_form, csrf_for=require_csrf)
     ready_review = register_ready_removal_web(app, settings, enabled=ready_removal_admission_enabled, render=render,

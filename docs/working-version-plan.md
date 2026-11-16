@@ -3,6 +3,13 @@
 Agreed with the operator: 2026-10-20.
 Status: approved target behavior and delivery plan; not a deployment procedure.
 
+Lab0.18.0 delivers the confirmed whole-import cleanup slice: exact current
+ownership, permanent retirement, original ADD settlement, bounded rolling verified
+REMOVE work, whole-task progress and cancellation. Default-off capability requires
+explicit quiescent profile initialization. Validation/runtime delivery is recorded
+in project-status.md; do not infer activation from this plan. Follow
+manual/import-unblocking.md. Whole-managed cleanup remains later work.
+
 Workspace follow-up0.17.0 (2026-11-16): shared typography and local question-mark
 help cover primary tabs, import ownership, list order, import formats and pause
 behavior. Preserve critical warnings, actual IP data, action confirmations and
@@ -969,7 +976,12 @@ deployment migration remain future design decisions, not current configuration.
 
 ## 8. Managed cleanup
 
-### 8.1 Unblock imported IPs — planned, approved 2026-11-12
+### 8.1 Unblock imported IPs — implementation, approved 2026-11-12
+
+Execution slice0.18.0 now implements the confirmation, retirement and rolling
+cleanup task described below. See [Unblock Imported IPs](manual/import-unblocking.md)
+and current status for validation and actual runtime selection. The0.16.0 paragraph
+below records the earlier read-only boundary, not the current implementation.
 
 First slice,0.16.0 (2026-11-16): current-ownership browsing and readable import
 references are implemented. The query-only page checks complete membership, separates
@@ -979,7 +991,7 @@ retirement worker, gate or cleanup queue is introduced; those remain the next sl
 See [Current Import Addresses](manual/import-ownership.md) and current status.
 
 Prioritize **Unblock imported IPs…** for one selected import before whole-managed
-cleanup. This is a new planned operation, not the existing cancellation button.
+cleanup. This operation is separate from the existing cancel-uncompleted-import button.
 Expose the current import's readable label, author/time and receipt link from IP
 details and Managed shuns so operators can find the corresponding import.
 

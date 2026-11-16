@@ -465,6 +465,8 @@ def create_app(
     register_bulk_preparation_api(app, continuous)
     register_bulk_confirmation_api(app, continuous)
     register_bulk_cancellation_api(app, continuous)
+    from .import_unblock_api import register as register_import_unblocks
+    register_import_unblocks(app, continuous)
 
     @app.middleware("http")
     async def prevent_state_caching(request: Request, call_next):
@@ -564,7 +566,9 @@ def create_app(
             raise HTTPException(503, 'Current import ownership requires the configured managed runtime.')
         from .import_ownership import ImportOwnership
         try:
-            return ImportOwnership(store).page(str(operation_id), page=page, scope=scope, revision=revision)
+            value=ImportOwnership(store).page(str(operation_id), page=page, scope=scope, revision=revision)
+            value['unblock_tasks']=continuous.import_unblocks.status(import_id=str(operation_id))['tasks'] if settings.import_unblocks_enabled else []
+            return value
         except ManagedPageChanged as error:
             raise HTTPException(409, str(error)) from error
         except ManagedPageInvalid as error:

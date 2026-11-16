@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-heading"><h1>Unblock imported IPs</h1>{% if refresh %}{% include "refresh-panel.html" %}{% endif %}</div>
+{% if result %}<p role="status">Cleanup task accepted.{% if result.replayed %} Original confirmation receipt; no new work was added. Open the task for its current state.{% endif %} This is not verified device removal.</p><p><a href="/import-unblocks/{{ result.operation_id }}">View cleanup progress</a></p>
+{% else %}
+<p><strong>{{ summary['import'].label }}</strong> · {{ '{:,}'.format(summary.owned_count) }} device/IP pairs on this import's current rules.</p>
+<p>{{ '{:,}'.format(summary.observed_owned) }} blocks observed; {{ '{:,}'.format(summary.absent_owned) }} addresses not currently observed.</p>
+<ul><li>Stop automatic restoration for all these addresses, including currently absent ones.</li>
+<li>Cancel their additions that have not started. Running commands finish and are checked.</li>
+<li>Queue verified unblocking in small batches. Other imports, unmanaged addresses and Protected IPs remain unchanged.</li></ul>
+<p>Already-managed entries belonging elsewhere, replaced rules and previous exclusions are outside this scope. The task lasts up to seven days. Failed or uncertain removals require attention and are never blindly repeated.</p>
+{% if summary.disabled_owned %}<p class="policy-warning">{{ summary.disabled_owned }} targets are on disabled devices. Their restoration will stop; removal waits for the devices to become available.</p>{% endif %}
+{% if message %}<p class="policy-warning" role="alert">{{ message }}</p>{% endif %}
+<form method="post" action="/import-unblocks/confirm" class="import-confirm-form"><input type="hidden" name="csrf" value="{{ csrf_token }}"><input type="hidden" name="review_token" value="{{ review.token }}"><button name="confirm_action" value="unblock-import">Confirm unblock import</button></form>
+{% endif %}
+<p><a href="/managed-imports/v2/imports/{{ summary['import'].id }}">Back to import</a></p>
+{% if not result %}<p><a href="/import-unblocks/{{ review.request_id }}">Check original cleanup task</a> if a confirmation reply is lost.</p>{% endif %}
+<script src="/static/freshness.js" defer></script>
+{% endblock %}

@@ -1,5 +1,13 @@
 # System Architecture and Data Formats
 
+Current cleanup addition0.18.0 uses the existing Web → API UDS JSON and core SQLite
+paths; no component/network/wire change. Optional `managed_import_unblocks` stores
+root consent/deadline/state; `managed_import_unblock_members` stores exact owned
+bindings, captured ADD proof and bounded child REMOVE links/results. The SQL-only
+coordinator delegates to the existing operation queue and agent protocol. Queue
+status returns whole-task counts; target pages remain100 rows. See
+[Unblock Imported IPs](import-unblocking.md) for confirmation and cancellation.
+
 Architecture map as of **2026-11-13**, for the operator's desk laboratory.
 The main stack selects verified **v6 grouped-addition sessions**, API/feed0.13.0,
 Web0.13.1 and metadata worker0.11.0. Source0.12.0 additionally contains an optional

@@ -69,8 +69,11 @@ class Settings:
     batch_session_version: int = 5
     deferred_confirmation_enabled: bool = False
     ip_context_cache_path: Path | None = None
+    import_unblocks_enabled: bool = False
 
     def __post_init__(self) -> None:
+        if type(self.import_unblocks_enabled) is not bool or (self.import_unblocks_enabled and self.api_runtime != 'continuous-managed'):
+            raise ValueError('Import unblocking requires the explicit managed runtime.')
         if type(self.api_runtime) is not str or self.api_runtime not in {'legacy', 'continuous-observation', 'continuous-managed'}:
             raise ValueError('FTD_SHUN_API_RUNTIME must be legacy, continuous-observation or continuous-managed')
         if type(self.agent_concurrency) is not int or not 1 <= self.agent_concurrency <= 10:
@@ -134,6 +137,8 @@ class Settings:
             raise ValueError('FTD_SHUN_DEFERRED_CONFIRMATION_ENABLED must be true or false')
         if batch_version not in ({'7'} if deferred == 'true' else {'5', '6'}):
             raise ValueError('FTD_SHUN_AGENT_BATCH_SESSION_VERSION must match the explicit deferred/verified selection')
+        unblocks = environ.get('FTD_SHUN_IMPORT_UNBLOCKS_ENABLED','false')
+        if unblocks not in {'true','false'}:raise ValueError('FTD_SHUN_IMPORT_UNBLOCKS_ENABLED must be true or false')
         import_admission = environ.get("FTD_SHUN_IMPORT_ADMISSION_ENABLED", "false")
         if import_admission not in {"true", "false"}:
             raise ValueError("FTD_SHUN_IMPORT_ADMISSION_ENABLED must be true or false")
@@ -202,4 +207,5 @@ class Settings:
             batch_session_version=int(batch_version),
             deferred_confirmation_enabled=deferred == 'true',
             ip_context_cache_path=Path(environ['FTD_SHUN_IP_CONTEXT_CACHE']) if environ.get('FTD_SHUN_IP_CONTEXT_CACHE') else None,
+            import_unblocks_enabled=unblocks == 'true',
         )

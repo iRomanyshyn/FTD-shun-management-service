@@ -172,8 +172,12 @@ class OperationQueue:
         from .bulk_ordered_waits import held_count
 
         cutoff = stamp(current - timedelta(minutes=1))
-        count = db.execute("SELECT COUNT(*) FROM operation_requests WHERE actor_subject=? AND requested_at>=?",
+        from .import_unblocks import present as unblocks_present
+        extra = " AND NOT EXISTS(SELECT 1 FROM managed_import_unblock_members m WHERE m.child_id=operation_requests.id)" if unblocks_present(db) else ""
+        count = db.execute("SELECT COUNT(*) FROM operation_requests WHERE actor_subject=? AND requested_at>=?" + extra,
                            (subject, cutoff)).fetchone()[0]
+        if unblocks_present(db):
+            count += db.execute("SELECT COUNT(*) FROM managed_import_unblocks u JOIN managed_shun_requests r ON r.id=u.id WHERE r.actor_subject=? AND u.requested_at>=?", (subject,cutoff)).fetchone()[0]
         count += held_count(db, subject=subject, cutoff=cutoff, exclude=exclude_request_id)
         if self._handoffs_present(db):
             count += db.execute("""SELECT COUNT(*) FROM managed_removal_handoffs h
@@ -226,7 +230,7 @@ class OperationQueue:
         source: str = "manual", scope: str = "device",
         *, batch_label: str = "", batch_reason: str = "", policy_revision: int | None = None,
         confirmation_digest: str | None = None, bulk_removal_enabled: bool = False,
-        bulk_ordered_removal_enabled: bool = False,
+        bulk_ordered_removal_enabled: bool = False, import_unblock_enabled: bool = False,
     ) -> tuple[dict, list[dict]]:
         """Trusted composition hook; caller owns transaction, commit and accepted logs.
 
@@ -237,6 +241,8 @@ class OperationQueue:
         """
         if not db.in_transaction:
             raise ValueError("Queue admission requires a caller-owned transaction.")
+        if type(import_unblock_enabled) is not bool or (import_unblock_enabled and (source != "manual" or scope != "managed_v2_import_unblock")):
+            raise ValueError("Exact literal import-unblock delegation capability required.")
         if type(bulk_removal_enabled) is not bool:
             raise ValueError('Bulk ready-removal composition capability must be boolean.')
         if type(bulk_ordered_removal_enabled) is not bool or (bulk_removal_enabled and bulk_ordered_removal_enabled):
@@ -245,7 +251,7 @@ class OperationQueue:
         try:
             result = self._apply_enqueue(
                 db, request_id, targets, subject, display_name, roles, ttl_seconds, source, scope,
-                batch_label, batch_reason, policy_revision, confirmation_digest, bulk_removal_enabled, bulk_ordered_removal_enabled,
+                batch_label, batch_reason, policy_revision, confirmation_digest, bulk_removal_enabled, bulk_ordered_removal_enabled, import_unblock_enabled,
             )
         except Exception:
             db.execute("ROLLBACK TO queue_admission")
@@ -256,7 +262,7 @@ class OperationQueue:
 
     def _apply_enqueue(
         self, db, request_id, targets, subject, display_name, roles, ttl_seconds,
-        source, scope, batch_label, batch_reason, policy_revision, confirmation_digest, bulk_removal_enabled, bulk_ordered_removal_enabled,
+        source, scope, batch_label, batch_reason, policy_revision, confirmation_digest, bulk_removal_enabled, bulk_ordered_removal_enabled, import_unblock_enabled,
     ) -> tuple[dict, list[dict]]:
         if bulk_removal_enabled and (source != 'manual' or scope != 'managed_v2_ready_removal'):
             raise ValueError('The v2 ready-removal capability requires its fixed manual semantic scope.')
@@ -284,6 +290,9 @@ class OperationQueue:
             from .bulk_ordered_promotion import queue_scope
 
             ordered = queue_scope(db, request_id, targets, subject, source, scope, current)
+        if import_unblock_enabled:
+            from .import_unblock_worker import ticket
+            ticket(db, request_id, targets, subject, display_name, roles, current)
         logs = []
         old = db.execute("SELECT * FROM operation_requests WHERE id=?", (request_id,)).fetchone()
         if old:
@@ -308,6 +317,9 @@ class OperationQueue:
             ):
                 raise QueueConflict("Managed-removal key is reserved for its exact cleanup handoff.")
         if source in {"manual", "manual_import"}:
+            from .import_unblocks import pair_held as import_pair_held
+            if action == 'ADD' and any(import_pair_held(db, device, ip) for device, ip in targets):
+                raise QueueConflict("Import cleanup reserves this pair.")
             from .bulk_ordered_waits import pair_held
 
             if ordered is None and any(pair_held(db, device, ip) for device, ip in targets):
@@ -319,7 +331,7 @@ class OperationQueue:
                 from .bulk_removals import require_ready_queue_scope
 
                 require_ready_queue_scope(db, targets, scope)
-            elif ordered is None:
+            elif ordered is None and not import_unblock_enabled:
                 require_ordinary_removal(db, targets, fleet=scope == "all")
         if source in {"manual", "manual_import"}:
             from .incident_isolations import require_manual_scope
@@ -334,7 +346,7 @@ class OperationQueue:
         active_requests = self._active_request_count(db) - (1 if ordered is not None else 0)
         if active_requests >= 2000:
             raise QueueFull("operation queue is full")
-        if source in {"manual", "manual_import"} and ordered is None:
+        if source in {"manual", "manual_import"} and ordered is None and not import_unblock_enabled:
             recent = self._recent_request_count(db, subject, current, request_id)
             if recent >= 10:
                 raise QueueFull("at most 10 operation submissions per minute per user")
@@ -603,12 +615,14 @@ class OperationQueue:
             if not permitted:
                 return None  # Never overlap command/verification on the same device.
             priority = self._removal_priority()
+            from .import_unblocks import present as unblocks_present
+            cleanup_order="CASE WHEN EXISTS(SELECT 1 FROM managed_import_unblock_members m WHERE m.job_id=operation_jobs.id) THEN 1 ELSE 0 END," if unblocks_present(db) else ""
             jobs = db.execute("""SELECT * FROM operation_jobs
                 WHERE device_id=? AND state='QUEUED' AND (? IS NULL OR action=?) AND (seq<=? OR (action='REMOVE' AND ?) OR EXISTS (
                     SELECT 1 FROM operation_links l JOIN operation_requests r ON r.id=l.request_id
                     WHERE l.job_id=operation_jobs.id AND r.source='trusted_policy' AND r.state='ACTIVE'
                         AND operation_jobs.action='REMOVE'))
-                ORDER BY CASE WHEN ? AND action='REMOVE' THEN 0 ELSE 1 END,seq""",
+                ORDER BY CASE WHEN ? AND action='REMOVE' THEN 0 ELSE 1 END,""" + cleanup_order + "seq",
                 (device_id, action, action, cutoff, priority, priority)).fetchall()
             for job in jobs:
                 job_action = job["action"]
@@ -638,9 +652,10 @@ class OperationQueue:
                     (job["id"], stamp(self._now()), int(job_action == "ADD"), restoration["id"] if restoration else None, ACTOR),
                 ).fetchall()
                 from .bulk_ordered_promotion import require_claim as require_ordered_claim
-
+                from .import_unblock_worker import require_claim as require_import_claim
                 for request in requests:
                     require_ordered_claim(db, request, job)
+                    require_import_claim(db, request, job, self._now())
                 from .incident_isolations import pair_isolated
 
                 if pair_isolated(db, device_id, IPv4Address(job["ip"])) and not (
@@ -674,6 +689,13 @@ class OperationQueue:
                         # its existing session, but must not send/retry this job.
                         raise ClaimNotSubmitted("Claim eligibility expired before submission; fresh evidence required.")
                 self._executor(db, owner, device_id)
+                # Consent may expire while claim/audit SQL is being committed.
+                # Refuse before submission; this transaction rolls back RUNNING.
+                for request in requests:
+                    try:
+                        require_import_claim(db, request, job, self._now())
+                    except QueueConflict as error:
+                        raise ClaimNotSubmitted('Import cleanup eligibility changed before submission.') from error
                 return {**dict(job), "state": "RUNNING", "dispatch_kind": job_action}
         return None
 
@@ -683,8 +705,9 @@ class OperationQueue:
         current = stamp(self._now())
         db.execute("UPDATE operation_jobs SET state=?,completed_at=?,reason=? WHERE id=?",
                    (state, current, reason, job["id"]))
+        from .import_unblocks import claimed_cancelled_request
         requests = db.execute("""SELECT r.* FROM operation_requests r
-            JOIN operation_links l ON l.request_id=r.id WHERE l.job_id=? AND r.state!='CANCELLED'""",
+            JOIN operation_links l ON l.request_id=r.id WHERE l.job_id=? AND (r.state!='CANCELLED' OR """+claimed_cancelled_request(db)+')',
             (job["id"],),
         ).fetchall()
         for request in requests:
@@ -755,8 +778,9 @@ class OperationQueue:
                         WHERE device_id=? AND ip=? AND active=1""",
                         (stamp(self._now()), job["device_id"], job["ip"]),
                     )
+                from .import_unblocks import claimed_cancelled_request
                 requests = db.execute("""SELECT r.* FROM operation_requests r
-                    JOIN operation_links l ON l.request_id=r.id WHERE l.job_id=? AND r.state='ACTIVE'""",
+                    JOIN operation_links l ON l.request_id=r.id WHERE l.job_id=? AND (r.state='ACTIVE' OR """+claimed_cancelled_request(db)+')',
                     (job_id,),
                 ).fetchall()
                 for request in requests:
@@ -998,7 +1022,8 @@ class OperationQueue:
         cutoff = stamp(self._now() - timedelta(days=retention_days))
         with self.store._connection() as db:
             db.execute("BEGIN IMMEDIATE")
-            preserve = ""
+            from .import_unblocks import present as unblocks_present
+            preserve = " AND NOT EXISTS(SELECT 1 FROM managed_import_unblock_members m WHERE m.job_id=operation_jobs.id OR json_extract(m.predecessor_json,'$.job_id')=operation_jobs.id)" if unblocks_present(db) else ""
             from .bulk_attempts import present as bulk_present
             from .bulk_attempts import validate_held_jobs
             from .bulk_dispatch import present as dispatch_present

@@ -1,5 +1,36 @@
 # FTD Shun Management Service
 
+## Confirmed whole-import cleanup — 2026-11-16
+
+This amendment implements the previously planned per-import cleanup. It supersedes
+older statements that the operation has no endpoint/profile. Whole-managed purge
+remains separate. Current ownership is exact original ADD/adoption binding, never
+historical/ALREADY_MANAGED membership. A five-minute frozen Web review binds actor,
+CSRF cookie, original request key, scope digest, count and managed revision.
+Confirmation atomically retires all owned targets, cancels owned unstarted ADDs,
+captures original running/pending ADD proof and seals a durable parent task.
+
+The optional explicit/quiescent profile stores parent consent and immutable members,
+with rolling delegation to existing verified REMOVE execution (32 outstanding,
+16 per internal batch). Only exact transactional tickets may bypass the user
+submission limiter; the parent counts once. Claim revalidates parent deadline,
+actor, full delegated scope and unchanged retired ownership before submission.
+No SSH, END, lookup or unknown write is retried by this worker. Captured ADD jobs,
+requests, claim audit and original session settlement remain required.
+
+Root deadlines are fixed at seven days; child deadlines are bounded by 15 minutes
+and the original root. Cancellation/expiry revoke unstarted task authorization,
+preserve independent coalesced requesters and retain actual in-flight terminal
+actor audit. They never resume maintenance, undo results or renew authority.
+Current replacement authority is never removed. Urgent ordinary removals precede
+background cleanup. Disabled/held devices do not block other eligible devices.
+
+The API/Web-only capability defaults off and requires explicit initialization;
+startup/GET perform no DDL. Old exact-profile writers refuse the schema. Retain
+128 roots/1m members with complete evidence, reject overflow atomically and render
+only100 targets per page. Active Queue shows parent progress, not batch-card spam;
+completed receipts remain reachable through the import. See manual/import-unblocking.md.
+
 ## Shared typography and transient local help — 2026-11-16
 
 Use shared relative font-size/weight tokens across lists, controls, metadata,

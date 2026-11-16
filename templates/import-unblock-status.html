@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% from "pagination-ui.html" import pager %}
+{% from "ip-item.html" import item as ip_item %}
+{% block content %}
+<div class="page-heading"><h1>Import cleanup</h1>{% include "refresh-panel.html" %}</div>
+{% if identity.subject == task.actor_subject or 'Administrator' in identity.roles %}
+<form method="post" action="/import-unblocks/{{ task.id }}/cancel-remaining" class="request-refresh-form" data-unblock-cancel{% if task.state != 'ACTIVE' %} hidden{% endif %}><input type="hidden" name="csrf" value="{{ csrf_token }}"><button>Cancel remaining removals</button></form>{% endif %}
+<section id="import-unblock-state" data-live-region data-unblock-state="{{ task.state }}">
+<h2>{{ task.state | title }}</h2>
+<progress max="{{ task.target_count }}" value="{{ task.verified }}" aria-label="Verified cleanup progress"></progress>
+<p>{{ task.verified }} / {{ task.target_count }} verified removals or verified absences.</p>
+<p>Requested by {{ task.actor_display_name }}. Restoration remains off. Cancelling remaining work never restores removed blocks or re-enables old rules.</p>
+<p class="preview-help">Task deadline: <time class="local-timestamp" datetime="{{ task.expires_at }}">{{ task.expires_at }}</time>. Waiting work needs an eligible device and queue capacity. Failed or uncertain commands are never automatically repeated.</p>
+{% for state,count in task.counts.items() %}<span class="state-badge">{{ state | replace('_',' ') | title }}: {{ count }}</span>{% endfor %}
+{{ pager(task.page,task.pages,'/import-unblocks/' ~ task.id,{},'100 targets per page','Cleanup target pages','top','cleanup-page') }}
+<div class="table-scroll"><table class="data-table"><thead><tr><th>Device</th><th>IP</th><th>Result</th></tr></thead><tbody>
+{% for target in task.targets %}<tr><td>{{ target.device_hostname }}</td><td>{{ ip_item(target.ip,ip_context) }}</td><td><span class="status-label">{{ target.state | replace('_',' ') | title }}</span></td></tr>{% endfor %}
+</tbody></table></div>
+{{ pager(task.page,task.pages,'/import-unblocks/' ~ task.id,{},'100 targets per page','Cleanup target pages','bottom','cleanup-page') }}
+</section><p><a href="/managed-imports/v2/imports/{{ task.import_id }}">View original import</a></p>
+<script src="/static/freshness.js" defer></script>
+{% endblock %}

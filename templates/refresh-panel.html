@@ -30,6 +30,7 @@
 <p data-queue-summary>Loading queue status…</p>
 <p>Requests are queued; acceptance is not verified success. {% if refresh.runtime_mode == 'continuous-managed' %}Commands run one at a time on each device; other devices can progress independently. Managed blocks are checked against fresh device data before execution.{% elif refresh.import_execution_enabled %}Cycles share a limit of 16 additions/removals per device within command/time limits. Additions require an explicitly configured device profile.{% elif refresh.session_cycles_enabled %}Session cycles handle up to 16 removals per device within command/time limits. ADD execution is disabled.{% else %}Each cycle handles at most one removal per device. ADD execution is disabled.{% endif %}</p>
 <p data-cycle-progress role="status" aria-live="polite"></p>
+<section data-unblock-progress-section hidden aria-labelledby="unblock-progress-heading"><h3 id="unblock-progress-heading">Import cleanup</h3><div data-unblock-progress></div></section>
 <section data-queue-attention-section hidden aria-labelledby="queue-attention-heading">
 <h3 id="queue-attention-heading">Needs attention</h3>
 <p><a class="action-link" href="/queue-recovery">Check and resume import</a> — inspect recovery options; no command is repeated by opening this page.</p>

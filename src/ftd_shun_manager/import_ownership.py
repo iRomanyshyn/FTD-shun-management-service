@@ -70,61 +70,65 @@ class ImportOwnership:
             raise ManagedPageInvalid('Select a valid import ownership page and filter.')
         self.views._revision(revision)
         with self.views._snapshot() as db:
-            metadata = self.views._metadata(db, revision)
-            actor = db.execute('SELECT actor_subject FROM managed_shun_requests WHERE id=?', (key,)).fetchone()
-            if actor is None:
-                raise BulkUnavailable('The original import is unavailable.')
-            # Verify the retained manifest against its stored author. This is a
-            # readonly projection, not permission to submit on that author's behalf.
-            root, _, manifest = BulkPolicies(self.store)._root(db, key, actor[0])
-            summary = {name: 0 for name in CATEGORIES}
-            from .device_reconciliation import unresolved
+            return self.read(db, key, page=page, scope=scope, revision=revision)
 
-            members = MEMBERS.replace('__UNRESOLVED_JOB__', unresolved(db, 'j.id'))
-            observed = pending = disabled = protected = attention = 0
-            digest = hashlib.sha256(b'ftd-shun-manager:current-import-ownership:v1\n')
-            digest.update(json.dumps([key, metadata['revision'], root['payload_digest']], separators=(',', ':')).encode())
-            # Whole-scope counts/digest stream in bounded chunks; never send all
-            # members to Python templates, metadata providers or the browser.
-            cursor = db.execute(members + ' ORDER BY b.device_id,b.ip', (key,))
-            total = 0
-            while chunk := cursor.fetchmany(100):
-                for row in chunk:
-                    if row['classification'] != 'EXCLUDED_PROTECTED' and row['current_import_id'] is None:
-                        raise BulkUnavailable('An original import member is missing its retained policy key.')
-                    total += 1
-                    summary[row['ownership']] += 1
-                    if row['ownership'] in OWNED:
-                        observed += bool(row['observed_present'])
-                        pending += row['pending_jobs']
-                        disabled += not row['device_enabled']
-                        protected += bool(row['protected'])
-                        attention += bool(row['attention'])
-                        digest.update(json.dumps([row['device_id'], row['ip'].hex(), row['intent_id'], row['generation'],
-                            row['authorization_request_id'], row['target_revision'], bool(row['device_enabled']),
-                            bool(row['protected'])], separators=(',', ':')).encode() + b'\n')
-            if total != manifest.pair_count:
-                raise BulkUnavailable('Complete import ownership membership is unavailable.')
-            owned = sum(summary[name] for name in OWNED)
-            selected = owned if scope == 'owned' else total - owned if scope == 'excluded' else total
-            pages = max(1, (selected + 99) // 100)
-            if page > pages:
-                raise ManagedPageInvalid('Select a page within the current import scope.')
-            predicate = ('ownership IN' if scope == 'owned' else 'ownership NOT IN') + " ('OWNED_ADDED','OWNED_ADOPTED')"
-            sql = 'SELECT * FROM (' + members + ')' + (' WHERE ' + predicate if scope != 'all' else '')
-            rows = db.execute(sql + ' ORDER BY device_id,ip LIMIT 100 OFFSET ?', (key, (page-1)*100)).fetchall()
-            targets = []
-            for row in rows:
-                target = {field: row[field] for field in ('device_id','hostname','ownership','classification','generation',
-                    'intent_id','authorization_request_id','current_import_id','current_generation','pending_jobs')}
-                target.update(ip=str(IPv4Address(row['ip'])), device_enabled=bool(row['device_enabled']),
-                    observed_present=bool(row['observed_present']), protected=bool(row['protected']), attention=bool(row['attention']))
-                targets.append(target)
-            return {'import': import_labels(db, [key])[key], 'managed_revision': metadata['revision'],
-                'as_of': datetime.now(UTC).isoformat(timespec='milliseconds').replace('+00:00','Z'),
-                'counts': summary, 'member_count': total, 'owned_count': owned, 'observed_owned': observed,
-                'absent_owned': owned-observed, 'pending_jobs': pending, 'disabled_owned': disabled,
-                'attention_owned': attention,
-                'protected_owned': protected, 'scope_digest': digest.hexdigest(), 'scope': scope,
-                'page': page, 'pages': pages, 'page_size': 100, 'selected_count': selected, 'targets': targets,
-                'read_only': True, 'device_work_admitted': False, 'can_execute': False}
+    def read(self, db, key, *, page=1, scope='owned', revision=None):
+        """Same projection inside a caller-owned snapshot/confirmation transaction."""
+        metadata = self.views._metadata(db, revision)
+        actor = db.execute('SELECT actor_subject FROM managed_shun_requests WHERE id=?', (key,)).fetchone()
+        if actor is None:
+            raise BulkUnavailable('The original import is unavailable.')
+        # Verify the retained manifest against its stored author. This is a
+        # readonly projection, not permission to submit on that author's behalf.
+        root, _, manifest = BulkPolicies(self.store)._root(db, key, actor[0])
+        summary = {name: 0 for name in CATEGORIES}
+        from .device_reconciliation import unresolved
+
+        members = MEMBERS.replace('__UNRESOLVED_JOB__', unresolved(db, 'j.id'))
+        observed = pending = disabled = protected = attention = 0
+        digest = hashlib.sha256(b'ftd-shun-manager:current-import-ownership:v1\n')
+        digest.update(json.dumps([key, metadata['revision'], root['payload_digest']], separators=(',', ':')).encode())
+        # Whole-scope counts/digest stream in bounded chunks; never send all
+        # members to Python templates, metadata providers or the browser.
+        cursor = db.execute(members + ' ORDER BY b.device_id,b.ip', (key,))
+        total = 0
+        while chunk := cursor.fetchmany(100):
+            for row in chunk:
+                if row['classification'] != 'EXCLUDED_PROTECTED' and row['current_import_id'] is None:
+                    raise BulkUnavailable('An original import member is missing its retained policy key.')
+                total += 1
+                summary[row['ownership']] += 1
+                if row['ownership'] in OWNED:
+                    observed += bool(row['observed_present'])
+                    pending += row['pending_jobs']
+                    disabled += not row['device_enabled']
+                    protected += bool(row['protected'])
+                    attention += bool(row['attention'])
+                    digest.update(json.dumps([row['device_id'], row['ip'].hex(), row['intent_id'], row['generation'],
+                        row['authorization_request_id'], row['target_revision'], bool(row['device_enabled']),
+                        bool(row['protected'])], separators=(',', ':')).encode() + b'\n')
+        if total != manifest.pair_count:
+            raise BulkUnavailable('Complete import ownership membership is unavailable.')
+        owned = sum(summary[name] for name in OWNED)
+        selected = owned if scope == 'owned' else total - owned if scope == 'excluded' else total
+        pages = max(1, (selected + 99) // 100)
+        if page > pages:
+            raise ManagedPageInvalid('Select a page within the current import scope.')
+        predicate = ('ownership IN' if scope == 'owned' else 'ownership NOT IN') + " ('OWNED_ADDED','OWNED_ADOPTED')"
+        sql = 'SELECT * FROM (' + members + ')' + (' WHERE ' + predicate if scope != 'all' else '')
+        rows = db.execute(sql + ' ORDER BY device_id,ip LIMIT 100 OFFSET ?', (key, (page-1)*100)).fetchall()
+        targets = []
+        for row in rows:
+            target = {field: row[field] for field in ('device_id','hostname','ownership','classification','generation',
+                'intent_id','authorization_request_id','current_import_id','current_generation','pending_jobs')}
+            target.update(ip=str(IPv4Address(row['ip'])), device_enabled=bool(row['device_enabled']),
+                observed_present=bool(row['observed_present']), protected=bool(row['protected']), attention=bool(row['attention']))
+            targets.append(target)
+        return {'import': import_labels(db, [key])[key], 'managed_revision': metadata['revision'],
+            'as_of': datetime.now(UTC).isoformat(timespec='milliseconds').replace('+00:00','Z'),
+            'counts': summary, 'member_count': total, 'owned_count': owned, 'observed_owned': observed,
+            'absent_owned': owned-observed, 'pending_jobs': pending, 'disabled_owned': disabled,
+            'attention_owned': attention,
+            'protected_owned': protected, 'scope_digest': digest.hexdigest(), 'scope': scope,
+            'page': page, 'pages': pages, 'page_size': 100, 'selected_count': selected, 'targets': targets,
+            'read_only': True, 'device_work_admitted': False, 'can_execute': False}

@@ -30,7 +30,7 @@ def displayed_ips(context, target=None):
     # on a large parsed input, canonical authority, or arbitrary context objects.
     for root, keys in (('managed', ('entries',)), ('policy', ('entries',)),
                        ('preview', ('page_rows',)), ('draft', ('targets', 'report_rows')),
-                       ('receipt', ('targets',)), ('report', ('targets', 'report_rows')), ('ownership', ('targets',)),
+                       ('receipt', ('targets',)), ('report', ('targets', 'report_rows')), ('ownership', ('targets',)), ('task', ('targets',)),
                        ('cancellation', ('targets',)), ('status', ('targets',)),
                        ('handoffs', ('items',)), ('fleet_cleanup', ('items',))):
         value = context.get(root)

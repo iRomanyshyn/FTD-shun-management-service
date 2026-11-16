@@ -120,12 +120,15 @@
     const awaiting = count(counts.AWAITING_CONFIRMATION);
     const retryWait = deferredRetryWait(status);
     const imports = status.queue?.imports;
-    const importWaiting = (imports?.tasks || []).some((task) => task.active && count(task.outstanding));
+    const cleanupTasks=status.import_unblocks?.tasks || [];
+    const cleanupWaiting=cleanupTasks.some(task=>task.state==='ACTIVE' && count(task.counts?.WAITING));
+    const importWaiting = cleanupWaiting || (imports?.tasks || []).some((task) => task.active && count(task.outstanding));
     const deviceError = Boolean((running || queued || awaiting || importWaiting)
       && Object.values(status.devices || {}).some((device) => device.state === 'error' || device.last_error));
     const attentionCounts = queueAttentionCounts(status.queue || {});
     const attention = Math.max(count(attentionCounts.FAILED) + count(attentionCounts.UNVERIFIED),
-      (imports?.tasks || []).reduce((sum, task) => sum + count(task.attention), 0));
+      (imports?.tasks || []).reduce((sum, task) => sum + count(task.attention), 0),
+      cleanupTasks.reduce((sum,task)=>sum+count(task.attention),0));
     const paused = status.queue?.mutations_suspended === true;
     const recovery = status.execution_recovery;
     const stopped = recovery?.state === 'stopped';
@@ -140,7 +143,7 @@
       description: `Queue: ${running} running; ${queued} queued; ${attention} need attention.`
         + (awaiting ? ` ${awaiting} awaiting a complete device read; not yet confirmed.` : '')
         + (retryWait ? ` ${retryWait}` : '')
-        + (importWaiting ? ' An import has addresses waiting for rolling dispatch.' : '')
+        + (cleanupWaiting ? ' An import cleanup is waiting for eligible work.' : importWaiting ? ' An import has addresses waiting for rolling dispatch.' : '')
         + (deviceError ? ' Some device work needs attention; open Status. Healthy devices can continue.' : '')
         + (paused ? " Device mutations are paused; monitoring continues." : "")
         + (recovery?.state === 'retrying' ? " Storage is busy; scheduling retries automatically. The import is retained." : "")
@@ -176,6 +179,37 @@
   const stableSignature = (value) => JSON.stringify(value, (_key, entry) =>
     entry && typeof entry === "object" && !Array.isArray(entry)
       ? Object.fromEntries(Object.keys(entry).sort().map((key) => [key, entry[key]])) : entry);
+  const renderUnblocks=(panel,status)=>{
+    const section=panel.querySelector('[data-unblock-progress-section]');
+    const list=panel.querySelector('[data-unblock-progress]');
+    if(!section||!list)return;
+    const tasks=status.import_unblocks?.tasks || [];
+    section.hidden=!tasks.length;
+    const keys=new Set(tasks.map(task=>task.id));
+    for(const card of list.children)if(!keys.has(card.dataset.unblockId))card.remove();
+    for(const task of tasks){
+      let card=[...list.children].find(node=>node.dataset.unblockId===task.id);
+      if(!card){
+        card=document.createElement('article');card.className='request-progress';card.dataset.unblockId=task.id;
+        const title=document.createElement('a');title.dataset.unblockTitle='';title.href='/import-unblocks/'+encodeURIComponent(task.id);
+        const progress=document.createElement('progress');progress.setAttribute('aria-label','Verified import cleanup progress');
+        const detail=document.createElement('p');detail.dataset.unblockSummary='';
+        const cancel=document.createElement('form');cancel.method='post';cancel.action='/import-unblocks/'+encodeURIComponent(task.id)+'/cancel-remaining';
+        const csrf=document.createElement('input');csrf.type='hidden';csrf.name='csrf';cancel.append(csrf);
+        const button=document.createElement('button');button.type='submit';button.textContent='Cancel remaining removals';cancel.append(button);
+        card.append(title,progress,detail,cancel);list.append(card);
+      }
+      card.querySelector('[data-unblock-title]').textContent=task.import_label || 'Import cleanup';
+      const progress=card.querySelector('progress');progress.max=task.target_count;progress.value=task.verified;
+      card.querySelector('[data-unblock-summary]').textContent=`${task.verified} / ${task.target_count} verified; ${task.counts?.WAITING || 0} waiting; ${task.counts?.QUEUED || 0} queued or running; ${task.attention || 0} need attention.`;
+      card.dataset.warning=String(Boolean(task.attention));
+      card.querySelector('input[name=csrf]').value=panel.querySelector('[data-refresh-form] input[name=csrf]').value;
+      card.querySelector('form').hidden=task.actor_subject!==panel.dataset.subject && panel.dataset.administrator!=='true';
+    }
+    const cancel=document.querySelector('[data-unblock-cancel]');
+    const state=document.querySelector('[data-unblock-state]');
+    if(cancel&&state)cancel.hidden=state.dataset.unblockState!=='ACTIVE';
+  };
 
   const renderRequestProgress = (panel, queue) => {
     const section = panel.querySelector("[data-request-progress-section]");
@@ -573,6 +607,7 @@
       if (!queueRows) return;
       const queue = status.queue || { counts: {}, items: [] };
       renderImportProgress(panel, queue, status.devices);
+      renderUnblocks(panel,status);
       renderRequestProgress(panel, queue);
       const progress = panel.querySelector("[data-cycle-progress]");
       if (progress) {
@@ -630,7 +665,11 @@
       panel.querySelector("[data-queue-summary]").textContent =
         activeTotal ? `${counts.RUNNING || 0} running; ${counts.QUEUED || 0} queued. `
           + (counts.AWAITING_CONFIRMATION ? `${counts.AWAITING_CONFIRMATION} awaiting confirmation. ` : '')
-          + `Showing ${activeItems.length} of ${activeTotal} active operations.${next}`
+          + (queue.grouped_cleanup_operations
+            ? `${queue.grouped_cleanup_operations} in import cleanup below; ${activeItems.length} other active operations shown.${next}`
+            : `Showing ${activeItems.length} of ${activeTotal} active operations.${next}`)
+          : status.import_unblocks?.tasks?.some(task=>task.state==='ACTIVE')
+            ? 'Import cleanup is waiting for rolling dispatch. See task progress below.'
           : queue.imports?.tasks?.some((task) => task.active && count(task.outstanding))
             ? 'Import work is waiting for rolling dispatch. See whole-import progress below.'
             : deferredRetryWait(status) || "Queue is empty.";

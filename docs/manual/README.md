@@ -34,7 +34,8 @@ not a runbook or permission to change gates, initialize schemas or run new fixtu
 | [Operations](operations.md) | Roles, removal workflow, logs, backup, health, and incident response. |
 | [Shuns and Maintenance](shuns-and-maintenance.md) | All-observed/Unmanaged/Managed views, bounded browsing, honest maintenance labels and policy-aware removal reviews. |
 | [Imports — Operator Guide](imports.md) | Paste/review/confirm, whole-task progress/cancellation, shared SSH batches, saved drafts and truthful held-device state in the managed runtime. |
-| [Current Import Addresses](import-ownership.md) | Readable provenance, current ownership versus original membership, complete counts, 100-row pages and existing per-IP unblock actions; whole-import cleanup remains planned. |
+| [Current Import Addresses](import-ownership.md) | Readable provenance, current ownership versus original membership, complete counts, 100-row pages and existing per-IP unblock actions. |
+| [Unblock Imported IPs](import-unblocking.md) | Confirmed current-owned cleanup, permanent retirement, rolling verified removals, task progress and cancellation. |
 | [Operation Queue](operation-queue.md) | Queued removal, progress/cancellation, limits, lease recovery, migration, backup restore, and rollback. |
 | [Check and Resume Import](queue-recovery.md) | Read-only recovery report and explicit trusted-host lab orchestration, preserving unknown outcomes without Web host privileges. |
 | [Execution Recovery](execution-recovery.md) | Automatic local scheduling-contention retry, visible retry/stopped states and evidence-based operator recovery without reimport. |

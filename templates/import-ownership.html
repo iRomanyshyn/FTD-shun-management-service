@@ -6,10 +6,14 @@
 {% block content %}
 {% set origin = ownership['import'] %}
 <div class="page-heading"><div class="page-title"><h1>{{ origin.label }}</h1>{% call topic('import-address-help', 'About these addresses', kind='list-help') %}<p>These device/IP pairs still belong to this import. Addresses already managed by another import, replaced rules and rules with auto-restore off are listed separately. This is a local snapshot; reload to see later changes.</p>{% endcall %}</div>{% include "refresh-panel.html" %}</div>
+{% if refresh.import_unblocks_available is sameas true and ownership.owned_count and ('Operator' in identity.roles or 'Administrator' in identity.roles) %}
+<form method="post" action="/import-unblocks/review" class="import-actions" data-open-action><input type="hidden" name="csrf" value="{{ csrf_token }}"><input type="hidden" name="import_id" value="{{ origin.id }}"><button>Unblock imported IPs…</button></form>
+{% endif %}
 <p class="preview-help">Imported by {{ origin.actor_display_name }} · <time class="local-timestamp" datetime="{{ origin.requested_at }}">{{ origin.requested_at }}</time>.</p>
 <p><strong>{{ '{:,}'.format(ownership.owned_count) }} managed pairs</strong> · {{ '{:,}'.format(ownership.observed_owned) }} blocked · {{ '{:,}'.format(ownership.absent_owned) }} not observed{% if ownership.pending_jobs %} · {{ ownership.pending_jobs }} pending operations{% endif %}.</p>
 {% if ownership.attention_owned %}<p class="policy-warning">{{ ownership.attention_owned }} owned pair(s) need attention. Open Queue to inspect unresolved results.</p>{% endif %}
 
+{% if ownership.unblock_tasks | default([]) %}<details class="row-details"><summary>Cleanup tasks ({{ ownership.unblock_tasks | length }})</summary><ul>{% for task in ownership.unblock_tasks %}<li><a href="/import-unblocks/{{ task.id }}">{{ task.state | title }} · {{ task.verified }} / {{ task.target_count }} verified</a></li>{% endfor %}</ul></details>{% endif %}
 <nav aria-label="Import address filters"><a href="?scope=owned">Managed ({{ '{:,}'.format(ownership.owned_count) }})</a> · <a href="?scope=excluded">Other ({{ '{:,}'.format(ownership.member_count - ownership.owned_count) }})</a> · <a href="?scope=all">All ({{ '{:,}'.format(ownership.member_count) }})</a></nav>
 {% set base = '/managed-imports/v2/imports/' ~ origin.id %}
 {% set summary = 'Page ' ~ ownership.page ~ ' of ' ~ ownership.pages ~ ' · ' ~ ownership.selected_count ~ ' device/IP pairs · 100 per page' %}

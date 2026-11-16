@@ -12728,3 +12728,62 @@ Web0.16.0 tag`ftd-shun-web:lab-pre-help-20261116`; exact identities/logs/screens
 retained in`/tmp/ftd-ui-help-20261116`. Manuals/architecture/plan updated. Reload
 old tabs. Next: confirmed whole-import unblocking with bounded urgent work and task
 progress; this delivery completes the requested design pass, not that operation.
+
+## 2026-11-16 — v0.18.0 confirmed whole-import unblocking
+
+**Unblock imported IPs…** now opens a frozen confirmation from the current import
+page. Acceptance atomically retires only its current original ADD/adoption bindings,
+cancels unstarted matching ADDs and seals one task. Historical/ALREADY_MANAGED,
+protected exclusions and replaced/retired ownership never expand the scope. Running
+or pending ADDs require their exact original claim, settlement and causal proof;
+unknown results are never replayed. Owner/Administrator cancellation stops remaining
+removals without rearming policy or revoking independent coalesced requests.
+Queue groups internal batches under one verified-progress card; task details page
+100 targets and import links retain receipts after completion. Rolling limits32/16,
+seven-day parent/15m children, capacity128 roots/1m members; see
+[Unblock Imported IPs](manual/import-unblocking.md).
+
+Optional storage requires explicit idle initialization; startup/GET never create
+it and old writers refuse it. Default flag remainsfalse; known lab API/Web now
+have`FTD_SHUN_IMPORT_UNBLOCKS_ENABLED=true`. Main original DB/overlays remain, with
+an exclusive private pre-profile SQLite backup and two new empty tables. No task
+was submitted for the original import. Main stays verifiedv6, deferredv7 off.
+
+Broad Python4137 passed/one obsolete old-writer simulation failed/four optional
+skips923.72s; simulation corrected to omit both later capability arguments.
+Final regression152 passed100.48s plus four deferred-capture cases1.42s; earlier
+237 affected121.26s and116 Browser/Node cases227.75s pass. Full100000-target test
+retains complete scope/100 displayed rows/32 queued, confirmation15.381s on this
+host; no device throughput claim. Added actual concurrent consent, expiry during
+claim rollback, lost-reply same-body/key retry, cancellation while RUNNING, shared
+Protected requester preservation, short-retention/malformed-proof rollback and
+v7 causal-read tests. Browser covers frozen modal/progress/focus/mobile boundaries.
+Ruff/compileall/JS/diff/package/build/footer/50 templates/71 routes/cache checks pass.
+No second clean full suite, Rust rerun or live authenticated-browser claim.
+
+Separate verified-profile acceptance used only198.51.100.184–185 with fresh actor/
+keys. Two ADDs VERIFIED in one23.628s session; cleanup root
+`cb3c6160-c7ab-4f5a-9b1e-c0be22246fdf` retired both, replay returned its original
+receipt, and two removals VERIFIED in one30.289s SSH visit. Restart/complete read
+kept both absent/retired, exactly four verified jobs and all32425 original device/
+IP/interface keys. Test API exited0; private DB/volumes/evidence retained. This
+normal path used accepted image8e836c45d568/source1e9c9dcc56fc before the final
+SQL-only proof-retention fix; final-source regression covers that fix. Consumed
+fixture authority is not reusable. No additional FPR acceptance or large cleanup
+is implied.
+
+Final API/Web replaced16:49:20Z:0.18.0/source6ee6b8ea7e05, image
+`sha256:f8300214593eb57bbafffb2a83a5da3ab37c0331b5caa83d22a5d9a8cb537582`.
+API`7b2e301d3302f1ff064ef20a6d9c242c692f72799cb5d0b3c3fb146ca86952cc`,
+Web`5f1747e81d8c80373b68f2ec9f944aa829d26f37c4023d4a739763f6440076e5`.
+Five other service IDs/images/start times, private hashes/CA/Cymru unchanged.
+All27 original authority hashes/audit prefix/jobs including26 reviewed unknowns/
+32425 observations/drafts/confirmed roots retained; only two empty cleanup hashes
+added. Integrityok/read16:49:46Z/errornone/epoch5123 IDLE. Actual readonly original
+import review32424 owned pairs/capabilitytrue/taskcount0; Web200/12 anonymous401/
+34 assets/TLS/spoofed-auth rejection pass. Old image tags/private backup retained;
+never run an old writer against this new schema or restore an archive over newer
+accepted tasks. Evidence`/tmp/ftd-import-unblocks-20261116`. No secret/trust/network
+change or GitHub release/tag. Reload old tabs. Wider cancellation/failure/scale
+acceptance and persistent deferred cutover remain separate; whole-managed cleanup
+is still later work.

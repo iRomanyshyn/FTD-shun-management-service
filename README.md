@@ -87,6 +87,10 @@ ordinary application images do not install that optional worker dependency.
 formatting/lint/tests. Browser and device acceptance remain separate checks.
 See the [Development Manual](docs/manual/development.md) for those commands.
 
+Confirmed per-import cleanup can retire this import's currently owned rules and
+queue verified unblocking with one progress card and cancellation. It requires the
+optional cleanup profile; see [Unblock imported IPs](docs/manual/import-unblocking.md).
+
 ## Documentation and contributor records
 
 Start with the [manual index](docs/manual/README.md),
