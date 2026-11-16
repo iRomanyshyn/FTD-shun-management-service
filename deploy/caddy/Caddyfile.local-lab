@@ -2,15 +2,22 @@
   auto_https disable_redirects
 }
 
+import security-headers.caddy
+
 # Local-lab only: issue a private certificate from Caddy's local CA. Production
 # continues to use Caddyfile and organization-managed TLS.
 https://{$AUTH_HOST} {
   tls internal
+  import https_security 86400
+  import authentication_errors 86400
   reverse_proxy authelia:9091
 }
 
 https://{$FTD_SHUN_HOST} {
   tls internal
+  import https_security 86400
+  import workspace_security
+  import workspace_errors 86400
   # Preserve this order: untrusted client identity is removed before
   # ForwardAuth copies the authenticated Authelia response headers.
   route {

@@ -32,6 +32,7 @@ def persist_result(store, write, *, phase):
             raise retry_error
         db = _connect(store.path)
         db.row_factory = sqlite3.Row
+        store.environment_protection.install(db)
         began = False
         try:
             db.execute('PRAGMA foreign_keys=ON')

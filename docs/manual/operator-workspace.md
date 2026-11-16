@@ -23,8 +23,9 @@ imported-IP example live under **How protection works** and in the
 [Protected IPs manual](protected-ips.md#what-the-switches-mean).
 
 Open **Status → Scheduling** to pause or resume imports and automatic restoration
-independently, from any working page. Each name, state and button stays in one
-outlined group, wrapping on narrow screens. Managed shuns shows a compact pause
+independently, from any working page. Names, states and equal-sized Pause/Resume buttons use two aligned rows inside
+the single Status panel, without nested cards. Button accessibility labels name
+the affected control. Managed shuns shows a compact pause
 count in navigation and a Status shortcut rather than a second control panel.
 
 Protected IPs navigation shows **enabled / disabled** counts in green/red, with

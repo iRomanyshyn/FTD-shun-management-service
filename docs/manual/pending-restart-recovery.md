@@ -91,7 +91,11 @@ compatible explicit recovery procedure. Source0.14.0 adds a separate
 [offline interrupted-v7 procedure](interrupted-v7-recovery.md) for a complete
 bounded managed ADD scope, retaining unknown outcomes and requiring actual
 executor quiescence. This does not broaden automatic journal recovery or cover
-uncertain REMOVE/captured cleanup. Broader lifecycle acceptance remains before
+uncertain REMOVE/captured cleanup. Source0.15.2 fixes ordinary expiry's original
+device/epoch audit and terminal-before-hold timestamps, allowing the explicit
+offline procedure to inspect newly classified before-checkpoint ADD interruptions.
+It does not turn them into automatic completion recovery or replay an old job.
+Broader lifecycle acceptance remains before
 laboratory cutover. See
 [Deferred First Confirmation](deferred-confirmation.md) and
 [Queue Recovery](queue-recovery.md).

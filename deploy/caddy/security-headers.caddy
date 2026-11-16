@@ -1,0 +1,36 @@
+# Share the browser policy between the production and private-CA lab entrypoints.
+# Keep the app CSP aligned with ftd_shun_manager.security_headers.browser_headers.
+(https_security) {
+  # Each default needs its own condition: Authelia may already set the other
+  # headers while still needing the TLS terminator to supply HSTS.
+  header ?Strict-Transport-Security "max-age={args[0]}"
+  header ?X-Content-Type-Options nosniff
+  header ?Referrer-Policy same-origin
+}
+
+(workspace_security) {
+  header {
+    >Content-Security-Policy "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; form-action 'self' https://{$AUTH_HOST}; base-uri 'none'; object-src 'none'; frame-ancestors 'none'"
+    >X-Frame-Options DENY
+    >X-Content-Type-Options nosniff
+    >Referrer-Policy same-origin
+    >Permissions-Policy "camera=(), microphone=(), geolocation=()"
+  }
+}
+
+# Upstream dial failures use Caddy's error route, outside the normal response
+# header middleware. Keep that route protected too, without leaking internals.
+(workspace_errors) {
+  handle_errors {
+    import https_security {args[0]}
+    import workspace_security
+    respond "Service temporarily unavailable." {err.status_code}
+  }
+}
+
+(authentication_errors) {
+  handle_errors {
+    import https_security {args[0]}
+    respond "Sign-in temporarily unavailable." {err.status_code}
+  }
+}

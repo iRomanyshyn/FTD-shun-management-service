@@ -168,11 +168,17 @@ class DeviceLeases:
                 raise QueueConflict('Device lease time moved backwards.')
             if row['state'] == 'LEASED' and row['lease_until'] <= timestamp:
                 # Never grant a successor while the original RPC may still execute.
+                original = DeviceLease(device_id, row['owner'], row['epoch'])
+                interrupted = DeviceOperationQueue(self.store, original)
+                interrupted._now = self.queue._now
                 for job in db.execute("SELECT * FROM operation_jobs WHERE device_id=? AND state='RUNNING'", (device_id,)).fetchall():
-                    self.queue._finish(db, job, 'UNVERIFIED', 'device lease expired; original RPC outcome remains unknown')
+                    interrupted._finish_interrupted(db, job, 'device lease expired; original RPC outcome remains unknown')
+                held_at = _stamp(self.queue._now())
+                if held_at < timestamp:
+                    raise QueueConflict('Device lease time moved backwards during expiry.')
                 db.execute("UPDATE managed_bulk_device_executors SET state='ATTENTION',updated_at=? WHERE device_id=?",
-                           (timestamp, device_id))
-                self._event(db, 'ATTENTION', DeviceLease(device_id, row['owner'], row['epoch']), timestamp)
+                           (held_at, device_id))
+                self._event(db, 'ATTENTION', original, held_at)
                 self.queue._bump(db)
                 return None
             if row['state'] != 'IDLE':
@@ -322,6 +328,31 @@ class DeviceOperationQueue(OperationQueue):
 
     def _removal_priority(self):
         return self.priority_removals
+
+    def _finish_interrupted(self, db, job, reason, *, details=None):
+        """Retain an expired original visit's unknown result, including revoked requests.
+
+        This records uncertainty under the original fence; it never renews the
+        lease or request, releases attention, or authorizes a command retry.
+        """
+        row = db.execute('SELECT * FROM managed_bulk_device_executors WHERE device_id=?',
+                         (self.token.device_id,)).fetchone()
+        if (not db.in_transaction or row is None or row['state'] not in ('LEASED', 'ATTENTION')
+                or row['owner'] != self.token.owner or row['epoch'] != self.token.epoch
+                or row['lease_until'] > _stamp(self._now())
+                or job['device_id'] != self.token.device_id or job['state'] != 'RUNNING'):
+            raise QueueConflict('Interrupted result requires its expired original device fence.')
+        # Capture revoked links before finishing: finishing a managed attempt
+        # itself cancels its active request and must not create duplicate events.
+        revoked = db.execute('''SELECT r.* FROM operation_requests r JOIN operation_links l
+            ON l.request_id=r.id WHERE l.job_id=? AND r.state='CANCELLED' ''', (job['id'],)).fetchall()
+        self._finish(db, job, 'UNVERIFIED', reason)
+        for request in revoked:
+            outcome = {'reason': reason, **(details or {})}
+            self._event(db, 'SHUN_OPERATION_UNVERIFIED', request, job, outcome)
+            event = ('SHUN_ADD_FAILED' if job['action'] == 'ADD' else
+                     'SHUN_TRUSTED_AUTO_REMOVE_FAILED' if request['source'] == 'trusted_policy' else 'SHUN_REMOVE_FAILED')
+            self._event(db, event, request, job, {**outcome, 'outcome': 'UNVERIFIED'})
 
     def _record_attempt_result(self, db, job, attempt, state, timestamp, reason=None):
         from .managed_restoration import _record_bound_result

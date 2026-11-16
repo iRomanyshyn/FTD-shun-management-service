@@ -8,7 +8,7 @@
 {% if ip_context_enabled | default(false) and ip_context_target %}{% from "ip-context.html" import card %}
 <section id="ip-registration" data-live-region>{{ card(ip_context_target, ip_context) }}</section>{% endif %}
 
-<section id="protection-notice" data-live-region>{% if is_trusted_policy_ip %}<p class="protected-ip-notice"><strong>Protected IP.</strong> The service queues an unblock whenever a device check finds this IP blocked.</p>{% elif is_disabled_policy_ip %}<p class="disabled-protection-notice"><strong>Protection disabled{% if shuns %} — currently shunned{% endif %}.</strong> This address is saved in Protected IPs, but automatic unblocking is off.</p>{% endif %}</section>
+<section id="protection-notice" data-live-region>{% if is_trusted_policy_ip %}<p class="protected-ip-notice"><strong>Protected IP.</strong>{% if environment_guard is defined and environment_guard.contains(ip) %} Protected by deployment configuration; change <code>FTD_SHUN_ENV_PROTECTED_NETWORKS</code> in <code>.env</code> to permit blocking.{% endif %} The service queues an unblock whenever a device check finds this IP blocked.</p>{% elif is_disabled_policy_ip %}<p class="disabled-protection-notice"><strong>Protection disabled{% if shuns %} — currently shunned{% endif %}.</strong> This address is saved in Protected IPs, but automatic unblocking is off.</p>{% endif %}</section>
 {% include "ip-actions.html" %}
 <h2>Device observations</h2>
 <p class="preview-help">Unblocking a device removes all verified matching interfaces on that device.</p>

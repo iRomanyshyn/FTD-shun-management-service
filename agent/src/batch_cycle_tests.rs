@@ -186,6 +186,7 @@ fn configured_agent_refuses_v7_before_inventory_or_ssh_and_mutation_lookup_never
     let vectors: serde_json::Value =
         serde_json::from_str(include_str!("../../tests/fixtures/pending-end-v7.json"))?;
     let mut agent = Agent {
+        environment_protection: environment_protection::Protection::default(),
         sessions: Arc::new(sessions::Sessions::default()),
         devices: BTreeMap::new(),
         credentials: credentials::Credentials::PerDevice(BTreeMap::new()),
@@ -651,6 +652,7 @@ fn batch_mode_is_rejected_before_inventory_lookup_or_ssh_when_gated() -> Result<
         .enable_all()
         .build()?;
     let mut agent = Agent {
+        environment_protection: environment_protection::Protection::default(),
         sessions: Arc::new(sessions::Sessions::default()),
         devices: BTreeMap::new(),
         credentials: credentials::Credentials::PerDevice(BTreeMap::new()),

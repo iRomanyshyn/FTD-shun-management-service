@@ -12,6 +12,7 @@ from ipaddress import IPv4Address
 from pathlib import Path
 from uuid import uuid4
 
+from .environment_protection import EnvironmentProtection
 from .event_visibility import INTERNAL_EVENTS, history_filter
 
 
@@ -52,12 +53,14 @@ class HistoryWindowExpired(ValueError):
 class Store:
     def __init__(self, path: Path) -> None:
         self.path = path
+        self.environment_protection = EnvironmentProtection.from_environment()
 
     @contextmanager
     def _connection(self):
         self.path.parent.mkdir(parents=True, exist_ok=True)
         connection = sqlite3.connect(self.path)
         connection.row_factory = sqlite3.Row
+        self.environment_protection.install(connection)
         try:
             connection.execute("PRAGMA foreign_keys = ON")
             connection.execute("PRAGMA journal_mode = WAL")
@@ -229,7 +232,7 @@ class Store:
             query += UNMANAGED_FILTER
         # Both enabled and disabled policy matches need attention while shunned.
         # last_changed_at is the current appearance, not each polling timestamp.
-        query += " ORDER BY (p.ip IS NOT NULL) DESC, s.last_changed_at DESC, s.ip, d.hostname, s.interface, s.device_id"
+        query += " ORDER BY (p.ip IS NOT NULL OR env_protected_ip(s.ip)) DESC, s.last_changed_at DESC, s.ip, d.hostname, s.interface, s.device_id"
         if limit is not None:
             query += ' LIMIT ? OFFSET ?'
             parameters += (limit, offset)

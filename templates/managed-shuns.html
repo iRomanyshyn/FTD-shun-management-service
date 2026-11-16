@@ -52,7 +52,7 @@
 <form method="post" action="/managed-shuns/grant-review" class="import-confirm-form managed-grant-form">
 <input type="hidden" name="csrf" value="{{ csrf_token }}">
 <label for="grant-device">Device</label><select id="grant-device" name="device_id" required><option value="">Choose one device</option>
-{% for device_id, device in refresh.devices.items() %}{% if device.state != 'disabled' %}<option value="{{ device_id }}">{{ device.hostname }}</option>{% endif %}{% endfor %}</select>
+{% for device_id, device in (refresh.devices | default({}, true)).items() %}{% if device.state != 'disabled' %}<option value="{{ device_id }}">{{ device.hostname }}</option>{% endif %}{% endfor %}</select>
 <label for="grant-ip">Exact IPv4 address</label><input id="grant-ip" name="ip" autocomplete="off" inputmode="decimal" required>
 <label for="grant-label">Label (optional)</label><input id="grant-label" name="label" maxlength="100" autocomplete="off">
 <label for="grant-reason">Reason (optional)</label><input id="grant-reason" name="reason" maxlength="500" autocomplete="off">

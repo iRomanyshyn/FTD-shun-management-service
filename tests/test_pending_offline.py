@@ -118,8 +118,9 @@ def test_classification_refuses_missing_quiescence_or_changed_review(bulk, crash
     assert dump(store) == before
 
 
+@pytest.mark.parametrize('ordinary_expiry', [False, True])
 @pytest.mark.parametrize('count', [1, 16, 17, 64])
-def test_whole_visit_with_verified_prefix_retains_proof_and_fresh_read_barrier(bulk, leases, execution, count):
+def test_whole_visit_with_verified_prefix_retains_proof_and_fresh_read_barrier(bulk, leases, execution, count, ordinary_expiry):
     from test_batch_queue import acknowledge, result
     from test_device_leases import acquire, grant
     from test_pending_confirmation import read
@@ -144,9 +145,12 @@ def test_whole_visit_with_verified_prefix_retains_proof_and_fresh_read_barrier(b
     # No END or even a final checkpoint: the session may have been interrupted.
     for n in range(sequence, sequence+remaining): acknowledge(queue, n)
     bulk[1][0] += timedelta(seconds=136)
+    if ordinary_expiry:
+        assert leases.claim(1, str(uuid4()), 135, enabled=True) is None
+        bulk[1][0] += timedelta(seconds=1)
     path = execution.store.path
     classified = apply(bulk, pending_offline.inspect(path, 1, now=bulk[1][0]))
-    assert classified['classified_unknown'] == remaining
+    assert classified['classified_unknown'] == (0 if ordinary_expiry else remaining)
     bulk[1][0] += timedelta(seconds=1)
     reviewed = device_reconciliation.inspect(path, 1, now=bulk[1][0], pending_v7=True)
     assert len(reviewed['claims']) == count
@@ -184,6 +188,127 @@ def test_checked_offline_backups_and_fk_integrity_cover_both_phases(bulk, crash,
     with store._connection() as db:
         assert not db.execute('PRAGMA foreign_key_check').fetchall()
         assert db.execute('PRAGMA integrity_check').fetchone()[0] == 'ok'
+
+
+@pytest.mark.parametrize('acknowledged', [False, True])
+@pytest.mark.parametrize('request_state', ['ACTIVE', 'EXPIRED', 'CANCELLED'])
+def test_real_restart_expiry_retains_original_audit_even_after_request_revocation(
+        bulk, leases, execution, request_state, acknowledged):
+    import asyncio
+
+    from test_batch_queue import acknowledge
+    from test_batch_session import visit
+    from test_deferred_worker import Agent, runner
+    from test_device_leases import acquire, claim, discover, grant
+
+    from ftd_shun_manager.deferred_worker import DeferredDeviceOperationQueue
+
+    grant(bulk, (1,))
+    token, ordinary = acquire(leases)
+    assert discover(bulk, ordinary) == 1
+    queue = DeferredDeviceOperationQueue(execution.store, token)
+    job = acknowledge(queue, 1) if acknowledged else claim(queue)
+    with execution.store._connection() as db:
+        attempt = dict(db.execute('SELECT * FROM managed_bulk_attempts WHERE job_id=?', (job['id'],)).fetchone())
+        db.execute('UPDATE operation_requests SET state=? WHERE id=?', (request_state, attempt['id']))
+        original = dict(db.execute('SELECT * FROM operation_requests WHERE id=?', (attempt['id'],)).fetchone())
+        assert not db.execute("SELECT 1 FROM shun_events WHERE event_type='SHUN_PENDING_END_PREPARED'").fetchone()
+    bulk[1][0] += timedelta(seconds=136)
+    agent = Agent()
+    service = runner(execution.store, agent)
+    asyncio.run(visit(service))
+    assert not agent.seen and not agent.writes
+    assert leases.status()['devices'][0]['state'] == 'ATTENTION'
+    with execution.store._connection() as db:
+        assert db.execute('SELECT state FROM operation_jobs WHERE id=?', (job['id'],)).fetchone()[0] == 'UNVERIFIED'
+        assert db.execute('SELECT state FROM managed_bulk_attempts WHERE job_id=?', (job['id'],)).fetchone()[0] == 'UNVERIFIED'
+        request = dict(db.execute('SELECT * FROM operation_requests WHERE id=?', (attempt['id'],)).fetchone())
+        assert request['expires_at'] == original['expires_at']
+        assert request['state'] == ('CANCELLED' if request_state == 'ACTIVE' else request_state)
+        for event in ['SHUN_OPERATION_UNVERIFIED', 'SHUN_ADD_FAILED']:
+            rows = db.execute('SELECT * FROM shun_events WHERE event_type=? AND request_id=?', (event, attempt['id'])).fetchall()
+            assert len(rows) == 1
+            assert json.loads(rows[0]['details_json'])['device_executor'] == {'owner': token.owner, 'epoch': token.epoch}
+    unchanged = dump(execution.store)
+    asyncio.run(visit(service))
+    assert dump(execution.store) == unchanged and not agent.seen
+    bulk[1][0] += timedelta(seconds=1)
+    reviewed = pending_offline.inspect(execution.store.path, 1, now=bulk[1][0])
+    assert reviewed['existing_unknown'] == 1 and reviewed['running_to_unknown'] == 0
+    result = apply(bulk, reviewed)
+    assert result['classified_unknown'] == result['jobs_retried'] == 0
+    bulk[1][0] += timedelta(seconds=1)
+    receipt = reconcile(bulk, device_reconciliation.inspect(execution.store.path, 1, now=bulk[1][0], pending_v7=True))
+    assert receipt['original_outcomes_unchanged'] and receipt['jobs_retried'] == 0
+
+
+@pytest.mark.parametrize('event', ['SHUN_OPERATION_UNVERIFIED', 'SHUN_ADD_FAILED', 'DEVICE_LEASE_ATTENTION'])
+def test_expiry_audit_failure_rolls_back_the_entire_original_visit(bulk, leases, execution, monkeypatch, event):
+    from test_batch_queue import acknowledge
+    from test_device_leases import acquire, discover, grant
+
+    from ftd_shun_manager.deferred_worker import DeferredDeviceOperationQueue
+
+    grant(bulk, (1,))
+    token, ordinary = acquire(leases)
+    assert discover(bulk, ordinary) == 1
+    queue = DeferredDeviceOperationQueue(execution.store, token)
+    acknowledge(queue, 1)
+    bulk[1][0] += timedelta(seconds=136)
+    before = dump(execution.store)
+    original = execution.store._insert_event
+
+    def fail(db, kind, *args, **kwargs):
+        result = original(db, kind, *args, **kwargs)
+        if kind == event:
+            raise ValueError('Synthetic expiry audit persistence failure')
+        return result
+
+    with monkeypatch.context() as context:
+        context.setattr(execution.store, '_insert_event', fail)
+        with pytest.raises(ValueError, match='expiry audit persistence'):
+            leases.claim(1, str(uuid4()), 135, enabled=True)
+    assert dump(execution.store) == before
+    assert leases.claim(1, str(uuid4()), 135, enabled=True) is None
+    assert leases.status()['devices'][0]['state'] == 'ATTENTION'
+
+
+@pytest.mark.parametrize('backwards', [False, True])
+def test_expiry_hold_is_recorded_after_terminal_audit_with_a_moving_clock(bulk, leases, execution, monkeypatch, backwards):
+    from test_batch_queue import acknowledge
+    from test_device_leases import acquire, discover, grant
+
+    from ftd_shun_manager.deferred_worker import DeferredDeviceOperationQueue
+    from ftd_shun_manager.operation_queue import QueueConflict
+
+    grant(bulk, (1,))
+    token, ordinary = acquire(leases)
+    assert discover(bulk, ordinary) == 1
+    job = acknowledge(DeferredDeviceOperationQueue(execution.store, token), 1)
+    bulk[1][0] += timedelta(seconds=136)
+    before = dump(execution.store)
+    original = execution.store._insert_event
+
+    def advance(db, event, *args, **kwargs):
+        result = original(db, event, *args, **kwargs)
+        bulk[1][0] += timedelta(milliseconds=-1 if backwards else 1)
+        return result
+
+    with monkeypatch.context() as context:
+        context.setattr(execution.store, '_insert_event', advance)
+        if backwards:
+            with pytest.raises(QueueConflict, match='time moved backwards'):
+                leases.claim(1, str(uuid4()), 135, enabled=True)
+            assert dump(execution.store) == before
+            return
+        assert leases.claim(1, str(uuid4()), 135, enabled=True) is None
+    with execution.store._connection() as db:
+        held = db.execute('SELECT updated_at FROM managed_bulk_device_executors WHERE device_id=1').fetchone()[0]
+        terminal = db.execute("SELECT MAX(timestamp) FROM shun_events WHERE event_type='SHUN_OPERATION_UNVERIFIED'").fetchone()[0]
+        assert terminal < held
+    bulk[1][0] += timedelta(seconds=1)
+    review = pending_offline.inspect(execution.store.path, 1, now=bulk[1][0])
+    assert review['job_ids'] == [job['id']] and review['existing_unknown'] == 1
 
 
 def test_current_policy_continues_only_after_new_complete_read(bulk, leases, crash):

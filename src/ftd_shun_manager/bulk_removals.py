@@ -119,7 +119,7 @@ class BulkRemovalScopes:
             entries.append(entry)
         scope = {'version': 2, 'scope': 'fleet' if device_id is None else 'device', 'ip': str(ip),
                  'managed_revision': state['revision'], 'protected_revision': protection[0],
-                 'protected': db.execute('SELECT 1 FROM protected_ips WHERE ip=? AND enabled=1', (ip.packed,)).fetchone() is not None,
+                 'protected': db.execute('SELECT 1 FROM (SELECT ? AS target) WHERE env_protected_ip(target) OR EXISTS(SELECT 1 FROM protected_ips WHERE ip=target AND enabled=1)', (ip.packed,)).fetchone() is not None,
                  'targets': entries}
         canonical_scope(scope)
         return scope

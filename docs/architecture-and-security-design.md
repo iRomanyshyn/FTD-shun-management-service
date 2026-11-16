@@ -1,5 +1,42 @@
 # FTD Shun Management Service
 
+## Original-visit audit on ordinary lease expiry — 2026-11-16
+
+When a device lease expires, classify its RUNNING work as UNVERIFIED using the
+original device/owner/epoch queue. Retain terminal audit for each original
+requester, including already revoked requests; recording uncertainty never renews
+their permission. Keep the original fence on ATTENTION with no successor. Record
+its held timestamp after the terminal results, and roll back the entire expiry
+transaction on an audit failure or backwards clock. Other devices remain isolated.
+
+Newly classified before-checkpoint v7 ADD interruptions may use the existing
+explicit offline classification/reconciliation procedure when its complete bounded
+scope and quiescence checks hold. Do not repair or backdate historical unscoped
+events, broaden automatic journal recovery, reinterpret unknown results as success,
+replay old jobs, or include uncertain REMOVE in this ADD-only recovery. Current
+policy, pauses/protection and a post-decision full read still govern any new work.
+This fixes result evidence only; no schema, wire or execution-profile change.
+
+## Explicit service environments and browser policy — 2026-11-16
+
+The project `.env` remains the operator's configuration source. Compose must map
+variables explicitly per service, never pass that whole file to every container.
+Authelia session/storage secrets belong only to Authelia; FTD credentials remain
+agent-only. Public runtime compatibility settings may be shared by API/Web, while
+the API exposes read-only environment protection to Web. Optional overlays retain
+their explicit guards; missing optional agent journal configuration stays absent.
+
+Serve a restrictive same-origin workspace CSP without inline execution, with
+forms allowed to return to the exact configured authentication origin. Disallow
+external framing/plugins/base URLs and unused device permissions; prevent MIME
+sniffing and cross-origin referrers. Native dialog navigation remains supported.
+Caddy applies these policies to the application host and its error routes,
+preserving error statuses. Authelia retains its own CSP. HSTS is edge-only, one
+year in the production example and one day in the private-CA lab, without preload
+or sibling-subdomain coverage. See manual/service-security.md. This amendment
+does not change authentication roles, credentials/trust, network topology,
+storage profiles, executor authority or uncertainty recovery.
+
 ## Explicit offline interrupted-v7 recovery — 2026-11-13
 
 An expired interrupted tracked-v7 ADD visit without usable completion proof may
@@ -7207,3 +7244,23 @@ lease, ordered ACKs, unchanged inventory and complete scope. Missing/corrupt pro
 crashes before completion persistence, unknown work and already-held epochs do
 not gain automatic recovery. No API schema/wire change, historical success
 reconstruction or persistent laboratory cutover follows from this capability.
+
+
+## Amendment — deployment-owned protection, 2026-11-16
+
+The operator requested `.env`-configured protection of local addresses/networks,
+UI explanations and automatic unblocking/logging when matches appear in shun.
+`FTD_SHUN_ENV_PROTECTED_NETWORKS` is a separate read-only IPv4/CIDR policy, captured
+at process startup by API and agent. It does not restore the removed environment
+management of the editable exact-IP list. Default absent/empty disables this extra
+layer; malformed nonempty configuration refuses startup. No expansion or network
+query is used. API preview/admission/discovery/claim/pre-send validation and the
+agent's final typed ADD command guard enforce the policy; reads/removals remain.
+Complete-read publication retires matching maintenance in bounded batches and
+normal priority queue discovery schedules verified unblocking. Existing leases,
+operator scheduling controls, cancellation, uncertainty and result storage rules
+remain. Weakening requires coordinated drain/restart and never revives retired
+maintenance. No schema, protocol, automatic DB conversion or deferred-v7 activation
+follows. UI ranges are advisory displays of the actual API policy. Actor-bound
+audit and committed structured logs support future deduplicated email/Teams
+notification delivery. See manual/environment-protection.md for exact semantics.

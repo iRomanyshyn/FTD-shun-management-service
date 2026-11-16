@@ -14,6 +14,9 @@
 <p>Turning protection off or deleting an entry cancels automatic unblock requests that have not started. A running command finishes; manually requested unblocks are not cancelled.</p>
 <p>Anyone signed in can edit this list. If someone else saves changes while you are editing, <a href="/protected-ips">reload the list</a> and review their changes before saving again. Reloading discards your unsaved edits.</p>
 </details>
+{% if environment_guard is defined and environment_guard.networks %}<section aria-label="Deployment protection">
+<h2>Protected by deployment configuration</h2><p class="preview-help">These ranges always exclude addresses from imports and automatically unblock matches found on devices. Edit <code>FTD_SHUN_ENV_PROTECTED_NETWORKS</code> in <code>.env</code> and restart API and agent to change them. They cannot be disabled here.</p>
+<p>{% for network in environment_guard.networks %}<code>{{ network }}</code>{{ ', ' if not loop.last else '' }}{% endfor %}</p></section>{% endif %}
 <section id="protected-policy" class="policy-workspace" data-live-region>
 {% if policy.managed_policy_available is defined and not policy.managed_policy_available %}<p class="preview-error" role="status">Auto-restore settings could not be checked. You can turn protection on, but cannot turn it off or delete an entry until this is resolved. Check Status for errors.</p>{% endif %}
 <p>{{ policy.entries | selectattr('enabled') | list | length }} enabled · {{ policy.entries | length }} / {{ policy.limit }} addresses.</p>

@@ -2,186 +2,93 @@
 
 ![FTD Shun Management Service — Monitor. Block. Unblock.](static/branding/banners/readme-banner.png)
 
-Security-focused internal service for monitoring and managing Cisco Secure Firewall Threat Defense (FTD) `shun` entries across multiple devices.
+An internal Web service for monitoring and managing Cisco FTD `shun` entries
+across multiple devices. The project is unreleased and runs on a desk FPR1010
+laboratory device; it has no production deployment.
 
-The governing specification is the [Architecture and Security Design](docs/architecture-and-security-design.md). The repository contains an executable laboratory Web/BFF, internal state API, Rust SSH agent, deployment assets and structured operator manuals. Consult [Project Status](docs/project-status.md) for actual deployed capabilities and limitations; this is not yet a production release.
+## What it does
+
+- **Shuns / Unmanaged:** browse and search observed blocks and retained history,
+  with bounded 100-row pages and cached country/provider context.
+- **Managed shuns / Imports:** import pasted IPv4 lists, choose devices and keep
+  accepted addresses blocked through automatic restoration after disappearance.
+- **Unblock:** review a device or fleet scope, stop matching restoration and queue
+  removal. Interactive refresh and removals take priority over bulk additions.
+- **Protected IPs:** all signed-in users can maintain exact addresses that should
+  be automatically unblocked. Enabling protection retires matching restoration;
+  disabling protection does not re-enable it.
+- **Deployment protection:** optional IPv4 addresses/CIDRs from
+  `FTD_SHUN_ENV_PROTECTED_NETWORKS` in `.env` cannot be imported or added. Matches
+  found on a device are queued for unblocking, with distinct detection/result logs.
+  These ranges are visible but cannot be edited in the Web UI.
+- **Status / Queue:** independent import/restoration pauses, live progress,
+  cancellation and explicit attention for uncertain outcomes.
+
+The architecture is Web/BFF → local Unix socket → state API/SQLite → local Unix
+socket → Rust SSH agent → FTD. Caddy and Authelia provide HTTPS and sign-in. Only
+Caddy publishes a port; Web/API have no network interfaces. FTD credentials stay
+with the agent. A separate background worker supplies cached IPFire/Team Cymru
+context without page-triggered provider calls.
 
 See [System Architecture and Data Formats](docs/manual/system-architecture.md)
-for diagrams of the complete system, database ownership and payload formats.
+for the complete component/storage diagram and concrete payload formats.
 
-The main views distinguish observations from policy:
+## Current delivery boundary
 
-- **Shuns**: all currently observed device blocks, with Managed/Unmanaged badges.
-- **Unmanaged**: observed blocks without active service maintenance; their creator is not inferred.
-- **Managed shuns**: maintenance policy, including targets currently absent or with auto-restore turned off.
+Lab API/Web **0.15.2** fix the original-session audit needed to recover an import
+interrupted before its final checkpoint. A bounded real FPR test confirms recovery
+without replay, followed by verified cleanup. See [Interrupted Import Recovery](docs/manual/interrupted-v7-recovery.md).
+Service environment isolation, browser headers and deployment IP protection remain.
+Consult [Project Status](docs/project-status.md) for exact deployed
+images, validation and limitations; a source version does not deploy itself.
 
-Shuns/Unmanaged use bounded 100-row pages. Removal buttons open the applicable
-review instead of bypassing managed maintenance. See
-[Shuns and Maintenance](docs/manual/shuns-and-maintenance.md).
+The current lab uses the continuous managed runtime with tracked v6 SSH visits.
+Deferred confirmation after a later complete `show shun` read is implemented and
+has bounded separate-profile acceptance, but persistent v7 activation and remaining
+interruption/lifecycle acceptance are still pending. An uncertain historical
+operation is retained in audit; a later observation does not prove who created it.
 
-Development stage: this is an unreleased internal project, currently used only
-with the operator's desk FPR1010 test device, not in production. We prioritize a
-working lab version and may start clean dev databases while archiving old test
-state; a legacy-dev converter is not a release prerequisite. Formal compatibility/
-upgrade obligations begin with the first explicitly designated real GitHub tagged
-release. Security controls apply throughout. See [Development](docs/manual/development.md#lab-first-development-policy)
-and [Versioning](docs/manual/versioning.md#development-versus-a-real-release).
+Next functional work is [unblocking one import's currently owned targets](docs/working-version-plan.md#81-unblock-imported-ips--planned-approved-2026-11-12)
+after import/recovery stabilization. Whole-managed cleanup and email/Teams alerts
+are later increments. The [Working-Version Plan](docs/working-version-plan.md)
+records the agreed behavior; it is not a deployment procedure.
 
-The [Working-Version Plan](docs/working-version-plan.md) records the operator's
-2026-10-20 product alignment and current delivery priority: usable managed bulk
-import/restoration, continuous parallel device work, quick unblock, whitelist
-retirement, clear status and Emergency Purge. Email is a later increment. This is
-an approved target; the implementation boundaries below are not yet replaced.
+## Run the lab
 
-Current desk lab (2026-10-30): the separate clean `continuous-managed` profile now
-runs real managed creation, restoration and retirement/removal on the FPR1010.
-Changed imports request a scoped first scan automatically. Local failures before
-BEGIN and exact agent-proved no-command SSH-opening failures retry with capped
-backoff; failures after initial read/command submission, unknown-write recovery
-and Emergency Purge remain unfinished. See
-[Fresh Working-Version Lab](docs/manual/fresh-development.md) and
-[current status](docs/project-status.md#current-increment). Older default-off
-descriptions below concern the retained legacy workflows, not an instruction to
-replace the active lab profile or erase historical state.
+Follow the [Deployment Manual](docs/manual/deployment.md) and
+[Fresh Working-Version Lab](docs/manual/fresh-development.md). They cover local
+names/TLS, Authelia, inventory, agent-only credentials and explicit fresh-store
+setup. Keep old test state as a private archive rather than overwriting it.
 
-Next requirement: [managed manual-shun restoration](docs/manual/managed-shuns.md)
-after confirmed disappearance/reboot, while explicit service removal stops
-maintenance. Its registry foundation and read-only Managed shuns tab are
-implemented, with frozen reviews and separately gated confirmation. Composite
-[offline recovery controls](docs/manual/recovery.md) and a default-off shared
-cleanup-worker hook are implemented. [Revocation controls](docs/manual/managed-controls.md)
-now support policy-only stop-maintaining and waiting-cleanup cancellation.
-Protected-IP saves permanently retire matching managed authority with reviewed
-revision checks; disabling/deleting protection never resumes old maintenance.
-Ordinary removal cannot silently bypass enabled maintenance.
-The [frozen fleet review](docs/manual/managed-removal-review.md#frozen-all-device-scope)
-includes observed and maintained-but-missing targets without submitting work.
-A [whole-scope fleet coordinator](docs/manual/managed-fleet-removals.md)
-now atomically retires the reviewed scope and delegates cleanup. Default ready-only
-mode rejects unfinished ADD/disabled targets; a separate explicitly digested ordered
-mode reserves the whole scope behind RUNNING ADD under the original deadline.
-The default-off shared worker promotes complete roots only. The Managed shuns
-tab shows bounded fleet cleanup progress/outcomes and owner/Admin cancellation
-of waiting scopes, without treating admission or settled jobs as verified removal.
-No live admission or optional-schema initialization is enabled in the lab.
-An [offline managed maintenance tool](docs/manual/managed-maintenance.md) now
-provides explicitly reviewed atomic empty-schema initialization and separate
-resume of existing standing policy, with checked backups and no uncertainty
-override. It has not been invoked on the lab; no HTTP resume exists.
-Its [read-only attention report](docs/manual/managed-attention.md) now identifies
-retained uncertainty and cleanup incidents, with 100-case snapshot-bound pages;
-inspection never clears a latch or authorizes retry.
-A separate [offline acknowledgment](docs/manual/incident-acknowledgements.md)
-records operator review of ordinary/single/fleet incidents with immutable receipts
-and the whole original scope. It preserves uncertain outcomes and resume blockers;
-its optional ledger is never created by startup.
-An additional [offline isolation decision](docs/manual/incident-isolation.md)
-can retire and permanently exclude the whole reviewed incident scope, then allow
-separately reviewed resume of other healthy standing policy. Original outcomes
-and pair latches remain; schema migration and live decisions are separate operations.
-A separate [offline abandonment workflow](docs/manual/managed-abandonment.md)
-now records an immutable decision and retires current maintenance for one failed/
-uncertain restoration case. Original outcomes/latches and all execution gates
-remain unchanged; ordinary/fleet resolution and rearm are not enabled.
-[Combined cleanup](docs/manual/managed-cleanup.md)
-now has separately default-off device/fleet admission: atomic retirement plus
-cleanup, with explicit whole-scope waiting behind RUNNING ADD. Preparation/receipt
-is not verified removal, and startup never initializes optional schemas.
-A separate [single-target standing review](docs/manual/managed-grants.md) supports
-policy-only MAINTAIN behind default-off admission, with explicit recurring
-consent and original-key retry. It never initializes policy or queues a command.
-A separate [standing address-list workflow](docs/manual/managed-batch-grants.md)
-accepts pasted IPv4 text and explicit devices, freezes up to 1000 exact pairs
-with 100-row review pages, and saves the whole recurring policy or none of it.
-Its policy admission uses the same default-off gate; preview is not execution.
-A [default-off restoration controller](docs/manual/managed-restoration.md) now
-provides snapshot/generation-bound ADD authority, retained uncertainty/provenance
-and atomic revocation/queue/recovery hooks. Bounded complete-snapshot discovery
-and dispatch reuse the shared executor behind an independent false-by-default
-setting; policy/schema migration and live restoration are not enabled.
-Current imports remain one-time and all ADD gates stay
-disabled in the lab. Old imports are not auto-adopted and no live migration
-initializes the new registry yet.
+Deployment-owned protection is described in
+[Environment IP Protection](docs/manual/environment-protection.md).
 
-The footer displays the installed package version (source version `v0.14.1`) and a short public
-application-source build ID. Every material lab delivery advances the version;
-neither identifier implies production readiness. See [Versioning](docs/manual/versioning.md).
-Source-only increments do not update running containers; consult
-[Project Status](docs/project-status.md) for the actual laboratory version.
-Status has independent [import/restoration pauses](docs/manual/managed-addition-pauses.md):
-existing blocks stay, while monitoring, removals and Protected-IP unblocking continue.
+## Develop and verify
 
-## Design goals
-
-- Monitor, reconcile, and retain the history of active FTD shuns.
-- Allow operators to remove a specific shun through a secured web interface.
-- Support device-scoped removal and explicitly confirmed bulk removal across matched devices.
-- Prevent arbitrary Cisco CLI execution at every trust boundary.
-- Isolate the privileged SSH capability and Cisco credential material.
-- Use default-deny network segmentation and hardened containers.
-- Delegate user authentication to Authelia through Caddy ForwardAuth; start with local users and migrate to LDAP(S) when needed.
-
-## Current implementation status
-
-- Web/BFF with Caddy/Authelia ForwardAuth trust boundary and CSRF protection.
-- Internal Unix-socket API backed by SQLite WAL state and append-only audit events.
-- [Managed import Web workflow](docs/manual/managed-import-web.md): saved preparations, explicit adoption/exclusions, frozen recurring consent, retained receipts and uncompleted-work cancellation within current 1000-pair policy limits. Preparation storage is tested with 100,000 synthetic pairs; larger executable capacity/rolling dispatch remain pending and gates remain off.
-- [Managed policy pagination](docs/manual/managed-shuns.md#read-only-managed-shuns-page) with 100-row pages, page-scoped attempt summaries and explicit revision conflicts; existing authority limits remain unchanged.
-- Strict fixed binary protocol encoder/decoder and an isolated Rust FTD SSH agent.
-- Opt-in [per-device SSH credentials](docs/manual/per-device-credentials.md), with agent-only mapping/secrets, ID-based selection and non-network configuration checks. Existing lab credentials remain unchanged in explicit shared compatibility mode.
-- Default-off [large-snapshot extension](docs/manual/large-snapshots.md) with bounded multi-frame reads and complete-snapshot validation; synthetic 200,000-entry coverage, live small-read lab validation only.
-- Default-off [agent ADD/cycle v3](docs/manual/addition-contract.md) with an explicit creation profile, strict acknowledgement/post-read verification and shared mutation budgets. One approved [lab lifecycle](docs/manual/single-address-service-validation.md#recorded-service-result--2026-10-16) passed creation/NOOP/cleanup; traffic, large-load and production acceptance remain pending.
-- Default-off [private import staging](docs/manual/import-admission.md) with immutable batches, ADD/REMOVE conflicts and occurrence provenance; [browser review/confirmation](docs/manual/import-review.md) freezes exact targets and retries without enabling ADD.
-- Independently default-off [queued ADD execution](docs/manual/import-execution.md): explicit per-device v3, common FIFO and 16 combined mutations per cycle, shared priority reads and no-replay recovery. Restored disabled after the approved one-address lab test.
-- Device-scoped and explicitly confirmed bulk removal UI workflows.
-- Durable shared SQLite removal queue with multi-user audit, idempotent admission, progress/cancellation, and a persisted cycle gate.
-- Compact Status/Queue menus, paginated history (100 events per page), and Protected IPs managed by all authenticated users in SQLite (no ongoing `.env` policy control).
-- Container deployment assets that publish only Caddy TCP/443.
-- Non-executable [Import preview](docs/manual/import-preview.md) for pasted IPv4 lists: parsing, duplicates/protection/current-state checks and bounded candidate counts. No shun addition is enabled.
-
-The agent implements typed `LIST_SHUNS` and verified, device-scoped `REMOVE_SHUN`. It pins each device host key, requires an explicit per-device interface allowlist, and re-reads `show shun <IPv4>` after removal. The API reconciles complete snapshots on a configurable five-minute baseline, provides freshness metadata and local IP search to the UI, and can optionally apply an exact-IPv4 trusted-IP automatic-removal policy. That policy is disabled by default and requires laboratory validation. Do not treat the service as production-ready until it has passed the laboratory validation in the deployment manual.
-
-The detailed current state and planned sequence are maintained in the [Project Status](docs/project-status.md). Material engineering work is recorded chronologically in the [Development Log](docs/development-log.md).
-
-The [Development Plan](docs/development-plan.md) records implemented refresh
-reliability and the durable removal queue. Default mode uses the existing agent
-RPC and at most one removal per device per minute-spaced cycle. Experimental
-[single-session cycles](docs/manual/agent-cycle-protocol.md) support up to 16
-removals, bounded command/time budgets, and priority refresh checkpoints; they
-remain disabled by default pending live lab validation. See
-[Operation Queue](docs/manual/operation-queue.md) before migration, backup
-restoration, or rollback. One-time manual blocklist imports remain unavailable.
-
-## Manuals
-
-- [Development](docs/manual/development.md)
-- [Deployment](docs/manual/deployment.md)
-- [Operations](docs/manual/operations.md)
-- [Protected IPs and migration](docs/manual/protected-ips.md)
-- [Project Status](docs/project-status.md)
-- [Development Log](docs/development-log.md)
-
-## Contributor record-keeping
-
-Follow the repository [working agreement](AGENTS.md). Every material change must update the current status, append a development-log entry, and update the applicable manual or architecture document.
-
-## Quick start for contributors
+Python 3.12+ and Rust/Cargo are required for the complete application/agent checks.
 
 ```bash
 python3 -m venv .venv
-.venv/bin/pip install -e '.[dev]'
-.venv/bin/pytest
+.venv/bin/python -m pip install -e '.[dev]'
+.venv/bin/python -m ruff check .
+.venv/bin/python -m pytest -q
+cargo test --locked --manifest-path agent/Cargo.toml
 ```
 
-See the [Development Manual](docs/manual/development.md) for the controlled mock-agent workflow. Never use mock mode in a deployed environment.
+The dev extra includes the DNS dependency used by the synthetic Cymru tests;
+ordinary application images do not install that optional worker dependency.
+[GitHub checks](.github/workflows/checks.yml) run Python tests/lint and Rust
+formatting/lint/tests. Browser and device acceptance remain separate checks.
+See the [Development Manual](docs/manual/development.md) for those commands.
 
-The [fresh working-version lab guide](docs/manual/fresh-development.md) provides
-non-overwriting clean v2 setup and an explicit `continuous-managed` API/Web profile
-for standing import, restoration and verified queued cleanup. Legacy remains the
-default; startup never migrates old development state or adopts old authority.
-The narrower [continuous observation profile](docs/manual/configured-runtime.md)
-and non-executing `ftd-shun-api --check` remain available separately.
+## Documentation and contributor records
 
-The separate [nonempty transition inspector](docs/manual/migration-inspection.md)
-fingerprints retained legacy data and reports migration blockers without applying
-changes. A clean preflight does not authorize conversion or startup on that DB.
+Start with the [manual index](docs/manual/README.md),
+[architecture and security design](docs/architecture-and-security-design.md),
+[current status](docs/project-status.md) and [versioning](docs/manual/versioning.md).
+
+Follow [AGENTS.md](AGENTS.md). Record material changes and validation in the
+[development log](docs/development-log.md), update current status and advance the
+product version for each cohesive delivery. Formal released-data compatibility
+starts with the first operator-designated GitHub release/tag; core security and
+honest results apply throughout development.

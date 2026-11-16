@@ -9,6 +9,7 @@
 
 <details class="page-help" id="imports-page-help" data-ui-key="page-help-imports"><summary>About imports</summary><p class="page-intro">Block addresses on selected devices and automatically restore their blocks if they disappear. Review the list before confirming; nothing is applied at this step.</p></details>
 {{ steps(1) }}
+{% if environment_guard is defined and environment_guard.networks %}<p class="preview-help">Deployment-protected addresses are skipped. Configure <code>FTD_SHUN_ENV_PROTECTED_NETWORKS</code> in <code>.env</code> to change these ranges; view them under <a href="/protected-ips">Protected IPs</a>.</p>{% endif %}
 {% if message %}<p class="preview-error" role="alert">{{ message }}</p>{% endif %}
 {% if drafts is none %}<p class="policy-warning">Saved drafts could not be loaded. Creating an import is unavailable until the service recovers.</p>
 {% elif not drafts.initialized %}<p class="policy-warning">Import storage is not initialized. An operator must complete service setup before you can save a draft.</p>{% endif %}

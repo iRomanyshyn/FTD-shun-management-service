@@ -97,8 +97,8 @@ class BatchDeviceOperationQueue(DeviceOperationQueue):
         if not self.pending:
             return super()._claim_running_scope(db, device_id, owner, action)
         self._pending_evidence(db)
-        protected_pending = db.execute('''SELECT 1 FROM operation_jobs j JOIN protected_ips p ON p.ip=j.ip
-            WHERE j.device_id=? AND j.state='RUNNING' AND p.enabled=1''', (device_id,)).fetchone()
+        protected_pending = db.execute('''SELECT 1 FROM operation_jobs j LEFT JOIN protected_ips p ON p.ip=j.ip
+            WHERE j.device_id=? AND j.state='RUNNING' AND (p.enabled=1 OR env_protected_ip(j.ip))''', (device_id,)).fetchone()
         if protected_pending or len(self.pending) >= MAX_PENDING_ADDITIONS or action == 'REMOVE' or (
                 self.priority_removals and db.execute(
                     "SELECT 1 FROM operation_jobs WHERE device_id=? AND state='QUEUED' AND action='REMOVE'",

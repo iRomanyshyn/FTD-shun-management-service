@@ -530,6 +530,7 @@ def create_app(
             **managed_metadata,
             "policy_revision": policy_state["revision"],
             "trusted_auto_remove_ips": [entry for entry in policy_state["entries"] if entry["enabled"]],
+            "environment_protection": store.environment_protection.metadata(),
             "disabled_protected_ips": [{"ip": entry["ip"]} for entry in policy_state["entries"] if not entry["enabled"]],
         }
 
@@ -1134,7 +1135,7 @@ def create_app(
         except ValueError as error:
             raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error)) from error
         protected_ips = {str(item) for item in policy.enabled_ips()}
-        return [{**result, "protected": result["ip"] in protected_ips} for result in results]
+        return [{**result, "protected": result["ip"] in protected_ips or store.environment_protection.contains(result["ip"])} for result in results]
 
     def require_operator(actor: Actor) -> None:
         if "Operator" not in actor.roles and "Administrator" not in actor.roles:

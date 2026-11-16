@@ -3,6 +3,32 @@
 Agreed with the operator: 2026-10-20.
 Status: approved target behavior and delivery plan; not a deployment procedure.
 
+Expiry-recovery follow-up delivered2026-11-16: API/Web0.15.2 retain original
+device/epoch terminal audit and terminal-before-hold timing on ordinary expiry.
+A fresh one-address FPR test covers API death before checkpoint, natural lease
+expiry, explicit checked offline decisions, causal read without ADD replay and
+verified cleanup. The historical unknown result remains unknown. Full Python4100
+passes; original main v6 data/profile remain. Next are bounded v7 pause/protection/
+cancellation lifecycle acceptance and per-import cleanup, not another recovery
+utility or a legacy-dev converter. See current status and interrupted-v7 manual.
+
+Service-security follow-up delivered2026-11-16: API/Web0.15.1 and scoped agent/
+edge/authentication environments are on the original v6 lab. Browser/TLS headers
+and CSP are tested without changing authentication roles, trust or execution
+profiles. This closes the shared-environment/header review items; deferred-v7
+failure/lifecycle acceptance and per-import cleanup remain next. See current
+status and manual/service-security.md for exact evidence and limits.
+
+## Deployment protection — operator addition, 2026-11-16
+
+Read-only IPv4/CIDR ranges configured through `.env` exclude matching ADD/import
+work. The UI explains where to change them. A successful read discovering a match
+queues verified unblocking through the shared executor and records distinct
+structured detection/outcome logs. Matching maintenance is retired; editable
+exact-IP protection cannot override deployment protection. Email/Teams/other
+notification delivery follows later with deduplication, not on every polling cycle.
+See manual/environment-protection.md and current status for delivery evidence.
+
 ## Next delivery alignment — 2026-11-12
 
 Web0.14.1 (2026-11-13) keeps independent import/restoration pauses and Resume in

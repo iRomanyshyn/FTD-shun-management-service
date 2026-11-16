@@ -85,8 +85,8 @@ class DeferredBatchSession(BatchSession):
             if db.execute("SELECT 1 FROM operation_jobs WHERE device_id=? AND state='QUEUED' AND action='REMOVE' LIMIT 1",
                           (self.device,)).fetchone():
                 return True
-            if db.execute('''SELECT 1 FROM operation_jobs j JOIN protected_ips p ON p.ip=j.ip
-                WHERE j.device_id=? AND j.state='RUNNING' AND p.enabled=1 LIMIT 1''', (self.device,)).fetchone():
+            if db.execute('''SELECT 1 FROM operation_jobs j LEFT JOIN protected_ips p ON p.ip=j.ip
+                WHERE j.device_id=? AND j.state='RUNNING' AND (p.enabled=1 OR env_protected_ip(j.ip)) LIMIT 1''', (self.device,)).fetchone():
                 return True
             if mutations_suspended(db) or db.execute('SELECT restoration_suspended FROM managed_bulk_registry').fetchone()[0]:
                 return False

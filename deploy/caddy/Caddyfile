@@ -2,11 +2,18 @@
   auto_https disable_redirects
 }
 
+import security-headers.caddy
+
 https://{$AUTH_HOST} {
+  import https_security 31536000
+  import authentication_errors 31536000
   reverse_proxy authelia:9091
 }
 
 https://{$FTD_SHUN_HOST} {
+  import https_security 31536000
+  import workspace_security
+  import workspace_errors 31536000
   # route prevents Caddy's normal directive reordering: client-supplied
   # identity must be removed before, not after, ForwardAuth copies its result.
   route {

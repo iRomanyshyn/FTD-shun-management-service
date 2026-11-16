@@ -328,7 +328,7 @@ class OperationQueue:
         if action == "ADD":
             if db.execute("SELECT revision FROM protected_policy WHERE id=1").fetchone()[0] != policy_revision:
                 raise QueueConflict("Protected IPs changed; review the import again.")
-            if any(db.execute("SELECT 1 FROM protected_ips WHERE ip=? AND enabled=1", (ip.packed,)).fetchone()
+            if any(db.execute("SELECT 1 FROM (SELECT ? AS target) WHERE env_protected_ip(target) OR EXISTS(SELECT 1 FROM protected_ips WHERE ip=target AND enabled=1)", (ip.packed,)).fetchone()
                    for _, ip in targets):
                 raise QueueConflict("Import contains an enabled Protected IP; no targets were queued.")
         active_requests = self._active_request_count(db) - (1 if ordered is not None else 0)
@@ -462,14 +462,14 @@ class OperationQueue:
         from .managed_restoration import cancel_obsolete
 
         cancel_obsolete(db, self)
-        for job in db.execute("""SELECT j.* FROM operation_jobs j JOIN protected_ips p ON p.ip=j.ip
-            WHERE j.action='ADD' AND j.state='QUEUED' AND p.enabled=1""").fetchall():
+        for job in db.execute("""SELECT j.* FROM operation_jobs j LEFT JOIN protected_ips p ON p.ip=j.ip
+            WHERE j.action='ADD' AND j.state='QUEUED' AND (p.enabled=1 OR env_protected_ip(j.ip))""").fetchall():
             self._finish(db, job, "FAILED", "Protected IP enabled before addition; no write was sent")
         rows = db.execute("""SELECT r.*,j.id AS job_id,j.device_id,j.ip
             FROM operation_requests r JOIN operation_links l ON l.request_id=r.id
             JOIN operation_jobs j ON j.id=l.job_id
             WHERE r.source='trusted_policy' AND r.state='ACTIVE' AND j.state='QUEUED' AND j.action='REMOVE'
-              AND NOT EXISTS (SELECT 1 FROM protected_ips p WHERE p.ip=j.ip AND p.enabled=1)""").fetchall()
+              AND NOT (env_protected_ip(j.ip) OR EXISTS (SELECT 1 FROM protected_ips p WHERE p.ip=j.ip AND p.enabled=1))""").fetchall()
         for request in rows:
             job = {"id": request["job_id"], "device_id": request["device_id"], "ip": request["ip"]}
             db.execute("UPDATE operation_requests SET state='CANCELLED' WHERE id=?", (request["id"],))
@@ -775,6 +775,14 @@ class OperationQueue:
             self._finish(db, job, state, reason)
 
             self._executor(db, owner, job['device_id'])
+            environment_requests = [row['id'] for row in db.execute('''SELECT r.id FROM operation_requests r
+                JOIN operation_links l ON l.request_id=r.id WHERE l.job_id=?
+                AND r.actor_subject='system:environment-ip-policy' ''', (job_id,))]
+        if environment_requests:
+            print(json.dumps({'event': 'environment_protection.unblock_result',
+                'device_id': job['device_id'], 'ip': str(IPv4Address(job['ip'])),
+                'operation_id': job_id, 'request_ids': environment_requests,
+                'outcome': state, 'reason': reason}), flush=True)
 
     def _commit_addition(self, write):
         with self.store._connection() as db:

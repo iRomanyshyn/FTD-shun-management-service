@@ -12480,3 +12480,147 @@ Rollback `ftd-shun-web:lab-pre-status-controls-20261113`; evidence
 `/tmp/ftd-status-controls-20261113`. Reload existing tabs. Next bulk recovery/
 lifecycle acceptance and planned per-import unblocking remain.
 
+
+## 2026-11-13 — Web v0.14.2: remove nested Status cards and align pause actions
+
+Scheduling now uses two aligned label/state/action rows, with equal-sized short
+Pause/Resume/Retry buttons and descriptive accessibility labels. Removed both
+nested card borders and obsolete CSS overrides; retained only the Status popover
+outline and a section divider. Independent controls and exact retry bodies remain.
+Python56 pass3.97s; Chromium two affected scenarios plus38 presentation checks and
+parent41 pass24.50s (69 skipped), including lost-reply retry and light/dark layouts
+at375/960/1440/1920px. Screenshots inspected; Ruff/compileall/JS/diff pass.
+Web-only rollout/package/build/footer/45 templates/66 routes/readonly API-cache
+preflight/Web200/ten anonymous401/33 served assets pass. Six other service
+identities,27 authority fingerprints, audit prefix/jobs and32426 observations
+unchanged; integrityok. No live control/device submission. Prepared v7 remains off.
+Evidence `/tmp/ftd-flat-status-20261113`; rollback
+`ftd-shun-web:lab-pre-flat-status-20261113`. Reload existing tabs.
+
+Web replaced at18:36:54.633688481Z, source/version `4cae577c1233`/0.14.2.
+Image `sha256:37f82fbb246eccbea80ececb471725690d69849c11278aaa514e04350009ab66`;
+container `26858d00f95edc89477c97e596b5af22889c0fe39c75d76eab8a17ff93408ad3`.
+
+
+## 2026-11-16 — v0.15.0: configured IP protection, verified lab unblock and clean regression checks
+
+`FTD_SHUN_ENV_PROTECTED_NETWORKS` accepts up to64 canonical IPv4 addresses/CIDRs.
+API preview/admission/discovery/claim/pre-send checks and the agent's final typed
+ADD guard enforce it. Configured ranges are read-only in Protected IPs; import
+reviews explain `.env` exclusions. Complete reads retire matching maintenance in
+bounded batches and normal priority queueing performs verified unblocking.
+Distinct committed detection/result logs retain the system actor; email/Teams
+remain planned. See manual/environment-protection.md. Exact-IP policy stays UI-owned.
+No schema/wire migration or v7 activation; original v6 and pause/uncertainty guards remain.
+
+Also fixed missing `refresh.devices` rendering, dev-extra DNS dependency and the
+paging assertion to count the actual observations table. Added SHA-pinned GitHub
+Python/Rust checks (not a hosted CI run) and replaced the obsolete README overview.
+Full clean-install Python4059 pass/four optional skips780.55s, one existing testclient
+deprecation warning. Rust112+9+4 pass/one ignored; Clippy/fmt pass. Chromium72
+scenarios+38 presentation checks+parent111 pass205.65s. Clean `.[dev]` collection4063,
+clean focused66 and offline157 pass. Ruff/compileall/JS/diff and nonexecuting API/
+agent config checks, package/build/footer/45 templates/66 routes/readonly cache
+preflight pass. Initial full run4047 pass/12 fail retained: eleven raw offline
+connections lacked the new function; one counted unrelated table rows. Fixed and
+repeated the whole suite clean. No new authenticated live-browser claim.
+
+Known lab rollout09:33:46Z: API/Web version0.15.0/source `8c41cf42152a`, image
+`sha256:d9fd1e9bff501f63b49e7748d38655d9633a107ed9624864fb8b8a1d49b3907e`.
+API container `376cd1983db86f78c84b460d7dc49632ba5ec75fb59434b3947220ee4c075fd1`;
+Web `9f0a503235a22e0f86b663ccd6c1dd15e798745225ad9647240f2d9d7c10b6c0`.
+Agent image `sha256:655a77d6db9acd57ba631bbc417336ed8b0eb5d71763f04a18b7304f23d4b169`,
+container `6ed729515446eae0be292ad33472e26a8adb648b585d0f15cd85dba6f5928998`.
+Feed/worker/Caddy/Authelia exact identities/start times unchanged; approved Cymru retained.
+API/Web original processes exited0; archive proved no RUNNING jobs/all executors IDLE.
+Private checked archive: `/var/lib/ftd-shun-manager/backups/environment-protection-20261116-before.db`.
+
+Enabled eight announced private/loopback/link-local/special-use guard ranges in
+private `.env`, changing only that key. The sole existing match10.10.10.10 on device1
+was retired09:34:02Z; fresh system request `452638a8-8131-486a-a1c2-d18ba361b43c`
+queued one REMOVE job `cc2c17da-f4d5-446c-8e58-463c7f6ce80c`, VERIFIED09:34:22Z.
+Complete read09:34:28Z confirmed absence.32,427 other managed rows, original
+protection/import authority and all26 unknown job/attempt records stayed byte-identical;
+original audit prefix retained.32425 observations, attention0/errornone/integrityok,
+executor5040 IDLE. This is real automatic unblock acceptance, not a new ADD or
+throughput benchmark. Live Web200/ten anonymous401/33 served assets and actual
+readonly rule rendering pass. Evidence `/tmp/ftd-env-protection-20261116`.
+Rollback tags `ftd-shun-{web,api,agent}:lab-pre-environment-protection-20261116`;
+never restore the old DB/authority to undo this update. Retired maintenance stays
+retired; change `.env` and create fresh policy intentionally if blocking is wanted.
+
+Next: isolate per-service environment/secrets and add tested HTTP headers, then
+close the before-checkpoint lease-expiry audit gap and remaining v7 lifecycle
+acceptance before deliberate cutover. Per-import unblocking remains next functional
+cleanup; SMTP/Teams delivery remains lower priority. No GitHub release/tag published.
+
+## 2026-11-16 — v0.15.1 service environments and browser policy
+
+Replaced common Compose `env_file` injection with explicit service mappings.
+Authelia alone receives its session/storage secrets; SSH configuration remains
+agent-only. Public API/Web profile settings and optional journal/per-device overlays
+retain their semantics. Added restrictive workspace CSP and framing/MIME/referrer/
+permission headers. Exact sign-in form redirects remain allowed; Authelia keeps
+its own CSP. Caddy error routes preserve original statuses and headers. HSTS stays
+HTTPS-only (lab1d/production example1y, no preload/subdomain coverage).
+
+Validation: affected Python290/74.66s, final security/Compose24/1.59s; all Chromium/
+Node111/206.41s under CSP. Fixed an inline-style test fixture and repeated the whole
+browser suite clean. Ruff/compileall/JS/diff, both final Caddy configurations,
+synthetic502, actual configured nonexecuting API/agent checks and candidate/live
+package/build/footer/45 templates/66 routes/readonly cache pass. No new full
+Python/Rust or authenticated live-browser acceptance claim.
+
+Five lab services recreated10:38:29–30Z after old Web/API exited0 and proved idle.
+API/Web image `ee688144ceb9...`, source `a1a452bfea13`; other three images unchanged.
+Actual Env names/private hashes prove secret isolation with unchanged values/CA
+and effective Settings. Feed/worker exact identities/Cymru unchanged. Real trusted
+HTTPS Auth200/application302 have HSTS and separate CSPs; forged Remote-* does not
+authenticate. Ten anonymous401/33 served assets pass. Integrityok/27 authority
+hashes/original audit prefix/all jobs including26 unknowns/32425 observations match;
+normal device read10:38:57Z succeeds, executor5053 IDLE. No mutation/policy/control/
+recovery request submitted. Original v6/profile/network/trust/data retained.
+Full exact identities, rollback tags and private comparisons:
+`/tmp/ftd-service-isolation-20261116`; see current status/service-security manual.
+Next remains before-checkpoint lease-expiry audit gap, v7 lifecycle acceptance and
+then per-import cleanup. No GitHub release/tag.
+
+
+## 2026-11-16 — v0.15.2 original-device expiry audit and real before-checkpoint recovery
+
+Ordinary device lease expiry now uses the original device/owner/epoch queue to
+record UNVERIFIED outcomes, including revoked requester audit. ATTENTION follows
+the terminal event timestamps; audit failure or a backwards clock rolls back the
+entire transaction. Reused the same helper in explicit offline classification.
+No renewal, command retry, inferred success, historical event repair, schema/wire
+change or main v7 activation.
+
+Reproduced the old attribution failure. Focused93/21.47s covers no checkpoint/last
+ACK, revoked/expired requests,1/16/17/64-claim prefixes, reviewed REMOVE audit,
+moving/backwards clocks and atomic rollback. Final full Python4100 pass/four optional
+skips823.98s, one existing deprecation warning. An earlier full run was interrupted
+at373 passes to add the moving-clock fix. Ruff/compileall/diff, real configured
+v6/v7 API/agent checks and candidate/live package/build/footer/45 templates/66
+routes/readonly cache/Web200/ten anonymous401/33 assets pass. No new Rust/browser
+run: this increment changes neither agent nor frontend behavior.
+
+Fresh separate expiry-audit DB/sockets imported only198.51.100.180 using operation
+761b5f46-77eb-4c1f-a6d6-94ed27a4ad10. API exited86 after one actual stage ACK,
+before checkpoint/END; agent closed the session. Original epoch2 expired naturally
+11:06:19.947Z and restarted API retained unknown/ATTENTION11:06:53.576Z, without
+another SSH/ADD. Stopped test writers exited0 before real CLI/two checked backups
+and fresh classification/reconciliation decisions. New complete read11:08:44Z
+found presence without repeat ADD or fabricated settlement. Fresh cleanup REMOVE
+VERIFIED, maintenance retired/fixture absent/executor4 IDLE11:09:30Z. Exactly four
+SSH visits/one ADD/one REMOVE. Test writers finally exited0; separate volumes,
+consumed authority and receipts retained under /tmp/ftd-expiry-audit-20261116.
+
+Restored main unchanged after the experiment, then delivered API/Web only at
+11:16:44Z:0.15.2/source11265edf0bf7/image d1a9f5f2d01e85a0c9fce2b9c03c98ea8de9630a01740f0e57daeccf69151dc5.
+Five other services unchanged during that delivery; original27 authority hashes,
+audit prefix/all jobs including26 unknowns/32425 observations retained, integrityok.
+Read11:17:10Z/errornone; Settings/scoped secrets/CA/Cymru unchanged. Full image and
+container identities/private checks/rollback tags are in current status/evidence.
+Main stays v6 with no new policy/control/recovery/device-mutation submission.
+Next bounded v7 pause/protection/cancellation lifecycle checks, then per-import
+cleanup; no new offline utility, legacy converter or GitHub release/tag.

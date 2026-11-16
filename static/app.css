@@ -59,10 +59,6 @@ main { width: 100%; flex: 1; margin-top: 1.5rem; padding-bottom: 3rem; }
 .ip-dialog .page-heading { margin-top: 1rem; }
 .ip-dialog [data-ip-content] { min-width: 0; }
 .list-pagination { margin-block: 1rem; }
-.managed-addition-control { padding: 1rem; margin-block: 1rem; border: 1px solid #8886; border-radius: .4rem; }
-.managed-addition-control h2 { margin-top: 0; }
-.managed-addition-control form { margin-block: .75rem; }
-.managed-control-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); gap: 1rem; }
 h1 { font-size: 1.8rem; margin: .5rem 0 1rem; } h2 { font-size: 1.25rem; } h3 { font-size: 1.05rem; }
 button, input, textarea { font: inherit; }
 button { padding: .5rem .8rem; cursor: pointer; }
@@ -339,14 +335,6 @@ a[href^="/shuns/"] { white-space: nowrap; overflow-wrap: normal; font-variant-nu
 .pagination-controls { gap: .65rem; }
 .pagination-controls button, .history-page-form button { font-size: .8rem; padding: .3rem .5rem; }
 .history-page-form input { width: 4.5rem; padding-block: .25rem; }
-.managed-addition-control { padding: .75rem 1rem; margin-block: .75rem; background: var(--surface); border-color: var(--line); }
-.managed-addition-control h2 { font-size: .9rem; }
-.managed-control-grid { display: flex; flex-wrap: wrap; gap: .65rem 1rem; margin-top: .6rem; }
-.managed-control-item { display: inline-flex; align-items: center; justify-content: flex-start; gap: .65rem; flex-wrap: wrap; max-width: 100%; padding: .5rem .65rem; border: 1px solid var(--line); border-radius: .35rem; }
-.managed-control-item h3 { font-size: .82rem; margin: 0; }
-.managed-control-item form { margin: 0; }
-.managed-control-item button { font-size: .78rem; padding: .35rem .55rem; }
-.managed-addition-control > .list-help { margin-bottom: 0; }
 .policy-workspace { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 27rem), 1fr)); align-items: start; gap: .8rem; }
 .policy-workspace > p, .policy-workspace > details { grid-column: 1 / -1; margin: .25rem 0; }
 .policy-card { min-width: 0; padding: .85rem 1rem; margin: 0; background: var(--surface); border-color: var(--line); font-size: .85rem; }
@@ -383,17 +371,9 @@ a[href^="/shuns/"] { white-space: nowrap; overflow-wrap: normal; font-variant-nu
 /* Shared action typography: adjacent labels, links and buttons use one UI size. */
 :root { --ui-text-size: .875rem; --meta-text-size: .8rem; }
 .utility-panel, .utility-panel p, .utility-panel table,
-.managed-control-item h4, .managed-control-item button,
 .managed-toolbar, .managed-toolbar p, .managed-toolbar a,
 .data-table button, .table-action, .outline-action,
 .policy-card, .policy-card .policy-editor > summary { font-size: var(--ui-text-size); }
-.managed-addition-control { margin: 0 0 1rem; padding: .75rem; }
-.managed-addition-control h3 { margin: 0; font-size: var(--ui-text-size); }
-.managed-control-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr)); gap: .6rem; }
-.managed-control-item { display: flex; align-items: center; gap: .5rem .7rem; }
-.managed-control-item h4 { margin: 0; }
-.managed-control-item .state-badge { margin-left: .3rem; }
-.managed-control-item button { white-space: nowrap; }
 .managed-toolbar { display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; gap: .5rem 1rem; margin-block: .75rem; }
 .managed-toolbar p { margin: 0; }
 .text-button { border: 0; background: none; color: var(--link); text-decoration: underline; padding: 0; font: inherit; cursor: pointer; }
@@ -406,3 +386,14 @@ a[href^="/shuns/"] { white-space: nowrap; overflow-wrap: normal; font-variant-nu
   .count-enabled { color: #6dde9a; }
   .count-disabled { color: #ff929a; }
 }
+
+/* Scheduling is a pair of aligned rows inside the single Status popover. */
+.managed-addition-control { margin: 0 0 1rem; padding: 0 0 .75rem; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: none; }
+.managed-addition-control h3 { margin: 0; font-size: var(--ui-text-size); }
+.managed-control-grid { display: grid; gap: .5rem; margin-block: .6rem; }
+.managed-control-item { display: grid; grid-template-columns: minmax(0, 1fr) 4rem 5.5rem; align-items: center; gap: .75rem; padding: 0; border: 0; background: none; }
+.managed-control-item h4 { margin: 0; font-size: var(--ui-text-size); font-weight: 500; }
+.managed-control-item .state-badge { margin: 0; justify-self: start; }
+.managed-control-item form { margin: 0; }
+.managed-control-item button { width: 100%; min-height: 2.25rem; padding: .35rem .55rem; font-size: var(--ui-text-size); white-space: nowrap; }
+.managed-addition-control > .list-help { margin: 0; }

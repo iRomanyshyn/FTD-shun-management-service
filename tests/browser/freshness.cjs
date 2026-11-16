@@ -13,6 +13,7 @@ const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const future = (seconds) => new Date(Date.now() + seconds * 1000).toISOString();
 const renderScript = `
 import json, sys
+from ftd_shun_manager.environment_protection import EnvironmentProtection
 from ftd_shun_manager.web import protected_counts
 from ftd_shun_manager.import_preview import MAX_TEXT_BYTES, paginate_preview, parse_blocklist, summarize_preview
 from ftd_shun_manager.import_review import ImportReviews
@@ -218,6 +219,7 @@ print(templates.get_template(p["template"]).render(identity=Identity("test", "Te
     page=1, pages=2, page_targets=review.targets[:100] if p["template"] == "managed-batch-review.html" else [],
     confirm_count="", acknowledged=False, import_text_limit=MAX_TEXT_BYTES,
     managed=p.get("managed"), handoffs=p.get("handoffs"), fleet_cleanup=p.get("fleet_cleanup"),
+    environment_guard=EnvironmentProtection.parse(','.join(p["refresh"].get('environment_protection',{}).get('networks',[]))),
     control_request_ids=dict(imports="11111111-1111-4111-8111-111111111111",restoration="22222222-2222-4222-8222-222222222222"),
     csrf_token="fixture-token", shuns=[] if p["refresh"].get("fixture_no_shuns") or p.get("unmanaged") and shun["maintained"] else [dict(shun, ip=str(IPv4Address(0xC6120000 + (p["bulk_page"]-1)*100 + i))) for i in range(100)] if p.get("large_shuns") else [shun],
     ip_scope=p["refresh"].get("fixture_ip_scope"), ip_scope_error=None, target_ip=p.get("target_ip", ""),
@@ -353,12 +355,18 @@ test("refresh interaction in real Chromium", { timeout: 240000 }, async (t) => {
     else status.last_error = "Repeated synthetic device failure";
     generation += 1;
   };
+  // Exercise the production CSP in the real browser, not just its string value.
+  const browserPolicy = JSON.parse(execFileSync('python3', ['-c',
+    'import json; from ftd_shun_manager.security_headers import browser_headers; print(json.dumps(browser_headers()))'],
+    {cwd:root, encoding:'utf8'}));
   const server = http.createServer(async (request, response) => {
     const url = new URL(request.url, "http://fixture");
+    Object.entries(browserPolicy).forEach(([name,value]) => response.setHeader(name,value));
     response.setHeader("Cache-Control", "no-store");
     if (url.pathname === "/static/app.css") {
       response.setHeader("Content-Type", "text/css");
-      response.end(fs.readFileSync(path.join(root, "static/app.css")));
+      response.end(fs.readFileSync(path.join(root, "static/app.css"), 'utf8')
+        + '\n#nowrap-fixture .table-scroll { width:9rem; max-width:100%; }');
     } else if (url.pathname.startsWith('/static/branding/')) {
       const filename = path.resolve(root, '.' + url.pathname);
       const prefix = path.join(root, 'static', 'branding') + path.sep;
@@ -688,7 +696,7 @@ test("refresh interaction in real Chromium", { timeout: 240000 }, async (t) => {
         assert.ok(await page.evaluate("document.querySelector('[data-operation-queue]').textContent.includes('Held — ADD execution disabled')"));
         await page.evaluate(`(() => {
           const host = document.createElement('section'); host.id = 'nowrap-fixture';
-          host.innerHTML = '<div class="table-scroll" style="width:9rem;max-width:100%"><table><tbody>'
+          host.innerHTML = '<div class="table-scroll"><table><tbody>'
             + ['status-label', 'state-badge', 'protected-ip-badge', 'preview-state-badge', 'current-state', 'historical-state', 'state-badge cleanup-state']
               .map(cls => '<tr><td><span class="' + cls + '">Not currently observed</span></td><td>Description with multiple words that should wrap normally.</td></tr>').join('')
             + '</tbody></table></div><div class="cleanup-record"><p><span class="state-badge cleanup-state">Queue history incomplete — outcome unknown</span></p></div>';
@@ -842,15 +850,16 @@ test("refresh interaction in real Chromium", { timeout: 240000 }, async (t) => {
           await page.call('Emulation.setEmulatedMedia', { features: [{name: 'prefers-color-scheme', value: theme}] });
           await page.call('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: width === 375 });
           assert.equal(await page.evaluate(`(() => {
-            return [...document.querySelectorAll('.managed-control-item')].every(item => {
-              const label=item.querySelector('h4').getBoundingClientRect();
-              const button=item.querySelector('button').getBoundingClientRect();
-              const sameRow=Math.abs(label.top+label.height/2-button.top-button.height/2)<3;
-              return parseFloat(getComputedStyle(item).borderTopWidth)>0 && (sameRow
-                ? button.left-label.right>=0 && button.left-label.right<20
-                : button.top>=label.bottom && button.top-label.bottom<20);
-            }) && document.documentElement.scrollWidth<=innerWidth;
-          })()`), true, `${width}px: each pause button stays with its own label`);
+            const items=[...document.querySelectorAll('.managed-control-item')];
+            const buttons=items.map(item => item.querySelector('button').getBoundingClientRect());
+            const states=items.map(item => item.querySelector('[data-control-state]').getBoundingClientRect());
+            const flat=items.every(item => parseFloat(getComputedStyle(item).borderTopWidth)===0);
+            return flat && buttons.length===2 && Math.abs(buttons[0].left-buttons[1].left)<1
+              && Math.abs(buttons[0].width-buttons[1].width)<1 && Math.abs(buttons[0].height-buttons[1].height)<1
+              && Math.abs(states[0].left-states[1].left)<1
+              && parseFloat(getComputedStyle(document.querySelector('#managed-addition-control')).borderTopWidth)===0
+              && document.documentElement.scrollWidth<=innerWidth;
+          })()`), true, `${width}px: flat rows keep state and action columns aligned`);
           await screenshot(page, `status-controls-${width}-${theme}`);
         }
         await page.evaluate(`${controls}.querySelector('[action="/managed-additions/imports/pause"] button').click()`);
@@ -880,7 +889,8 @@ test("refresh interaction in real Chromium", { timeout: 240000 }, async (t) => {
         await page.until("document.querySelector('[data-managed-pause-count]').textContent === '2 paused'");
         assert.equal(controlPosts.length, postsBefore + 1, 'polling does not resend an interrupted control POST');
         assert.equal(await page.evaluate(`${controls}.querySelector('[action="/managed-additions/imports/pause"] input[name=request_id]').value`), originalControl.key);
-        assert.equal(await page.evaluate(`${controls}.querySelector('[action="/managed-additions/imports/pause"] button').textContent`), 'Retry pause request');
+        assert.equal(await page.evaluate(`${controls}.querySelector('[action="/managed-additions/imports/pause"] button').textContent`), 'Retry');
+        assert.equal(await page.evaluate(`${controls}.querySelector('[action="/managed-additions/imports/pause"] button').getAttribute('aria-label')`), 'Retry pause imports request');
         await page.evaluate(`${controls}.querySelector('[action="/managed-additions/imports/pause"] button').click()`);
         await page.until("Boolean(document.querySelector('[action=\"/managed-additions/imports/resume\"]'))");
         assert.deepEqual(controlPosts.at(-1), controlPosts.at(-2), 'explicit retry keeps the original action, revision and key');
@@ -889,6 +899,21 @@ test("refresh interaction in real Chromium", { timeout: 240000 }, async (t) => {
         assert.equal(await page.evaluate("document.querySelectorAll('[data-pagination-position=top]').length"), 1);
         assert.equal(await page.evaluate("document.querySelectorAll('[data-pagination-position=bottom]').length"), 1);
       } finally { await page.close(); managed = previousManaged; status = initial(); failControlReply = false; controlReceipts.clear(); }
+    });
+    await t.test('deployment protection is read-only and explains env configuration in Protected IPs and Imports', async () => {
+      status = { ...initial(), bulk_import_preparation_available: true,
+        environment_protection: { variable: 'FTD_SHUN_ENV_PROTECTED_NETWORKS', networks: ['10.0.0.0/8', '192.168.0.0/16'] } };
+      const beforePosts = postCount, beforeExecutions = executionCount;
+      const page = await connectPage(debugOrigin, `${origin}/protected-ips`);
+      try {
+        const guard = "document.querySelector('[aria-label=\"Deployment protection\"]')";
+        assert.equal(await page.evaluate(`${guard}.textContent.includes('10.0.0.0/8') && ${guard}.textContent.includes('.env')`), true);
+        assert.equal(await page.evaluate(`${guard}.querySelectorAll('form, button, input').length`), 0);
+        await page.call('Page.navigate', {url: `${origin}/managed-imports/v2`});
+        await page.until("Boolean(document.querySelector('#bulk-draft-form'))");
+        assert.equal(await page.evaluate("document.querySelector('main').textContent.includes('FTD_SHUN_ENV_PROTECTED_NETWORKS')"), true);
+        assert.equal(postCount, beforePosts); assert.equal(executionCount, beforeExecutions);
+      } finally { await page.close(); status = initial(); }
     });
     await t.test('compact observation workspace keeps IP and badges together without hiding actions', async () => {
       status = { ...initial(), fixture_maintained: true, managed_policy_format: 2,

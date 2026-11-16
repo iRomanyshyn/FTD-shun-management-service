@@ -234,7 +234,7 @@ class ImportPreparations:
                     key = device["id"], ip.packed
                     old = managed.get(key)
                     maintained = bool(old and old["enabled"])
-                    kind = ("EXCLUDED_PROTECTED" if ip.packed in protected else "ALREADY_MANAGED" if maintained
+                    kind = ("EXCLUDED_PROTECTED" if ip.packed in protected or self.store.environment_protection.contains(ip) else "ALREADY_MANAGED" if maintained
                             else "PROPOSE_ADOPT" if key in observed else "PROPOSE_ADD")
                     members.append({"device_id": device["id"], "ip": str(ip), "classification": kind,
                         "observed_at": observed.get(key), "managed_enabled": maintained,

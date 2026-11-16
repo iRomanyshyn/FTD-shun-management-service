@@ -1,3 +1,24 @@
+# Public runtime settings shared for Settings/profile validation; never include secrets here.
+x-runtime-environment: &runtime-environment
+  FTD_SHUN_API_RUNTIME: "${FTD_SHUN_API_RUNTIME:-legacy}"
+  FTD_SHUN_AGENT_TIMEOUT_SECONDS: "${FTD_SHUN_AGENT_TIMEOUT_SECONDS:-45}"
+  FTD_SHUN_AGENT_MAX_CONCURRENT_DEVICES: "${FTD_SHUN_AGENT_MAX_CONCURRENT_DEVICES:-1}"
+  FTD_SHUN_AGENT_CYCLES_ENABLED: "${FTD_SHUN_AGENT_CYCLES_ENABLED:-false}"
+  FTD_SHUN_LARGE_SNAPSHOTS_ENABLED: "${FTD_SHUN_LARGE_SNAPSHOTS_ENABLED:-false}"
+  FTD_SHUN_AGENT_BATCH_ADDITIONS_ENABLED: "${FTD_SHUN_AGENT_BATCH_ADDITIONS_ENABLED:-false}"
+  FTD_SHUN_AGENT_BATCH_SESSION_VERSION: "${FTD_SHUN_AGENT_BATCH_SESSION_VERSION:-5}"
+  FTD_SHUN_DEFERRED_CONFIRMATION_ENABLED: "${FTD_SHUN_DEFERRED_CONFIRMATION_ENABLED:-false}"
+  FTD_SHUN_IMPORT_ADMISSION_ENABLED: "${FTD_SHUN_IMPORT_ADMISSION_ENABLED:-false}"
+  FTD_SHUN_IMPORT_EXECUTION_ENABLED: "${FTD_SHUN_IMPORT_EXECUTION_ENABLED:-false}"
+  FTD_SHUN_MANAGED_REMOVAL_WORKER_ENABLED: "${FTD_SHUN_MANAGED_REMOVAL_WORKER_ENABLED:-false}"
+  FTD_SHUN_MANAGED_RESTORATION_ENABLED: "${FTD_SHUN_MANAGED_RESTORATION_ENABLED:-false}"
+  FTD_SHUN_MANAGED_POLICY_ADMISSION_ENABLED: "${FTD_SHUN_MANAGED_POLICY_ADMISSION_ENABLED:-false}"
+  FTD_SHUN_MANAGED_REMOVAL_ADMISSION_ENABLED: "${FTD_SHUN_MANAGED_REMOVAL_ADMISSION_ENABLED:-false}"
+  FTD_SHUN_POLL_INTERVAL: "${FTD_SHUN_POLL_INTERVAL:-5m}"
+  FTD_SHUN_INTERACTIVE_REFRESH_MIN_INTERVAL: "${FTD_SHUN_INTERACTIVE_REFRESH_MIN_INTERVAL:-60s}"
+  FTD_SHUN_HISTORY_RETENTION_DAYS: "${FTD_SHUN_HISTORY_RETENTION_DAYS:-366}"
+  AUTH_SENSITIVE_ACTION_MAX_AGE: "${AUTH_SENSITIVE_ACTION_MAX_AGE:-24h}"
+
 services:
   socket-init:
     image: alpine:3.21
@@ -18,11 +39,14 @@ services:
   caddy:
     image: caddy:2.10.2-alpine
     restart: unless-stopped
-    env_file: ../.env
+    environment:
+      FTD_SHUN_HOST: "${FTD_SHUN_HOST:?Set FTD_SHUN_HOST}"
+      AUTH_HOST: "${AUTH_HOST:?Set AUTH_HOST}"
     ports:
       - "${PUBLISH_ADDRESS}:443:443"
     volumes:
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./caddy/security-headers.caddy:/etc/caddy/security-headers.caddy:ro
       - caddy-data:/data
       - caddy-config:/config
       - web-run:/run/ftd-shun-manager:ro
@@ -53,7 +77,6 @@ services:
   authelia:
     image: authelia/authelia:4.39.15
     restart: unless-stopped
-    env_file: ../.env
     # The upstream entrypoint recursively chowns /config and calls su-exec. Our
     # protected configuration mounts are deliberately read-only, so invoke the
     # binary directly with every Linux capability removed instead.
@@ -63,6 +86,13 @@ services:
       # Configuration-file templates are disabled by default in Authelia. This
       # enables only the non-secret deployment names in configuration.yml.
       X_AUTHELIA_CONFIG_FILTERS: template
+      FTD_SHUN_HOST: "${FTD_SHUN_HOST:?Set FTD_SHUN_HOST}"
+      AUTH_HOST: "${AUTH_HOST:?Set AUTH_HOST}"
+      AUTH_COOKIE_DOMAIN: "${AUTH_COOKIE_DOMAIN:?Set AUTH_COOKIE_DOMAIN}"
+      AUTH_SESSION_INACTIVITY: "${AUTH_SESSION_INACTIVITY:-1h}"
+      AUTH_SENSITIVE_ACTION_MAX_AGE: "${AUTH_SENSITIVE_ACTION_MAX_AGE:-24h}"
+      AUTHELIA_SESSION_SECRET: "${AUTHELIA_SESSION_SECRET:?Set AUTHELIA_SESSION_SECRET}"
+      AUTHELIA_STORAGE_ENCRYPTION_KEY: "${AUTHELIA_STORAGE_ENCRYPTION_KEY:?Set AUTHELIA_STORAGE_ENCRYPTION_KEY}"
     volumes:
       - ./authelia/configuration.yml:/config/configuration.yml:ro
       - ./authelia/users.yml:/config/users.yml:ro
@@ -80,9 +110,11 @@ services:
   web:
     build: ..
     restart: unless-stopped
-    env_file: ../.env
     command: ["ftd-shun-web"]
     environment:
+      <<: *runtime-environment
+      AUTH_HOST: "${AUTH_HOST:?Set AUTH_HOST}"
+      FTD_SHUN_AGENT_MODE: socket
       FTD_SHUN_WEB_SOCKET: /run/ftd-shun-manager/web.sock
       FTD_SHUN_API_SOCKET: /run/ftd-shun-manager-api/api.sock
       FTD_SHUN_DEVELOPMENT_AUTH: "false"
@@ -101,9 +133,13 @@ services:
   api:
     build: ..
     restart: unless-stopped
-    env_file: ../.env
     command: ["ftd-shun-api"]
     environment:
+      <<: *runtime-environment
+      FTD_SHUN_ENV_PROTECTED_NETWORKS: "${FTD_SHUN_ENV_PROTECTED_NETWORKS:-}"
+      # Retained only for the one-time legacy import marker, not ongoing policy control.
+      FTD_SHUN_TRUSTED_AUTO_REMOVE_IPS: "${FTD_SHUN_TRUSTED_AUTO_REMOVE_IPS:-}"
+      FTD_SHUN_DEVELOPMENT_AUTH: "false"
       FTD_SHUN_DATABASE: /var/lib/ftd-shun-manager/state.db
       FTD_SHUN_DEVICE_INVENTORY: /etc/ftd-shun-manager/devices.json
       FTD_SHUN_API_SOCKET: /run/ftd-shun-manager-api/api.sock
@@ -135,10 +171,21 @@ services:
       options:
         max-size: "10m"
         max-file: "5"
-    env_file: ../.env
     environment:
       FTD_SHUN_DEVICE_INVENTORY: /etc/ftd-shun-manager/devices.json
       FTD_SHUN_AGENT_SOCKET: /run/ftd-shun-manager-agent/agent.sock
+      FTD_SHUN_SSH_USERNAME: "${FTD_SHUN_SSH_USERNAME:-}"
+      FTD_SHUN_AGENT_TIMEOUT_SECONDS: "${FTD_SHUN_AGENT_TIMEOUT_SECONDS:-45}"
+      FTD_SHUN_AGENT_MAX_CONCURRENT_DEVICES: "${FTD_SHUN_AGENT_MAX_CONCURRENT_DEVICES:-1}"
+      FTD_SHUN_AGENT_CYCLES_ENABLED: "${FTD_SHUN_AGENT_CYCLES_ENABLED:-false}"
+      FTD_SHUN_LARGE_SNAPSHOTS_ENABLED: "${FTD_SHUN_LARGE_SNAPSHOTS_ENABLED:-false}"
+      FTD_SHUN_AGENT_ADDITIONS_ENABLED: "${FTD_SHUN_AGENT_ADDITIONS_ENABLED:-false}"
+      FTD_SHUN_AGENT_BATCH_ADDITIONS_ENABLED: "${FTD_SHUN_AGENT_BATCH_ADDITIONS_ENABLED:-false}"
+      FTD_SHUN_AGENT_BATCH_SESSION_VERSION: "${FTD_SHUN_AGENT_BATCH_SESSION_VERSION:-5}"
+      FTD_SHUN_DEFERRED_CONFIRMATION_ENABLED: "${FTD_SHUN_DEFERRED_CONFIRMATION_ENABLED:-false}"
+      FTD_SHUN_ENV_PROTECTED_NETWORKS: "${FTD_SHUN_ENV_PROTECTED_NETWORKS:-}"
+      # Null leaves an unset optional value absent, preserving agent validation.
+      FTD_SHUN_AGENT_PENDING_JOURNAL_DIRECTORY:
       FTD_SHUN_SSH_PASSWORD_FILE: /run/secrets/ftd_ssh_password
       FTD_SHUN_SSH_CREDENTIALS_MODE: shared
       FTD_SHUN_AGENT_PEER_UID: "10001"

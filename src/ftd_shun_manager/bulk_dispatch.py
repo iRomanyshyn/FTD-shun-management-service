@@ -139,7 +139,7 @@ def _authority_valid(db, attempt, now, state, *, retry_parent=None):
             or attempt['snapshot_started_at'] < barrier
             or not attempt['snapshot_started_at'] <= attempt['snapshot_at'] <= attempt['requested_at'] <= _stamp(now)
             or attempt['snapshot_started_at'] < _stamp(now - timedelta(seconds=120))
-            or db.execute('SELECT 1 FROM protected_ips WHERE ip=? AND enabled=1', (attempt['ip'],)).fetchone()
+            or db.execute('SELECT 1 FROM (SELECT ? AS target) WHERE env_protected_ip(target) OR EXISTS(SELECT 1 FROM protected_ips WHERE ip=target AND enabled=1)', (attempt['ip'],)).fetchone()
             or db.execute('SELECT 1 FROM shun_state WHERE device_id=? AND ip=? AND active=1',
                           (attempt['device_id'], attempt['ip'])).fetchone()
             or device_uncertain(db, attempt['device_id'])

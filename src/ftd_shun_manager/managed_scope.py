@@ -47,7 +47,7 @@ class ManagedRemovalScopes:
             raise ValueError("Protected policy is unavailable.")
         scope = {"ip": str(ip), "managed_initialized": state is not None,
                  "managed_revision": state["revision"] if state else 0, "protected_revision": revision[0],
-                 "protected": db.execute("SELECT 1 FROM protected_ips WHERE ip=? AND enabled=1", (ip.packed,)).fetchone() is not None,
+                 "protected": db.execute("SELECT 1 FROM (SELECT ? AS target) WHERE env_protected_ip(target) OR EXISTS(SELECT 1 FROM protected_ips WHERE ip=target AND enabled=1)", (ip.packed,)).fetchone() is not None,
                  "targets": [{"device_id": device, "hostname": devices[device]["hostname"],
                               "device_enabled": bool(devices[device]["enabled"]), "observed_present": device in observed,
                               "maintenance_enabled": bool(managed.get(device, {}).get("enabled", 0)),

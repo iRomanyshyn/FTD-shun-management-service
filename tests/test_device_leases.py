@@ -205,6 +205,44 @@ def test_read_only_expiry_also_requires_attention_and_survives_restart_retention
         db.execute("UPDATE managed_bulk_device_executors SET state='IDLE',owner=NULL,lease_until=NULL WHERE device_id=1")
 
 
+@pytest.mark.parametrize('revoked', [False, True])
+def test_expired_manual_removal_keeps_requester_and_original_device_epoch(bulk, leases, revoked):
+    from ipaddress import IPv4Address
+
+    from ftd_shun_manager.bulk_removals import BulkRemovals, BulkRemovalScopes, canonical_removal
+
+    with leases.store._connection() as db:
+        db.execute('UPDATE operation_executor SET mutations_suspended=0')
+    ip = IPv4Address('198.51.100.201')
+    leases.store.record_observed_shun(1, ip, 'management')
+    removals = BulkRemovals(leases.store, leases.queue)
+    requests = [str(uuid4())]
+    for key, actor in zip(requests, ['alice'], strict=True):
+        snapshot = BulkRemovalScopes(leases.store).snapshot(ip, device_id=1)
+        scope = {name: snapshot[name] for name in ('version', 'scope', 'ip', 'managed_revision', 'protected_revision', 'protected', 'targets')}
+        removals.admit(key, scope, canonical_removal(scope)[1], actor, actor.title(), ('Operator',), enabled=True)
+    token, queue = acquire(leases, seconds=10)
+    job = queue.claim_removal(1, token.owner, queue.cutoff())
+    assert job is not None
+    if revoked:
+        # Simulate an already revoked requester; its original uncertain command
+        # still needs an audit result, without renewing any request authority.
+        with leases.store._connection() as db:
+            db.execute("UPDATE operation_requests SET state='CANCELLED' WHERE id=?", (requests[0],))
+    bulk[1][0] += timedelta(seconds=11)
+    assert leases.claim(1, str(uuid4()), 135, enabled=True) is None
+    with leases.store._connection() as db:
+        assert db.execute('SELECT state FROM operation_jobs WHERE id=?', (job['id'],)).fetchone()[0] == 'UNVERIFIED'
+        for key in requests:
+            for kind in ['SHUN_OPERATION_UNVERIFIED', 'SHUN_REMOVE_FAILED']:
+                rows = db.execute('SELECT * FROM shun_events WHERE event_type=? AND request_id=?', (kind, key)).fetchall()
+                assert len(rows) == 1
+                assert json.loads(rows[0]['details_json'])['device_executor'] == {'owner': token.owner, 'epoch': token.epoch}
+        if revoked:
+            assert db.execute('SELECT state FROM operation_requests WHERE id=?', (requests[0],)).fetchone()[0] == 'CANCELLED'
+    assert leases.status()['devices'][0]['state'] == 'ATTENTION'
+
+
 def test_running_release_is_refused_and_renewal_changes_no_epoch(bulk, leases):
     grant(bulk, (1,))
     token, queue = acquire(leases)

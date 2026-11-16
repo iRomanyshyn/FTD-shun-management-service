@@ -38,9 +38,12 @@ may still maintain the address, unless the operator has stopped it.
   Known verified/no-op prefixes are retained. There must be no queued/awaiting
   work, other owned devices, unrelated unresolved outcomes, failed prefix or
   captured cancellation/ordered cleanup. Uncertain REMOVE is not supported.
-  Original terminal audit must retain its device/epoch attribution. A restart
-  that already reached ordinary expiry with unscoped terminal events still
-  refuses; do not reconstruct or backdate those events to pass this procedure.
+  Original terminal audit must retain its device/epoch attribution. Source0.15.2
+  records that attribution when ordinary lease expiry classifies RUNNING work,
+  including already revoked requesters, and timestamps the hold after its terminal
+  events. Before-checkpoint interruptions can therefore use this procedure after
+  expiry when all the other requirements hold. Older unscoped terminal events
+  still refuse; do not reconstruct or backdate them to pass the checks.
 - Use a trusted maintenance label, fresh UUIDs and a new backup path in an
   operator-owned0700 directory. Each apply checks a complete SQLite backup and
   unchanged DB; reviews expire after five minutes. Backups are never overwritten.
@@ -130,3 +133,25 @@ authority/audit prefix/all26 raw unknowns remained unchanged. Keep evidence and
 separate volumes at `/tmp/ftd-fpr-offline-20261113`. This is one real missing-proof
 case after completed END, not acceptance of every active interruption or an
 activation of persistent v7 on the main stack.
+
+## Before-checkpoint expiry acceptance — 2026-11-16
+
+A separate fresh test DB imported only198.51.100.180. A private crash bootstrap
+exited the real API after the agent's first stage ACK and before any checkpoint
+or END. The agent closed that SSH session. After the original lease deadline
+passed naturally, API restart classified the job UNVERIFIED and retained its
+original device/owner/epoch audit and ATTENTION hold. No successor SSH/ADD ran.
+
+Both test executors were stopped before the real offline CLI created two checked
+backups with fresh classification/reconciliation decisions. Classification retained
+the already-unknown job; reconciliation released only that original epoch. A new
+complete FPR read observed presence, without another ADD or invented completion
+receipt. A fresh reviewed removal then returned VERIFIED, retired the fixture's
+maintenance and left it absent. Four SSH visits contained exactly one ADD and one
+REMOVE. The original job remains UNVERIFIED in the separate experiment archive.
+
+Evidence: `/tmp/ftd-expiry-audit-20261116`, separate `expiry-audit` volumes and
+retained request/backup records. Original main policy/jobs/audit were preserved.
+This closes the newly generated ordinary-expiry audit case, including the real
+moving-clock boundary; it does not repair historical incomplete audit or accept
+every interruption, uncertain REMOVE or persistent main-v7 activation.

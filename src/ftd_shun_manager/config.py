@@ -113,6 +113,9 @@ class Settings:
 
     @classmethod
     def from_environment(cls) -> "Settings":
+        from .environment_protection import EnvironmentProtection
+
+        EnvironmentProtection.from_environment()  # Reject malformed deployment protection before starting.
         concurrency = environ.get('FTD_SHUN_AGENT_MAX_CONCURRENT_DEVICES', '1')
         if concurrency not in {str(number) for number in range(1, 11)}:
             raise ValueError('FTD_SHUN_AGENT_MAX_CONCURRENT_DEVICES must be a canonical integer 1-10')

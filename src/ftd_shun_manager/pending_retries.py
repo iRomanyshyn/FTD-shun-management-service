@@ -77,7 +77,7 @@ def retry_candidates(db, device_id, after=b''):
           AND t.enabled=1 AND t.intent_id=a.intent_id AND t.generation=a.generation
           AND t.authorization_request_id=a.authorization_request_id AND t.revision=a.target_revision
           AND NOT EXISTS(SELECT 1 FROM managed_bulk_cancellations c WHERE c.import_id=a.authorization_request_id)
-          AND NOT EXISTS(SELECT 1 FROM protected_ips p WHERE p.ip=a.ip AND p.enabled=1)
+          AND NOT (env_protected_ip(a.ip) OR EXISTS(SELECT 1 FROM protected_ips p WHERE p.ip=a.ip AND p.enabled=1))
           AND NOT EXISTS(SELECT 1 FROM managed_bulk_attempts newer WHERE newer.intent_id=a.intent_id
             AND newer.state='CONFIRMED_ABSENT' AND newer.requested_at>a.requested_at)
           AND NOT EXISTS(SELECT 1 FROM managed_bulk_pending_retries r

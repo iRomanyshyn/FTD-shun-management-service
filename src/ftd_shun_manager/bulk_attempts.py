@@ -172,7 +172,7 @@ class BulkAttempts:
                     or request['expires_at'] <= _stamp(now) or target['updated_at'] > started
                     or not target['enabled'] or mutations_suspended(db)
                     or not db.execute('SELECT 1 FROM devices WHERE id=? AND enabled=1', (job['device_id'],)).fetchone()
-                    or db.execute('SELECT 1 FROM protected_ips WHERE ip=? AND enabled=1', (job['ip'],)).fetchone()
+                    or db.execute('SELECT 1 FROM (SELECT ? AS target) WHERE env_protected_ip(target) OR EXISTS(SELECT 1 FROM protected_ips WHERE ip=target AND enabled=1)', (job['ip'],)).fetchone()
                     or db.execute('SELECT 1 FROM shun_state WHERE device_id=? AND ip=? AND active=1', (job['device_id'], job['ip'])).fetchone()):
                 raise QueueConflict('Lease, request, current policy or complete absence evidence is no longer valid.')
             if (db.execute("""SELECT 1 FROM managed_bulk_attempts WHERE device_id=? AND ip=?

@@ -18,6 +18,7 @@ class ExistingRuntimeStore(Store):
     def _connection(self):
         with closing(sqlite3.connect(self.path.absolute().as_uri() + '?mode=rw', uri=True)) as db:
             db.row_factory = sqlite3.Row
+            self.environment_protection.install(db)
             db.execute('PRAGMA foreign_keys=ON')
             db.execute('PRAGMA journal_mode=WAL')
             try:

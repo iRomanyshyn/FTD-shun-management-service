@@ -160,7 +160,8 @@ def classify_targets(store: Store, ips: list[IPv4Address], device_ids: list[int]
                 [*device_ids, *(ip.packed for ip in chunk)]))
         return {"preview_only": True, "can_execute": False, "policy_revision": revision,
                 "devices": [dict(device) for device in devices],
-                "addresses": [{"ip": str(ip), "protected": ip.packed in protected,
+                "addresses": [{"ip": str(ip), "protected": ip.packed in protected or store.environment_protection.contains(ip),
+                    "environment_protected": store.environment_protection.contains(ip),
                     "devices": [{"id": device["id"], "hostname": device["hostname"],
                         "already_shunned": (device["id"], ip.packed) in present} for device in devices]} for ip in ips]}
 
@@ -175,7 +176,8 @@ def summarize_preview(parsed: dict, classification: dict) -> dict:
         if row["status"] != "Ready" or address is None:
             continue
         if address["protected"]:
-            row.update(status="Protected", reason="Enabled Protected IP policy; excluded from addition candidates.")
+            row.update(status="Protected", reason=("Environment protection: this address is excluded from blocking. Configure FTD_SHUN_ENV_PROTECTED_NETWORKS in .env."
+                if address.get('environment_protected') else "Enabled Protected IP policy; excluded from addition candidates."))
         else:
             missing = sum(not device["already_shunned"] for device in address["devices"])
             pairs += missing

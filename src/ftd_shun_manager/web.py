@@ -219,6 +219,7 @@ def refresh_metadata(refresh: object) -> dict[str, object]:
         "bulk_policy_concurrent_enabled",
         "managed_execution_suspended",
         "managed_addition_controls",
+        "environment_protection",
         "bulk_import_cancellation_available",
         "managed_policy_retirement_available",
         "ready_removal_review_available",
@@ -303,6 +304,9 @@ def create_app(settings: Settings | None = None, *, ready_removal_admission_enab
             settings.agent_mode != 'socket' or settings.development_auth is not False
             or settings.agent_cycles_enabled is not True or settings.large_snapshots_enabled is not True)):
         raise ValueError('Standing Web consent requires a literal capability and compatible trusted identity/session mode.')
+    from .security_headers import browser_headers
+
+    response_policy = browser_headers(os.environ.get('AUTH_HOST'))
     app = FastAPI(title="FTD Shun Manager", docs_url=None, redoc_url=None, openapi_url=None)
     reviews = ImportReviews(settings.sensitive_action_max_age_seconds)
     managed_reviews = ManagedRemovalReviews(settings.sensitive_action_max_age_seconds)
@@ -314,6 +318,7 @@ def create_app(settings: Settings | None = None, *, ready_removal_admission_enab
     @app.middleware("http")
     async def prevent_state_caching(request: Request, call_next):
         response = await call_next(request)
+        response.headers.update(response_policy)
         if not request.url.path.startswith("/static/"):
             response.headers["Cache-Control"] = "no-store"
         return response
@@ -337,6 +342,16 @@ def create_app(settings: Settings | None = None, *, ready_removal_admission_enab
             target = None
         contexts, revision = read_contexts(settings.ip_context_cache_path, displayed_ips(context, target),
                                            with_revision=True, limit=1000)
+        from .environment_protection import EnvironmentProtection
+
+        guard_metadata = (context.get('refresh') or {}).get('environment_protection') or {}
+        guard = EnvironmentProtection.parse(','.join(guard_metadata.get('networks', [])))
+        context['environment_guard'] = guard
+        if context.get('trusted_policy_ips') is not None:
+            context['trusted_policy_ips'] = frozenset(context['trusted_policy_ips']) | frozenset(
+                entry['ip'] for entry in context.get('shuns', []) if guard.contains(entry['ip']))
+        if target and guard.contains(target):
+            context['is_trusted_policy_ip'] = True
         context.update(ip_context=contexts,
                        ip_context_target=target, ip_context_enabled=settings.ip_context_cache_path is not None)
         context['ip_context_location'] = any(info.get('provider') == 'ipfire-location-v1' for info in contexts.values())

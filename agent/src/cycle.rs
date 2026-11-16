@@ -1379,6 +1379,7 @@ mod tests {
             .enable_all()
             .build()?;
         let mut agent = Agent {
+            environment_protection: environment_protection::Protection::default(),
             sessions: Arc::new(sessions::Sessions::default()),
             devices: BTreeMap::from([(
                 1,
@@ -1491,6 +1492,7 @@ mod tests {
             .enable_all()
             .build()?;
         let mut agent = Agent {
+            environment_protection: environment_protection::Protection::default(),
             sessions: Arc::new(sessions::Sessions::default()),
             devices: BTreeMap::new(),
             credentials: credentials::Credentials::PerDevice(BTreeMap::new()),

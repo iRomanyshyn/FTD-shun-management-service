@@ -80,6 +80,108 @@ background bulk/cache work, distinct attribution and no page-triggered queries.
 Current provider remains IPFire; no Cymru activation or runtime change follows
 from this documentation update. See working-version-plan.md and manual/ip-context.md.
 
+## Current lab v0.15.2 — original-visit expiry audit, 2026-11-16
+
+Ordinary expired-device handling now records UNVERIFIED through the original
+device/owner/epoch queue, including revoked request audit, and timestamps ATTENTION
+after terminal events. Audit failure/backwards time rolls back the whole expiry.
+No lease/request renewal, successor, automatic unknown success or command replay.
+The existing explicit v7 offline procedure can inspect newly classified bounded
+before-checkpoint interruptions; historical unscoped audit still refuses repair.
+No schema/wire/agent/profile change. See manual/interrupted-v7-recovery.md.
+
+Full Python4100 pass/four optional skips823.98s; focused93 pass21.47s, Ruff/
+compileall/diff and actual configured v6/v7 API/agent preflights pass. Reproduced
+the old terminal-attribution failure, tested moving/backwards clocks, missing ACK,
+revoked requests,1/16/17/64-claim prefixes and atomic rollback. No new Rust/browser
+run: this increment changes neither agent nor frontend behavior.
+
+Separate fresh `expiry-audit` DB/sockets tested only198.51.100.180. Actual API
+exited86 after one stage ACK, before checkpoint/END; natural original lease expiry
+then retained unknown/ATTENTION. Real CLI/two checked backups/fresh decisions
+preserved the unknown and released only epoch2. Causal full read found presence
+without another ADD; fresh cleanup REMOVE VERIFIED, policy retired/fixture absent,
+executor4 IDLE. Four SSH visits/one ADD/one REMOVE. Test executors finally exited0;
+separate volumes/evidence/consumed keys are retained, not reusable authority.
+
+Original main v6 restored with27 authority hashes/audit prefix/all26 unknowns/
+32425 observations unchanged. API/Web-only delivery11:16:44Z now0.15.2/source
+`11265edf0bf7`, image`d1a9f5f2d01e...`; five other services retain exact restored
+identities/start times, scoped secrets/CA/Settings/Cymru unchanged. Package/build/
+footer/45 templates/66 routes/readonly cache/Web200/ten anonymous401/33 assets pass;
+fresh read11:17:10Z/errornone/integrityok. Main v7 remains off; no main policy/
+control/recovery/device mutation submitted. Exact images/receipts/private evidence:
+`/tmp/ftd-expiry-audit-20261116`; rollback API/Web tags
+`ftd-shun-{api,web}:lab-pre-expiry-audit-20261116`. Next bounded pause/protection/
+cancellation lifecycle acceptance, then planned per-import cleanup.
+
+## Previous lab v0.15.1 — service environments and browser headers, 2026-11-16
+
+API/Web0.15.1/source `a1a452bfea13`, image
+`sha256:ee688144ceb9961cd9127c6be761f7a93306ca1bb21beff671da77cb207fc2d6`,
+are deployed on the original v6 store. Five services were recreated10:38:29–30Z
+to remove common `.env` injection; only Authelia receives its session/storage
+secrets. Agent/Caddy/Authelia keep their previous image IDs and credential/secret/
+CA values. Feed/worker retain exact container/image/start identities and approved
+Cymru behavior. Keep explicit environment mappings when adding new settings.
+See manual/service-security.md; do not restore wholesale `env_file` injection.
+
+Workspace CSP disallows inline execution/framing and allows forms to return to
+the exact sign-in origin. Native dialogs/live updates pass. Caddy retains headers
+on error routes, preserves Authelia's own CSP and supplies HTTPS-only HSTS (lab1d,
+production example1y, no preload/includeSubDomains). Python290/74.66s plus final
+security/Compose24/1.59s, Chromium/Node111/206.41s, Ruff/compileall/JS/diff pass.
+Both final Caddy configurations validate; synthetic upstream502, actual TLS
+Auth200/application302 with spoofed identities rejected, API/agent nonexecuting
+preflights, package/build/footer/45 templates/66 routes/Web200/ten anonymous401/
+33 assets/actual readonly cache rendering pass. No new full Python/Rust or live
+authenticated-browser claim. Initial browser inline-style fixture failure fixed
+without relaxing CSP and the whole browser suite repeated clean.
+
+Old API/Web exited0; no RUNNING jobs/executor5052 IDLE before replacement.
+Integrityok/27 authority fingerprints/original audit prefix/all jobs including26
+unknowns/32425 observations unchanged; post-update read10:38:57Z/errornone,
+executor5053 IDLE. Effective API/Web Settings match exactly. No ADD/REMOVE/policy/
+control/recovery submission, schema/profile/trust/network change or v7 activation.
+Exact identities/private comparisons and rollback tags are recorded under
+`/tmp/ftd-service-isolation-20261116`. Next remains before-checkpoint lease-expiry
+audit recovery/lifecycle acceptance, then planned per-import cleanup.
+
+## Previous lab v0.15.0 — environment protection, 2026-11-16
+
+API/Web0.15.0/source8c41cf42152a and matching guarded agent are deployed on the
+original v6 store. `FTD_SHUN_ENV_PROTECTED_NETWORKS` is now active in private `.env`
+for eight private/loopback/link-local/special ranges. Preserve this separate
+read-only protection; exact-IP policy remains UI-owned. One known lab10.10.10.10
+rule was retired and one fresh system REMOVE VERIFIED; read09:34:28Z confirms
+absence, other32,427 target rows/original authority/all26 unknowns/audit prefix
+retained. No v7/profile activation or secret/trust/network change. Metadata/feed/
+edge services retain exact identities and approved Cymru behavior.
+Full clean dev install: Python4059 pass/four skips; Rust112+9+4/one ignored;
+Chromium/Node111 pass. Missing-device rendering/dev DNS dependency/README/CI fixed.
+All original full-run failures were fixed and the whole suite repeated clean.
+See current status/manual/environment-protection.md and `/tmp/ftd-env-protection-20261116`
+for exact images, checked private pre-update archive, new request/job and tests.
+Archive is evidence, not permission to restore old managed authority. Next isolate
+service environments/HTTP headers, then known before-checkpoint expiry audit gap/
+v7 lifecycle acceptance and per-import cleanup. No hosted CI or release/tag claim.
+
+## Web v0.14.2 — flat Status controls, 2026-11-13
+
+Scheduling now uses two aligned label/state/action rows, with equal-sized short
+Pause/Resume/Retry buttons and descriptive accessibility labels. Removed both
+nested card borders and obsolete CSS overrides; retained only the Status popover
+outline and a section divider. Independent controls and exact retry bodies remain.
+Python56 pass3.97s; Chromium two affected scenarios plus38 presentation checks and
+parent41 pass24.50s (69 skipped), including lost-reply retry and light/dark layouts
+at375/960/1440/1920px. Screenshots inspected; Ruff/compileall/JS/diff pass.
+Web-only rollout/package/build/footer/45 templates/66 routes/readonly API-cache
+preflight/Web200/ten anonymous401/33 served assets pass. Six other service
+identities,27 authority fingerprints, audit prefix/jobs and32426 observations
+unchanged; integrityok. No live control/device submission. Prepared v7 remains off.
+Evidence `/tmp/ftd-flat-status-20261113`; rollback
+`ftd-shun-web:lab-pre-flat-status-20261113`. Reload existing tabs.
+
 ## Web v0.14.1 lab — Status scheduling and compact navigation, 2026-11-13
 
 Import/restoration Pause and Resume now live together in **Status → Scheduling**

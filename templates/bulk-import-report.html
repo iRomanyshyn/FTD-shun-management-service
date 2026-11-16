@@ -34,7 +34,7 @@
 <div class="table-scroll"><table aria-label="Frozen bulk targets"><thead><tr><th>Device / IP</th><th>Planned action</th><th>State when reviewed</th></tr></thead><tbody>
 {% for target in draft.targets %}<tr{% if target.classification == 'EXCLUDED_PROTECTED' %} class="protected-shun"{% endif %}>
 <td>{% for device in draft.devices if device.id == target.device_id %}{{ device.hostname }}{% endfor %}<br>{{ ip_item(target.ip, ip_context) }}</td>
-<td>{{ classification(target.classification) }}</td>
+<td>{{ classification(target.classification) }}{% if target.classification == 'EXCLUDED_PROTECTED' and environment_guard is defined and environment_guard.contains(target.ip) %}<p class="cell-secondary">Deployment protection: <code>{{ environment_guard.rule(target.ip) }}</code>. Configure <code>FTD_SHUN_ENV_PROTECTED_NETWORKS</code> in <code>.env</code>.</p>{% endif %}</td>
 <td>{% if target.observed_at %}Observed <time class="local-timestamp" datetime="{{ target.observed_at }}">{{ target.observed_at }}</time>{% else %}Not observed at preparation{% endif %}<br>{{ 'Existing maintenance — preserve authority' if target.managed_enabled else 'No enabled maintenance at preparation' }}</td></tr>
 {% else %}<tr><td colspan="3">No target rows on this page. Diagnostics are retained below.</td></tr>{% endfor %}</tbody></table></div>
 <h2>Input issues and skipped entries</h2>

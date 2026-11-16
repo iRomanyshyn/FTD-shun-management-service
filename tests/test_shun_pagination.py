@@ -140,7 +140,8 @@ def test_api_and_bff_use_bounded_pages_preserve_query_and_remain_readonly(store,
             client.headers['Remote-User'] = 'viewer'
             result = await client.get('/?page=2&q=198.18.0.250')
             assert result.status_code == 200 and 'Page 2 of 3' in result.text
-            assert result.text.count('<tr') <= 103
+            observation_table = result.text.split('id="active-shuns"', 1)[1].split('</table>', 1)[0]
+            assert observation_table.count('<tr') == 101  # 100 observations plus their header.
             assert '198.18.0.250' in result.text.split('id="search-results"')[1].split('</section>')[0]
             assert 'href="/?page=3&amp;q=198.18.0.250"' in result.text
             assert 'name="q" value="198.18.0.250"' in result.text

@@ -469,7 +469,9 @@
         // explicit retry. Unrelated status polling must not turn it into a new request.
         if (!selected || actionPending?.sourceForm === controlForm) return;
         if (failedAction?.sourceForm === controlForm) {
-          controlForm.querySelector('button').textContent = `Retry ${new URL(failedAction.url).pathname.endsWith('/pause') ? 'pause' : 'resume'} request`;
+          const retry = controlForm.querySelector('button');
+          retry.textContent = 'Retry';
+          retry.setAttribute('aria-label', `Retry ${new URL(failedAction.url).pathname.endsWith('/pause') ? 'pause' : 'resume'} ${kind === 'imports' ? 'imports' : 'automatic restoration'} request`);
           return;
         }
         const state = item.querySelector('[data-control-state]');
@@ -482,7 +484,9 @@
             revision.value = selected.revision;
           }
           controlForm.action = `/managed-additions/${kind}/${selected.paused ? 'resume' : 'pause'}`;
-          controlForm.querySelector('button').textContent = `${selected.paused ? 'Resume' : 'Pause'} ${kind === 'imports' ? 'imports' : 'automatic restoration'}`;
+          const controlButton = controlForm.querySelector('button');
+          controlButton.textContent = selected.paused ? 'Resume' : 'Pause';
+          controlButton.setAttribute('aria-label', `${controlButton.textContent} ${kind === 'imports' ? 'imports' : 'automatic restoration'}`);
         }
       });
       const runtimeNotice = panel.querySelector("[data-runtime-notice]");

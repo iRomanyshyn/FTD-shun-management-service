@@ -3,7 +3,6 @@
 import asyncio
 import sqlite3
 from datetime import timedelta
-from types import SimpleNamespace
 
 import pytest
 from test_batch_queue import acknowledge, result
@@ -21,6 +20,7 @@ from test_device_leases import claim
 from ftd_shun_manager import result_storage
 from ftd_shun_manager.agent_protocol import PendingAddition
 from ftd_shun_manager.operation_queue import OperationQueue, QueueConflict
+from ftd_shun_manager.store import Store
 
 group = group_fixture
 bulk = bulk_fixture
@@ -44,7 +44,7 @@ def storage(tmp_path):
     with sqlite3.connect(path) as db:
         db.execute('PRAGMA journal_mode=WAL')
         db.execute('CREATE TABLE result (value INTEGER)')
-    return SimpleNamespace(path=path)
+    return Store(path)
 
 
 def test_real_competing_writer_retries_failed_begin_without_running_callback(storage, monkeypatch):

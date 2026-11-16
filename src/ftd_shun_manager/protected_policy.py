@@ -44,7 +44,35 @@ class ProtectedPolicy:
 
     def enabled_ips(self) -> frozenset[IPv4Address]:
         with self.store._connection() as db:
-            return frozenset(IPv4Address(row[0]) for row in db.execute("SELECT ip FROM protected_ips WHERE enabled=1"))
+            if not self.store.environment_protection.networks:
+                return frozenset(IPv4Address(row[0]) for row in db.execute('SELECT ip FROM protected_ips WHERE enabled=1'))
+            return frozenset(IPv4Address(row[0]) for row in db.execute("""SELECT ip FROM protected_ips WHERE enabled=1
+                UNION SELECT ip FROM shun_state WHERE active=1 AND env_protected_ip(ip)"""))
+
+    def retire_environment_managed(self) -> None:
+        """Bounded policy reconciliation after a real read, never on a GET/startup."""
+        if not self.store.environment_protection.networks:
+            return
+        from .environment_protection import ACTOR
+
+        retired = 0
+        with self.store._connection() as db:
+            db.execute('BEGIN IMMEDIATE')
+            state = self._managed_state(db)
+            if state is None:
+                return
+            rows = db.execute('''SELECT DISTINCT ip FROM managed_shun_targets
+                WHERE enabled=1 AND env_protected_ip(ip) ORDER BY ip LIMIT 256''').fetchall()
+            revision = db.execute('SELECT revision FROM protected_policy WHERE id=1').fetchone()[0]
+            for row in rows:
+                count = self._retire_managed(db, IPv4Address(row[0]), state, ACTOR,
+                    'Environment IP protection', (), str(uuid4()), revision)
+                retired += count
+                state = {**state, 'revision': state['revision'] + bool(count)}
+            if retired:
+                self.queue._cancel_obsolete_policy(db)
+        if retired:
+            print(json.dumps({'event': 'environment_protection.managed_retired', 'targets': retired}), flush=True)
 
     def revision(self) -> int:
         with self.store._connection() as db:

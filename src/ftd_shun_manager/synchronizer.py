@@ -511,6 +511,7 @@ class Synchronizer:
 
     def _publish_snapshot(self, device_id: int, snapshot) -> None:
         self.store.reconcile_snapshot(device_id, [(entry.ip, entry.interface) for entry in snapshot])
+        self.policy.retire_environment_managed()
         self.queue.reconcile_unknown(device_id, {entry.ip for entry in snapshot})
         self._device_success_at[device_id] = monotonic()
         self._devices[device_id] = {**self._devices.get(device_id, {}),
@@ -547,8 +548,17 @@ class Synchronizer:
         for ip in ips:
             if not self.queue.has_target(device_id, ip):
                 try:
-                    self.queue.enqueue(str(uuid4()), [(device_id, ip)], "system:trusted-ip-policy",
-                                       "Trusted IP policy", (), source="trusted_policy")
+                    from .environment_protection import ACTOR
+
+                    rule = self.store.environment_protection.rule(ip)
+                    request_id = str(uuid4())
+                    self.queue.enqueue(request_id, [(device_id, ip)],
+                        ACTOR if rule else "system:trusted-ip-policy",
+                        "Environment IP protection" if rule else "Trusted IP policy", (), source="trusted_policy")
+                    if rule:
+                        print(json.dumps({'event': 'environment_protection.shun_detected',
+                            'device_id': device_id, 'ip': str(ip), 'network': rule,
+                            'request_id': request_id, 'action': 'unblock_queued'}), flush=True)
                 except (QueueFull, QueueConflict):
                     break
 

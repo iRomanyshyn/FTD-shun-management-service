@@ -204,15 +204,7 @@ def classify(db, store, device_id, key, actor, reviewed_at, review_digest, *, of
         interrupted = [job for job in jobs if job['state'] == 'RUNNING']
         for job in interrupted:
             reason = 'Offline interrupted v7 visit; original ADD outcome remains unknown'
-            request = db.execute('''SELECT r.* FROM operation_requests r JOIN managed_bulk_attempts a ON a.id=r.id
-                WHERE a.job_id=?''', (job['id'],)).fetchone()
-            queue._finish(db, job, 'UNVERIFIED', reason)
-            if request['state'] == 'CANCELLED':
-                # Terminal audit for the original revoked request, not renewed
-                # execution authority. Ordinary finishing omits cancelled links.
-                queue._event(db, 'SHUN_OPERATION_UNVERIFIED', request, job, {'reason': reason, 'offline_classification': key})
-                queue._event(db, 'SHUN_ADD_FAILED', request, job,
-                             {'reason': reason, 'outcome': 'UNVERIFIED', 'offline_classification': key})
+            queue._finish_interrupted(db, job, reason, details={'offline_classification': key})
         if fence['state'] == 'LEASED':
             db.execute("UPDATE managed_bulk_device_executors SET state='ATTENTION',updated_at=? WHERE device_id=?",
                        (stamp(current), device_id))

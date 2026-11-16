@@ -10,6 +10,7 @@ mod cli_timing;
 mod credentials;
 mod cycle;
 mod dispatch;
+mod environment_protection;
 mod pending_journal;
 mod sessions;
 mod shutdown;
@@ -59,6 +60,7 @@ const FTD_PROMPT: &[u8] = b"> ";
 
 #[derive(Clone)]
 struct Agent {
+    environment_protection: environment_protection::Protection,
     sessions: Arc<sessions::Sessions>,
     devices: BTreeMap<u16, Device>,
     credentials: credentials::Credentials,
@@ -240,6 +242,7 @@ impl Agent {
 
         Ok((
             Self {
+                environment_protection: environment_protection::Protection::from_environment()?,
                 sessions: Arc::new(sessions::Sessions::default()),
                 credentials: credentials::Credentials::from_environment(
                     &devices.keys().copied().collect(),
@@ -316,6 +319,7 @@ impl Agent {
             &credential.username,
             password.as_str(),
             inactivity_timeout,
+            self.environment_protection.clone(),
         )
         .await
     }
@@ -337,6 +341,7 @@ impl client::Handler for HostKeyVerifier {
 }
 
 struct SshSession {
+    environment_protection: environment_protection::Protection,
     handle: client::Handle<HostKeyVerifier>,
     channel: Channel<client::Msg>,
     large_snapshots: bool,
@@ -374,6 +379,7 @@ impl SshSession {
         username: &str,
         password: &str,
         inactivity_timeout: Duration,
+        environment_protection: environment_protection::Protection,
     ) -> Result<Self> {
         let configuration = Self::configuration(inactivity_timeout);
         let mut handle = timeout(
@@ -421,6 +427,7 @@ impl SshSession {
             .context("FTD initial shell prompt timed out")??;
 
         Ok(Self {
+            environment_protection,
             handle,
             channel,
             large_snapshots: false,
@@ -467,7 +474,10 @@ impl SshSession {
         let command = match operation {
             CiscoOperation::ListShuns => "show shun".to_owned(),
             CiscoOperation::ShowShun(target) => format!("{SHOW_SHUN_PREFIX}{target}"),
-            CiscoOperation::AddShun(target) => format!("shun {target}"),
+            CiscoOperation::AddShun(target) => {
+                self.environment_protection.require_add(target)?;
+                format!("shun {target}")
+            }
             CiscoOperation::RemoveShun { target, interface } => {
                 format!("{REMOVE_SHUN_PREFIX}{target} interface {interface}")
             }
@@ -1288,6 +1298,7 @@ mod tests {
             "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
         )?;
         Ok(Agent {
+            environment_protection: environment_protection::Protection::default(),
             sessions: Arc::new(sessions::Sessions::default()),
             devices: [1, 2, 3]
                 .into_iter()

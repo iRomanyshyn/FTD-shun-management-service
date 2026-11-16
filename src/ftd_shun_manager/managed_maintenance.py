@@ -186,7 +186,7 @@ def review(db, action, *, reviewed_at=None, now=None):
             if cleanup_blocked:
                 blockers.append("Unfinished or attention cleanup requires separate resolution.")
         rows = db.execute("""SELECT t.*, d.hostname,d.enabled AS device_enabled,r.actor_subject,r.payload_json,
-            EXISTS(SELECT 1 FROM protected_ips p WHERE p.ip=t.ip AND p.enabled=1) AS protected
+            (env_protected_ip(t.ip) OR EXISTS(SELECT 1 FROM protected_ips p WHERE p.ip=t.ip AND p.enabled=1)) AS protected
             FROM managed_shun_targets t JOIN devices d ON d.id=t.device_id
             JOIN managed_shun_requests r ON r.id=t.authorization_request_id WHERE t.enabled=1
             ORDER BY t.device_id,t.ip""").fetchall()
@@ -323,6 +323,7 @@ def main(argv=None):
         if readonly:
             with closing(sqlite3.connect(args.database.resolve(strict=True).as_uri() + "?mode=ro", uri=True)) as db:
                 db.row_factory = sqlite3.Row
+                Store(args.database).environment_protection.install(db)
                 db.execute("BEGIN")
                 if db.execute("PRAGMA quick_check").fetchone()[0] != "ok" or db.execute("PRAGMA foreign_key_check").fetchall():
                     raise ValueError("Database integrity checks failed.")

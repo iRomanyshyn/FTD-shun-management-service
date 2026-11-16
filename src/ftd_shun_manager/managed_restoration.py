@@ -161,7 +161,7 @@ def authority_valid(db, attempt):
             and not pair_abandoned(db, attempt["device_id"], IPv4Address(attempt["ip"]))
             and not db.execute("SELECT 1 FROM managed_restoration_attempts WHERE device_id=? AND ip=? AND state IN ('FAILED','UNVERIFIED')",
                                (attempt["device_id"], attempt["ip"])).fetchone()
-            and not db.execute("SELECT 1 FROM protected_ips WHERE ip=? AND enabled=1", (attempt["ip"],)).fetchone()
+            and not db.execute("SELECT 1 FROM (SELECT ? AS target) WHERE env_protected_ip(target) OR EXISTS(SELECT 1 FROM protected_ips WHERE ip=target AND enabled=1)", (attempt["ip"],)).fetchone()
             and not fleet_target_held(db, attempt["device_id"], IPv4Address(attempt["ip"]), attention=True)
             and not (db.execute("SELECT 1 FROM sqlite_master WHERE name='managed_removal_handoffs'").fetchone()
                      and db.execute("SELECT 1 FROM managed_removal_handoffs WHERE device_id=? AND ip=? AND state IN ('WAITING_ADD','ATTENTION')",

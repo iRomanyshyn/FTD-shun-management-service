@@ -21,7 +21,7 @@ def targets(db, device_id=None):
     if managed_state(db) is None:
         return []
     return db.execute("""SELECT t.*,d.enabled AS device_enabled,
-        EXISTS(SELECT 1 FROM protected_ips p WHERE p.ip=t.ip AND p.enabled=1) AS protected,
+        (env_protected_ip(t.ip) OR EXISTS(SELECT 1 FROM protected_ips p WHERE p.ip=t.ip AND p.enabled=1)) AS protected,
         EXISTS(SELECT 1 FROM shun_state s WHERE s.device_id=t.device_id AND s.ip=t.ip AND s.active=1) AS observed_present
         FROM managed_shun_targets t JOIN devices d ON d.id=t.device_id
         WHERE (? IS NULL OR t.device_id=?) ORDER BY t.device_id,t.ip LIMIT 1001""", (device_id, device_id)).fetchall()

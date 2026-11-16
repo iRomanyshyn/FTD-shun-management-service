@@ -15,7 +15,7 @@ _VIEW = '''WITH scope AS (
              WHEN t.intent_id!=m.intent_id OR t.generation!=m.generation
                  OR t.authorization_request_id!=m.authorization_request_id THEN 'SUPERSEDED'
              WHEN t.enabled=0 THEN 'STOPPED'
-             WHEN EXISTS(SELECT 1 FROM protected_ips p WHERE p.ip=m.ip AND p.enabled=1) THEN 'PROTECTED'
+             WHEN (env_protected_ip(m.ip) OR EXISTS(SELECT 1 FROM protected_ips p WHERE p.ip=m.ip AND p.enabled=1)) THEN 'PROTECTED'
              WHEN d.enabled=0 THEN 'DEVICE_DISABLED'
              WHEN EXISTS(SELECT 1 FROM operation_jobs j WHERE j.device_id=m.device_id AND j.ip=m.ip
                  AND (j.action='ADD' OR j.state='UNVERIFIED')) THEN 'EVIDENCE_REVIEW'

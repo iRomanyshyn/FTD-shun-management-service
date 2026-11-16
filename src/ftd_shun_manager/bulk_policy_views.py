@@ -19,6 +19,7 @@ class BulkPolicyViews:
         # mode=ro also refuses an absent/deleted database without creating it.
         db = sqlite3.connect(self.store.path.resolve().as_uri() + '?mode=ro', uri=True)
         db.row_factory = sqlite3.Row
+        self.store.environment_protection.install(db)
         try:
             db.execute('BEGIN')
             yield db
@@ -77,7 +78,7 @@ class BulkPolicyViews:
         return db.execute('''SELECT t.*,d.hostname,d.enabled AS device_enabled,r.actor_subject,
             r.actor_display_name,r.actor_roles_json,
             EXISTS(SELECT 1 FROM shun_state s WHERE s.device_id=t.device_id AND s.ip=t.ip AND s.active=1) AS observed_present,
-            EXISTS(SELECT 1 FROM protected_ips p WHERE p.ip=t.ip AND p.enabled=1) AS protected
+            (env_protected_ip(t.ip) OR EXISTS(SELECT 1 FROM protected_ips p WHERE p.ip=t.ip AND p.enabled=1)) AS protected
             FROM managed_shun_targets t JOIN devices d ON d.id=t.device_id
             JOIN managed_shun_requests r ON r.id=t.authorization_request_id ''' + suffix, parameters).fetchall()
 

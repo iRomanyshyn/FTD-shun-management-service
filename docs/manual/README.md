@@ -21,6 +21,8 @@ not a runbook or permission to change gates, initialize schemas or run new fixtu
 | Manual | Purpose |
 | --- | --- |
 | [System Architecture and Data Formats](system-architecture.md) | Current component/storage diagrams, trust boundaries, database ownership and formats on every connection; deployed v6 distinguished from prepared v7. |
+| [Environment IP Protection](environment-protection.md) | Read-only `.env` IPv4/CIDR guards, import exclusions, automatic queued unblocking and structured result logs. |
+| [Service and Browser Security](service-security.md) | Explicit service environment boundaries, authentication-only secrets, CSP/HTTPS headers and existing-lab update checks. |
 | [Development](development.md) | Local setup, test commands, and mock agent boundaries. |
 | [Fresh Working-Version Lab](fresh-development.md) | Non-overwriting verified setup, optional deferred development storage, configured managed API/Web and lab cutover. |
 | [Working-Version Plan](../working-version-plan.md) | Agreed product behavior, working-version priorities, implementation gaps and deferred SMTP notifications; not yet an operating procedure. |

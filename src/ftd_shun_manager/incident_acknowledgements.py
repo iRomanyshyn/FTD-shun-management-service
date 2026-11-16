@@ -11,6 +11,7 @@ from ipaddress import IPv4Address
 from pathlib import Path
 from uuid import UUID, uuid4
 
+from .environment_protection import EnvironmentProtection
 from .maintenance import _actor, checked_offline
 from .managed_maintenance import _hash, _time
 from .operation_queue import stamp
@@ -315,6 +316,7 @@ def main(argv=None):
         if readonly:
             with closing(sqlite3.connect(args.database.resolve(strict=True).as_uri() + "?mode=ro", uri=True)) as db:
                 db.row_factory = sqlite3.Row
+                EnvironmentProtection.from_environment().install(db)
                 db.execute("BEGIN")
                 if db.execute("PRAGMA quick_check").fetchone()[0] != "ok" or db.execute("PRAGMA foreign_key_check").fetchall():
                     raise ValueError("Database integrity checks failed.")

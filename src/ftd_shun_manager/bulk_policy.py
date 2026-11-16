@@ -521,7 +521,7 @@ class BulkPolicies:
     @staticmethod
     def _validate_current(db, plan_id):
         cursor = db.execute('''SELECT p.*,t.enabled,t.intent_id,t.generation,t.authorization_request_id,
-            EXISTS(SELECT 1 FROM protected_ips q WHERE q.ip=p.ip AND q.enabled=1) AS protected,
+            (env_protected_ip(p.ip) OR EXISTS(SELECT 1 FROM protected_ips q WHERE q.ip=p.ip AND q.enabled=1)) AS protected,
             EXISTS(SELECT 1 FROM shun_state s WHERE s.device_id=p.device_id AND s.ip=p.ip AND s.active=1) AS observed
             FROM import_preparation_targets p LEFT JOIN managed_shun_targets t ON t.device_id=p.device_id AND t.ip=p.ip
             WHERE p.plan_id=? ORDER BY p.device_id,p.ip''', (plan_id,))

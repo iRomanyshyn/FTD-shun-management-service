@@ -55,7 +55,7 @@ def _context(db, device, ip, initialized):
                            "not_registered" if initialized else "not_initialized",
             "current_intent_id": target["intent_id"] if target else None,
             "current_generation": target["generation"] if target else None,
-            "protected": db.execute("SELECT 1 FROM protected_ips WHERE ip=? AND enabled=1", (ip.packed,)).fetchone() is not None,
+            "protected": db.execute("SELECT 1 FROM (SELECT ? AS target) WHERE env_protected_ip(target) OR EXISTS(SELECT 1 FROM protected_ips WHERE ip=target AND enabled=1)", (ip.packed,)).fetchone() is not None,
             "cached_present": bool(observed["n"]), "cached_active_interface_count": observed["n"],
             "cached_last_seen_at": last_seen, "observation_basis": "cached_not_write_verification",
             "incident_isolated": pair_isolated(db, device, ip)}

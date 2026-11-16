@@ -256,7 +256,7 @@ class ManagedShuns:
                 device = db.execute("SELECT enabled FROM devices WHERE id=?", (device_id,)).fetchone()
                 if device is None or not device[0]:
                     raise ManagedConflict("Unknown or disabled managed target device.")
-                if db.execute("SELECT 1 FROM protected_ips WHERE ip=? AND enabled=1", (ip.packed,)).fetchone():
+                if db.execute("SELECT 1 FROM (SELECT ? AS target) WHERE env_protected_ip(target) OR EXISTS(SELECT 1 FROM protected_ips WHERE ip=target AND enabled=1)", (ip.packed,)).fetchone():
                     raise ManagedConflict("Enabled Protected IPs cannot be maintained as shuns.")
                 observed = db.execute(
                     "SELECT 1 FROM shun_state WHERE device_id=? AND ip=? AND active=1",
@@ -355,7 +355,7 @@ class ManagedShuns:
             rows = db.execute("""SELECT m.*,d.hostname,d.enabled AS device_enabled,
                 r.actor_subject,r.actor_display_name,r.actor_roles_json,r.payload_json,
                 EXISTS(SELECT 1 FROM shun_state s WHERE s.device_id=m.device_id AND s.ip=m.ip AND s.active=1) AS observed_present,
-                EXISTS(SELECT 1 FROM protected_ips p WHERE p.ip=m.ip AND p.enabled=1) AS protected
+                (env_protected_ip(m.ip) OR EXISTS(SELECT 1 FROM protected_ips p WHERE p.ip=m.ip AND p.enabled=1)) AS protected
                 FROM managed_shun_targets m JOIN devices d ON d.id=m.device_id
                 JOIN managed_shun_requests r ON r.id=m.authorization_request_id
                 ORDER BY m.device_id,m.ip LIMIT ?""", (MAX_MANAGED_TARGETS + 1,)).fetchall()
@@ -413,7 +413,7 @@ class ManagedShuns:
                     rows = db.execute(cte + """SELECT m.*,d.hostname,d.enabled AS device_enabled,
                         r.actor_subject,r.actor_display_name,r.actor_roles_json,r.payload_json,
                         EXISTS(SELECT 1 FROM shun_state s WHERE s.device_id=m.device_id AND s.ip=m.ip AND s.active=1) AS observed_present,
-                        EXISTS(SELECT 1 FROM protected_ips p WHERE p.ip=m.ip AND p.enabled=1) AS protected
+                        (env_protected_ip(m.ip) OR EXISTS(SELECT 1 FROM protected_ips p WHERE p.ip=m.ip AND p.enabled=1)) AS protected
                         FROM managed_shun_targets m JOIN selected x ON x.device_id=m.device_id AND x.ip=m.ip
                         JOIN devices d ON d.id=m.device_id JOIN managed_shun_requests r ON r.id=m.authorization_request_id
                         ORDER BY m.device_id,m.ip LIMIT 100""", parameters).fetchall()
@@ -464,7 +464,7 @@ class ManagedShuns:
                 rows = db.execute("""SELECT m.*,d.hostname,d.enabled AS device_enabled,
                     r.actor_subject,r.actor_display_name,r.actor_roles_json,r.payload_json,
                     EXISTS(SELECT 1 FROM shun_state s WHERE s.device_id=m.device_id AND s.ip=m.ip AND s.active=1) AS observed_present,
-                    EXISTS(SELECT 1 FROM protected_ips p WHERE p.ip=m.ip AND p.enabled=1) AS protected
+                    (env_protected_ip(m.ip) OR EXISTS(SELECT 1 FROM protected_ips p WHERE p.ip=m.ip AND p.enabled=1)) AS protected
                     FROM managed_shun_targets m JOIN devices d ON d.id=m.device_id
                     JOIN managed_shun_requests r ON r.id=m.authorization_request_id
                     ORDER BY m.device_id,m.ip LIMIT 100 OFFSET ?""", ((page - 1) * 100,)).fetchall()

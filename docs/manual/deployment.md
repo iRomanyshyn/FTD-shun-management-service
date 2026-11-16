@@ -243,7 +243,7 @@ immediate-write API alongside the new executor.
 
 The optional single-session protocol requires the new Rust agent as well as
 API/Web. `FTD_SHUN_AGENT_CYCLES_ENABLED` defaults to `false`; the existing
-Compose `env_file` passes it to both API and agent without a topology change.
+Compose explicitly maps it to API and agent without a topology change.
 Keep it false outside an explicitly approved run of the
 [cycle lab procedure](agent-cycle-protocol.md#migration-and-laboratory-validation)
 in a non-production environment; complete that validation before wider use. A flag/version
@@ -253,7 +253,7 @@ executor before upgrading; no independent writers may share the agent.
 The separate [Large Snapshots](large-snapshots.md) flag
 `FTD_SHUN_LARGE_SNAPSHOTS_ENABLED` also defaults to false. Upgrade API/agent
 together before lab opt-in; Web does not require a rebuild for this extension.
-Existing `env_file` passes it without a Compose topology change. It selects
+The explicit service environment maps it without a topology change. It selects
 bounded multi-frame reads and cycle v2, not an ADD/import capability. Preserve
 paired images and a SQLite-safe backup; the legacy rollback restores its old
 size limits and cannot safely monitor an already oversized device population.

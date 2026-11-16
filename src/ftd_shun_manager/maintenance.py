@@ -158,8 +158,10 @@ def checked_offline(database: Path, backup: Path, control) -> dict:
     if mode.st_uid != os.getuid() or stat.S_IMODE(mode.st_mode) & 0o077:
         raise ValueError("Backup directory must be owned by this operator and private (0700).")
     backup_path = parent / backup.name
+    store = Store(source_path)
     with closing(sqlite3.connect(source_path.as_uri() + "?mode=rw", uri=True)) as db, db:
         db.row_factory = sqlite3.Row
+        store.environment_protection.install(db)
         db.execute("PRAGMA foreign_keys=ON")
         if db.execute("PRAGMA quick_check").fetchone()[0] != "ok" or db.execute("PRAGMA foreign_key_check").fetchall():
             raise ValueError("Database integrity checks failed; no recovery mutation was performed.")
@@ -174,7 +176,7 @@ def checked_offline(database: Path, backup: Path, control) -> dict:
         db.execute("BEGIN IMMEDIATE")
         if db.execute("PRAGMA data_version").fetchone()[0] != version:
             raise ValueError("Another process committed during backup. Stop writers; backup retained, no recovery mutation performed.")
-        result = control(db, Store(source_path))
+        result = control(db, store)
     return {**result, "backup": str(backup_path)}
 
 
