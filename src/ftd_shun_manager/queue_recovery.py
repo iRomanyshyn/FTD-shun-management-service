@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 
 from .bulk_policy import _state
 from .device_reconciliation import _review
+from .import_unblocks import ActiveImportCleanup
 
 
 def report(store, *, now=None):
@@ -39,6 +40,7 @@ def report(store, *, now=None):
                                 reason='A separate stopped-executor v7 recovery review is available. Original outcomes stay unknown.')
                 except ValueError as error:
                     item['reason'] = str(error)
+                    item['import_cleanup_blocked']=isinstance(error,ActiveImportCleanup)
                 item['lab_assistance'] = False  # Never advertise the verified-v6 host helper for this profile.
                 devices.append(item)
                 continue
@@ -51,6 +53,7 @@ def report(store, *, now=None):
                     except ValueError as error:
                         if not extended:
                             item['reason'] = str(error)
+                        if isinstance(error,ActiveImportCleanup):item['import_cleanup_blocked']=True
                         continue
                     item.update(eligible=True, extended_v6=extended, claims=len(reviewed['claims']),
                                 unknown=sum(c['state'] == 'UNVERIFIED' for c in reviewed['claims']), reason=None)
@@ -59,5 +62,13 @@ def report(store, *, now=None):
                 item['reason'] = 'No expired held session needs reconciliation.'
             item['lab_assistance'] = item['eligible'] and len(rows) == 1 and row['hostname'] == 'fpr1010-lab'
             devices.append(item)
-        return {'supported': True, 'devices': devices, 'read_only': True,
+        cleanup_tasks=[]
+        from .import_unblocks import present as cleanup_present
+        if any(item.get('import_cleanup_blocked') for item in devices) and cleanup_present(db):
+            from .import_ownership import import_labels
+
+            roots=db.execute("SELECT id,import_id FROM managed_import_unblocks WHERE state='ACTIVE' ORDER BY requested_at,id LIMIT 20").fetchall()
+            labels=import_labels(db,[root['import_id'] for root in roots])
+            cleanup_tasks=[{'id':root['id'],'label':labels[root['import_id']]['label']} for root in roots]
+        return {'supported': True, 'devices': devices, 'read_only': True, 'import_cleanup_tasks':cleanup_tasks,
                 'execution_available': False, 'host_assistance_required': True}

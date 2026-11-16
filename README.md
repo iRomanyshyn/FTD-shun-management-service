@@ -37,16 +37,14 @@ for the complete component/storage diagram and concrete payload formats.
 
 ## Current delivery boundary
 
-Web **0.17.0** unifies typography and opens contextual **?** help in local dialogs.
-See the [Operator Workspace](docs/manual/operator-workspace.md). The lab API remains
-**0.16.0**, which added [current import addresses](docs/manual/import-ownership.md):
-readable provenance links, complete ownership counts and 100-row pages with existing
-per-IP unblock reviews. Whole-import unblocking remains the next execution slice.
-The earlier original-session expiry audit and bounded recovery/lifecycle acceptance
-remain; see [Interrupted Import Recovery](docs/manual/interrupted-v7-recovery.md).
-Service environment isolation, browser headers and deployment IP protection remain.
-Consult [Project Status](docs/project-status.md) for exact deployed
-images, validation and limitations; a source version does not deploy itself.
+API/Web **0.18.1** include current-import ownership and confirmed whole-import
+unblocking, with rolling verified removal, progress and cancellation. Recovery
+refuses to bypass active cleanup and links its task for an explicit decision.
+Shared typography and local **?** help remain. See
+[Import Unblocking](docs/manual/import-unblocking.md) and
+[Interrupted Import Recovery](docs/manual/interrupted-v7-recovery.md).
+Consult [Project Status](docs/project-status.md) for exact deployed images,
+validation and limitations; a source version does not deploy itself.
 
 The current lab uses the continuous managed runtime with tracked v6 SSH visits.
 Deferred confirmation after a later complete `show shun` read is implemented and
@@ -54,10 +52,11 @@ has bounded separate-profile interruption/lifecycle acceptance, but persistent v
 activation and wider scale/multi-device acceptance remain pending. An uncertain historical
 operation is retained in audit; a later observation does not prove who created it.
 
-Next functional work is [unblocking one import's currently owned targets](docs/working-version-plan.md#81-unblock-imported-ips--planned-approved-2026-11-12)
-after import/recovery stabilization. Whole-managed cleanup and email/Teams alerts
-are later increments. The [Working-Version Plan](docs/working-version-plan.md)
-records the agreed behavior; it is not a deployment procedure.
+Next work is deferred-import failure/lifecycle validation, measured throughput and
+deliberate selection of a fresh deferred profile. Whole-managed cleanup and
+email/Teams alerts are later increments. The
+[Working-Version Plan](docs/working-version-plan.md) records agreed behavior;
+it is not a deployment procedure.
 
 ## Run the lab
 

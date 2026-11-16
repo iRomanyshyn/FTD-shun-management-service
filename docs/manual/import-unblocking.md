@@ -43,6 +43,12 @@ before the matching removal is delegated. Unknown or failed command results rema
 visible for attention; they are never blindly repeated or called successful from
 a later observation. Existing recovery procedures still apply.
 
+Offline epoch recovery is unavailable while an import cleanup is active, even
+before its first removal is delegated. Recovery guidance links the active task.
+If it cannot settle normally, inspect/cancel its remaining work, then obtain a
+separate fresh recovery review. Cancelling cleanup does not resolve the original
+uncertain command. Exact completed-session recovery remains available.
+
 The task owner or an Administrator can choose **Cancel remaining removals** from
 Queue or the task page. Already-started commands finish and retain their actual
 results. Independent requests, including Protected-IP unblocking sharing the same

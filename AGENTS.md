@@ -61,6 +61,26 @@ invent successful results, alter credentials/trust or silently erase the dataset
   require explicit quiescent initialization of the optional control profile;
   startup/GET must not add it. Old writers refuse this profile.
 
+## Latest acceptance checkpoint — v0.18.1 unchanged, 2026-11-16
+
+Fresh separate v7 profile accepted33 ADDs (198.51.100.96–128) in one123.230s SSH
+visit, groups16/16/1;32 VERIFIED and final1 OBSERVED_PRESENT after the causal read.
+Last confirmation131.687s after mutation visit start,190.792s after acceptance
+including normal freshness spacing. CLI/preflight waits dominate; no per-IP login,
+callback injection or forced refresh. Fresh whole-import cleanup verified all33
+removals; restart/read retained absence/retirement,66 terminal jobs and original
+32,425 observation keys. Consumed evidence/DB/journal/volumes remain under
+`/tmp/ftd-throughput-v7-20261116`; never replay that authority.
+
+Original main v6 containers/images/settings restored unchanged: API/Web0.18.1,
+sourceac2ddaffc0be, deferredoff. Integrityok,29 authority hashes/audit prefix/jobs/
+26 reviewed unknowns/drafts/roots retained; read18:43:20Z/errornone/epoch5143 IDLE.
+Four unrelated service identities/start times, secrets/trust/CA/Cymru unchanged.
+Installed package/footer/templates/routes/assets/auth/TLS checks pass. No code
+delivery/version bump or new broad suite claimed. See current status and
+manual/deferred-confirmation.md. Larger-root/failure/multi-device acceptance and
+deliberate fresh-profile selection remain; no persistent main-v7 activation.
+
 ## Next priorities — operator reminder, 2026-11-12
 
 The operator subsequently approved planning **Unblock imported IPs…**: after
@@ -82,6 +102,30 @@ supplement for missing IPFire ASN/network context after that slice. Use bounded
 background bulk/cache work, distinct attribution and no page-triggered queries.
 Current provider remains IPFire; no Cymru activation or runtime change follows
 from this documentation update. See working-version-plan.md and manual/ip-context.md.
+
+## Current lab v0.18.1 — cleanup/recovery coordination, 2026-11-16
+
+API/Web0.18.1/sourceac2ddaffc0be/image3f95535bac3f delivered18:15:47Z.
+Offline epoch recovery/classification must refuse ACTIVE import-cleanup authority,
+including before any REMOVE delegation. Healthy live visits must not be reported
+as cleanup recovery problems. Report links are query-only; cancellation never
+resolves unknowns or resumes maintenance. Exact proof handoff remains available.
+No schema/wire/default/settings/role/secret/trust/network change; main stillv6/v7 off.
+
+Full Python4155 pass/four skips926.43s; Browser116 pass230.04s; Rust112+9+4 pass/
+one ignored/Clippy/fmt pass. Separate .186–187 deferred FPR acceptance submitted
+normal cleanup consent at real first ACK: second ADD cancelled unsent, first pending
+handoff/causal read then verified removal, second NOOP. COMPLETE/restart/no resurrection/
+original device keys retained. Test executors exited0; consumed keys/DB/journal remain
+private, not reusable. Accepted sourcea811 before final healthy-guidance refinement;
+final source tests cover it. See current status/manual/deferred-confirmation.md.
+
+Original29 authority hashes/audit/jobs including26 reviewed unknowns/32425 observations/
+Settings/CA/Cymru retained. Same original agent ID/image restored; four other service
+start identities unchanged. Package/build/footer/routes/cache/auth/TLS pass. No main
+semantic/recovery/control request, production or release/tag. Evidence
+`/tmp/ftd-cleanup-v7-20261116`; next measured deferred load/failure and deliberate
+fresh-profile cutover. Do not claim persistent v7 or large/multi-device acceptance.
 
 ## Current lab v0.18.0 — confirmed import cleanup, 2026-11-16
 

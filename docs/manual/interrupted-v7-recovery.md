@@ -27,6 +27,19 @@ Expired/cancelled original requests stay revoked. Recording their unknown termin
 outcome does not renew execution permission. The separate policy-only authority
 may still maintain the address, unless the operator has stopped it.
 
+## Active import cleanup
+
+If **Check and resume import** reports an active import cleanup, open its task
+link. Settle it normally or explicitly cancel remaining removals before requesting
+an offline recovery review. This exclusion also applies before any child REMOVE
+has been queued. Cancellation leaves restoration off and does not resolve the
+interrupted ADD; it merely removes that task's future removal authority. Recheck
+recovery status, then follow the original stopped-executor procedure below.
+
+The restriction applies to the fallback without completion proof. Normal recovery
+using an exact settled agent receipt can still hand off to causal confirmation,
+which can then allow the already-authorized cleanup.
+
 ## Preconditions
 
 - Actually stop API/Web/agent and ensure previous SSH/CLI work has settled. A stop

@@ -3,6 +3,23 @@
 Agreed with the operator: 2026-10-20.
 Status: approved target behavior and delivery plan; not a deployment procedure.
 
+Measured v0.18.1 acceptance (2026-11-16): 33 real ADDs in one SSH session,
+groups16/16/1, final causal confirmation after131.687s from visit start; all33
+subsequently removed VERIFIED through whole-import cleanup and absent after
+restart. Original32,425 observations/main-v6 authority retained. See
+[measured deferred acceptance](manual/deferred-confirmation.md#measured-33-address-acceptance--2026-11-16).
+Awaited CLI/preflight work dominates this sample. Larger import-root scaling,
+remaining failure/multi-device acceptance and deliberate fresh-profile selection
+remain; this measurement neither changes the execution contract nor activates v7.
+
+Recovery follow-up0.18.1 (2026-11-16): offline epoch decisions now refuse active
+whole-import cleanup authority, including before queue delegation; read-only
+guidance links the task and distinguishes healthy work from an expired/held visit.
+Separate two-address deferred FPR acceptance covers cleanup requested during ADD,
+cancellation of the unstarted second ADD, pending handoff/causal read, verified
+removal/absence and no resurrection after restart. See current status for final
+validation/rollout; this does not activate persistent main v7 or prove bulk speed.
+
 Lab0.18.0 delivers the confirmed whole-import cleanup slice: exact current
 ownership, permanent retirement, original ADD settlement, bounded rolling verified
 REMOVE work, whole-task progress and cancellation. Default-off capability requires

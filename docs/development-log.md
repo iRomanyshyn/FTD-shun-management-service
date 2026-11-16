@@ -12787,3 +12787,100 @@ accepted tasks. Evidence`/tmp/ftd-import-unblocks-20261116`. No secret/trust/net
 change or GitHub release/tag. Reload old tabs. Wider cancellation/failure/scale
 acceptance and persistent deferred cutover remain separate; whole-managed cleanup
 is still later work.
+
+## 2026-11-16 — v0.18.1 recovery/cleanup coordination and deferred FPR acceptance
+
+Fixed a reproduced missing boundary: interrupted-v7 classification and shared
+offline recovery/reconciliation now refuse an ACTIVE whole-import cleanup root,
+even before child REMOVE jobs exist. Recovery guidance links up to20 active tasks
+for inspection/cancellation. Healthy live visits do not show that warning. Cancelling
+cleanup retains stopped maintenance and original uncertainty; only a separate fresh
+review may authorize recovery. Normal exact completion-proof handoff remains.
+No schema/wire/default/role/credential/trust/network change. See
+manual/interrupted-v7-recovery.md and manual/import-unblocking.md.
+
+Clean full Python4155 passed/four optional skips926.43s;116 Browser/Node passed
+230.04s; Rust112+9+4 passed/one ignored, Clippy warnings-denied/fmt pass. Final focused
+43 passed5.49s, earlier95 passed26.48s. New tests reproduce the old omission and
+cover expired/held original visits, direct reconciliation refusal, read-only linked
+HTML/report, explicit cancellation and no misleading warning for healthy work.
+Ruff/compileall/JS/diff and affected relative document links pass. Initial full run
+was interrupted after guidance refinement; only the clean final run is counted.
+Host Python3.15 tests and installed Python3.12 image preflights are distinct checks.
+No live authenticated-browser claim.
+
+Fresh isolated deferred DB/sockets/agent-private journal used only198.51.100.186–187.
+A private committed-ACK callback submitted real consent through the normal API,
+without replacing RPC/results/guards. Root327883dc-adf8-43d1-8334-37a6fb0b633a
+captured the first RUNNING ADD and cancelled the second before dispatch. One16.538s
+visit sent one ADD/pending END. Settlement17:58:05.458Z preceded full read
+17:58:05.561–17:58:15.111Z; first ADD became OBSERVED_PRESENT, never VERIFIED creation.
+Following29.472s visit checked the second target NOOP and removed the first VERIFIED.
+Task COMPLETE/two checked targets; restart/read retained absence/retirement, exactly
+four terminal jobs and all32425 original device keys. Both experimental executors
+exited0; separate DB/volumes/journal/consumed requests/evidence remain. Normal-path
+acceptance used imageedc4447b4cc4/sourcea811dc2d4f36 before the final healthy-state
+report refinement; final tests cover that refinement. No interruption/large-load/
+multi-device acceptance or persistent main-v7 activation is implied.
+
+Main original v6 restored; final API/Web-only patch delivered18:15:47Z:
+0.18.1/sourceac2ddaffc0be, image
+`sha256:3f95535bac3f5c856ea60bd492381b0b6e4eef229d2b0eb126565f166e11158b`.
+API4d668a7f0184/Webf0a4480bed93. Same original agent image/container/config restored;
+four other service IDs/images/start times unchanged. Effective Settings/private
+hashes/CA/Cymru and all29 authority hashes/audit prefix/jobs including26 reviewed
+unknowns/32425 observations/drafts/roots retained. Integrityok/read2026-11-16T18:16:13Z/
+errornone; final fence[[1, 5139, 'IDLE']]. Installed package/source/footer/50 templates/
+71 routes/cache/Web200/13 anonymous401/34 assets/TLS/spoofed-auth rejection and
+actual readonly recovery200/no cleanup warning pass. No main policy/control/
+recovery/cleanup request or fixture ADD/REMOVE was submitted. Main remainsv6/v7 off.
+Local rollback tags`ftd-shun-{api,web}:lab-pre-cleanup-guard-20261116`; evidence
+`/tmp/ftd-cleanup-v7-20261116`. No GitHub release/tag. README/versioning and deferred
+remaining-work descriptions corrected. Next measured larger deferred throughput/
+failure coverage and deliberate fresh-profile selection, not another converter.
+
+
+## 2026-11-16 — unchanged v0.18.1, 33-address deferred throughput acceptance
+
+Used a fresh explicitly initialized deferred-confirmation/whole-import-cleanup
+profile, separate DB/sockets/journal and the unchanged installed application/agent
+images. Original writers actually exited0 and their DB was IDLE before isolated
+execution; API and agent stop requests overlapped during the initial drain, so
+this is not evidence of strictly ordered stop requests. No uncertainty resulted.
+Only198.51.100.96–128 were in the announced fixture scope. A complete baseline
+read, not the earlier startup sample, proved all33 absent and32,425 original keys.
+
+Fresh actor-attributed import1da22a43-cd0c-4888-8ff7-34c729d5e837 used ordinary
+configured API/executor, no injected callbacks or manual refresh demand. One
+123.230s SSH visit staged33 ADDs in groups16/16/1. Intermediate32 VERIFIED; final1
+pending settlement18:36:21.766Z preceded causal read18:36:21.858–18:36:30.097Z and
+OBSERVED_PRESENT commit18:36:30.230Z. No repeated ADD or creation attribution for
+that final result. Visit start to confirmation131.687s (~15 IP/min); acceptance
+to confirmation190.792s includes59.105s normal freshness spacing. Awaited agent
+116.738s/local6.395s. Native CLI attribution:33 ADDs50.937s,33 target reads50.861s,
+three full reads10.758s, including transport/prompt waits. This identifies awaited
+CLI work, not firewall CPU time, as the dominant measured cost. No execution,
+preflight or verification contract was weakened.
+
+Fresh cleanup4fd8b7e2-f72e-4715-9ddf-c2152189d27b retired all33 rules and completed
+33 VERIFIED removals in one172.531s session. Clean restart/read18:41:06Z retained
+absence,66 terminal jobs/no new ADD/zero attention and baseline observation hash.
+Both experimental containers exited0; DB, private journal, labelled requests and
+logs retained. Evidence directory`/tmp/ftd-throughput-v7-20261116` records exact
+images/IDs and retained receipts; consumed fixture authority must not be reused.
+
+Same original API/Web/agent containers/images/settings restarted; main remains
+v6/API-Web0.18.1/sourceac2ddaffc0be, deferredoff. At18:43:20Z fresh read/errornone,
+epoch5143 IDLE/integrityok;29 authority hashes/original audit prefix/jobs including
+26 reviewed unknowns/32,425 observations/drafts/roots unchanged. Four unrelated
+services retain exact IDs/images/start times. Environment hashes/CA/secrets/trust/
+Cymru retained. Installed package/build/footer/50templates/71routes/cache/Web200/
+13anonymous401/34assets/TLS/spoofed-auth rejection pass. Initial host edge check
+lacked the repository import path; rerunning with PYTHONPATH=src passed. No main
+policy/control/recovery/cleanup request, source change/version bump or release/tag.
+
+Updated status, agent checkpoint, deferred manual and working plan. Existing clean
+v0.18.1 suite evidence remains historical; no new Python/Rust/browser suite or live
+authenticated-browser acceptance claimed. One device/33-target normal path against
+a large existing table does not prove100k import-root scaling, multi-device
+behavior or v6/v7 speedup. Those and deliberate fresh-profile cutover remain.

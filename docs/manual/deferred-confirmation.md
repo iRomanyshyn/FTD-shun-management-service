@@ -6,6 +6,59 @@ agent can explicitly select deferred confirmation on its separate prepared DB,
 using the configuration below. Setting only the wire version to7 still refuses.
 No current database, configuration or running service is switched automatically.
 
+## Measured 33-address acceptance — 2026-11-16
+
+Unchanged v0.18.1 artifacts passed a normal-path run on the desk FPR1010, with
+32,425 existing observations and a fresh separate deferred DB, sockets and agent
+completion journal. Only `198.51.100.96–198.51.100.128` were added. The ordinary
+configured API/executor performed the work, without injected callbacks, extra
+refresh hints or shortened scheduling intervals.
+
+All 33 ADDs used **one SSH session**, in groups of 16, 16 and 1. The intermediate
+32 results were VERIFIED; the final pending address became OBSERVED_PRESENT after
+a later complete read. That last result establishes presence, not service-created
+provenance. There were exactly 33 staged acknowledgements and no repeated ADD,
+unknown outcome or held visit.
+
+| Measured phase | Elapsed time |
+| --- | ---: |
+| Import acceptance to mutation visit start, including normal freshness spacing | 59.105 s |
+| Shared 33-ADD visit, ending with one pending address | 123.230 s |
+| Following confirmation-only visit, including its close | 14.540 s |
+| Mutation visit start to the last address's confirmation commit | 131.687 s |
+| Import acceptance to that confirmation commit | 190.792 s |
+| Separate whole-import cleanup visit, 33 verified removals | 172.531 s |
+
+The measured confirmation rate was about **15 IP/minute from mutation visit
+start**, or 10.4 IP/minute including the initial admission wait. These denominators
+differ: neither acknowledgement nor SSH session closure alone is confirmation.
+The pending visit settled at 18:36:21.766 UTC; its causal read ran from
+18:36:21.858 to 18:36:30.097 UTC and the last confirmation committed at
+18:36:30.230 UTC.
+
+During the ADD visit, awaited agent calls occupied 116.738 s and local work
+6.395 s. Agent CLI timing attributed 50.937 s to 33 ADDs, 50.861 s to 33 target
+preflight reads and 10.758 s to three full reads. These include transport and
+prompt waits; they do not measure isolated firewall CPU time. The bottleneck is
+awaited SSH/CLI work, rather than a new login for each address. Intermediate group
+verification and target preflights remain intact. Removing them would require a
+separate correctness/provenance design and acceptance.
+
+Fresh import `1da22a43-cd0c-4888-8ff7-34c729d5e837` was then cleaned by task
+`4fd8b7e2-f72e-4715-9ddf-c2152189d27b`: all 33 rules retired, all 33 removals
+VERIFIED, task COMPLETE. An API restart and new complete read retained absence,
+exactly 66 terminal jobs and the original observation-key hash. Both experimental
+executors exited cleanly; the original main v6 containers/images/settings were
+restored. Their 29 authority hashes and 26 historical reviewed unknowns stayed
+unchanged. Private evidence and consumed authority remain under
+`/tmp/ftd-throughput-v7-20261116` and its separate retained volumes.
+
+This is one-device, 33-target acceptance against a large existing table, not a
+100,000-target import, multi-device result or controlled v6/v7 speed comparison.
+Persistent fresh-profile cutover and remaining failure/scale acceptance are still
+separate work. Application source/version did not change; existing v0.18.1 suite
+results were not rerun or relabelled as new tests.
+
 ## Bounded lifecycle acceptance — 2026-11-16
 
 The existing0.15.2 application and guarded agent passed this matrix on the desk
@@ -623,37 +676,56 @@ using it in a fresh profile. No compatibility converter or current-lab extension
 is implied. Current lab stays v6. Configured composition is available above;
 deferred crash recovery and bounded fresh-store activation/acceptance remain unfinished.
 
+## Captured whole-import cleanup acceptance — 2026-11-16
+
+A separate fresh deferred profile imported only198.51.100.186–187 on the desk
+FPR1010. A private test callback submitted real whole-import cleanup consent after
+the first committed ADD ACK, without replacing RPC, result or guard behavior.
+Confirmation captured that RUNNING ADD, retired both rules and cancelled the
+second ADD before dispatch. The first SSH visit ended with one pending member.
+
+Actual settlement17:58:05.458Z preceded the complete read17:58:05.561–17:58:15.111Z.
+That member became OBSERVED_PRESENT, not VERIFIED creation. Cleanup checked the
+never-added second address as NOOP and removed the first with VERIFIED absence.
+The task completed with two checked targets; restart/full read kept both absent
+and retired, exactly four terminal jobs and all32425 original device keys.
+
+The private API/agent exited0; their separate DB/sockets/journal/consumed keys and
+receipts remain under`/tmp/ftd-cleanup-v7-20261116`. Original main v6 was restored.
+This is a two-address normal captured-cleanup path, not throughput acceptance or
+an interrupted-cleanup recovery claim. Final patch coverage separately checks
+refusal of active cleanup during offline recovery and healthy-state guidance.
+
 ## Remaining activation and recovery work
 
-Only the explicitly selected matching configured mode or internal fresh-profile
-handoff above may release its exact settled group; the transport value or
-standalone ledger never marks arbitrary jobs successful, releases old holds,
-reclassifies unknowns or authorizes another write. No live schema, gate/default,
-`.env`, inventory, trust, credential or service change follows merely from the
-source code. Without the new explicit capability, the configured agent and
-high-level API client still reject v7. The validated new Rust release binary
-has not replaced the running lab agent.
+The matching configured API/transport, explicit fresh-profile initializer,
+persistent agent completion journal and bounded interrupted-visit offline fallback
+are implemented. Separate FPR acceptance covers settled completion recovery across
+an agent restart, missing-proof classification/reconciliation, pre-checkpoint
+expiry audit, normal confirmation/restoration, independent pauses, protection and
+cancellation. Consult current Project Status for exact tested images and scopes.
+These are bounded cases, not acceptance of every interruption or uncertain REMOVE.
 
-The pending-end receipt does not solve durable first confirmation on its own.
-Next implementation steps, under the approved working-version behavior:
+Whole-import cleanup now supports captured RUNNING and already-awaiting ADD proof.
+Offline epoch recovery refuses an active cleanup task, including before its first
+REMOVE is queued. Recovery guidance links the task for inspection or explicit
+cancellation; cancelling never resolves unknown work. Exact completed-session
+handoff remains available. See [Import Unblocking](import-unblocking.md).
 
-1. Matching configured transport/API composition and explicit fresh-store CLI are
-   now implemented above. Keep old settings/defaults and the current lab intact
-   until the remaining recovery and acceptance scenarios below are complete.
-2. Complete crash/held-epoch deferred recovery without weakening unknown holds.
-   Bounded lost-terminal recovery is implemented above; it is not general crash
-   recovery. Initial
-   settled-pending consent and captured RUNNING-to-pending cleanup,
-   proved pre-write child replacement, ready cleanup and later confirmed-presence
-   restoration are implemented above, not yet enabled in the lab.
-3. The isolated normal ADD/causal-confirmation/retirement/removal/restart path
-   passed on the FPR above. Still validate disappearance/retry, protection,
-   cancellation, relevant failure/recovery paths and awaiting/confirmed/waiting
-   UI without false attention or freshness resets before persistent cutover.
+Before persistent lab cutover:
 
-Do not reset/reimport the current 32,425-pair task, renew expired delegation or
-reuse historical recovery keys to demonstrate the feature. These foundations are
-not a throughput improvement or a completed cross-session retry workflow.
+1. Finish combined deferred cleanup/failure acceptance and check real progress,
+   cancellation and refresh behavior. Keep unknown outcomes and original proof.
+2. Measure useful bulk throughput and verify device independence; a small fixture
+   does not establish100000-address or multi-device capacity.
+3. Select the fresh deferred database, matching API/agent configuration and private
+   completion journal deliberately. Keep original test authority/data archived;
+   no startup conversion or silent reset/reimport of the32425-pair task.
+
+The main lab still uses verifiedv6. Source flags, transport version, a successful
+preflight and a footer version alone do not switch it to deferredv7. A completion
+receipt only permits its exact handoff; it never grants VERIFIED creation, renews
+expired permission, releases unrelated holds or authorizes another command.
 
 ## Developer verification
 

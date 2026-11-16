@@ -94,12 +94,15 @@ def _scope(db, device_id, current):
     if type(device_id) is not int or not 1 <= device_id <= 65535:
         raise ValueError('Select one literal device ID.')
     PendingExecution._profile(db)
+    from .import_unblocks import require_no_active_cleanup
+
     fence = db.execute('SELECT * FROM managed_bulk_device_executors WHERE device_id=?', (device_id,)).fetchone()
     timestamp = stamp(current)
     if (fence is None or fence['state'] not in ('LEASED', 'ATTENTION')
             or not fence['lease_until'] < timestamp or fence['updated_at'] >= timestamp
             or (fence['state'] == 'ATTENTION' and fence['lease_until'] >= fence['updated_at'])):
         raise ValueError('An expired original v7 visit is required.')
+    require_no_active_cleanup(db)
     if (db.execute("SELECT 1 FROM managed_bulk_device_executors WHERE device_id!=? AND state!='IDLE'", (device_id,)).fetchone()
             or db.execute("SELECT 1 FROM operation_jobs WHERE state IN ('QUEUED','AWAITING_CONFIRMATION','RECONCILED_ABSENT')").fetchone()
             or db.execute("SELECT 1 FROM operation_jobs WHERE device_id!=? AND state IN ('RUNNING','UNVERIFIED') AND "

@@ -1,5 +1,23 @@
 # FTD Shun Management Service
 
+## Offline recovery and active import cleanup — 2026-11-16
+
+Exact offline epoch recovery/classification must refuse while a whole-import
+cleanup root remains ACTIVE, including when it has not delegated any REMOVE yet.
+Checking only shared queued jobs and older ordered roots misses this independent
+saved authority. Apply this exclusion to both verified recovery and interrupted-v7
+classification/reconciliation; a new review cannot release that fence while the
+cleanup still authorizes later work. Historical same-key receipts remain historical
+and grant no later release.
+
+Read-only recovery guidance links bounded active cleanup task references when a
+device is held. Users may inspect or explicitly cancel through the existing task
+workflow. Cancellation never resolves an uncertain command, resumes restoration
+or authorizes recovery; the ordinary separate fresh review remains required.
+Normal exact-completion-proof handoff and causal observation remain available;
+this change does not relax unknowns, create a recovery endpoint or alter schema,
+agent protocol, runtime defaults or automatic recovery authority.
+
 ## Confirmed whole-import cleanup — 2026-11-16
 
 This amendment implements the previously planned per-import cleanup. It supersedes

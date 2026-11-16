@@ -108,6 +108,16 @@ def pair_held(db, device, ip):
       (device, ip.packed)).fetchone() is not None
 
 
+class ActiveImportCleanup(ValueError):
+    """Saved cleanup authority prevents a separate offline recovery decision."""
+
+
+def require_no_active_cleanup(db):
+    """Offline epoch recovery cannot inherit a still-authorized cleanup task."""
+    if present(db) and db.execute("SELECT 1 FROM managed_import_unblocks WHERE state='ACTIVE' LIMIT 1").fetchone():
+        raise ActiveImportCleanup('Import cleanup is still active. Settle it or cancel its remaining removals before reviewing offline recovery. Cancellation does not resolve the interrupted command.')
+
+
 def claimed_cancelled_request(db):
     """SQL predicate for a real in-flight cleanup claim revoked after dispatch."""
     if not present(db):return '0'

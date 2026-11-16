@@ -3,6 +3,11 @@
 <h1>Check and resume import</h1>
 <p><a href="/">Back to Shuns</a> · <a href="/queue-recovery">Check current recovery status</a> · <a href="/queue-recovery?download=true">Download recovery report</a></p>
 <p>This inspection changes nothing and sends no Cisco commands. A timed-out write may have reached the device. Unverified results remain in history; they must not simply be retried or marked successful.</p>
+{% if report.import_cleanup_tasks | default([]) %}
+<section class="policy-warning" aria-labelledby="recovery-cleanup-heading"><h2 id="recovery-cleanup-heading">Import cleanup needs a decision</h2>
+<p>Offline recovery is unavailable while an import cleanup task is active. Open the task to inspect its progress or cancel remaining removals. Cancellation leaves restoration off and does not resolve the interrupted device command. Then check recovery status again.</p>
+<ul>{% for task in report.import_cleanup_tasks %}<li><a href="/import-unblocks/{{ task.id }}">{{ task.label }} — view cleanup</a></li>{% endfor %}</ul></section>
+{% endif %}
 <h2>Host-assisted recovery</h2>
 <p>The current recovery procedure requires API, Web and agent to stop cleanly. The Web service intentionally has no Docker or host-control access. Run the command below on the Docker host, from this repository with its Python environment active. This is <strong>not a one-click browser recovery</strong>.</p>
 <p>The helper stops the laboratory services, checks actual clean exits, rehearses recovery on a copy, creates a checked private backup and records a fresh decision for the exact held session. It retains original policy and unknown outcomes, then restarts the same services. The worker must obtain a fresh complete FTD read before continuing; only currently missing addresses may receive new attempts under current rules.</p>

@@ -49,3 +49,42 @@ def test_captured_add_needs_its_original_pending_read(ordered,bulk,leases,execut
     assert task['counts']=={'QUEUED':1}
     with service.store._connection() as db:
         assert db.execute("SELECT COUNT(*) FROM operation_jobs WHERE action='ADD'").fetchone()[0]==1
+
+
+@pytest.mark.parametrize('held',[False,True])
+def test_interrupted_recovery_does_not_ignore_active_import_cleanup(ordered,bulk,leases,execution,held):
+    from uuid import uuid4
+
+    from test_bulk_policy import dump
+
+    from ftd_shun_manager import device_reconciliation, pending_offline
+    from ftd_shun_manager.queue_recovery import report
+    from ftd_shun_manager.web import Identity, templates
+
+    service=ImportUnblocks(execution.store,execution.queue)
+    service.queue._now=lambda:bulk[1][0]
+    service.initialize(enabled=True)
+    imported=fixtures.grant(bulk,(1,))
+    fixtures.stage_device(leases,bulk)
+    root=accept(service,imported)
+    assert not report(service.store,now=bulk[1][0])['import_cleanup_tasks']
+    bulk[1][0]+=timedelta(seconds=901)
+    if held:
+        assert leases.claim(1,str(uuid4()),135,enabled=True) is None
+        bulk[1][0]+=timedelta(seconds=1)
+    before=dump(service.store)
+    with pytest.raises(ValueError,match='[Cc]leanup'):
+        pending_offline.inspect(service.store.path,1,now=bulk[1][0])
+    with pytest.raises(ValueError,match='[Cc]leanup' if held else 'ATTENTION'):
+        device_reconciliation.inspect(service.store.path,1,now=bulk[1][0],pending_v7=True)
+    guidance=report(service.store,now=bulk[1][0])
+    assert guidance['import_cleanup_tasks'][0]['id']==root['operation_id']
+    assert not guidance['devices'][0].get('pending_v7_phase') and not guidance['devices'][0]['eligible']
+    html=templates.get_template('queue-recovery.html').render(report=guidance,identity=Identity('alice','Alice',('Operator',)))
+    assert '/import-unblocks/'+root['operation_id'] in html
+    assert 'Cancellation leaves restoration off' in html
+    assert dump(service.store)==before
+    service.cancel(root['operation_id'],'alice','Alice',('Operator',))
+    reviewed=pending_offline.inspect(service.store.path,1,now=bulk[1][0])
+    assert reviewed['running_to_unknown']+reviewed['existing_unknown']==1 and not reviewed['releases_fence']
+    assert not report(service.store,now=bulk[1][0])['import_cleanup_tasks']

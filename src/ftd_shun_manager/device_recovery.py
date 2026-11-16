@@ -111,6 +111,8 @@ def _review(db, store, device_id, current, *, reconcile=False, extended_v6=False
         raise ValueError('Select a literal device ID.')
     if _state(db) is None:
         raise BulkUnavailable('An exact existing fenced profile is required.')
+    from .import_unblocks import require_no_active_cleanup
+
     tables = {row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
     if 'managed_bulk_device_executors' not in tables:
         raise BulkUnavailable('Fenced device storage is required.')
@@ -120,6 +122,7 @@ def _review(db, store, device_id, current, *, reconcile=False, extended_v6=False
     if (fence is None or fence['state'] != 'ATTENTION'
             or not fence['lease_until'] < fence['updated_at'] < stamp(current)):
         raise ValueError('An exact expired ATTENTION epoch is required.')
+    require_no_active_cleanup(db)
     classification_id = None
     if pending_v7:
         from .pending_offline import classification
