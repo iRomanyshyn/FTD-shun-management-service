@@ -36,6 +36,7 @@ def persist_result(store, write, *, phase):
         began = False
         try:
             db.execute('PRAGMA foreign_keys=ON')
+            db.execute('PRAGMA synchronous=FULL')
             # The initialized product already uses WAL; no mode/schema change.
             if db.execute('PRAGMA journal_mode').fetchone()[0] != 'wal':
                 raise ValueError('Result persistence requires existing WAL storage.')

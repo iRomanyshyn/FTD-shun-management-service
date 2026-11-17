@@ -39,7 +39,7 @@ not a runbook or permission to change gates, initialize schemas or run new fixtu
 | [Operation Queue](operation-queue.md) | Queued removal, progress/cancellation, limits, lease recovery, migration, backup restore, and rollback. |
 | [Check and Resume Import](queue-recovery.md) | Read-only recovery report and explicit trusted-host lab orchestration, preserving unknown outcomes without Web host privileges. |
 | [Execution Recovery](execution-recovery.md) | Automatic local scheduling-contention retry, visible retry/stopped states and evidence-based operator recovery without reimport. |
-| [Local Result Storage Retry](result-storage-retry.md) | Bounded grouped ACK/result persistence after proved SQLite rollback, without repeating device commands. |
+| [Local Result Storage Retry](result-storage-retry.md) | Shared SQLite durability/waiting policy, typed contention diagnostics and bounded grouped-result retries without repeating device commands. |
 | [SSH Session Idle Budget](ssh-session-idle.md) | Keep bounded shared visits alive during local persistence/root checks without extending CLI/session deadlines or replaying commands. |
 | [Offline Recovery](recovery.md) | Checked backup, durable mutation pause, composite queue/policy suspension and reviewed ordinary resume. |
 | [Verified Held-Session Recovery](verified-epoch-recovery.md) | Offline, backup/review-bound release of an exactly evidenced fully verified epoch; original hold/claims retained, no unknown-write replay. |

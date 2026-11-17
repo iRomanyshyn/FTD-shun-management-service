@@ -1,7 +1,6 @@
 """Configured fenced compositions on existing storage; never a migration."""
 
 import sqlite3
-from contextlib import closing, contextmanager
 
 from .agent_client import UnixAgentClient
 from .continuous_dispatch import ContinuousDispatcher
@@ -14,19 +13,11 @@ from .store import Store
 class ExistingRuntimeStore(Store):
     """Never create a database/directory, including a missing-file startup race."""
 
-    @contextmanager
-    def _connection(self):
-        with closing(sqlite3.connect(self.path.absolute().as_uri() + '?mode=rw', uri=True)) as db:
-            db.row_factory = sqlite3.Row
-            self.environment_protection.install(db)
-            db.execute('PRAGMA foreign_keys=ON')
-            db.execute('PRAGMA journal_mode=WAL')
-            try:
-                yield db
-                db.commit()
-            except Exception:
-                db.rollback()
-                raise
+    def _open_database(self, timeout):
+        # Inherit the same transaction/durability/diagnostic policy, but never
+        # mkdir or create a file if retained runtime storage disappears.
+        return sqlite3.connect(self.path.absolute().as_uri() + '?mode=rw',
+                               uri=True, timeout=timeout)
 
 
 def checked_inventory(store, path, expected=None):

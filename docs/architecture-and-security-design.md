@@ -7356,3 +7356,24 @@ maintenance. No schema, protocol, automatic DB conversion or deferred-v7 activat
 follows. UI ranges are advisory displays of the actual API policy. Actor-bound
 audit and committed structured logs support future deduplicated email/Teams
 notification delivery. See manual/environment-protection.md for exact semantics.
+
+## Amendment — shared SQLite connection policy, 2026-11-17
+
+Ordinary Store and existing-only configured runtimes share transaction setup,
+rollback/close and typed contention diagnostics. Ordinary opens retain their
+existing create behavior; configured runtime opens still use `mode=rw` without
+mkdir or file creation, including after a previously valid file disappears.
+Every ordinary connection explicitly keeps the existing five-second busy wait,
+foreign keys and FULL synchronization. WAL is checked each time, selected only
+when not already active, and a refused transition fails closed. No cached file
+identity or pooled connection grants execution permission.
+
+The narrow local-result writer explicitly keeps FULL and its existing two-second
+wait/three-attempt/seven-second retry-start boundary. NORMAL is not selected for
+authority/result commits: WAL consistency alone is insufficient if a power loss
+can lose acknowledged transactions. No general transaction or SSH retry follows.
+After rollback, typed BUSY/LOCKED Store failures log only fixed connection phase,
+numeric SQLite code and whole-scope elapsed time; errors still propagate normally.
+This adds no schema, authority, protocol, feature gate or runtime selection and
+does not assert lock-free operation or power-failure acceptance. Follow
+manual/result-storage-retry.md for the diagnostic and test limits.

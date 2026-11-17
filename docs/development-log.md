@@ -12884,3 +12884,60 @@ v0.18.1 suite evidence remains historical; no new Python/Rust/browser suite or l
 authenticated-browser acceptance claimed. One device/33-target normal path against
 a large existing table does not prove100k import-root scaling, multi-device
 behavior or v6/v7 speedup. Those and deliberate fresh-profile cutover remain.
+
+## 2026-11-17 — v0.18.2 review reconciliation and shared SQLite policy
+
+Reconciled the external review of commit1d04aa0/v0.14.1 with current source.
+Earlier missing-device templates/dev dependency/CI/environment/header fixes remain.
+Kept the operator's shared authenticated Protected-IP editing and explicit `.env`
+protection decisions; did not silently add role/group/MFA or trust changes.
+Recorded remaining dependency audits/lock/pins, audit export, supported-use-case
+documentation and protocol consolidation after tested fresh-v7 selection in the
+working plan. Current main still uses v6; old protocols were not blindly removed.
+
+Shared ordinary Store and ExistingRuntimeStore connection policy: explicit existing
+five-second busy wait, foreign keys, FULL synchronization and WAL query before
+any needed mode transition. ExistingRuntimeStore overrides only existing-file
+opening and still refuses absent parents/files, including disappearance after a
+successful read. Configuration failure or interruption closes/rolls back. Numeric
+BUSY/LOCKED diagnostics report fixed phase/code/whole-scope elapsed time without SQL,
+paths, pasted data or exception text. Errors propagate; no transaction body replay.
+The result writer also explicitly keeps FULL, retaining its separate two-second
+wait/three-attempt/seven-second window and all original permission/rollback checks.
+NORMAL was not selected because power-loss durability matters to execution evidence;
+see the linked primary SQLite reference in the manual. No schema/wire/gate change.
+
+Added 23 cases across ordinary/existing-only paths: actual concurrent writer and
+snapshot reads, waiting once/exhaustion/BUSY_SNAPSHOT, interruption, configuration
+failure cleanup, missing/replaced runtime path and independent result settings.
+Final focused129 passed30.83s; clean full4178 passed/four optional skips/one upstream
+TestClient deprecation warning in942.30s. Two earlier partial full runs were
+interrupted during refinement and are not passes. Ruff/compileall/diff/document
+links pass. Host Python3.15 and installed Python3.12 checks are distinct. No Rust/
+browser rerun: agent/frontend unchanged apart from package/footer identification.
+Disposable100k observations with one writer/four readers completed100 writes and
+40 pages without SQLite errors/integrity loss in25.152s including setup/host load.
+That sample neither eliminates all contention nor measures a large import or FPR.
+
+Candidate package/build/footer/50 templates/71 routes/actual v6 query-only preflight
+passed before rollout. Dependency versions match the original image. First clean
+drain hit a private readonly-volume inspector's missing WAL/SHM bookkeeping; old
+API/Web were immediately restored. Final inspector mounted only state writable for
+bookkeeping, with read-only URI/query_only SQL and no initialization/executor.
+Stable hashes matched; no profile guard was bypassed. An initial Web smoke used
+HTTPS on the plain HTTP UDS; only that harness was corrected. Public TLS was checked
+separately. Original partial logs remain in the private evidence directory.
+
+Final API/Web-only rollout10:58:45 UTC: version0.18.2/source46ae31258a29, image
+`sha256:f69b22fe397cd9aef0ff3cd61b46c0cc36308d1e770291647900e9110bb1f42b`.
+APIb35f5d20b341/Weba8f0fc935cd9. Five other service IDs/images/start times retained;
+environment hashes/mounts/scoped secrets/CA/Cymru/main-v6/deferredoff unchanged.
+All31 stable-table hashes/original audit prefix/jobs including26 reviewed unknowns/
+32425 observation keys retained. Integrityok, epoch5195 IDLE, read10:59:11Z/errornone.
+Actual API FULL/WAL/foreign keys/5000ms, live Web200/nine anonymous401/34 served assets/
+footer and public HTTPS/spoofed-auth rejection pass. No semantic/control/recovery/
+cleanup request or new fixture/device mutation acceptance. No DB archive restore,
+reset, orphan/volume cleanup or GitHub release/tag. Evidence`/tmp/ftd-review-20261117`,
+local rollback tags`ftd-shun-{api,web}:lab-pre-sqlite-20261117`. No general lock-free,
+power-failure or production acceptance claim. Fresh-profile v7 and remaining
+failure/scale acceptance stay separate from this review/connection refinement.

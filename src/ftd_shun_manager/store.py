@@ -10,10 +10,13 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from ipaddress import IPv4Address
 from pathlib import Path
+from time import monotonic
 from uuid import uuid4
 
 from .environment_protection import EnvironmentProtection
 from .event_visibility import INTERNAL_EVENTS, history_filter
+
+SQLITE_LOCK_WAIT_SECONDS = 5.0
 
 
 def now() -> str:
@@ -55,22 +58,47 @@ class Store:
         self.path = path
         self.environment_protection = EnvironmentProtection.from_environment()
 
+    def _open_database(self, timeout):
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        return sqlite3.connect(self.path, timeout=timeout)
+
     @contextmanager
     def _connection(self):
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        connection = sqlite3.connect(self.path)
-        connection.row_factory = sqlite3.Row
-        self.environment_protection.install(connection)
+        started = monotonic()
+        connection = None
+        phase = 'open'
         try:
+            # connect's timeout installs SQLite's busy_timeout on this connection.
+            connection = self._open_database(SQLITE_LOCK_WAIT_SECONDS)
+            connection.row_factory = sqlite3.Row
+            phase = 'configure'
+            self.environment_protection.install(connection)
             connection.execute("PRAGMA foreign_keys = ON")
-            connection.execute("PRAGMA journal_mode = WAL")
+            # Acknowledged claims/results must survive a power loss. NORMAL can
+            # lose recent committed WAL transactions; do not trade away durability.
+            connection.execute("PRAGMA synchronous = FULL")
+            if (connection.execute("PRAGMA journal_mode").fetchone()[0] != 'wal'
+                    and connection.execute("PRAGMA journal_mode = WAL").fetchone()[0] != 'wal'):
+                raise ValueError('The state database requires WAL storage.')
+            phase = 'transaction'
             yield connection
+            phase = 'commit'
             connection.commit()
-        except Exception:
-            connection.rollback()
+        except BaseException as error:
+            if connection is not None:
+                connection.rollback()
+            code = getattr(error, 'sqlite_errorcode', None)
+            if (isinstance(error, sqlite3.OperationalError) and type(code) is int
+                    and code & 255 in {sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED}):
+                # No SQL, path, pasted addresses or exception text in diagnostics.
+                # This reports a failed transaction; it never retries its body.
+                print(json.dumps({'event': 'store.sqlite_contention', 'phase': phase,
+                                  'sqlite_code': code,
+                                  'elapsed_seconds': round(monotonic() - started, 3)}), flush=True)
             raise
         finally:
-            connection.close()
+            if connection is not None:
+                connection.close()
 
     def initialize(self) -> None:
         with self._connection() as db:

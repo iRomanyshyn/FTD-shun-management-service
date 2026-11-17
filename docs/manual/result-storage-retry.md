@@ -1,5 +1,59 @@
 # Local Result Storage Retry
 
+## Core SQLite connection policy
+
+Source v0.18.2 makes the ordinary Store lock wait explicit at five seconds
+(`busy_timeout=5000`, installed by Python's `connect(timeout=5)`). This preserves
+the previous wait; it is not a larger timeout or a hard transaction deadline.
+Each connection enables foreign keys and `synchronous=FULL`. Existing WAL mode is
+queried, with a mode change requested only when needed; a refused WAL transition
+is an error. No process-wide cached assumption about the database file is used.
+Connections close even if configuration fails; exceptions and interruptions roll
+back the owning transaction without repeating its body.
+
+The configured continuous runtime shares this policy, but still opens existing
+files only (`mode=rw`), without creating a parent directory or replacement DB.
+That check happens on every open, including after an earlier successful read.
+
+The result writer below explicitly uses FULL too, retaining its separate two-second
+wait and existing three-attempt/seven-second retry bounds. FULL is deliberate:
+SQLite documents that NORMAL in WAL can lose recently committed transactions after
+power loss. Losing an acknowledged claim/result would undermine execution evidence.
+See [SQLite synchronous](https://www.sqlite.org/pragma.html#pragma_synchronous).
+This setting relies on the underlying filesystem/storage honoring synchronization;
+it is not a new power-failure acceptance result.
+
+Failed typed BUSY/LOCKED operations on the ordinary Store emit a JSON
+`store.sqlite_contention` diagnostic after rollback. Fields are `phase` (`open`,
+`configure`, `transaction` or `commit`), numeric `sqlite_code` (including extended
+codes) and `elapsed_seconds`. Elapsed time covers the connection's whole scope,
+not exclusively time waiting for a lock. No SQL, database path, address list or
+exception message is logged. The original exception propagates to its existing
+caller; this event never authorizes a retry, unknown-write replay or success.
+Result persistence and scheduler retry logs retain their own distinct meanings.
+
+Inspect API logs with `docker compose --env-file .env -f deploy/compose.yml logs
+--since=10m api` (include your usual overlays). Count these diagnostics alongside
+`queue.result_storage.retry`/`dispatcher.storage.retry`; a lack of failed-operation
+events does not measure successful lock waiting or prove contention is eliminated.
+WAL allows readers alongside a writer but still serializes writes. Connection
+pooling, writer scheduling and shorter large transactions remain separate work;
+this patch is not a 100k-import throughput claim or a general BUSY fix.
+
+A disposable 100,000-observation sample on 2026-11-17 ran four concurrent page
+readers (40 successful 100-row pages) and one writer (100 committed transactions)
+through ExistingRuntimeStore. It reported zero SQLite errors and integrity OK;
+25.152 s includes fixture creation and competing host test load. No old/new speed
+comparison, large-authority import transaction or device call is represented.
+
+Regression checks use real independent WAL connections: snapshot consistency
+while a writer commits, a waiting writer executing once, exhausted waits,
+BUSY_SNAPSHOT without replay, interrupted rollback, configuration-failure cleanup
+and the result writer's independent FULL/two-second settings. They do not send FTD
+commands. No schema, wire, execution profile or environment setting changes.
+
+## Scope of the existing result retry
+
 The grouped import worker can briefly retry **local SQLite persistence**, not
 FTD commands. This reduces unnecessary held imports when another local writer
 temporarily owns SQLite during ACK or per-target ADD-result storage. Source0.11.1

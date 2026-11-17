@@ -61,6 +61,30 @@ invent successful results, alter credentials/trust or silently erase the dataset
   require explicit quiescent initialization of the optional control profile;
   startup/GET must not add it. Old writers refuse this profile.
 
+## Current lab v0.18.2 — SQLite/review follow-up, 2026-11-17
+
+API/Web only updated 10:58:45 UTC, image f69b22fe397c/source46ae31258a29.
+Ordinary Store and ExistingRuntimeStore share FULL/foreign-key/WAL checking,
+five-second waiting and rollback/close/typed contention diagnostics. Existing-only
+runtime still opens mode=rw without mkdir/file creation; result SQL retries retain
+their separate FULL/two-second/three-attempt/seven-second bounds. No general SQL
+body or SSH retry, schema, wire, settings, role, trust or network change.
+Follow manual/result-storage-retry.md; review dispositions are in the working plan.
+
+Full Python 4178 pass/four skips/one dependency deprecation warning in942.30s;
+focused129 pass30.83s,23 new cases. Installed package/build/footer/50templates/
+71routes/current-v6 nonexecuting preflight/Web200/nine401/34assets/TLS pass.
+Synthetic100k observations:100 writes/40 pages/zero errors, not FPR throughput.
+31 stable-table hashes/audit prefix/jobs including26 reviewed unknowns/32425 keys
+retained; read10:59:11Z/errornone/integrityok/epoch5195 IDLE. Five other service
+identities/start times, environments/mounts/CA/Cymru unchanged. Main staysv6/v7 off.
+No semantic/control/recovery/cleanup submission, new FPR fixture or release/tag.
+Private evidence `/tmp/ftd-review-20261117`; rollback local API/Web tags
+`lab-pre-sqlite-20261117`. Initial readonly-volume inspector failed after drain;
+original services were restored before corrected query-only inspection/rollout.
+No new Rust/browser suite or general contention-elimination claim. Next tested
+fresh-v7 selection/scale/failure work and separate audit/dependency hardening.
+
 ## Latest acceptance checkpoint — v0.18.1 unchanged, 2026-11-16
 
 Fresh separate v7 profile accepted33 ADDs (198.51.100.96–128) in one123.230s SSH

@@ -56,6 +56,21 @@ For documentation-only changes, validate links and `git diff --check`; do not ru
 unrelated full code/browser/agent suites. Code, protocol and deployment changes
 still get the applicable regression checks below and in `AGENTS.md`.
 
+## SQLite connection and contention checks
+
+```bash
+python3 -m pytest -q tests/test_store_contention.py tests/test_configured_runtime.py tests/test_configured_managed.py tests/test_result_storage.py tests/test_pending_storage_retry.py
+```
+
+Use disposable databases and independent real SQLite connections. Exercise both
+ordinary Store and existing-only configured runtime paths: snapshot reads during
+a writer, bounded writer waiting, original extended BUSY errors without replay,
+rollback/close on interruption or configuration failure, and no creation when a
+runtime file disappears. Keep FULL synchronization and the independent ordinary
+five-second/result-writer two-second waits. These checks do not contact FTD.
+See [connection policy and diagnostics](result-storage-retry.md#core-sqlite-connection-policy).
+Run the full Python suite for changes to this shared connection boundary.
+
 ## Operator-facing wording
 
 Describe the action and its result before internal mechanisms. For example,

@@ -3,6 +3,31 @@
 Agreed with the operator: 2026-10-20.
 Status: approved target behavior and delivery plan; not a deployment procedure.
 
+## Review reconciliation — 2026-11-17
+
+The external review targets commit `1d04aa0` / v0.14.1, before the fixes and acceptance
+now recorded here. Treat these dispositions as current work, not as a claim that
+the older findings were invalid.
+
+| Review item | Current disposition |
+| --- | --- |
+| Missing `refresh.devices`, broken dev install | Fixed in v0.15.0; degraded-status regressions and dev DNS dependency retained. |
+| No CI | `.github/workflows/checks.yml` runs Python/lint and locked Rust fmt/Clippy/tests. Hosted results, dependency audits and suite sharding are not established by its presence. |
+| Non-removable special-address floor | Operator chose explicit `.env` ranges instead. API/agent enforcement and automatic unblocking are implemented; inventory/source addresses must be configured, not guessed. See manual/environment-protection.md. |
+| Protected-IP role restrictions/MFA | Deliberately differs: the operator admitted all signed-in users to policy editing. Keep real actor/CSRF/revision controls; no silent role, group or MFA deployment change. |
+| Common secret environment and missing browser headers | Fixed and deployed in v0.15.1; retain scoped environments and tested CSP/HTTPS policies. |
+| SQLite connections/contention | v0.18.2 makes five-second waiting/FULL durability explicit, avoids redundant WAL selection and logs typed contention; real writer/snapshot regressions added. No general contention-elimination claim. See manual/result-storage-retry.md. |
+| Unknown ADD inferred VERIFIED from later presence | Rejected as creation evidence: v7 separates OBSERVED_PRESENT from VERIFIED, requires causal reads and never replays old unknowns. Missing-proof recovery retains its original audit; new work needs current authority. |
+| Throughput/per-IP SSH login | Existing 33-target FPR acceptance uses one ADD session and measures about 15 confirmed IP/min from visit start; CLI/preflights dominate. No 100k throughput or controlled v6/v7 speedup claim. |
+| Remove versions 1–6 | Main still uses v6. Retire obsolete paths only after deliberate tested fresh-profile cutover; pre-release freedom does not permit breaking the active executor. |
+| Per-device credentials, prompt boundaries, distinct UIDs, Origin checks | Retained follow-up review items; they are not activated or declared defective solely by this report. Per-device credential support already exists. |
+| External audit export, Python lock/digest pins, dependency audits | Still release-hardening work; external log delivery is not implemented by retaining SQLite events. |
+| Documentation size and shun-versus-SI rationale | Current README is shorter; deeper consolidation and a concise supported-use-case/rationale note remain. Do not invent FMC/HA/reboot validation or firmware claims. |
+
+The current patch does not change authentication, trust, credentials, network
+access, wire versions or runtime selection. Preserve bounded failure/scale
+acceptance and the working product as the release priority.
+
 Measured v0.18.1 acceptance (2026-11-16): 33 real ADDs in one SSH session,
 groups16/16/1, final causal confirmation after131.687s from visit start; all33
 subsequently removed VERIFIED through whole-import cleanup and absent after

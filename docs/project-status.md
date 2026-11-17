@@ -1,5 +1,52 @@
 # Project Status
 
+## Current lab v0.18.2 — review reconciliation and SQLite policy, 2026-11-17
+
+The new external review covers `1d04aa0` / v0.14.1. The current disposition is recorded
+in working-version-plan.md: earlier template/dev-install/CI/environment/header
+fixes remain, operator-selected shared Protected-IP editing and explicit `.env`
+protection are intentional, and dependency/audit/protocol consolidation work is
+not silently declared complete.
+
+Store now shares transaction setup with ExistingRuntimeStore while
+retaining its existing-only `mode=rw` open, five-second lock wait, foreign keys,
+explicit FULL synchronization and no redundant WAL selection. Configuration
+failures/interruption close and roll back normally. Typed BUSY/LOCKED failures
+emit fixed-phase/code/elapsed diagnostics without SQL or private data and without
+transaction/SSH replay. The result writer keeps its separate FULL/two-second/
+three-attempt/seven-second bounds. See manual/result-storage-retry.md.
+
+Clean full Python: 4178 passed, four optional skips, one upstream TestClient
+deprecation warning in 942.30 s; final affected 129 passed in 30.83 s, including
+23 new connection-policy cases. Two earlier partial runs were interrupted during
+refinement; only the clean final run is counted. Ruff/compileall/diff and relative
+document links pass. Host tests use Python 3.15; installed Python 3.12 package/
+build/footer/50 templates/71 routes and actual current-v6 readonly preflight pass.
+A disposable 100k-observation sample completed 100 writes and 40 pages across
+one writer/four readers with zero SQLite errors; no FTD or comparative speed claim.
+
+API/Web-only rollout at 10:58:45 UTC: image
+`sha256:f69b22fe397cd9aef0ff3cd61b46c0cc36308d1e770291647900e9110bb1f42b`,
+source `46ae31258a29`, version 0.18.2; dependencies match the previous image.
+API `b35f5d20b341`, Web `a8f0fc935cd9`. Five unrelated service IDs/images/start
+times, environment hashes, mounts, scoped secrets, CA/Cymru and main v6/deferred-off
+selection remain. All 31 stable-table hashes, original audit prefix/jobs including
+26 reviewed unknowns and 32,425 observation keys retained. Integrity OK, executor
+5195 IDLE, fresh read 10:59:11 UTC / no error. Actual API FULL/WAL/foreign-key/
+5000ms policy, Web200/nine anonymous401/34 assets/footer and HTTPS/spoofed-auth
+rejection pass. No semantic/control/recovery/cleanup request or new fixture write.
+
+Initial post-drain readonly-volume inspector could not create WAL/SHM bookkeeping;
+original API/Web were restarted before retry. Final inspector mounted only state
+writable for SQLite bookkeeping with URI read-only/query_only SQL; hashes match.
+An initial Web smoke incorrectly attempted TLS on plain HTTP UDS; corrected only
+the private harness, while Caddy HTTPS was tested separately. Retain evidence
+`/tmp/ftd-review-20261117` and local rollback tags
+`ftd-shun-{api,web}:lab-pre-sqlite-20261117`; no archive restore/reset or orphan
+cleanup. No new Rust/browser/live-FPR mutation acceptance, general contention
+elimination or GitHub release/tag. Dependency audits/lock/pins, audit export and
+tested fresh-v7 cutover/obsolete-path consolidation remain separate work.
+
 ## Acceptance checkpoint — 33-address deferred throughput, 2026-11-16
 
 Existing v0.18.1/sourceac2ddaffc0be ran unchanged in a fresh separate v7 DB/socket/
